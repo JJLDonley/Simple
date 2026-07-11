@@ -757,6 +757,36 @@ struct TokenRef {
   uint32_t depth = 0;
 };
 
+struct SimpleLspParamFact {
+  std::string name;
+  std::string type;
+  bool immutable = false;
+  size_t token_index = 0;
+};
+
+struct SimpleLspFact {
+  enum class Kind {
+    Variable,
+    Parameter,
+    Function,
+    Module,
+    Namespace,
+    Artifact,
+    ArtifactField,
+    Enum,
+    EnumMember,
+  };
+
+  Kind kind = Kind::Variable;
+  std::string name;
+  std::string qualified_name;
+  std::string type;
+  std::string return_type;
+  std::vector<SimpleLspParamFact> params;
+  bool immutable = false;
+  size_t token_index = 0;
+};
+
 std::vector<TokenRef> LexTokenRefs(const std::string& text);
 std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
     const std::unordered_map<std::string, std::string>& open_docs);
@@ -1511,20 +1541,23 @@ bool ResolveFunctionSignatureInRefs(const std::vector<TokenRef>& refs,
       }
       if (depth != 1) continue;
       if (tk.kind != TK::Identifier) continue;
-      if (j + 1 >= refs.size() || refs[j + 1].token.kind != TK::Colon) continue;
+      if (j + 1 >= refs.size() ||
+          (refs[j + 1].token.kind != TK::Colon && refs[j + 1].token.kind != TK::DoubleColon)) continue;
       std::string param = tk.text;
       if (j + 2 < refs.size() && refs[j + 2].token.kind == TK::Identifier) {
-        param += " : " + refs[j + 2].token.text;
+        param += refs[j + 1].token.kind == TK::DoubleColon ? " :: " : " : ";
+        param += refs[j + 2].token.text;
       }
       params.push_back(std::move(param));
     }
-    std::string sig = name + "(";
+    std::string sig = name;
+    if (!return_type.empty()) sig += " : " + return_type;
+    sig += " (";
     for (size_t p = 0; p < params.size(); ++p) {
       if (p > 0) sig += ", ";
       sig += params[p];
     }
     sig += ")";
-    if (!return_type.empty()) sig += " -> " + return_type;
     *out = std::move(sig);
     return true;
   }
@@ -1562,10 +1595,12 @@ bool ResolveFunctionSignaturePartsInRefs(const std::vector<TokenRef>& refs,
       }
       if (depth != 1) continue;
       if (tk.kind != TK::Identifier) continue;
-      if (j + 1 >= refs.size() || refs[j + 1].token.kind != TK::Colon) continue;
+      if (j + 1 >= refs.size() ||
+          (refs[j + 1].token.kind != TK::Colon && refs[j + 1].token.kind != TK::DoubleColon)) continue;
       std::string param = tk.text;
       if (j + 2 < refs.size() && refs[j + 2].token.kind == TK::Identifier) {
-        param += " : " + refs[j + 2].token.text;
+        param += refs[j + 1].token.kind == TK::DoubleColon ? " :: " : " : ";
+        param += refs[j + 2].token.text;
       }
       out_params->push_back(std::move(param));
     }
@@ -1593,6 +1628,250 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
   return true;
 }
 
+std::string FormatSimpleFunctionFact(const SimpleLspFact& fact) {
+  std::string out = fact.qualified_name.empty() ? fact.name : fact.qualified_name;
+  if (!fact.return_type.empty()) out += " : " + fact.return_type;
+  out += " (";
+  for (size_t i = 0; i < fact.params.size(); ++i) {
+    if (i > 0) out += ", ";
+    out += fact.params[i].name;
+    if (!fact.params[i].type.empty()) {
+      out += fact.params[i].immutable ? " :: " : " : ";
+      out += fact.params[i].type;
+    }
+  }
+  out += ")";
+  return out;
+}
+
+std::string FormatSimpleLspFactHover(const SimpleLspFact& fact) {
+  switch (fact.kind) {
+    case SimpleLspFact::Kind::Variable:
+    case SimpleLspFact::Kind::Parameter:
+    case SimpleLspFact::Kind::ArtifactField:
+      return (fact.qualified_name.empty() ? fact.name : fact.qualified_name) +
+             (fact.immutable ? " :: " : " : ") + fact.type;
+    case SimpleLspFact::Kind::Function:
+      return FormatSimpleFunctionFact(fact);
+    case SimpleLspFact::Kind::Module:
+      return "module " + fact.qualified_name;
+    case SimpleLspFact::Kind::Namespace:
+      return fact.qualified_name + " :: namespace";
+    case SimpleLspFact::Kind::Artifact:
+      return fact.qualified_name + " :: artifact";
+    case SimpleLspFact::Kind::Enum:
+      return fact.qualified_name + " :: enum";
+    case SimpleLspFact::Kind::EnumMember:
+      return fact.qualified_name;
+  }
+  return fact.name;
+}
+
+std::string DottedIdentifierAtPosition(const std::string& text, uint32_t line, uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return {};
+  size_t pos = std::min<size_t>(character, line_text.size() ? line_text.size() - 1 : 0);
+  auto dotted_char = [](char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.';
+  };
+  if (!dotted_char(line_text[pos])) {
+    if (pos > 0 && dotted_char(line_text[pos - 1])) --pos;
+    else return {};
+  }
+  size_t begin = pos;
+  while (begin > 0 && dotted_char(line_text[begin - 1])) --begin;
+  size_t end = pos + 1;
+  while (end < line_text.size() && dotted_char(line_text[end])) ++end;
+  std::string name = line_text.substr(begin, end - begin);
+  while (!name.empty() && name.front() == '.') name.erase(name.begin());
+  while (!name.empty() && name.back() == '.') name.pop_back();
+  return name;
+}
+
+std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs) {
+  using TK = Simple::Lang::TokenKind;
+  std::vector<SimpleLspFact> facts;
+  std::unordered_set<size_t> parameter_indices;
+  auto push_type_decl = [&](size_t i, SimpleLspFact::Kind kind, const std::string& suffix) {
+    SimpleLspFact fact;
+    fact.kind = kind;
+    fact.name = refs[i].token.text;
+    fact.qualified_name = fact.name;
+    fact.type = suffix;
+    fact.immutable = true;
+    fact.token_index = i;
+    facts.push_back(std::move(fact));
+  };
+
+  for (size_t i = 0; i + 2 < refs.size(); ++i) {
+    if (refs[i].token.kind == TK::KwModule && refs[i + 1].token.kind == TK::Identifier) {
+      std::string module_name = refs[i + 1].token.text;
+      std::vector<size_t> part_indices = {i + 1};
+      size_t j = i + 2;
+      while (j + 1 < refs.size() && refs[j].token.kind == TK::Dot && refs[j + 1].token.kind == TK::Identifier) {
+        module_name += "." + refs[j + 1].token.text;
+        part_indices.push_back(j + 1);
+        j += 2;
+      }
+      for (const size_t part_index : part_indices) {
+        SimpleLspFact fact;
+        fact.kind = SimpleLspFact::Kind::Module;
+        fact.name = refs[part_index].token.text;
+        fact.qualified_name = module_name;
+        fact.token_index = part_index;
+        facts.push_back(std::move(fact));
+      }
+    }
+
+    if (refs[i].token.kind != TK::Identifier) continue;
+    if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwArtifact) {
+      push_type_decl(i, SimpleLspFact::Kind::Artifact, "artifact");
+    } else if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwEnum) {
+      push_type_decl(i, SimpleLspFact::Kind::Enum, "enum");
+    } else if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwNamespace) {
+      push_type_decl(i, SimpleLspFact::Kind::Namespace, "namespace");
+    }
+  }
+
+  for (size_t i = 0; i + 3 < refs.size(); ++i) {
+    if (!IsFunctionDeclNameAt(refs, i)) continue;
+    SimpleLspFact fact;
+    fact.kind = SimpleLspFact::Kind::Function;
+    fact.name = refs[i].token.text;
+    fact.qualified_name = fact.name;
+    fact.return_type = refs[i + 2].token.text;
+    fact.token_index = i;
+    int depth = 1;
+    for (size_t j = i + 4; j < refs.size() && depth > 0; ++j) {
+      if (refs[j].token.kind == TK::LParen) { ++depth; continue; }
+      if (refs[j].token.kind == TK::RParen) { --depth; continue; }
+      if (depth != 1 || refs[j].token.kind != TK::Identifier) continue;
+      if (j + 2 >= refs.size()) continue;
+      if (refs[j + 1].token.kind != TK::Colon && refs[j + 1].token.kind != TK::DoubleColon) continue;
+      if (refs[j + 2].token.kind != TK::Identifier) continue;
+      SimpleLspParamFact param;
+      param.name = refs[j].token.text;
+      param.type = refs[j + 2].token.text;
+      param.immutable = refs[j + 1].token.kind == TK::DoubleColon;
+      param.token_index = j;
+      fact.params.push_back(param);
+      parameter_indices.insert(j);
+      SimpleLspFact param_fact;
+      param_fact.kind = SimpleLspFact::Kind::Parameter;
+      param_fact.name = param.name;
+      param_fact.qualified_name = param.name;
+      param_fact.type = param.type;
+      param_fact.immutable = param.immutable;
+      param_fact.token_index = j;
+      facts.push_back(std::move(param_fact));
+    }
+    facts.push_back(std::move(fact));
+  }
+
+  std::string current_artifact;
+  bool in_artifact = false;
+  uint32_t artifact_depth = 0;
+  std::string current_enum;
+  bool in_enum = false;
+  uint32_t enum_depth = 0;
+  for (size_t i = 0; i < refs.size(); ++i) {
+    const auto& ref = refs[i];
+    if (!in_artifact && i + 2 < refs.size() && ref.token.kind == TK::Identifier &&
+        refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwArtifact) {
+      current_artifact = ref.token.text;
+      continue;
+    }
+    if (!current_artifact.empty() && !in_artifact && ref.token.kind == TK::LBrace) {
+      in_artifact = true;
+      artifact_depth = ref.depth + 1;
+      continue;
+    }
+    if (in_artifact && ref.token.kind == TK::RBrace && ref.depth == artifact_depth) {
+      in_artifact = false;
+      current_artifact.clear();
+      continue;
+    }
+    if (in_artifact && ref.depth == artifact_depth && ref.token.kind == TK::Identifier &&
+        i + 2 < refs.size() && refs[i + 1].token.kind == TK::Colon && refs[i + 2].token.kind == TK::Identifier) {
+      SimpleLspFact fact;
+      fact.kind = SimpleLspFact::Kind::ArtifactField;
+      fact.name = ref.token.text;
+      fact.qualified_name = ref.token.text;
+      fact.type = refs[i + 2].token.text;
+      fact.token_index = i;
+      facts.push_back(std::move(fact));
+    }
+
+    if (!in_enum && i + 2 < refs.size() && ref.token.kind == TK::Identifier &&
+        refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwEnum) {
+      current_enum = ref.token.text;
+      continue;
+    }
+    if (!current_enum.empty() && !in_enum && ref.token.kind == TK::LBrace) {
+      in_enum = true;
+      enum_depth = ref.depth + 1;
+      continue;
+    }
+    if (in_enum && ref.token.kind == TK::RBrace && ref.depth == enum_depth) {
+      in_enum = false;
+      current_enum.clear();
+      continue;
+    }
+    if (in_enum && ref.depth == enum_depth && ref.token.kind == TK::Identifier) {
+      SimpleLspFact fact;
+      fact.kind = SimpleLspFact::Kind::EnumMember;
+      fact.name = ref.token.text;
+      fact.qualified_name = current_enum + "." + ref.token.text;
+      fact.token_index = i;
+      facts.push_back(std::move(fact));
+    }
+  }
+
+  for (size_t i = 0; i + 2 < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::Identifier) continue;
+    if (parameter_indices.find(i) != parameter_indices.end()) continue;
+    if (IsFunctionDeclNameAt(refs, i)) continue;
+    if (refs[i + 1].token.kind != TK::Colon && refs[i + 1].token.kind != TK::DoubleColon) continue;
+    if (refs[i + 2].token.kind != TK::Identifier) continue;
+    if (i + 3 < refs.size() && refs[i + 3].token.kind == TK::LParen) continue;
+    SimpleLspFact fact;
+    fact.kind = SimpleLspFact::Kind::Variable;
+    fact.name = refs[i].token.text;
+    fact.qualified_name = fact.name;
+    fact.type = refs[i + 2].token.text;
+    fact.immutable = refs[i + 1].token.kind == TK::DoubleColon;
+    fact.token_index = i;
+    facts.push_back(std::move(fact));
+  }
+  return facts;
+}
+
+const SimpleLspFact* FindFactAtTokenIndex(const std::vector<SimpleLspFact>& facts, size_t token_index) {
+  for (const auto& fact : facts) {
+    if (fact.token_index == token_index) return &fact;
+  }
+  return nullptr;
+}
+
+bool HoverTextForImportContext(const std::string& text,
+                               uint32_t line,
+                               uint32_t character,
+                               std::string* out_hover) {
+  if (!out_hover) return false;
+  const std::string raw_line = GetLineText(text, line);
+  std::string import_path;
+  std::string alias;
+  if (!ParseImportDeclLine(raw_line, &import_path, &alias)) return false;
+  const std::string name = DottedIdentifierAtPosition(text, line, character);
+  if (name.empty()) return false;
+  if (name == alias || name == import_path || import_path.rfind(name + ".", 0) == 0 ||
+      (name.size() < import_path.size() && import_path.compare(import_path.size() - name.size(), name.size(), name) == 0)) {
+    *out_hover = alias == import_path ? ("import " + import_path) : ("import " + import_path + " as " + alias);
+    return true;
+  }
+  return false;
+}
+
 bool IsProtectedReservedMemberToken(const std::vector<TokenRef>& refs,
                                     size_t index,
                                     const std::string& text) {
@@ -1618,6 +1897,14 @@ void ReplyHover(std::ostream& out,
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
     return;
   }
+  std::string import_hover;
+  if (HoverTextForImportContext(it->second, line, character, &import_hover)) {
+    WriteLspMessage(out,
+                    "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+                        ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
+                        JsonEscape(import_hover) + "`\"}}}");
+    return;
+  }
   const std::string ident = IdentifierAtPosition(it->second, line, character);
   if (ident.empty()) {
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
@@ -1626,6 +1913,18 @@ void ReplyHover(std::ostream& out,
   std::string hover_text = ident;
   const auto refs = LexTokenRefs(it->second);
   const TokenRef* target = FindIdentifierAt(refs, line, character);
+  const auto facts = BuildSimpleLspFacts(refs);
+  if (target) {
+    if (const SimpleLspFact* exact_fact = FindFactAtTokenIndex(facts, target->index)) {
+      hover_text = FormatSimpleLspFactHover(*exact_fact);
+      WriteLspMessage(
+          out,
+          "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+              ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
+              JsonEscape(hover_text) + "`\"}}}");
+      return;
+    }
+  }
   auto resolve_signature = [&](const std::string& text,
                                const std::string& name,
                                std::string* out_sig) -> bool {
@@ -1690,8 +1989,9 @@ void ReplyHover(std::ostream& out,
         if (!params.empty()) params += ", ";
         params += reserved_sig.params[i];
       }
-      hover_text = call_name + "(" + params + ")";
-      if (!reserved_sig.return_type.empty()) hover_text += " -> " + reserved_sig.return_type;
+      hover_text = call_name;
+      if (!reserved_sig.return_type.empty()) hover_text += " : " + reserved_sig.return_type;
+      hover_text += " (" + params + ")";
     }
   }
   }

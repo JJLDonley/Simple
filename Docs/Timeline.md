@@ -861,6 +861,15 @@ Current Simple LSP already has diagnostics, hover, completion, signature help, d
 declaration, references, document highlights, rename/prepare-rename, code actions, document
 symbols, workspace symbols, and semantic tokens.
 
+Correctness-first LSP basics before new capability work:
+
+- [x] Hover uses canonical Simple syntax for mutable/immutable variables, parameters, function signatures, module/import declarations, artifacts, artifact fields, enums, and enum members.
+- [x] Hover regression covers duplicate function/immutable variable names without inventing mutable information.
+- [ ] Semantic tokens distinguish mutable/immutable declarations, parameters, functions, namespaces/modules, artifacts, artifact fields, enums, and enum members with exact token types/modifiers.
+- [ ] Inlay hints use only valid Simple syntax and never invent unknown parameter/type facts.
+- [ ] Signature help uses canonical Simple function syntax for Simple and reserved/native functions.
+- [ ] Namespace/member functions use canonical qualified names in hover, signature help, semantic tokens, and inlay hints.
+
 Next Simple-specific LSP capabilities:
 
 - [x] Full and range formatting backed by a Simple indentation formatter for `.simple` source.
