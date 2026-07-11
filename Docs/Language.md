@@ -925,7 +925,7 @@ import "raylib"
 import "raylib" as Ray
 import Standard.IO
 import Standard.FS as FileSystem
-import System.io
+import System.IO
 ```
 
 `using` imports members into unqualified call scope:
@@ -950,9 +950,9 @@ CLI import resolution handles project-root imports, relative imports, module-map
 ```txt
 Math IO Time File DL OS FS Log Buffer Json Channel
 Env Path Random Thread
-System.math System.io System.time System.fs System.dl System.os
-System.env System.path System.random System.thread System.channel
-System.buffer System.json System.log
+System.math System.IO System.time System.FS System.FFI System.OS
+System.Env System.Path System.Random System.Thread System.Channel
+System.Buffer System.Json System.Log
 ```
 
 The standard library is part of the language-facing runtime surface. Reserved imports map onto native-backed runtime modules; no implicit ABI coercion is performed. If a module/member is not listed here or covered by tests, treat it as unsupported.
@@ -962,19 +962,19 @@ The standard library is part of the language-facing runtime surface. Reserved im
 | Import | Runtime namespace |
 |---|---|
 | `Math` / `System.math` | `System.math` |
-| `IO` / `System.io` | `System.io` |
+| `IO` / `System.IO` | `System.IO` |
 | `Time` / `System.time` | `System.time` |
-| `File` / `FS` / `System.fs` | `System.fs` |
-| `DL` / `System.dl` | `System.dl` |
-| `OS` / `System.os` | `System.os` |
-| `Env` / `System.env` | `System.env` |
-| `Path` / `System.path` | `System.path` |
-| `Random` / `System.random` | `System.random` |
-| `Thread` / `System.thread` | `System.thread` |
-| `Log` / `System.log` | `System.log` |
-| `Buffer` / `System.buffer` | `System.buffer` |
-| `Json` / `System.json` | `System.json` |
-| `Channel` / `System.channel` | `System.channel` |
+| `File` / `FS` / `System.FS` | `System.FS` |
+| `DL` / `System.FFI` | `System.FFI` |
+| `OS` / `System.OS` | `System.OS` |
+| `Env` / `System.Env` | `System.Env` |
+| `Path` / `System.Path` | `System.Path` |
+| `Random` / `System.Random` | `System.Random` |
+| `Thread` / `System.Thread` | `System.Thread` |
+| `Log` / `System.Log` | `System.Log` |
+| `Buffer` / `System.Buffer` | `System.Buffer` |
+| `Json` / `System.Json` | `System.Json` |
+| `Channel` / `System.Channel` | `System.Channel` |
 
 ### Core modules
 
@@ -1040,7 +1040,7 @@ extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
 Extern names may be module-qualified. Calls are checked for argument count and type compatibility.
 
-Dynamic-library usage is exposed through `DL` / `System.dl` runtime APIs. Example shape from fixtures:
+Dynamic-library usage is exposed through `DL` / `System.FFI` runtime APIs. Example shape from fixtures:
 
 ```simple
 import System.FFI

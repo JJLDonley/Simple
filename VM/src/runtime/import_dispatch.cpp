@@ -42,6 +42,13 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
     out_error = "import name invalid";
     return false;
   }
+  if (mod == "System.io" || mod == "System.fs" || mod == "System.path" ||
+      mod == "System.env" || mod == "System.os" || mod == "System.dl" ||
+      mod == "System.buffer" || mod == "System.json" || mod == "System.log" ||
+      mod == "System.random" || mod == "System.thread" || mod == "System.channel") {
+    out_error = "stale lowercase native module name: " + mod;
+    return false;
+  }
   if (func_id >= module.functions.size()) {
     out_error = "import function id invalid";
     return false;
@@ -98,33 +105,33 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                                                  &out_error)) {
     return out_error.empty();
   }
-  if (mod == "System.dl") {
+  if (mod == "System.FFI") {
     if (sym.rfind("call$", 0) == 0) {
       if (sig.param_count == 0) {
-        out_error = "System.dl.call signature missing function pointer";
+        out_error = "System.FFI.call signature missing function pointer";
         return false;
       }
       if (args.size() != sig.param_count) {
-        out_error = "System.dl.call arg count mismatch";
+        out_error = "System.FFI.call arg count mismatch";
         return false;
       }
       uint32_t ptr_type_id = module.param_types[sig.param_type_start];
       if (ptr_type_id >= module.types.size()) {
-        out_error = "System.dl.call pointer type out of range";
+        out_error = "System.FFI.call pointer type out of range";
         return false;
       }
       TypeKind ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
       if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-        out_error = "System.dl.call first parameter must be i64/u64";
+        out_error = "System.FFI.call first parameter must be i64/u64";
         return false;
       }
       int64_t ptr_bits = UnpackI64(args[0]);
       if (ptr_bits == 0) {
         if (dl_last_error.empty()) {
-          dl_last_error = "System.dl.call null ptr";
-          out_error = "System.dl.call null ptr";
+          dl_last_error = "System.FFI.call null ptr";
+          out_error = "System.FFI.call null ptr";
         } else {
-          out_error = "System.dl.call null ptr: " + dl_last_error;
+          out_error = "System.FFI.call null ptr: " + dl_last_error;
         }
         return false;
       }
@@ -133,7 +140,7 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
       for (uint16_t i = 1; i < sig.param_count; ++i) {
         uint32_t type_id = module.param_types[sig.param_type_start + i];
         if (type_id >= module.types.size()) {
-          out_error = "System.dl.call parameter type out of range";
+          out_error = "System.FFI.call parameter type out of range";
           return false;
         }
         arg_type_ids.push_back(type_id);

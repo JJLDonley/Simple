@@ -27,7 +27,7 @@ bool VmRuntimeDispatchesRegisteredNativesByMetadataFirst() {
   const std::string native_source_text((std::istreambuf_iterator<char>(native_source)), std::istreambuf_iterator<char>());
   const std::string import_source_text((std::istreambuf_iterator<char>(import_source)), std::istreambuf_iterator<char>());
   const size_t dispatch = import_source_text.find("Simple::VM::Native::DispatchMetadataImport(native_registry");
-  const size_t dl_call = import_source_text.find("if (mod == \"System.dl\")");
+  const size_t dl_call = import_source_text.find("if (mod == \"System.FFI\")");
   return dispatch != std::string::npos && dl_call != std::string::npos && dispatch < dl_call &&
          native_header_text.find("struct MetadataDispatchContext") != std::string::npos &&
          native_source_text.find("bool DispatchMetadataImport(") != std::string::npos &&
@@ -58,12 +58,12 @@ bool VmRuntimeHasNoNativeStdlibForwardingGlue() {
   if (!in) return false;
   const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   const char* forbidden[] = {
-      "if (mod == \"System.os\")",
-      "if (mod == \"System.fs\")",
-      "if (mod == \"System.channel\")",
-      "if (mod == \"System.json\")",
-      "if (mod == \"System.buffer\")",
-      "if (mod == \"System.log\")",
+      "if (mod == \"System.OS\")",
+      "if (mod == \"System.FS\")",
+      "if (mod == \"System.Channel\")",
+      "if (mod == \"System.Json\")",
+      "if (mod == \"System.Buffer\")",
+      "if (mod == \"System.Log\")",
   };
   for (const char* item : forbidden) {
     if (text.find(item) != std::string::npos) return false;
@@ -259,29 +259,29 @@ bool HasCapability(const Simple::VM::Native::NativeFunctionSpec* spec, const std
 
 bool VmNativeFunctionMetadataDeclaresCapabilities() {
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
-  return HasCapability(registry.Find("System.env", "get"), "environment.read") &&
-         HasCapability(registry.Find("System.env", "set"), "environment.write") &&
-         HasCapability(registry.Find("System.env", "unset"), "environment.write") &&
-         HasCapability(registry.Find("System.env", "argsCount"), "process.args") &&
-         HasCapability(registry.Find("System.os", "time_mono_ns"), "clock.time") &&
-         HasCapability(registry.Find("System.fs", "copy"), "filesystem.read") &&
-         HasCapability(registry.Find("System.fs", "copy"), "filesystem.write") &&
-         HasCapability(registry.Find("System.fs", "remove"), "filesystem.write") &&
-         HasCapability(registry.Find("System.path", "exists"), "filesystem.read") &&
-         HasCapability(registry.Find("System.os", "sleepMs"), "threading") &&
-         HasCapability(registry.Find("System.thread", "yield"), "threading") &&
-         HasCapability(registry.Find("System.random", "i32"), "randomness");
+  return HasCapability(registry.Find("System.Env", "get"), "environment.read") &&
+         HasCapability(registry.Find("System.Env", "set"), "environment.write") &&
+         HasCapability(registry.Find("System.Env", "unset"), "environment.write") &&
+         HasCapability(registry.Find("System.Env", "argsCount"), "process.args") &&
+         HasCapability(registry.Find("System.OS", "time_mono_ns"), "clock.time") &&
+         HasCapability(registry.Find("System.FS", "copy"), "filesystem.read") &&
+         HasCapability(registry.Find("System.FS", "copy"), "filesystem.write") &&
+         HasCapability(registry.Find("System.FS", "remove"), "filesystem.write") &&
+         HasCapability(registry.Find("System.Path", "exists"), "filesystem.read") &&
+         HasCapability(registry.Find("System.OS", "sleepMs"), "threading") &&
+         HasCapability(registry.Find("System.Thread", "yield"), "threading") &&
+         HasCapability(registry.Find("System.Random", "i32"), "randomness");
 }
 
 bool VmNativeFunctionMetadataDeclaresStability() {
   using Simple::VM::Native::NativeStability;
 
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
-  const auto* dl_open = registry.Find("System.dl", "open");
-  const auto* dl_sym = registry.Find("System.dl", "sym");
-  const auto* dl_close = registry.Find("System.dl", "close");
-  const auto* os_platform = registry.Find("System.os", "platform");
-  const auto* os_arch = registry.Find("System.os", "arch");
+  const auto* dl_open = registry.Find("System.FFI", "open");
+  const auto* dl_sym = registry.Find("System.FFI", "sym");
+  const auto* dl_close = registry.Find("System.FFI", "close");
+  const auto* os_platform = registry.Find("System.OS", "platform");
+  const auto* os_arch = registry.Find("System.OS", "arch");
   return dl_open && dl_open->stability == NativeStability::Unsafe &&
          dl_sym && dl_sym->stability == NativeStability::Unsafe &&
          dl_close && dl_close->stability == NativeStability::Unsafe &&
@@ -299,11 +299,11 @@ bool VmNativeFunctionMetadataDeclaresResources() {
   using Simple::VM::Native::NativeResourceKind;
 
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
-  const auto* fs_open = registry.Find("System.fs", "open");
-  const auto* fs_read = registry.Find("System.fs", "read");
-  const auto* fs_close = registry.Find("System.fs", "close");
-  const auto* dl_open = registry.Find("System.dl", "open");
-  const auto* dl_sym = registry.Find("System.dl", "sym");
+  const auto* fs_open = registry.Find("System.FS", "open");
+  const auto* fs_read = registry.Find("System.FS", "read");
+  const auto* fs_close = registry.Find("System.FS", "close");
+  const auto* dl_open = registry.Find("System.FFI", "open");
+  const auto* dl_sym = registry.Find("System.FFI", "sym");
   if (!fs_open || !fs_read || !fs_close || !dl_open || !dl_sym) return false;
   if (fs_open->resources.size() != 1 ||
       fs_open->resources[0].kind != NativeResourceKind::File ||
@@ -489,7 +489,7 @@ bool VmNativeDispatchEnforcesCapabilities() {
   bool has_ret = true;
   std::string error;
   bool handled = Simple::VM::Native::DispatchMetadataImport(
-      registry, "System.fs", "readText", {path_ref}, Simple::Byte::TypeKind::String,
+      registry, "System.FS", "readText", {path_ref}, Simple::Byte::TypeKind::String,
       context, &ret, &has_ret, &error);
   if (!handled || error.find("denied capability: filesystem.read") == std::string::npos) {
     return false;
@@ -498,13 +498,13 @@ bool VmNativeDispatchEnforcesCapabilities() {
   policy.allowed_tags.push_back("filesystem.read");
   error.clear();
   handled = Simple::VM::Native::DispatchMetadataImport(
-      registry, "System.fs", "readText", {path_ref}, Simple::Byte::TypeKind::String,
+      registry, "System.FS", "readText", {path_ref}, Simple::Byte::TypeKind::String,
       context, &ret, &has_ret, &error);
   if (!handled || !error.empty()) return false;
 
   error.clear();
   handled = Simple::VM::Native::DispatchMetadataImport(
-      registry, "System.fs", "copy", {path_ref, path_ref}, Simple::Byte::TypeKind::I32,
+      registry, "System.FS", "copy", {path_ref, path_ref}, Simple::Byte::TypeKind::I32,
       context, &ret, &has_ret, &error);
   return handled && error.find("denied capability: filesystem.write") != std::string::npos;
 }
@@ -534,7 +534,7 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
   uint64_t ret = 0;
   bool has_ret = false;
   std::string error;
-  bool handled = DispatchMetadataImport(registry, "System.fs", "open", {path_ref, 1},
+  bool handled = DispatchMetadataImport(registry, "System.FS", "open", {path_ref, 1},
                                         Simple::Byte::TypeKind::I32, context, &ret, &has_ret, &error);
   if (!handled || !error.empty() || !has_ret || static_cast<int32_t>(ret) != 0 ||
       resources.LiveCount() != 1 || file_handles.size() != 1) {
@@ -542,7 +542,7 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
     return false;
   }
 
-  handled = DispatchMetadataImport(registry, "System.fs", "close", {0},
+  handled = DispatchMetadataImport(registry, "System.FS", "close", {0},
                                    Simple::Byte::TypeKind::Unspecified, context, &ret, &has_ret, &error);
   const bool ok = handled && error.empty() && resources.LiveCount() == 0;
   std::filesystem::remove(path);

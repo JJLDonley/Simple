@@ -112,7 +112,7 @@ Slot PackF64(double value) {
 
 NativeCallResult RandomSeed(NativeCallContext& context) {
   int64_t seed = 0;
-  if (!context.ArgI64(0, &seed)) return NativeCallResult::Error("System.random.seed missing seed");
+  if (!context.ArgI64(0, &seed)) return NativeCallResult::Error("System.Random.seed missing seed");
   Random::Seed(static_cast<uint64_t>(seed));
   return NativeCallResult::Void();
 }
@@ -140,7 +140,7 @@ NativeCallResult RandomRange(NativeCallContext& context) {
   int32_t min_value = 0;
   int32_t max_value = 0;
   if (!context.ArgI32(0, &min_value) || !context.ArgI32(1, &max_value)) {
-    return NativeCallResult::Error("System.random.range missing bounds");
+    return NativeCallResult::Error("System.Random.range missing bounds");
   }
   return NativeCallResult::I32(Random::Range(min_value, max_value));
 }
@@ -219,26 +219,26 @@ NativeCallResult OsPageSize(NativeCallContext&) {
 
 NativeCallResult OsExit(NativeCallContext& context) {
   int32_t code = 0;
-  if (!context.ArgI32(0, &code)) return NativeCallResult::Error("System.os.exit missing code");
+  if (!context.ArgI32(0, &code)) return NativeCallResult::Error("System.OS.exit missing code");
   std::exit(code);
 }
 
 NativeCallResult OsFormatWallNs(NativeCallContext& context) {
   int64_t ns = 0;
-  if (!context.ArgI64(0, &ns)) return NativeCallResult::Error("System.os.formatWallNs missing timestamp");
+  if (!context.ArgI64(0, &ns)) return NativeCallResult::Error("System.OS.formatWallNs missing timestamp");
   return NativeCallResult::String(Time::FormatWallNsUtc(ns));
 }
 
 NativeCallResult OsSleepMs(NativeCallContext& context) {
   int32_t ms = 0;
-  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.os.sleepMs missing duration");
+  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.OS.sleepMs missing duration");
   Thread::SleepMs(ms);
   return NativeCallResult::Void();
 }
 
 NativeCallResult ThreadSleep(NativeCallContext& context) {
   int32_t ms = 0;
-  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.thread.sleep missing duration");
+  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.Thread.sleep missing duration");
   Thread::SleepMs(ms);
   return NativeCallResult::Void();
 }
@@ -615,13 +615,13 @@ NativeCallResult DlOpen(NativeCallContext& context) {
   }
   const uint32_t path_ref = UnpackRef(context.args[0]);
   if (path_ref == HeapLayout::kNullRef) {
-    SetDlError(context, "System.dl.open null path");
+    SetDlError(context, "System.FFI.open null path");
     result.value = PackI64(0);
     return result;
   }
   std::string path;
   if (!ReadStringArg(context, 0, &path)) {
-    SetDlError(context, "System.dl.open path not string");
+    SetDlError(context, "System.FFI.open path not string");
     result.value = PackI64(0);
     return result;
   }
@@ -633,19 +633,19 @@ NativeCallResult DlSymbol(NativeCallContext& context) {
   NativeCallResult result;
   const int64_t handle = UnpackI64(context.args[0]);
   if (handle == 0) {
-    SetDlError(context, "System.dl.sym null handle");
+    SetDlError(context, "System.FFI.sym null handle");
     result.value = PackI64(0);
     return result;
   }
   const uint32_t name_ref = UnpackRef(context.args[1]);
   if (name_ref == HeapLayout::kNullRef) {
-    SetDlError(context, "System.dl.sym null name");
+    SetDlError(context, "System.FFI.sym null name");
     result.value = PackI64(0);
     return result;
   }
   std::string name;
   if (!ReadStringArg(context, 1, &name)) {
-    SetDlError(context, "System.dl.sym name not string");
+    SetDlError(context, "System.FFI.sym name not string");
     result.value = PackI64(0);
     return result;
   }
@@ -2033,87 +2033,87 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
 
 void RegisterSystemRandom(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MakeSpec("System.random", "seed", {TypeKind::I64},
+  registry.Register(WithCapability(MakeSpec("System.Random", "seed", {TypeKind::I64},
                                             TypeKind::Unspecified, RandomSeed),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.random", "i32", {}, TypeKind::I32,
+  registry.Register(WithCapability(MakeSpec("System.Random", "i32", {}, TypeKind::I32,
                                             RandomI32),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.random", "i64", {}, TypeKind::I64,
+  registry.Register(WithCapability(MakeSpec("System.Random", "i64", {}, TypeKind::I64,
                                             RandomI64),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.random", "fillBytes", {TypeKind::Ref},
+  registry.Register(WithCapability(MakeSpec("System.Random", "fillBytes", {TypeKind::Ref},
                                             TypeKind::I32, RandomFillBytes),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.random", "range",
+  registry.Register(WithCapability(MakeSpec("System.Random", "range",
                                             {TypeKind::I32, TypeKind::I32}, TypeKind::I32,
                                             RandomRange),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.random", "f64", {}, TypeKind::F64,
+  registry.Register(WithCapability(MakeSpec("System.Random", "f64", {}, TypeKind::F64,
                                             RandomF64),
                                    "randomness"));
 }
 
 void RegisterSystemOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MakeSpec("System.os", "args_count", {}, TypeKind::I32, EnvArgsCount),
+  registry.Register(WithCapability(MakeSpec("System.OS", "args_count", {}, TypeKind::I32, EnvArgsCount),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.os", "args_get", {TypeKind::I32}, TypeKind::String, EnvArg),
+  registry.Register(WithCapability(MakeSpec("System.OS", "args_get", {TypeKind::I32}, TypeKind::String, EnvArg),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.os", "env_get", {TypeKind::String}, TypeKind::String, EnvGet),
+  registry.Register(WithCapability(MakeSpec("System.OS", "env_get", {TypeKind::String}, TypeKind::String, EnvGet),
                                    "environment.read"));
-  registry.Register(WithCapability(MakeSpec("System.os", "cwd_get", {}, TypeKind::String, OsCwdGet),
+  registry.Register(WithCapability(MakeSpec("System.OS", "cwd_get", {}, TypeKind::String, OsCwdGet),
                                    "filesystem.read"));
-  registry.Register(WithCapability(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs),
+  registry.Register(WithCapability(MakeSpec("System.OS", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs),
                                    "clock.time"));
-  registry.Register(WithCapability(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs),
+  registry.Register(WithCapability(MakeSpec("System.OS", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs),
                                    "clock.time"));
-  registry.Register(WithStability(MakeSpec("System.os", "platform", {}, TypeKind::String, OsPlatform),
+  registry.Register(WithStability(MakeSpec("System.OS", "platform", {}, TypeKind::String, OsPlatform),
                                   NativeStability::Stable));
-  registry.Register(WithStability(MakeSpec("System.os", "arch", {}, TypeKind::String, OsArch),
+  registry.Register(WithStability(MakeSpec("System.OS", "arch", {}, TypeKind::String, OsArch),
                                   NativeStability::Stable));
-  registry.Register(MakeSpec("System.os", "isLinux", {}, TypeKind::Bool, OsIsLinux));
-  registry.Register(MakeSpec("System.os", "isMacos", {}, TypeKind::Bool, OsIsMacos));
-  registry.Register(MakeSpec("System.os", "isWindows", {}, TypeKind::Bool, OsIsWindows));
-  registry.Register(MakeSpec("System.os", "pid", {}, TypeKind::I32, OsPid));
-  registry.Register(MakeSpec("System.os", "cpuCount", {}, TypeKind::I32, OsCpuCount));
-  registry.Register(MakeSpec("System.os", "pageSize", {}, TypeKind::I32, OsPageSize));
-  registry.Register(MakeSpec("System.os", "exit", {TypeKind::I32}, TypeKind::Unspecified, OsExit));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.os", "sleepMs", {TypeKind::I32},
+  registry.Register(MakeSpec("System.OS", "isLinux", {}, TypeKind::Bool, OsIsLinux));
+  registry.Register(MakeSpec("System.OS", "isMacos", {}, TypeKind::Bool, OsIsMacos));
+  registry.Register(MakeSpec("System.OS", "isWindows", {}, TypeKind::Bool, OsIsWindows));
+  registry.Register(MakeSpec("System.OS", "pid", {}, TypeKind::I32, OsPid));
+  registry.Register(MakeSpec("System.OS", "cpuCount", {}, TypeKind::I32, OsCpuCount));
+  registry.Register(MakeSpec("System.OS", "pageSize", {}, TypeKind::I32, OsPageSize));
+  registry.Register(MakeSpec("System.OS", "exit", {TypeKind::I32}, TypeKind::Unspecified, OsExit));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.OS", "sleepMs", {TypeKind::I32},
                                                      TypeKind::Unspecified, OsSleepMs)),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.os", "formatWallNs", {TypeKind::I64},
+  registry.Register(WithCapability(MakeSpec("System.OS", "formatWallNs", {TypeKind::I64},
                                             TypeKind::String, OsFormatWallNs),
                                    "clock.time"));
 }
 
 void RegisterSystemThread(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.thread", "sleep", {TypeKind::I32},
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.Thread", "sleep", {TypeKind::I32},
                                                      TypeKind::Unspecified, ThreadSleep)),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.thread", "yield", {}, TypeKind::Unspecified,
+  registry.Register(WithCapability(MakeSpec("System.Thread", "yield", {}, TypeKind::Unspecified,
                                             ThreadYield),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.thread", "hardwareConcurrency", {},
+  registry.Register(WithCapability(MakeSpec("System.Thread", "hardwareConcurrency", {},
                                             TypeKind::I32, ThreadHardwareConcurrency),
                                    "threading"));
 }
 
 void RegisterSystemJson(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.json", "parse", {TypeKind::String}, TypeKind::I64,
+  registry.Register(MakeSpec("System.Json", "parse", {TypeKind::String}, TypeKind::I64,
                              JsonParse));
-  registry.Register(MakeSpec("System.json", "stringify", {TypeKind::I64}, TypeKind::String,
+  registry.Register(MakeSpec("System.Json", "stringify", {TypeKind::I64}, TypeKind::String,
                              JsonStringify));
-  registry.Register(MakeSpec("System.json", "free", {TypeKind::I64}, TypeKind::I32, JsonFree));
+  registry.Register(MakeSpec("System.Json", "free", {TypeKind::I64}, TypeKind::I32, JsonFree));
 }
 
 void RegisterSystemDl(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(WithDoc(
       WithStability(
-          WithResource(WithCapability(MakeSpec("System.dl", "open", {TypeKind::String},
+          WithResource(WithCapability(MakeSpec("System.FFI", "open", {TypeKind::String},
                                                TypeKind::I64, DlOpen),
                                       "ffi.dynamic_load"),
                        NativeResourceKind::FfiLibrary, NativeResourceAccess::Output),
@@ -2121,7 +2121,7 @@ void RegisterSystemDl(NativeRegistry& registry) {
       "Open a dynamic library handle."));
   registry.Register(WithDoc(
       WithStability(
-          WithResource(WithCapability(MakeSpec("System.dl", "sym",
+          WithResource(WithCapability(MakeSpec("System.FFI", "sym",
                                                {TypeKind::I64, TypeKind::String}, TypeKind::I64,
                                                DlSymbol),
                                       "ffi.dynamic_load"),
@@ -2129,182 +2129,182 @@ void RegisterSystemDl(NativeRegistry& registry) {
           NativeStability::Unsafe),
       "Resolve a symbol from a dynamic library handle."));
   registry.Register(WithStability(
-      WithResource(WithCapability(MakeSpec("System.dl", "close", {TypeKind::I64},
+      WithResource(WithCapability(MakeSpec("System.FFI", "close", {TypeKind::I64},
                                            TypeKind::I32, DlClose),
                                   "ffi.dynamic_load"),
                    NativeResourceKind::FfiLibrary, NativeResourceAccess::InputOutput, 0),
       NativeStability::Unsafe));
-  registry.Register(WithStability(MakeSpec("System.dl", "last_error", {}, TypeKind::String,
+  registry.Register(WithStability(MakeSpec("System.FFI", "last_error", {}, TypeKind::String,
                                            DlLastError),
                                   NativeStability::Unsafe));
 }
 
 void RegisterSystemLog(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.log", "setLevel", {TypeKind::I32}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.Log", "setLevel", {TypeKind::I32}, TypeKind::Unspecified,
                              LogSetLevel));
-  registry.Register(MakeSpec("System.log", "setFile", {TypeKind::String}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Log", "setFile", {TypeKind::String}, TypeKind::I32,
                              LogSetFile));
-  registry.Register(MakeSpec("System.log", "log", {TypeKind::I32, TypeKind::String},
+  registry.Register(MakeSpec("System.Log", "log", {TypeKind::I32, TypeKind::String},
                              TypeKind::Unspecified, LogEmit));
-  registry.Register(MakeSpec("System.log", "flush", {}, TypeKind::Bool, LogFlush));
-  registry.Register(MakeSpec("System.log", "info", {TypeKind::String}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.Log", "flush", {}, TypeKind::Bool, LogFlush));
+  registry.Register(MakeSpec("System.Log", "info", {TypeKind::String}, TypeKind::Unspecified,
                              LogInfo));
-  registry.Register(MakeSpec("System.log", "warn", {TypeKind::String}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.Log", "warn", {TypeKind::String}, TypeKind::Unspecified,
                              LogWarn));
-  registry.Register(MakeSpec("System.log", "error", {TypeKind::String}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.Log", "error", {TypeKind::String}, TypeKind::Unspecified,
                              LogError));
 }
 
 void RegisterSystemPath(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.path", "separator", {}, TypeKind::String, PathSeparator));
-  registry.Register(MakeSpec("System.path", "delimiter", {}, TypeKind::String, PathDelimiter));
-  registry.Register(MakeSpec("System.path", "isAbsolute", {TypeKind::String}, TypeKind::Bool,
+  registry.Register(MakeSpec("System.Path", "separator", {}, TypeKind::String, PathSeparator));
+  registry.Register(MakeSpec("System.Path", "delimiter", {}, TypeKind::String, PathDelimiter));
+  registry.Register(MakeSpec("System.Path", "isAbsolute", {TypeKind::String}, TypeKind::Bool,
                              PathIsAbsolute));
-  registry.Register(MakeSpec("System.path", "join", {TypeKind::String, TypeKind::String},
+  registry.Register(MakeSpec("System.Path", "join", {TypeKind::String, TypeKind::String},
                              TypeKind::String, PathJoin));
-  registry.Register(MakeSpec("System.path", "dirname", {TypeKind::String}, TypeKind::String,
+  registry.Register(MakeSpec("System.Path", "dirname", {TypeKind::String}, TypeKind::String,
                              PathDirname));
-  registry.Register(MakeSpec("System.path", "basename", {TypeKind::String}, TypeKind::String,
+  registry.Register(MakeSpec("System.Path", "basename", {TypeKind::String}, TypeKind::String,
                              PathBasename));
-  registry.Register(MakeSpec("System.path", "ext", {TypeKind::String}, TypeKind::String,
+  registry.Register(MakeSpec("System.Path", "ext", {TypeKind::String}, TypeKind::String,
                              PathExt));
-  registry.Register(MakeSpec("System.path", "stem", {TypeKind::String}, TypeKind::String,
+  registry.Register(MakeSpec("System.Path", "stem", {TypeKind::String}, TypeKind::String,
                              PathStem));
-  registry.Register(MakeSpec("System.path", "normalize", {TypeKind::String}, TypeKind::String,
+  registry.Register(MakeSpec("System.Path", "normalize", {TypeKind::String}, TypeKind::String,
                              PathNormalize));
-  registry.Register(WithCapability(MakeSpec("System.path", "exists", {TypeKind::String},
+  registry.Register(WithCapability(MakeSpec("System.Path", "exists", {TypeKind::String},
                                             TypeKind::I32, PathExists),
                                    "filesystem.read"));
-  registry.Register(WithCapability(MakeSpec("System.path", "isFile", {TypeKind::String},
+  registry.Register(WithCapability(MakeSpec("System.Path", "isFile", {TypeKind::String},
                                             TypeKind::I32, PathIsFile),
                                    "filesystem.read"));
-  registry.Register(WithCapability(MakeSpec("System.path", "isDir", {TypeKind::String},
+  registry.Register(WithCapability(MakeSpec("System.Path", "isDir", {TypeKind::String},
                                             TypeKind::I32, PathIsDir),
                                    "filesystem.read"));
 }
 
 void RegisterSystemFs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithDoc(WithCapability(MayBlock(MakeSpec("System.fs", "readText",
+  registry.Register(WithDoc(WithCapability(MayBlock(MakeSpec("System.FS", "readText",
                                                                {TypeKind::String},
                                                                TypeKind::String, FsReadText)),
                                             "filesystem.read"),
                             "Read a UTF-8 text file."));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "writeText",
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "writeText",
                                                   {TypeKind::String, TypeKind::String},
                                                   TypeKind::I32, FsWriteText)),
                                    "filesystem.write"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "readBytes",
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "readBytes",
                                                   {TypeKind::String}, TypeKind::Ref, FsReadBytes)),
                                    "filesystem.read"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "writeBytes",
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "writeBytes",
                                                   {TypeKind::String, TypeKind::Ref},
                                                   TypeKind::I32, FsWriteBytes)),
                                    "filesystem.write"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "listDir",
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "listDir",
                                                   {TypeKind::String}, TypeKind::Ref, FsListDir)),
                                    "filesystem.read"));
   registry.Register(WithDoc(
-      WithResource(WithCapability(MayBlock(MakeSpec("System.fs", "open",
+      WithResource(WithCapability(MayBlock(MakeSpec("System.FS", "open",
                                                    {TypeKind::String, TypeKind::I32},
                                                    TypeKind::I32, FsOpen)),
                                   "filesystem.open"),
                    NativeResourceKind::File, NativeResourceAccess::Output),
       "Open a file descriptor handle."));
   registry.Register(WithResource(
-      WithCapability(MayBlock(MakeSpec("System.fs", "read",
+      WithCapability(MayBlock(MakeSpec("System.FS", "read",
                                        {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
                                        TypeKind::I32, FsRead)),
                      "filesystem.read"),
       NativeResourceKind::File, NativeResourceAccess::Input, 0));
   registry.Register(WithResource(
-      WithCapability(MayBlock(MakeSpec("System.fs", "write",
+      WithCapability(MayBlock(MakeSpec("System.FS", "write",
                                        {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
                                        TypeKind::I32, FsWrite)),
                      "filesystem.write"),
       NativeResourceKind::File, NativeResourceAccess::Input, 0));
-  registry.Register(WithResource(MakeSpec("System.fs", "close", {TypeKind::I32},
+  registry.Register(WithResource(MakeSpec("System.FS", "close", {TypeKind::I32},
                                          TypeKind::Unspecified, FsClose),
                                  NativeResourceKind::File, NativeResourceAccess::InputOutput, 0));
-  registry.Register(WithCapability(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd),
+  registry.Register(WithCapability(MakeSpec("System.FS", "cwd", {}, TypeKind::String, FsCwd),
                                    "filesystem.read"));
   registry.Register(WithCapability(
-      WithCapability(MayBlock(MakeSpec("System.fs", "copy",
+      WithCapability(MayBlock(MakeSpec("System.FS", "copy",
                                        {TypeKind::String, TypeKind::String}, TypeKind::I32,
                                        FsCopy)),
                      "filesystem.read"),
       "filesystem.write"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "remove", {TypeKind::String},
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "remove", {TypeKind::String},
                                                    TypeKind::I32, FsRemove)),
                                    "filesystem.write"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "mkdir", {TypeKind::String},
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "mkdir", {TypeKind::String},
                                                    TypeKind::I32, FsMkdir)),
                                    "filesystem.write"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "mkdirAll", {TypeKind::String},
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "mkdirAll", {TypeKind::String},
                                                    TypeKind::I32, FsMkdirAll)),
                                    "filesystem.write"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "setCwd", {TypeKind::String},
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.FS", "setCwd", {TypeKind::String},
                                                    TypeKind::I32, FsSetCwd)),
                                    "filesystem.write"));
 }
 
 void RegisterSystemEnv(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MakeSpec("System.env", "argsCount", {}, TypeKind::I32,
+  registry.Register(WithCapability(MakeSpec("System.Env", "argsCount", {}, TypeKind::I32,
                                             EnvArgsCount),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.env", "arg", {TypeKind::I32},
+  registry.Register(WithCapability(MakeSpec("System.Env", "arg", {TypeKind::I32},
                                             TypeKind::String, EnvArg),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.env", "get", {TypeKind::String},
+  registry.Register(WithCapability(MakeSpec("System.Env", "get", {TypeKind::String},
                                             TypeKind::String, EnvGet),
                                    "environment.read"));
-  registry.Register(WithCapability(MakeSpec("System.env", "set",
+  registry.Register(WithCapability(MakeSpec("System.Env", "set",
                                             {TypeKind::String, TypeKind::String}, TypeKind::I32,
                                             EnvSet),
                                    "environment.write"));
-  registry.Register(WithCapability(MakeSpec("System.env", "unset", {TypeKind::String},
+  registry.Register(WithCapability(MakeSpec("System.Env", "unset", {TypeKind::String},
                                             TypeKind::Bool, EnvUnset),
                                    "environment.write"));
-  registry.Register(WithCapability(MakeSpec("System.env", "exePath", {}, TypeKind::String,
+  registry.Register(WithCapability(MakeSpec("System.Env", "exePath", {}, TypeKind::String,
                                             EnvExePath),
                                    "process.args"));
 }
 
 void RegisterSystemIo(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.io", "buffer_new", {TypeKind::I32}, TypeKind::Ref,
+  registry.Register(MakeSpec("System.IO", "buffer_new", {TypeKind::I32}, TypeKind::Ref,
                              IoBufferNew));
-  registry.Register(MakeSpec("System.io", "buffer_len", {TypeKind::Ref}, TypeKind::I32,
+  registry.Register(MakeSpec("System.IO", "buffer_len", {TypeKind::Ref}, TypeKind::I32,
                              IoBufferLen));
-  registry.Register(MakeSpec("System.io", "buffer_fill", {TypeKind::Ref, TypeKind::I32,
+  registry.Register(MakeSpec("System.IO", "buffer_fill", {TypeKind::Ref, TypeKind::I32,
                                                             TypeKind::I32},
                              TypeKind::I32, IoBufferFill));
-  registry.Register(MakeSpec("System.io", "buffer_copy", {TypeKind::Ref, TypeKind::Ref,
+  registry.Register(MakeSpec("System.IO", "buffer_copy", {TypeKind::Ref, TypeKind::Ref,
                                                             TypeKind::I32},
                              TypeKind::I32, IoBufferCopy));
 }
 
 void RegisterSystemBuffer(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.buffer", "new", {TypeKind::I32}, TypeKind::Ref, BufferNew));
-  registry.Register(MakeSpec("System.buffer", "len", {TypeKind::Ref}, TypeKind::I32, BufferLen));
-  registry.Register(MakeSpec("System.buffer", "readU16LE", {TypeKind::Ref, TypeKind::I32},
+  registry.Register(MakeSpec("System.Buffer", "new", {TypeKind::I32}, TypeKind::Ref, BufferNew));
+  registry.Register(MakeSpec("System.Buffer", "len", {TypeKind::Ref}, TypeKind::I32, BufferLen));
+  registry.Register(MakeSpec("System.Buffer", "readU16LE", {TypeKind::Ref, TypeKind::I32},
                              TypeKind::I32, BufferReadU16LE));
-  registry.Register(MakeSpec("System.buffer", "readU32LE", {TypeKind::Ref, TypeKind::I32},
+  registry.Register(MakeSpec("System.Buffer", "readU32LE", {TypeKind::Ref, TypeKind::I32},
                              TypeKind::I32, BufferReadU32LE));
-  registry.Register(MakeSpec("System.buffer", "writeU16LE",
+  registry.Register(MakeSpec("System.Buffer", "writeU16LE",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::I32,
                              BufferWriteU16LE));
-  registry.Register(MakeSpec("System.buffer", "writeU32LE",
+  registry.Register(MakeSpec("System.Buffer", "writeU32LE",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::I32,
                              BufferWriteU32LE));
-  registry.Register(MakeSpec("System.buffer", "slice",
+  registry.Register(MakeSpec("System.Buffer", "slice",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::Ref,
                              BufferSlice));
-  registry.Register(MakeSpec("System.buffer", "copy",
+  registry.Register(MakeSpec("System.Buffer", "copy",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::Ref, TypeKind::I32,
                               TypeKind::I32},
                              TypeKind::I32, BufferCopy));
@@ -2312,84 +2312,84 @@ void RegisterSystemBuffer(NativeRegistry& registry) {
 
 void RegisterSystemChannel(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.channel", "newI32", {}, TypeKind::I64, ChannelNewI32));
-  registry.Register(MakeSpec("System.channel", "sendI32", {TypeKind::I64, TypeKind::I32},
+  registry.Register(MakeSpec("System.Channel", "newI32", {}, TypeKind::I64, ChannelNewI32));
+  registry.Register(MakeSpec("System.Channel", "sendI32", {TypeKind::I64, TypeKind::I32},
                              TypeKind::I32, ChannelSendI32));
-  registry.Register(MakeSpec("System.channel", "trySendI32", {TypeKind::I64, TypeKind::I32},
+  registry.Register(MakeSpec("System.Channel", "trySendI32", {TypeKind::I64, TypeKind::I32},
                              TypeKind::I32, ChannelSendI32));
-  registry.Register(MakeSpec("System.channel", "recvI32", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "recvI32", {TypeKind::I64}, TypeKind::I32,
                              ChannelRecvI32));
-  registry.Register(MakeSpec("System.channel", "tryRecvI32", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "tryRecvI32", {TypeKind::I64}, TypeKind::I32,
                              ChannelTryRecvI32));
-  registry.Register(MakeSpec("System.channel", "pendingI32", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingI32", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingI32));
-  registry.Register(MakeSpec("System.channel", "newI64", {}, TypeKind::I64, ChannelNewI64));
-  registry.Register(MakeSpec("System.channel", "sendI64", {TypeKind::I64, TypeKind::I64},
+  registry.Register(MakeSpec("System.Channel", "newI64", {}, TypeKind::I64, ChannelNewI64));
+  registry.Register(MakeSpec("System.Channel", "sendI64", {TypeKind::I64, TypeKind::I64},
                              TypeKind::I32, ChannelSendI64));
-  registry.Register(MakeSpec("System.channel", "trySendI64", {TypeKind::I64, TypeKind::I64},
+  registry.Register(MakeSpec("System.Channel", "trySendI64", {TypeKind::I64, TypeKind::I64},
                              TypeKind::I32, ChannelSendI64));
-  registry.Register(MakeSpec("System.channel", "recvI64", {TypeKind::I64}, TypeKind::I64,
+  registry.Register(MakeSpec("System.Channel", "recvI64", {TypeKind::I64}, TypeKind::I64,
                              ChannelRecvI64));
-  registry.Register(MakeSpec("System.channel", "tryRecvI64", {TypeKind::I64}, TypeKind::I64,
+  registry.Register(MakeSpec("System.Channel", "tryRecvI64", {TypeKind::I64}, TypeKind::I64,
                              ChannelTryRecvI64));
-  registry.Register(MakeSpec("System.channel", "pendingI64", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingI64", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingI64));
-  registry.Register(MakeSpec("System.channel", "newF32", {}, TypeKind::I64, ChannelNewF32));
-  registry.Register(MakeSpec("System.channel", "sendF32", {TypeKind::I64, TypeKind::F32},
+  registry.Register(MakeSpec("System.Channel", "newF32", {}, TypeKind::I64, ChannelNewF32));
+  registry.Register(MakeSpec("System.Channel", "sendF32", {TypeKind::I64, TypeKind::F32},
                              TypeKind::I32, ChannelSendF32));
-  registry.Register(MakeSpec("System.channel", "trySendF32", {TypeKind::I64, TypeKind::F32},
+  registry.Register(MakeSpec("System.Channel", "trySendF32", {TypeKind::I64, TypeKind::F32},
                              TypeKind::I32, ChannelSendF32));
-  registry.Register(MakeSpec("System.channel", "recvF32", {TypeKind::I64}, TypeKind::F32,
+  registry.Register(MakeSpec("System.Channel", "recvF32", {TypeKind::I64}, TypeKind::F32,
                              ChannelRecvF32));
-  registry.Register(MakeSpec("System.channel", "tryRecvF32", {TypeKind::I64}, TypeKind::F32,
+  registry.Register(MakeSpec("System.Channel", "tryRecvF32", {TypeKind::I64}, TypeKind::F32,
                              ChannelTryRecvF32));
-  registry.Register(MakeSpec("System.channel", "pendingF32", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingF32", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingF32));
-  registry.Register(MakeSpec("System.channel", "newF64", {}, TypeKind::I64, ChannelNewF64));
-  registry.Register(MakeSpec("System.channel", "sendF64", {TypeKind::I64, TypeKind::F64},
+  registry.Register(MakeSpec("System.Channel", "newF64", {}, TypeKind::I64, ChannelNewF64));
+  registry.Register(MakeSpec("System.Channel", "sendF64", {TypeKind::I64, TypeKind::F64},
                              TypeKind::I32, ChannelSendF64));
-  registry.Register(MakeSpec("System.channel", "trySendF64", {TypeKind::I64, TypeKind::F64},
+  registry.Register(MakeSpec("System.Channel", "trySendF64", {TypeKind::I64, TypeKind::F64},
                              TypeKind::I32, ChannelSendF64));
-  registry.Register(MakeSpec("System.channel", "recvF64", {TypeKind::I64}, TypeKind::F64,
+  registry.Register(MakeSpec("System.Channel", "recvF64", {TypeKind::I64}, TypeKind::F64,
                              ChannelRecvF64));
-  registry.Register(MakeSpec("System.channel", "tryRecvF64", {TypeKind::I64}, TypeKind::F64,
+  registry.Register(MakeSpec("System.Channel", "tryRecvF64", {TypeKind::I64}, TypeKind::F64,
                              ChannelTryRecvF64));
-  registry.Register(MakeSpec("System.channel", "pendingF64", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingF64", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingF64));
-  registry.Register(MakeSpec("System.channel", "newBool", {}, TypeKind::I64, ChannelNewBool));
-  registry.Register(MakeSpec("System.channel", "sendBool", {TypeKind::I64, TypeKind::Bool},
+  registry.Register(MakeSpec("System.Channel", "newBool", {}, TypeKind::I64, ChannelNewBool));
+  registry.Register(MakeSpec("System.Channel", "sendBool", {TypeKind::I64, TypeKind::Bool},
                              TypeKind::I32, ChannelSendBool));
-  registry.Register(MakeSpec("System.channel", "trySendBool", {TypeKind::I64, TypeKind::Bool},
+  registry.Register(MakeSpec("System.Channel", "trySendBool", {TypeKind::I64, TypeKind::Bool},
                              TypeKind::I32, ChannelSendBool));
-  registry.Register(MakeSpec("System.channel", "recvBool", {TypeKind::I64}, TypeKind::Bool,
+  registry.Register(MakeSpec("System.Channel", "recvBool", {TypeKind::I64}, TypeKind::Bool,
                              ChannelRecvBool));
-  registry.Register(MakeSpec("System.channel", "tryRecvBool", {TypeKind::I64}, TypeKind::Bool,
+  registry.Register(MakeSpec("System.Channel", "tryRecvBool", {TypeKind::I64}, TypeKind::Bool,
                              ChannelTryRecvBool));
-  registry.Register(MakeSpec("System.channel", "pendingBool", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingBool", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingBool));
-  registry.Register(MakeSpec("System.channel", "newString", {}, TypeKind::I64, ChannelNewString));
-  registry.Register(MakeSpec("System.channel", "sendString", {TypeKind::I64, TypeKind::String},
+  registry.Register(MakeSpec("System.Channel", "newString", {}, TypeKind::I64, ChannelNewString));
+  registry.Register(MakeSpec("System.Channel", "sendString", {TypeKind::I64, TypeKind::String},
                              TypeKind::I32, ChannelSendString));
-  registry.Register(MakeSpec("System.channel", "trySendString", {TypeKind::I64, TypeKind::String},
+  registry.Register(MakeSpec("System.Channel", "trySendString", {TypeKind::I64, TypeKind::String},
                              TypeKind::I32, ChannelTrySendString));
-  registry.Register(MakeSpec("System.channel", "recvString", {TypeKind::I64}, TypeKind::String,
+  registry.Register(MakeSpec("System.Channel", "recvString", {TypeKind::I64}, TypeKind::String,
                              ChannelRecvString));
-  registry.Register(MakeSpec("System.channel", "tryRecvString", {TypeKind::I64}, TypeKind::String,
+  registry.Register(MakeSpec("System.Channel", "tryRecvString", {TypeKind::I64}, TypeKind::String,
                              ChannelTryRecvString));
-  registry.Register(MakeSpec("System.channel", "pendingString", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingString", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingString));
-  registry.Register(MakeSpec("System.channel", "newBytes", {}, TypeKind::I64, ChannelNewBytes));
-  registry.Register(MakeSpec("System.channel", "sendBytes", {TypeKind::I64, TypeKind::Ref},
+  registry.Register(MakeSpec("System.Channel", "newBytes", {}, TypeKind::I64, ChannelNewBytes));
+  registry.Register(MakeSpec("System.Channel", "sendBytes", {TypeKind::I64, TypeKind::Ref},
                              TypeKind::I32, ChannelSendBytes));
-  registry.Register(MakeSpec("System.channel", "trySendBytes", {TypeKind::I64, TypeKind::Ref},
+  registry.Register(MakeSpec("System.Channel", "trySendBytes", {TypeKind::I64, TypeKind::Ref},
                              TypeKind::I32, ChannelTrySendBytes));
-  registry.Register(MakeSpec("System.channel", "recvBytes", {TypeKind::I64}, TypeKind::Ref,
+  registry.Register(MakeSpec("System.Channel", "recvBytes", {TypeKind::I64}, TypeKind::Ref,
                              ChannelRecvBytes));
-  registry.Register(MakeSpec("System.channel", "tryRecvBytes", {TypeKind::I64}, TypeKind::Ref,
+  registry.Register(MakeSpec("System.Channel", "tryRecvBytes", {TypeKind::I64}, TypeKind::Ref,
                              ChannelTryRecvBytes));
-  registry.Register(MakeSpec("System.channel", "pendingBytes", {TypeKind::I64}, TypeKind::I32,
+  registry.Register(MakeSpec("System.Channel", "pendingBytes", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingBytes));
-  registry.Register(MakeSpec("System.channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.Channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
                              ChannelClose));
 }
 

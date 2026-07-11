@@ -23,7 +23,7 @@ main :: i32 () {
 }
 )simple";
   if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, &error)) return false;
-  return sir.find(" System.dl open ") != std::string::npos &&
+  return sir.find(" System.FFI open ") != std::string::npos &&
          sir.find("core.dl") == std::string::npos &&
          sir.find("import core.") == std::string::npos;
 }

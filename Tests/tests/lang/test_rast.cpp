@@ -354,7 +354,7 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
          has_fs_member("open") &&
          Simple::Lang::RAST::ReservedModuleMembers("Missing").empty() &&
          Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
-         native_module == "System.fs" &&
+         native_module == "System.FS" &&
          Simple::Lang::RAST::IsIoPrintName("print") &&
          Simple::Lang::RAST::IsIoPrintName("println") &&
          !Simple::Lang::RAST::IsIoPrintName("write") &&

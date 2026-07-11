@@ -105,14 +105,14 @@ bool ConvertDlArg(Slot slot,
     }
     HeapObject* obj = heap.Get(ref);
     if (!obj || obj->header.kind != ObjectKind::String) {
-      if (out_error) *out_error = "System.dl.call string argument is not a string";
+      if (out_error) *out_error = "System.FFI.call string argument is not a string";
       return false;
     }
     owned_strings.push_back(U16ToAscii(ReadString(obj)));
     *out = owned_strings.back().c_str();
     return true;
   }
-  if (out_error) *out_error = "System.dl.call unsupported argument type conversion";
+  if (out_error) *out_error = "System.FFI.call unsupported argument type conversion";
   return false;
 }
 
@@ -161,7 +161,7 @@ bool PackDlReturn(T value, Heap& heap, Slot* out_ret, std::string* out_error) {
     *out_ret = PackRef(handle);
     return true;
   }
-  if (out_error) *out_error = "System.dl.call unsupported return type conversion";
+  if (out_error) *out_error = "System.FFI.call unsupported return type conversion";
   return false;
 }
 
@@ -182,7 +182,7 @@ bool InvokeDlFunctionTyped(int64_t ptr_bits,
     using ArgT = std::decay_t<decltype(dst)>;
     if (arg_base + index >= args.size()) {
       ok = false;
-      if (out_error) *out_error = "System.dl.call arg index out of range";
+      if (out_error) *out_error = "System.FFI.call arg index out of range";
       return;
     }
     if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
@@ -215,7 +215,7 @@ bool InvokeDlFunctionVoidTyped(int64_t ptr_bits,
     using ArgT = std::decay_t<decltype(dst)>;
     if (arg_base + index >= args.size()) {
       ok = false;
-      if (out_error) *out_error = "System.dl.call arg index out of range";
+      if (out_error) *out_error = "System.FFI.call arg index out of range";
       return;
     }
     if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
@@ -262,7 +262,7 @@ bool DispatchDlCall1(TypeKind arg0_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0)
 #undef SIMPLE_DL_CASE_ARG0
     default:
-      if (out_error) *out_error = "System.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
       return false;
   }
 }
@@ -281,7 +281,7 @@ bool DispatchDlCall2Arg1Void(TypeKind arg1_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1_VOID)
 #undef SIMPLE_DL_CASE_ARG1_VOID
     default:
-      if (out_error) *out_error = "System.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
       return false;
   }
 }
@@ -301,7 +301,7 @@ bool DispatchDlCall2Arg1(TypeKind arg1_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1)
 #undef SIMPLE_DL_CASE_ARG1
     default:
-      if (out_error) *out_error = "System.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
       return false;
   }
 }
@@ -322,7 +322,7 @@ bool DispatchDlCall2(TypeKind arg0_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_2)
 #undef SIMPLE_DL_CASE_ARG0_2
     default:
-      if (out_error) *out_error = "System.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
       return false;
   }
 }
@@ -389,7 +389,7 @@ bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
                                 std::string* out_error) {
   if (!out) return false;
   if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.dl.call type id out of range";
+    if (out_error) *out_error = "System.FFI.call type id out of range";
     return false;
   }
   const auto& row = module.types[type_id];
@@ -404,11 +404,11 @@ bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
     return true;
   }
   if (!visiting.insert(type_id).second) {
-    if (out_error) *out_error = "System.dl.call recursive struct ABI is unsupported";
+    if (out_error) *out_error = "System.FFI.call recursive struct ABI is unsupported";
     return false;
   }
   if (row.field_start + row.field_count > module.fields.size()) {
-    if (out_error) *out_error = "System.dl.call struct field range out of bounds";
+    if (out_error) *out_error = "System.FFI.call struct field range out of bounds";
     visiting.erase(type_id);
     return false;
   }
@@ -448,7 +448,7 @@ ffi_type* BuildDlFfiType(const SbcModule& module,
   auto cached = cache.ffi_by_type.find(type_id);
   if (cached != cache.ffi_by_type.end()) return cached->second;
   if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.dl.call type id out of range";
+    if (out_error) *out_error = "System.FFI.call type id out of range";
     return nullptr;
   }
   const auto& row = module.types[type_id];
@@ -456,18 +456,18 @@ ffi_type* BuildDlFfiType(const SbcModule& module,
   if (kind != TypeKind::Unspecified || row.field_count == 0) {
     ffi_type* primitive = PrimitiveFfiType(kind);
     if (!primitive) {
-      if (out_error) *out_error = "System.dl.call unsupported ABI type";
+      if (out_error) *out_error = "System.FFI.call unsupported ABI type";
       return nullptr;
     }
     cache.ffi_by_type[type_id] = primitive;
     return primitive;
   }
   if (!visiting || !visiting->insert(type_id).second) {
-    if (out_error) *out_error = "System.dl.call recursive struct ABI is unsupported";
+    if (out_error) *out_error = "System.FFI.call recursive struct ABI is unsupported";
     return nullptr;
   }
   if (row.field_start + row.field_count > module.fields.size()) {
-    if (out_error) *out_error = "System.dl.call struct field range out of bounds";
+    if (out_error) *out_error = "System.FFI.call struct field range out of bounds";
     visiting->erase(type_id);
     return nullptr;
   }
@@ -527,7 +527,7 @@ bool PrepareStructOffsets(const SbcModule& module,
     }
     ffi_type* field_ffi = meta.ffi->elements[i];
     if (!field_ffi || field_ffi->size == 0 || field_ffi->alignment == 0) {
-      if (out_error) *out_error = "System.dl.call struct field ABI is incomplete";
+      if (out_error) *out_error = "System.FFI.call struct field ABI is incomplete";
       return false;
     }
     size_t align = static_cast<size_t>(field_ffi->alignment);
@@ -538,7 +538,7 @@ bool PrepareStructOffsets(const SbcModule& module,
   }
   size_t computed = AlignSize(offset, max_align);
   if (meta.ffi->size != 0 && computed != meta.ffi->size) {
-    if (out_error) *out_error = "System.dl.call struct ABI size mismatch";
+    if (out_error) *out_error = "System.FFI.call struct ABI size mismatch";
     return false;
   }
   meta.offsets_ready = true;
@@ -554,7 +554,7 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
                          std::string* out_error) {
   auto require = [&](size_t n) -> bool {
     if (offset + n > payload.size()) {
-      if (out_error) *out_error = "System.dl.call struct payload out of bounds";
+      if (out_error) *out_error = "System.FFI.call struct payload out of bounds";
       return false;
     }
     return true;
@@ -638,7 +638,7 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       }
       HeapObject* obj = heap.Get(ref);
       if (!obj || obj->header.kind != ObjectKind::String) {
-        if (out_error) *out_error = "System.dl.call struct string field is not a string";
+        if (out_error) *out_error = "System.FFI.call struct string field is not a string";
         return false;
       }
       owned_strings.push_back(U16ToAscii(ReadString(obj)));
@@ -646,7 +646,7 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       return true;
     }
     default:
-      if (out_error) *out_error = "System.dl.call unsupported struct field type";
+      if (out_error) *out_error = "System.FFI.call unsupported struct field type";
       return false;
   }
 }
@@ -660,7 +660,7 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
   if (!payload) return false;
   auto require = [&](size_t n) -> bool {
     if (offset + n > payload->size()) {
-      if (out_error) *out_error = "System.dl.call struct payload out of bounds";
+      if (out_error) *out_error = "System.FFI.call struct payload out of bounds";
       return false;
     }
     return true;
@@ -727,7 +727,7 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
       return true;
     }
     default:
-      if (out_error) *out_error = "System.dl.call unsupported struct field type";
+      if (out_error) *out_error = "System.FFI.call unsupported struct field type";
       return false;
   }
 }
@@ -758,21 +758,21 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
                             void* out_value,
                             std::string* out_error) {
   if (!IsStructTypeId(module, type_id)) {
-    if (out_error) *out_error = "System.dl.call expected struct type";
+    if (out_error) *out_error = "System.FFI.call expected struct type";
     return false;
   }
   if (handle == kNullRef) {
-    if (out_error) *out_error = "System.dl.call null struct argument";
+    if (out_error) *out_error = "System.FFI.call null struct argument";
     return false;
   }
   HeapObject* obj = heap.Get(handle);
   if (!obj || obj->header.kind != ObjectKind::Artifact || obj->header.type_id != type_id) {
-    if (out_error) *out_error = "System.dl.call struct argument type mismatch";
+    if (out_error) *out_error = "System.FFI.call struct argument type mismatch";
     return false;
   }
   auto meta_it = cache.struct_meta.find(type_id);
   if (meta_it == cache.struct_meta.end()) {
-    if (out_error) *out_error = "System.dl.call struct metadata missing";
+    if (out_error) *out_error = "System.FFI.call struct metadata missing";
     return false;
   }
   DlStructMeta& meta = meta_it->second;
@@ -784,7 +784,7 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
     uint8_t* dst = static_cast<uint8_t*>(out_value) + meta.ffi_offsets[i];
     if (IsStructTypeId(module, field_type_id)) {
       if (vm_offset + 4 > obj->payload.size()) {
-        if (out_error) *out_error = "System.dl.call nested struct field out of bounds";
+        if (out_error) *out_error = "System.FFI.call nested struct field out of bounds";
         return false;
       }
       uint32_t nested = 0;
@@ -811,12 +811,12 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
                             std::string* out_error) {
   if (!out_handle) return false;
   if (!IsStructTypeId(module, type_id)) {
-    if (out_error) *out_error = "System.dl.call expected struct return type";
+    if (out_error) *out_error = "System.FFI.call expected struct return type";
     return false;
   }
   auto meta_it = cache.struct_meta.find(type_id);
   if (meta_it == cache.struct_meta.end()) {
-    if (out_error) *out_error = "System.dl.call struct metadata missing";
+    if (out_error) *out_error = "System.FFI.call struct metadata missing";
     return false;
   }
   DlStructMeta& meta = meta_it->second;
@@ -824,7 +824,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
   uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, module.types[type_id].size);
   HeapObject* obj = heap.Get(handle);
   if (!obj) {
-    if (out_error) *out_error = "System.dl.call artifact allocation failed";
+    if (out_error) *out_error = "System.FFI.call artifact allocation failed";
     return false;
   }
   const auto& row = module.types[type_id];
@@ -836,7 +836,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
       uint32_t nested = kNullRef;
       if (!MarshalFfiToVmArtifact(module, field_type_id, src, cache, heap, &nested, out_error)) return false;
       if (vm_offset + 4 > obj->payload.size()) {
-        if (out_error) *out_error = "System.dl.call nested struct field out of bounds";
+        if (out_error) *out_error = "System.FFI.call nested struct field out of bounds";
         return false;
       }
       std::memcpy(obj->payload.data() + vm_offset, &nested, sizeof(nested));
@@ -857,7 +857,7 @@ bool FillScalarArgStorage(const SbcModule& module,
                           void* out_value,
                           std::string* out_error) {
   if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.dl.call type id out of range";
+    if (out_error) *out_error = "System.FFI.call type id out of range";
     return false;
   }
   TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
@@ -884,7 +884,7 @@ bool FillScalarArgStorage(const SbcModule& module,
     case TypeKind::String:
       return ConvertDlArg<const char*>(slot, heap, owned_strings, static_cast<const char**>(out_value), out_error);
     default:
-      if (out_error) *out_error = "System.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
       return false;
   }
 }
@@ -922,7 +922,7 @@ bool ValidateDlVmMarshalType(const SbcModule& module,
                              bool* needs_roots,
                              std::string* out_error) {
   if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.dl.call type id out of range";
+    if (out_error) *out_error = "System.FFI.call type id out of range";
     return false;
   }
   const auto& row = module.types[type_id];
@@ -934,13 +934,13 @@ bool ValidateDlVmMarshalType(const SbcModule& module,
   }
   if (IsStructTypeId(module, type_id)) {
     if (!visiting.insert(type_id).second) {
-      if (out_error) *out_error = "System.dl.call recursive struct marshal is unsupported";
+      if (out_error) *out_error = "System.FFI.call recursive struct marshal is unsupported";
       return false;
     }
     if (needs_roots) *needs_roots = true;
     if (is_return && may_allocate) *may_allocate = true;
     if (row.field_start + row.field_count > module.fields.size()) {
-      if (out_error) *out_error = "System.dl.call struct field range out of bounds";
+      if (out_error) *out_error = "System.FFI.call struct field range out of bounds";
       visiting.erase(type_id);
       return false;
     }
@@ -955,7 +955,7 @@ bool ValidateDlVmMarshalType(const SbcModule& module,
     return true;
   }
   const bool ok = is_return ? IsDlScalarReturnMarshalSupported(kind) : IsDlScalarParamMarshalSupported(kind);
-  if (!ok && out_error) *out_error = "System.dl.call unsupported VM marshal type";
+  if (!ok && out_error) *out_error = "System.FFI.call unsupported VM marshal type";
   return ok;
 }
 
@@ -1012,12 +1012,12 @@ bool ValidateDlJitLoopSignature(const SbcModule& module,
                                 const std::vector<uint32_t>& arg_type_ids,
                                 std::string* out_error) {
   if (has_ret && !IsDlJitLoopSafeTypeId(module, ret_type_id, false)) {
-    if (out_error) *out_error = "System.dl.call result is not JIT loop safe";
+    if (out_error) *out_error = "System.FFI.call result is not JIT loop safe";
     return false;
   }
   for (uint32_t type_id : arg_type_ids) {
     if (!IsDlJitLoopSafeTypeId(module, type_id, true)) {
-      if (out_error) *out_error = "System.dl.call parameter is not JIT loop safe";
+      if (out_error) *out_error = "System.FFI.call parameter is not JIT loop safe";
       return false;
     }
   }
@@ -1058,7 +1058,7 @@ bool ValidateDlNativeAbiSignature(const SbcModule& module,
                    static_cast<unsigned int>(arg_type_ids.size()),
                    ffi_ret_type,
                    ffi_arg_types.data()) != FFI_OK) {
-    if (out_error) *out_error = "System.dl.call ffi_prep_cif failed";
+    if (out_error) *out_error = "System.FFI.call ffi_prep_cif failed";
     return false;
   }
   for (uint32_t type_id : arg_type_ids) {
@@ -1107,17 +1107,17 @@ DynamicDlAbiValidation AnalyzeDynamicDlFunctionSignature(const SbcModule& module
                                                         const std::vector<uint32_t>& param_type_ids) {
   DynamicDlAbiValidation result;
   if (param_type_ids.empty()) {
-    result.reason = "System.dl.call missing function pointer parameter";
+    result.reason = "System.FFI.call missing function pointer parameter";
     return result;
   }
   const uint32_t ptr_type_id = param_type_ids.front();
   if (ptr_type_id >= module.types.size()) {
-    result.reason = "System.dl.call function pointer type id out of range";
+    result.reason = "System.FFI.call function pointer type id out of range";
     return result;
   }
   const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
   if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-    result.reason = "System.dl.call function pointer must be i64/u64";
+    result.reason = "System.FFI.call function pointer must be i64/u64";
     return result;
   }
   std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
@@ -1141,17 +1141,17 @@ bool ValidateDynamicDlFunctionSignature(const SbcModule& module,
                                         const std::vector<uint32_t>& param_type_ids,
                                         std::string* out_error) {
   if (param_type_ids.empty()) {
-    if (out_error) *out_error = "System.dl.call missing function pointer parameter";
+    if (out_error) *out_error = "System.FFI.call missing function pointer parameter";
     return false;
   }
   const uint32_t ptr_type_id = param_type_ids.front();
   if (ptr_type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.dl.call function pointer type id out of range";
+    if (out_error) *out_error = "System.FFI.call function pointer type id out of range";
     return false;
   }
   const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
   if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-    if (out_error) *out_error = "System.dl.call function pointer must be i64/u64";
+    if (out_error) *out_error = "System.FFI.call function pointer must be i64/u64";
     return false;
   }
   std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
@@ -1190,7 +1190,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                    static_cast<unsigned int>(arg_type_ids.size()),
                    ffi_ret_type,
                    ffi_arg_types.data()) != FFI_OK) {
-    if (out_error) *out_error = "System.dl.call ffi_prep_cif failed";
+    if (out_error) *out_error = "System.FFI.call ffi_prep_cif failed";
     return false;
   }
   for (uint32_t type_id : arg_type_ids) {
@@ -1206,7 +1206,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
   std::vector<void*> ffi_arg_values(arg_type_ids.size(), nullptr);
   for (size_t i = 0; i < arg_type_ids.size(); ++i) {
     if (arg_base + i >= args.size()) {
-      if (out_error) *out_error = "System.dl.call arg index out of range";
+      if (out_error) *out_error = "System.FFI.call arg index out of range";
       return false;
     }
     ffi_type* field_ffi = ffi_arg_types[i];
@@ -1252,7 +1252,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
 
   if (!has_ret) return true;
   if (!out_ret) {
-    if (out_error) *out_error = "System.dl.call missing return slot";
+    if (out_error) *out_error = "System.FFI.call missing return slot";
     return false;
   }
   if (IsStructTypeId(module, ret_type_id)) {
@@ -1281,7 +1281,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     case TypeKind::Char: return PackDlReturn<uint8_t>(*reinterpret_cast<uint8_t*>(ret_storage.data()), heap, out_ret, out_error);
     case TypeKind::String: return PackDlReturn<const char*>(*reinterpret_cast<const char**>(ret_storage.data()), heap, out_ret, out_error);
     default:
-      if (out_error) *out_error = "System.dl.call unsupported return type";
+      if (out_error) *out_error = "System.FFI.call unsupported return type";
       return false;
   }
 }
@@ -1296,7 +1296,7 @@ bool DispatchDynamicDlCall(int64_t /*ptr_bits*/,
                            Heap& /*heap*/,
                            Slot* /*out_ret*/,
                            std::string* out_error) {
-  if (out_error) *out_error = "System.dl.call is unsupported on windows";
+  if (out_error) *out_error = "System.FFI.call is unsupported on windows";
   return false;
 }
 #endif

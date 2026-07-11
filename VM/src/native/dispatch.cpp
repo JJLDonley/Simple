@@ -114,7 +114,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
         if (out_error) *out_error = module_name + "." + symbol_name + " resource parameter index out of range";
         return true;
       }
-      if (module_name == "System.dl" || resource.parameter_index >= spec->parameter_types.size() ||
+      if (module_name == "System.FFI" || resource.parameter_index >= spec->parameter_types.size() ||
           spec->parameter_types[resource.parameter_index] != Simple::Byte::TypeKind::I64) {
         continue;
       }

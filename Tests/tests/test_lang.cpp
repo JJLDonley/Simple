@@ -2386,7 +2386,7 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (AllLibraryImportPaths().size() != kSystemModules.size() + kStandardModules.size()) return false;
   if (ToImportPath(SystemModule::Buffer) != "System.Buffer") return false;
   if (ToImportPath(StandardModule::Buffer) != "Standard.Buffer") return false;
-  if (ToNativeModule(SystemModule::Buffer) != "System.buffer") return false;
+  if (ToNativeModule(SystemModule::Buffer) != "System.Buffer") return false;
   if (ToCanonicalName(SystemModule::Buffer) != "SystemBuffer") return false;
   if (ToCanonicalName(StandardModule::Buffer) != "StandardBuffer") return false;
   if (ToMember(SystemBufferMember::ReadU32LE) != "readU32LE") return false;

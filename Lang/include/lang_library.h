@@ -1009,20 +1009,20 @@ inline std::optional<SystemModule> NativeBackingModule(StandardModule module) {
 
 inline std::string_view ToNativeModule(SystemModule module) {
   switch (module) {
-    case SystemModule::IO: return "System.io";
-    case SystemModule::FS: return "System.fs";
-    case SystemModule::Path: return "System.path";
-    case SystemModule::Env: return "System.env";
-    case SystemModule::OS: return "System.os";
-    case SystemModule::Time: return "System.os";
-    case SystemModule::FFI: return "System.dl";
-    case SystemModule::Buffer: return "System.buffer";
-    case SystemModule::Bytes: return "System.buffer";
-    case SystemModule::Json: return "System.json";
-    case SystemModule::Log: return "System.log";
-    case SystemModule::Random: return "System.random";
-    case SystemModule::Thread: return "System.thread";
-    case SystemModule::Channel: return "System.channel";
+    case SystemModule::IO: return "System.IO";
+    case SystemModule::FS: return "System.FS";
+    case SystemModule::Path: return "System.Path";
+    case SystemModule::Env: return "System.Env";
+    case SystemModule::OS: return "System.OS";
+    case SystemModule::Time: return "System.OS";
+    case SystemModule::FFI: return "System.FFI";
+    case SystemModule::Buffer: return "System.Buffer";
+    case SystemModule::Bytes: return "System.Buffer";
+    case SystemModule::Json: return "System.Json";
+    case SystemModule::Log: return "System.Log";
+    case SystemModule::Random: return "System.Random";
+    case SystemModule::Thread: return "System.Thread";
+    case SystemModule::Channel: return "System.Channel";
     default: return {};
   }
 }

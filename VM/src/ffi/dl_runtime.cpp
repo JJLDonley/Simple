@@ -16,14 +16,14 @@ void SetError(std::string* out_error, const std::string& value) {
 int64_t Open(const std::string& path, std::string* out_error) {
 #if defined(_WIN32)
   (void)path;
-  SetError(out_error, "System.dl.open is unsupported on windows");
+  SetError(out_error, "System.FFI.open is unsupported on windows");
   return 0;
 #else
   dlerror();
   void* handle = dlopen(path.c_str(), RTLD_LAZY);
   if (!handle) {
     const char* err = dlerror();
-    SetError(out_error, err ? err : "System.dl.open failed");
+    SetError(out_error, err ? err : "System.FFI.open failed");
     return 0;
   }
   if (out_error) out_error->clear();
@@ -33,12 +33,12 @@ int64_t Open(const std::string& path, std::string* out_error) {
 
 int64_t Symbol(int64_t handle_bits, const std::string& name, std::string* out_error) {
   if (handle_bits == 0) {
-    SetError(out_error, "System.dl.sym null handle");
+    SetError(out_error, "System.FFI.sym null handle");
     return 0;
   }
 #if defined(_WIN32)
   (void)name;
-  SetError(out_error, "System.dl.sym is unsupported on windows");
+  SetError(out_error, "System.FFI.sym is unsupported on windows");
   return 0;
 #else
   dlerror();
@@ -55,17 +55,17 @@ int64_t Symbol(int64_t handle_bits, const std::string& name, std::string* out_er
 
 bool Close(int64_t handle_bits, std::string* out_error) {
   if (handle_bits == 0) {
-    SetError(out_error, "System.dl.close null handle");
+    SetError(out_error, "System.FFI.close null handle");
     return false;
   }
 #if defined(_WIN32)
-  SetError(out_error, "System.dl.close is unsupported on windows");
+  SetError(out_error, "System.FFI.close is unsupported on windows");
   return false;
 #else
   int rc = dlclose(reinterpret_cast<void*>(handle_bits));
   if (rc != 0) {
     const char* err = dlerror();
-    SetError(out_error, err ? err : "System.dl.close failed");
+    SetError(out_error, err ? err : "System.FFI.close failed");
     return false;
   }
   if (out_error) out_error->clear();

@@ -9757,7 +9757,7 @@ bool RunLlvmJitScalarImportCallInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModule(main_code, 1, "System.os", "args_count", SigSpec{0, 0, {}}));
+      BuildSingleImportFunctionModule(main_code, 1, "System.OS", "args_count", SigSpec{0, 0, {}}));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;
@@ -9814,7 +9814,7 @@ bool RunLlvmJitScalarImportLoopMatchesInterpreterTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModule(main_code, 1, "System.os", "args_count", SigSpec{0, 0, {}}));
+      BuildSingleImportFunctionModule(main_code, 1, "System.OS", "args_count", SigSpec{0, 0, {}}));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;
@@ -9877,7 +9877,7 @@ bool RunLlvmJitPreLoopAllocatingImportWithLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.os", "cwd_get", SigSpec{2, 0, {}},
+      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.OS", "cwd_get", SigSpec{2, 0, {}},
                                                BuildTypesI32RefString()));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -9937,7 +9937,7 @@ bool RunLlvmJitDynamicDlScalarCallInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.dl", "call$test",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.FFI", "call$test",
                                                SigSpec{0, 2, {3, 0}}, BuildTypesI32RefStringI64()));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10006,7 +10006,7 @@ bool RunLlvmJitDynamicDlStringArgInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.dl", "call$cstring",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.FFI", "call$cstring",
                                                SigSpec{0, 2, {3, 2}}, BuildTypesI32RefStringI64(), const_pool));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10063,7 +10063,7 @@ bool RunLlvmJitDynamicDlScalarLoopMatchesInterpreterTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.dl", "call$test",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.FFI", "call$test",
                                                SigSpec{0, 2, {3, 0}}, BuildTypesI32RefStringI64()));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10125,7 +10125,7 @@ bool RunLlvmJitDynamicDlContextHelperInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.dl", "call$i64",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.FFI", "call$i64",
                                                SigSpec{3, 2, {3, 3}}, BuildTypesI32RefStringI64()));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10187,7 +10187,7 @@ bool RunLlvmJitDynamicDlManagedSignatureDiagnosticTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.dl", "call$managed",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.FFI", "call$managed",
                                                SigSpec{0, 2, {3, 2}}, BuildTypesI32RefStringI64()));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10202,7 +10202,7 @@ bool RunLlvmJitDynamicDlManagedSignatureDiagnosticTest() {
   }
   return error.find("category=dynamic-dl/external-c") != std::string::npos &&
          error.find("reason=non-scalar-or-managed-signature") != std::string::npos &&
-         error.find("target=System.dl.call$managed") != std::string::npos &&
+         error.find("target=System.FFI.call$managed") != std::string::npos &&
          error.find("sig=(i64,string)->i32") != std::string::npos;
 }
 
@@ -10259,7 +10259,7 @@ bool RunLlvmJitManagedArgImportCallInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.path", "exists",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.Path", "exists",
                                                SigSpec{0, 1, {2}}, BuildTypesI32RefString(), const_pool));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10332,7 +10332,7 @@ bool RunLlvmJitResourceInputImportCallInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.dl", "sym",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.FFI", "sym",
                                                SigSpec{3, 2, {3, 2}}, BuildTypesI32RefStringI64(), const_pool));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10393,7 +10393,7 @@ bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModule(main_code, 1, "System.os", "sleep_ms", SigSpec{1, 1, {0}}));
+      BuildSingleImportFunctionModule(main_code, 1, "System.OS", "sleep_ms", SigSpec{1, 1, {0}}));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;
@@ -10410,7 +10410,7 @@ bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
          error.find("op=CallImport") != std::string::npos && error.find("pc=") != std::string::npos &&
          error.find("category=native-registry") != std::string::npos &&
          error.find("reason=blocking-call") != std::string::npos &&
-         error.find("target=System.os.sleep_ms") != std::string::npos;
+         error.find("target=System.OS.sleep_ms") != std::string::npos;
 }
 
 bool RunLlvmJitIndirectCallInsideLoopRejectsTest() {

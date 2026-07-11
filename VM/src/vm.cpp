@@ -2901,7 +2901,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int8_t b = static_cast<int8_t>(UnpackI32(Pop(stack)));
             int8_t a = static_cast<int8_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_i8 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_i8 null ptr");
             using Fn = int8_t (*)(int8_t, int8_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -2912,7 +2912,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int16_t b = static_cast<int16_t>(UnpackI32(Pop(stack)));
             int16_t a = static_cast<int16_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_i16 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_i16 null ptr");
             using Fn = int16_t (*)(int16_t, int16_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -2923,7 +2923,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int32_t b = UnpackI32(Pop(stack));
             int32_t a = UnpackI32(Pop(stack));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_i32 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_i32 null ptr");
             using Fn = int32_t (*)(int32_t, int32_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(fn(a, b)));
@@ -2934,7 +2934,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int64_t b = UnpackI64(Pop(stack));
             int64_t a = UnpackI64(Pop(stack));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_i64 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_i64 null ptr");
             using Fn = int64_t (*)(int64_t, int64_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI64(fn(a, b)));
@@ -2945,7 +2945,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_u8 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_u8 null ptr");
             using Fn = uint8_t (*)(uint8_t, uint8_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -2956,7 +2956,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint16_t b = static_cast<uint16_t>(UnpackI32(Pop(stack)));
             uint16_t a = static_cast<uint16_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_u16 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_u16 null ptr");
             using Fn = uint16_t (*)(uint16_t, uint16_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -2967,7 +2967,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint32_t b = static_cast<uint32_t>(UnpackI32(Pop(stack)));
             uint32_t a = static_cast<uint32_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_u32 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_u32 null ptr");
             using Fn = uint32_t (*)(uint32_t, uint32_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -2978,7 +2978,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint64_t b = static_cast<uint64_t>(UnpackI64(Pop(stack)));
             uint64_t a = static_cast<uint64_t>(UnpackI64(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_u64 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_u64 null ptr");
             using Fn = uint64_t (*)(uint64_t, uint64_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI64(static_cast<int64_t>(fn(a, b))));
@@ -2989,7 +2989,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             float b = BitsToF32(UnpackU32Bits(Pop(stack)));
             float a = BitsToF32(UnpackU32Bits(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_f32 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_f32 null ptr");
             using Fn = float (*)(float, float);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             float out = fn(a, b);
@@ -3001,7 +3001,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             double b = BitsToF64(UnpackU64Bits(Pop(stack)));
             double a = BitsToF64(UnpackU64Bits(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_f64 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_f64 null ptr");
             using Fn = double (*)(double, double);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             double out = fn(a, b);
@@ -3013,7 +3013,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             bool b = (UnpackI32(Pop(stack)) != 0);
             bool a = (UnpackI32(Pop(stack)) != 0);
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_bool null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_bool null ptr");
             using Fn = bool (*)(bool, bool);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(fn(a, b) ? 1 : 0));
@@ -3024,7 +3024,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_char null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_char null ptr");
             using Fn = uint8_t (*)(uint8_t, uint8_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -3033,7 +3033,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           case kIntrinsicDlCallStr0: {
             if (stack.empty()) return Trap("INTRINSIC dl_call_str0 stack underflow");
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.dl.call_str0 null ptr");
+            if (ptr_bits == 0) return Trap("System.FFI.call_str0 null ptr");
             using Fn = const char* (*)();
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             const char* out = fn();

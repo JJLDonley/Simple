@@ -593,7 +593,7 @@ import Channel
 
 Canonical naming requirements:
 
-- [ ] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Bytes`, `System.Time`; remove lowercase runtime names such as `System.fs`, `System.dl`, `System.buffer`, `System.os`, `System.io`, `System.channel`.
+- [ ] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Bytes`, `System.Time`; remove lowercase runtime names such as `System.FS`, `System.FFI`, `System.Buffer`, `System.OS`, `System.IO`, `System.Channel`.
 - [ ] Compiler reserved-import internals use canonical names only; remove canonical values such as `IO`, `DL`, `FS`, `Time`, `Thread`, `Channel`, `Math`, `Path`, `Env`, `SystemBytes`, and `StandardBytes`.
 - [ ] RAST/TAST/SIR/IR/import metadata stores `System.X` / `Standard.X`, never short internal aliases.
 - [ ] Native import lowering emits canonical module names and symbols; no compatibility remapping table remains in final mode.
