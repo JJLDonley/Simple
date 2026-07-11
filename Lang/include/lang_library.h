@@ -1286,25 +1286,121 @@ inline bool IsImplementedSystemMember(SystemModule module, std::string_view memb
     case SystemModule::OS:
       return true;
     case SystemModule::Time:
-      return std::holds_alternative<SystemTimeMember>(*parsed) &&
-             (std::get<SystemTimeMember>(*parsed) == SystemTimeMember::MonoSnake ||
-              std::get<SystemTimeMember>(*parsed) == SystemTimeMember::WallSnake);
+      if (!std::holds_alternative<SystemTimeMember>(*parsed)) return false;
+      switch (std::get<SystemTimeMember>(*parsed)) {
+        case SystemTimeMember::MonoNs:
+        case SystemTimeMember::WallNs:
+        case SystemTimeMember::MonoSnake:
+        case SystemTimeMember::WallSnake:
+          return true;
+        case SystemTimeMember::SleepNs:
+        case SystemTimeMember::SleepMs:
+        case SystemTimeMember::TimerStart:
+        case SystemTimeMember::TimerCancel:
+          return false;
+      }
+      return false;
     case SystemModule::FFI:
       return true;
     case SystemModule::ASM:
       return false;
     case SystemModule::Buffer:
+      if (!std::holds_alternative<SystemBufferMember>(*parsed)) return false;
+      switch (std::get<SystemBufferMember>(*parsed)) {
+        case SystemBufferMember::New:
+        case SystemBufferMember::Len:
+        case SystemBufferMember::ReadU16LE:
+        case SystemBufferMember::ReadU32LE:
+        case SystemBufferMember::WriteU16LE:
+        case SystemBufferMember::WriteU32LE:
+        case SystemBufferMember::Slice:
+        case SystemBufferMember::Copy:
+          return true;
+        case SystemBufferMember::Get:
+        case SystemBufferMember::Set:
+        case SystemBufferMember::ReadU64LE:
+        case SystemBufferMember::WriteU64LE:
+          return false;
+      }
+      return false;
     case SystemModule::Bytes:
-      return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
-             member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
+      if (!std::holds_alternative<SystemBytesMember>(*parsed)) return false;
+      switch (std::get<SystemBytesMember>(*parsed)) {
+        case SystemBytesMember::New:
+        case SystemBytesMember::Len:
+        case SystemBytesMember::ReadU16LE:
+        case SystemBytesMember::ReadU32LE:
+        case SystemBytesMember::WriteU16LE:
+        case SystemBytesMember::WriteU32LE:
+        case SystemBytesMember::Slice:
+        case SystemBytesMember::Copy:
+          return true;
+        case SystemBytesMember::Get:
+        case SystemBytesMember::Set:
+        case SystemBytesMember::ReadU64LE:
+        case SystemBytesMember::WriteU64LE:
+          return false;
+      }
+      return false;
     case SystemModule::Json:
-      return member == "parse" || member == "stringify" || member == "free";
+      if (!std::holds_alternative<SystemJsonMember>(*parsed)) return false;
+      switch (std::get<SystemJsonMember>(*parsed)) {
+        case SystemJsonMember::Parse:
+        case SystemJsonMember::Stringify:
+        case SystemJsonMember::Free:
+          return true;
+        case SystemJsonMember::Kind:
+        case SystemJsonMember::Get:
+        case SystemJsonMember::At:
+        case SystemJsonMember::Len:
+        case SystemJsonMember::AsString:
+        case SystemJsonMember::AsI64:
+        case SystemJsonMember::AsF64:
+        case SystemJsonMember::AsBool:
+          return false;
+      }
+      return false;
     case SystemModule::Log:
-      return member == "log" || member == "setLevel" || member == "setFile" || member == "flush";
+      if (!std::holds_alternative<SystemLogMember>(*parsed)) return false;
+      switch (std::get<SystemLogMember>(*parsed)) {
+        case SystemLogMember::Log:
+        case SystemLogMember::SetLevel:
+        case SystemLogMember::SetFile:
+        case SystemLogMember::Flush:
+          return true;
+        case SystemLogMember::Info:
+        case SystemLogMember::Warn:
+        case SystemLogMember::Error:
+          return false;
+      }
+      return false;
     case SystemModule::Random:
-      return member == "seed" || member == "i32" || member == "i64" || member == "f64" || member == "fillBytes";
+      if (!std::holds_alternative<SystemRandomMember>(*parsed)) return false;
+      switch (std::get<SystemRandomMember>(*parsed)) {
+        case SystemRandomMember::Seed:
+        case SystemRandomMember::I32:
+        case SystemRandomMember::I64:
+        case SystemRandomMember::F64:
+        case SystemRandomMember::FillBytes:
+          return true;
+        case SystemRandomMember::Range:
+          return false;
+      }
+      return false;
     case SystemModule::Thread:
-      return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
+      if (!std::holds_alternative<SystemThreadMember>(*parsed)) return false;
+      switch (std::get<SystemThreadMember>(*parsed)) {
+        case SystemThreadMember::Sleep:
+        case SystemThreadMember::Yield:
+        case SystemThreadMember::HardwareConcurrency:
+          return true;
+        case SystemThreadMember::SleepMs:
+        case SystemThreadMember::Spawn:
+        case SystemThreadMember::Join:
+        case SystemThreadMember::Detach:
+          return false;
+      }
+      return false;
     case SystemModule::Channel:
       return true;
     case SystemModule::Job:
@@ -1325,25 +1421,126 @@ inline bool IsImplementedStandardMember(StandardModule module, std::string_view 
   if (!parsed) return false;
   switch (module) {
     case StandardModule::IO:
-      return member == "print" || member == "println";
+      if (!std::holds_alternative<StandardIOMember>(*parsed)) return false;
+      switch (std::get<StandardIOMember>(*parsed)) {
+        case StandardIOMember::Print:
+        case StandardIOMember::Println:
+          return true;
+        case StandardIOMember::ReadLine:
+          return false;
+      }
+      return false;
     case StandardModule::FS:
-      return member == "readText" || member == "writeText" || member == "readBytes" ||
-             member == "writeBytes" || member == "exists" || member == "isFile" || member == "isDir" ||
-             member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
-             member == "listDir" || member == "cwd" || member == "setCwd";
+      if (!std::holds_alternative<StandardFSMember>(*parsed)) return false;
+      switch (std::get<StandardFSMember>(*parsed)) {
+        case StandardFSMember::ReadText:
+        case StandardFSMember::WriteText:
+        case StandardFSMember::ReadBytes:
+        case StandardFSMember::WriteBytes:
+        case StandardFSMember::Exists:
+        case StandardFSMember::IsFile:
+        case StandardFSMember::IsDir:
+        case StandardFSMember::Copy:
+        case StandardFSMember::Remove:
+        case StandardFSMember::Mkdir:
+        case StandardFSMember::MkdirAll:
+        case StandardFSMember::ListDir:
+        case StandardFSMember::Cwd:
+        case StandardFSMember::SetCwd:
+          return true;
+        case StandardFSMember::AppendText:
+        case StandardFSMember::Move:
+        case StandardFSMember::EnsureDir:
+        case StandardFSMember::List:
+        case StandardFSMember::Walk:
+          return false;
+      }
+      return false;
     case StandardModule::Path:
-      return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
-             member == "stem" || member == "normalize";
+      if (!std::holds_alternative<StandardPathMember>(*parsed)) return false;
+      switch (std::get<StandardPathMember>(*parsed)) {
+        case StandardPathMember::Join:
+        case StandardPathMember::Dirname:
+        case StandardPathMember::Basename:
+        case StandardPathMember::Ext:
+        case StandardPathMember::Stem:
+        case StandardPathMember::Normalize:
+          return true;
+        case StandardPathMember::Absolute:
+        case StandardPathMember::Relative:
+          return false;
+      }
+      return false;
     case StandardModule::Bytes:
-      return member == "new" || member == "slice";
+      if (!std::holds_alternative<StandardBytesMember>(*parsed)) return false;
+      switch (std::get<StandardBytesMember>(*parsed)) {
+        case StandardBytesMember::New:
+        case StandardBytesMember::Slice:
+          return true;
+        case StandardBytesMember::FromString:
+        case StandardBytesMember::ToString:
+        case StandardBytesMember::Concat:
+        case StandardBytesMember::ToHex:
+        case StandardBytesMember::FromHex:
+        case StandardBytesMember::ToBase64:
+        case StandardBytesMember::FromBase64:
+          return false;
+      }
+      return false;
     case StandardModule::Math:
-      return member == "abs" || member == "min" || member == "max" || member == "sqrt" || member == "PI";
+      if (!std::holds_alternative<StandardMathMember>(*parsed)) return false;
+      switch (std::get<StandardMathMember>(*parsed)) {
+        case StandardMathMember::PI:
+        case StandardMathMember::Abs:
+        case StandardMathMember::Min:
+        case StandardMathMember::Max:
+        case StandardMathMember::Sqrt:
+          return true;
+        case StandardMathMember::Clamp:
+        case StandardMathMember::Lerp:
+          return false;
+      }
+      return false;
     case StandardModule::Random:
-      return member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64";
+      if (!std::holds_alternative<StandardRandomMember>(*parsed)) return false;
+      switch (std::get<StandardRandomMember>(*parsed)) {
+        case StandardRandomMember::Seed:
+        case StandardRandomMember::I32:
+        case StandardRandomMember::I64:
+        case StandardRandomMember::Range:
+        case StandardRandomMember::F64:
+          return true;
+        case StandardRandomMember::Bool:
+        case StandardRandomMember::Bytes:
+        case StandardRandomMember::FillBytes:
+          return false;
+      }
+      return false;
     case StandardModule::Time:
-      return member == "mono_ns" || member == "wall_ns" || member == "formatWallNs";
+      if (!std::holds_alternative<StandardTimeMember>(*parsed)) return false;
+      switch (std::get<StandardTimeMember>(*parsed)) {
+        case StandardTimeMember::MonoNs:
+        case StandardTimeMember::NowNs:
+        case StandardTimeMember::SleepMs:
+        case StandardTimeMember::FormatWallNs:
+        case StandardTimeMember::MonoSnake:
+        case StandardTimeMember::WallSnake:
+          return true;
+      }
+      return false;
     case StandardModule::Log:
-      return member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
+      if (!std::holds_alternative<StandardLogMember>(*parsed)) return false;
+      switch (std::get<StandardLogMember>(*parsed)) {
+        case StandardLogMember::Info:
+        case StandardLogMember::Warn:
+        case StandardLogMember::Error:
+        case StandardLogMember::SetLevel:
+        case StandardLogMember::SetFile:
+          return true;
+        case StandardLogMember::Debug:
+          return false;
+      }
+      return false;
     case StandardModule::Console:
     case StandardModule::Buffer:
     case StandardModule::Text:
