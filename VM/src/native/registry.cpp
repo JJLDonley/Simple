@@ -760,16 +760,9 @@ NativeCallResult EnvSet(NativeCallContext& context) {
   return result;
 }
 
-NativeCallResult EnvPlatform(NativeCallContext&) {
-  NativeCallResult result;
-  result.string_value = Env::PlatformName();
-  return result;
-}
-
-NativeCallResult EnvArch(NativeCallContext&) {
-  NativeCallResult result;
-  result.string_value = Env::ArchName();
-  return result;
+NativeCallResult EnvUnset(NativeCallContext& context) {
+  std::string name;
+  return NativeCallResult::Bool(ReadStringArg(context, 0, &name) && Env::Unset(name));
 }
 
 NativeCallResult EnvExePath(NativeCallContext&) {
@@ -2075,8 +2068,10 @@ void RegisterSystemOs(NativeRegistry& registry) {
                                    "clock.time"));
   registry.Register(WithCapability(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs),
                                    "clock.time"));
-  registry.Register(MakeSpec("System.os", "platform", {}, TypeKind::String, OsPlatform));
-  registry.Register(MakeSpec("System.os", "arch", {}, TypeKind::String, OsArch));
+  registry.Register(WithStability(MakeSpec("System.os", "platform", {}, TypeKind::String, OsPlatform),
+                                  NativeStability::Stable));
+  registry.Register(WithStability(MakeSpec("System.os", "arch", {}, TypeKind::String, OsArch),
+                                  NativeStability::Stable));
   registry.Register(MakeSpec("System.os", "isLinux", {}, TypeKind::Bool, OsIsLinux));
   registry.Register(MakeSpec("System.os", "isMacos", {}, TypeKind::Bool, OsIsMacos));
   registry.Register(MakeSpec("System.os", "isWindows", {}, TypeKind::Bool, OsIsWindows));
@@ -2270,11 +2265,9 @@ void RegisterSystemEnv(NativeRegistry& registry) {
                                             {TypeKind::String, TypeKind::String}, TypeKind::I32,
                                             EnvSet),
                                    "environment.write"));
-  registry.Register(WithStability(MakeSpec("System.env", "platform", {}, TypeKind::String,
-                                           EnvPlatform),
-                                  NativeStability::Stable));
-  registry.Register(WithStability(MakeSpec("System.env", "arch", {}, TypeKind::String, EnvArch),
-                                  NativeStability::Stable));
+  registry.Register(WithCapability(MakeSpec("System.env", "unset", {TypeKind::String},
+                                            TypeKind::Bool, EnvUnset),
+                                   "environment.write"));
   registry.Register(WithCapability(MakeSpec("System.env", "exePath", {}, TypeKind::String,
                                             EnvExePath),
                                    "process.args"));

@@ -261,13 +261,14 @@ bool VmNativeFunctionMetadataDeclaresCapabilities() {
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   return HasCapability(registry.Find("System.env", "get"), "environment.read") &&
          HasCapability(registry.Find("System.env", "set"), "environment.write") &&
+         HasCapability(registry.Find("System.env", "unset"), "environment.write") &&
          HasCapability(registry.Find("System.env", "argsCount"), "process.args") &&
          HasCapability(registry.Find("System.os", "time_mono_ns"), "clock.time") &&
          HasCapability(registry.Find("System.fs", "copy"), "filesystem.read") &&
          HasCapability(registry.Find("System.fs", "copy"), "filesystem.write") &&
          HasCapability(registry.Find("System.fs", "remove"), "filesystem.write") &&
          HasCapability(registry.Find("System.path", "exists"), "filesystem.read") &&
-         HasCapability(registry.Find("System.os", "sleep_ms"), "threading") &&
+         HasCapability(registry.Find("System.os", "sleepMs"), "threading") &&
          HasCapability(registry.Find("System.thread", "yield"), "threading") &&
          HasCapability(registry.Find("System.random", "i32"), "randomness");
 }
@@ -279,13 +280,13 @@ bool VmNativeFunctionMetadataDeclaresStability() {
   const auto* dl_open = registry.Find("System.dl", "open");
   const auto* dl_sym = registry.Find("System.dl", "sym");
   const auto* dl_close = registry.Find("System.dl", "close");
-  const auto* env_platform = registry.Find("System.env", "platform");
-  const auto* env_arch = registry.Find("System.env", "arch");
+  const auto* os_platform = registry.Find("System.os", "platform");
+  const auto* os_arch = registry.Find("System.os", "arch");
   return dl_open && dl_open->stability == NativeStability::Unsafe &&
          dl_sym && dl_sym->stability == NativeStability::Unsafe &&
          dl_close && dl_close->stability == NativeStability::Unsafe &&
-         env_platform && env_platform->stability == NativeStability::Stable &&
-         env_arch && env_arch->stability == NativeStability::Stable;
+         os_platform && os_platform->stability == NativeStability::Stable &&
+         os_arch && os_arch->stability == NativeStability::Stable;
 }
 
 bool VmNativeFunctionMetadataDeclaresResources() {

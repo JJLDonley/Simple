@@ -18,18 +18,19 @@ There are no public compatibility aliases in the target model. Source imports mu
 |---|---|---|
 | `Standard.IO` | print/println/readLine | `System.IO` |
 | `Standard.Console` | user-friendly console colors/clear/readline | `System.IO`, `System.Terminal` |
-| `Standard.FS` | readText/writeText/readBytes/writeBytes/list/walk | `System.FS`, `System.Path`, `System.Bytes` |
+| `Standard.FS` | readText/writeText/readBytes/writeBytes/list/walk | `System.FS`, `System.Path`, `System.Buffer`, `System.Bytes` |
 | `Standard.Path` | ergonomic path helpers | `System.Path` |
-| `Standard.Bytes` | byte creation/conversion/hex/base64; currently `new` and `slice` | `System.Bytes` |
+| `Standard.Buffer` | ergonomic mutable/growable/cursor buffer builder, reader, and writer utilities | `System.Buffer`, `System.Bytes` |
+| `Standard.Bytes` | immutable byte-value creation/conversion/hex/base64 helpers | `System.Bytes`, `System.Buffer` when conversion needs runtime buffers |
 | `Standard.Text` | string/text helpers | runtime string helpers |
 | `Standard.Json` | reserved but intentionally unavailable until a real high-level JSON value/wrapper API exists | `System.Json` |
 | `Standard.Math` | math helpers/intrinsics | compiler intrinsics |
-| `Standard.Random` | range/bool/bytes helpers | `System.Random`, `System.Bytes` |
+| `Standard.Random` | range/bool/bytes helpers | `System.Random`, `System.Bytes`, `System.Buffer` |
 | `Standard.Time` | now/mono/sleep/format/durations | `System.Time` |
 | `Standard.Log` | debug/info/warn/error | `System.Log` |
-| `Standard.Process` | run/runText/async process helpers | `System.Process`, `System.IO`, `System.Bytes` |
+| `Standard.Process` | run/runText/async process helpers | `System.Process`, `System.IO`, `System.Buffer`, `System.Bytes` |
 | `Standard.Net` | high-level TCP streams/listeners | `System.Net` |
-| `Standard.HTTP` | HTTP client/server helpers | `System.HTTP`, `System.Net`, `System.Bytes`, `System.Json` |
+| `Standard.HTTP` | HTTP client/server helpers | `System.HTTP`, `System.Net`, `System.Buffer`, `System.Bytes`, `System.Json` |
 | `Standard.HTTPS` | secure HTTP helpers | `System.HTTP`, `System.FS`, `System.Net` |
 | `Standard.Terminal` | high-level terminal sessions/raw/alt helpers | `System.Terminal` |
 | `Standard.Promise` | Promise helpers | `System.Job` |

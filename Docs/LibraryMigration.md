@@ -43,7 +43,7 @@ legacy Time import is rejected; use System.Time or Standard.Time
 | `Path` | `Standard.Path` / `System.Path` | ergonomic helpers Standard; primitive path ops System |
 | `Env` | `System.Env` / `Standard.Env` | raw args/env System; convenience Standard if added |
 | `Random` | `Standard.Random` / `System.Random` | raw RNG System; range/bool helpers Standard |
-| `Buffer` | `Standard.Bytes` / `System.Bytes` | current `i32[]` buffer surface should migrate to canonical `Bytes` |
+| `Buffer` | `System.Buffer` / `Standard.Buffer` plus `System.Bytes` / `Standard.Bytes` where immutable byte values are distinct | mutable/native/cursor behavior maps to Buffer; immutable byte-value conversion/helpers map to Bytes |
 | `Json` | `System.Json` first, `Standard.Json` later | current handle API is System; value API is Standard after variants/object model |
 | `Log` | `Standard.Log` / `System.Log` | sink/level System; info/warn/error Standard |
 | `Thread` | `System.Thread` | low-level threading |
@@ -59,7 +59,7 @@ legacy Time import is rejected; use System.Time or Standard.Time
 4. Reject short imports with diagnostics and suggested replacements. Done for reserved imports.
 5. Replace transitional mappings with real low-level `System.*` APIs.
 6. Implement source-level `Standard.*` wrappers over `System.*`.
-7. Switch final APIs to `Result`/`Option`/`Bytes`/typed handles as those language features complete.
+7. Switch final APIs to `Result`/`Option`/typed handles and the final Buffer/Bytes split as those language features complete.
 
 ## Diagnostics target
 
@@ -69,7 +69,7 @@ Old imports should fail with direct replacements:
 legacy IO      -> use Standard.IO
 legacy FS      -> use Standard.FS or System.FS
 legacy DL      -> use System.FFI
-legacy Buffer  -> use Standard.Bytes or System.Bytes
+legacy Buffer  -> use System.Buffer for low-level mutable/native buffers, Standard.Buffer for high-level growable/cursor buffers, or Standard.Bytes/System.Bytes for immutable byte values
 legacy Channel -> use System.Channel
 ```
 

@@ -36,6 +36,14 @@ bool Set(const std::string& name, const std::string& value) {
 #endif
 }
 
+bool Unset(const std::string& name) {
+#if defined(_WIN32)
+  return _putenv_s(name.c_str(), "") == 0;
+#else
+  return unsetenv(name.c_str()) == 0;
+#endif
+}
+
 std::string PlatformName() {
 #if defined(_WIN32)
   return "windows";

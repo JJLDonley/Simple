@@ -28,7 +28,8 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "Path") *out = "System.path";
   else if (canonical_module == "FS") *out = "System.fs";
   else if (canonical_module == "SystemJson") *out = "System.json";
-  else if (canonical_module == "SystemBytes" || canonical_module == "StandardBytes") *out = "System.buffer";
+  else if (canonical_module == "SystemBuffer" || canonical_module == "SystemBytes" ||
+           canonical_module == "StandardBytes") *out = "System.buffer";
   else if (canonical_module == "SystemLog" || canonical_module == "StandardLog") *out = "System.log";
   else return false;
   return true;
@@ -78,11 +79,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
   }
   if (canonical_module == "SystemRandom") return {"seed", "i32", "i64", "f64", "fillBytes"};
   if (canonical_module == "StandardRandom") return {"seed", "i32", "i64", "range", "f64"};
-  if (canonical_module == "Env") {
-    out = {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
+  if (canonical_module == "Env") return {"argsCount", "arg", "get", "set", "unset", "exePath"};
   if (canonical_module == "StandardPath") return {"join", "dirname", "basename", "ext", "stem", "normalize"};
   if (canonical_module == "Path") {
     return {"separator", "delimiter", "isAbsolute", "join", "dirname", "basename", "ext", "stem", "normalize"};
@@ -110,9 +107,10 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
   }
   if (canonical_module == "File") return {"open", "close", "read", "write"};
   if (canonical_module == "SystemJson") return {"parse", "stringify", "free"};
-  if (canonical_module == "SystemBytes") {
+  if (canonical_module == "SystemBuffer" || canonical_module == "SystemBytes") {
     return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
   }
+  if (canonical_module == "StandardBuffer") return {};
   if (canonical_module == "StandardBytes") return {"new", "slice"};
   if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile", "flush"};
   if (canonical_module == "StandardLog") return {"info", "warn", "error", "setLevel", "setFile"};
@@ -201,7 +199,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   }
   if (canonical_module == "Env") {
     return member == "argsCount" || member == "arg" || member == "get" || member == "set" ||
-           member == "platform" || member == "arch" || member == "exePath";
+           member == "unset" || member == "exePath";
   }
   if (canonical_module == "StandardPath") {
     return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
@@ -230,10 +228,11 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
   if (canonical_module == "SystemJson") return member == "parse" || member == "stringify" || member == "free";
-  if (canonical_module == "SystemBytes") {
+  if (canonical_module == "SystemBuffer" || canonical_module == "SystemBytes") {
     return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
            member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
   }
+  if (canonical_module == "StandardBuffer") return false;
   if (canonical_module == "StandardBytes") return member == "new" || member == "slice";
   return false;
 }

@@ -10,10 +10,11 @@ Order of work:
 4. Native ABI and language-level result/option/promise/handle types.
 5. VM Native Core resource registry and safety model.
 6. LLVM ORC JIT broad Tier 0, then optimized Tier 1.
-7. Low-level `System.*` APIs.
-8. High-level `Standard.*` APIs. Public short aliases are not part of the final model.
-9. Documentation, generated API references, and cross-platform tests.
-10. Lower-priority SRP/backlog cleanup only when it directly supports the above.
+7. Canonical library namespace/runtime naming stabilization: remove lowercase runtime modules and internal short forms.
+8. Low-level `System.*` APIs.
+9. High-level `Standard.*` APIs. Public short aliases are not part of the final model.
+10. Documentation, generated API references, and cross-platform tests.
+11. Lower-priority SRP/backlog cleanup only when it directly supports the above.
 
 Locked architecture decisions:
 
@@ -24,7 +25,7 @@ Locked architecture decisions:
 - Generic arguments may be any type with stable type identity: primitives, strings, arrays, lists, data, artifacts, enums, pointers, functions, handles, results/options/promises, and instantiated generic types.
 - Native calls are metadata-driven. Interpreter, JIT, future AOT, docs, and language reserved signatures must consume the same native-function metadata.
 - Host resources are generational opaque handles. Raw platform handles and VM heap internals are never exposed directly to Simple code.
-- `System.*` is explicit, low-level, capability-aware, and returns `Result`/`Option` for expected host failures. `Standard.*` is ergonomic and wraps `System.*`. The final public library model has no short compatibility aliases; source imports use only `System.X` or `Standard.X`.
+- `System.*` is explicit, low-level, capability-aware, native/runtime-facing, and returns `Result`/`Option` for expected host failures. `Standard.*` is ergonomic and wraps `System.*`. The final public and internal library model has no short compatibility aliases, no lowercase runtime module names, and no duplicate root modules; source, compiler internals, native registry metadata, LSP, docs, tests, and generated references use only canonical `System.X` or `Standard.X` names.
 
 ---
 
@@ -508,21 +509,21 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Scope unsafe loop-call rejection to calls inside backward-branch ranges so pre-loop native setup does not block hot-loop JIT.
 - [x] Include native/import/direct call target labels in LLVM loop-call rejection diagnostics.
 - [x] Treat unspecified-return direct Simple calls as void-safe for scalar loop-call lowering.
-- [x] Route accepted scalar dynamic `System.dl.call$...` loop calls through a specialized LLVM helper instead of full helper dispatch.
-- [x] Remove dynamic `System.dl.call$...` scalar direct-bind shims; scalar loop calls use the canonical helper path.
-- [x] Remove raylib-specific dynamic-DL direct binds from LLVM; dynamic FFI loop acceptance now goes through generic VM ABI/native ABI gates only.
+- [x] Route accepted scalar dynamic `System.FFI` loop calls through a specialized LLVM helper instead of full helper dispatch.
+- [x] Remove dynamic `System.FFI` scalar direct-bind shims; scalar loop calls use the canonical helper path.
+- [x] Remove raylib-specific dynamic FFI direct binds from LLVM; dynamic FFI loop acceptance now goes through generic VM ABI/native ABI gates only.
 - [x] Include rejected loop-call SBC signature shapes in LLVM JIT diagnostics.
-- [x] Route scalar dynamic-DL LLVM helper calls through `JitCallContext` snapshots/root publication.
-- [x] Bump the LLVM runtime-helper ABI version after changing the dynamic-DL helper signature.
-- [x] Allow verified dynamic-DL borrowed C-string input calls inside LLVM loops through the `JitCallContext` helper path.
+- [x] Route scalar dynamic FFI LLVM helper calls through `JitCallContext` snapshots/root publication.
+- [x] Bump the LLVM runtime-helper ABI version after changing the dynamic FFI helper signature.
+- [x] Allow verified dynamic FFI borrowed C-string input calls inside LLVM loops through the `JitCallContext` helper path.
 - [x] Include loop bytecode ranges in unsafe LLVM loop-call rejection diagnostics.
-- [x] Keep dynamic-DL helper dispatch rooted in `JitCallContext` argument/heap/trap state instead of library-specific direct-bind shims.
-- [x] Publish caller local/operand roots and safepoint metadata around accepted dynamic-DL helper paths.
-- [x] Route scalar dynamic-DL loop calls through `JitCallContext` helper dispatch instead of raw LLVM C calls.
-- [x] Validate dynamic-DL VM/native ABI signatures through the canonical FFI verifier before LLVM loop-call acceptance.
-- [x] Classify dynamic-DL ABI validation by VM marshal support, native ABI validity, root needs, allocation risk, helper safety, and LLVM loop safety.
+- [x] Keep dynamic FFI helper dispatch rooted in `JitCallContext` argument/heap/trap state instead of library-specific direct-bind shims.
+- [x] Publish caller local/operand roots and safepoint metadata around accepted dynamic FFI helper paths.
+- [x] Route scalar dynamic FFI loop calls through `JitCallContext` helper dispatch instead of raw LLVM C calls.
+- [x] Validate dynamic FFI VM/native ABI signatures through the canonical FFI verifier before LLVM loop-call acceptance.
+- [x] Classify dynamic FFI ABI validation by VM marshal support, native ABI validity, root needs, allocation risk, helper safety, and LLVM loop safety.
 - [x] Add an interpreter-vs-JIT reduced repro for scalar native/import calls inside loops.
-- [x] Add an interpreter-vs-JIT reduced repro for scalar dynamic-DL loop calls.
+- [x] Add an interpreter-vs-JIT reduced repro for scalar dynamic FFI loop calls.
 - [x] Include aggregate field layout fingerprints in LLVM loop-call signature diagnostics.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
@@ -543,7 +544,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Native import loop enabling is gated by canonical native metadata validation: valid handler/signature metadata, matching SBC signature, non-blocking, no allocation, no GC safepoint, and no mutating/output resources.
 - [x] Managed string/ref arguments are allowed for safe native import loop calls via `JitCallContext` roots.
 - [x] Borrowed resource input arguments are allowed for safe native import loop calls while output/mutating resources still reject.
-- [x] Dynamic `System.dl.call$...` loop enabling requires scalar/void signatures that pass the external C ABI verifier.
+- [x] Dynamic `System.FFI` loop enabling requires scalar/void signatures that pass the external C ABI verifier.
 - [x] Direct native binding is allowed only for pure, non-blocking, non-allocating, no-resource helpers after metadata marks them safe.
 
 ### Tier 1: Optimized Monomorphic Lowering
@@ -568,231 +569,385 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 
 ---
 
-## Phase 3: Low-Level `System.*` APIs
+## Phase 3: Canonical Library Namespace and Runtime Naming Stabilization
 
-`System.*` is explicit and close to host/runtime behavior. It exposes typed handles, explicit options, explicit cleanup, clear blocking behavior, and `Result<T>` / `Option<T>` for expected failures/absence.
+This phase must complete before new library breadth work. The goal is to make the no-alias model real everywhere, not only at the public parser boundary.
+
+Final rule:
+
+```simple
+import System.X
+import Standard.X
+```
+
+Rejected forever:
+
+```simple
+import IO
+import FS
+import DL
+import Time
+import Buffer
+import Channel
+```
+
+Canonical naming requirements:
+
+- [ ] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Bytes`, `System.Time`; remove lowercase runtime names such as `System.fs`, `System.dl`, `System.buffer`, `System.os`, `System.io`, `System.channel`.
+- [ ] Compiler reserved-import internals use canonical names only; remove canonical values such as `IO`, `DL`, `FS`, `Time`, `Thread`, `Channel`, `Math`, `Path`, `Env`, `SystemBytes`, and `StandardBytes`.
+- [ ] RAST/TAST/SIR/IR/import metadata stores `System.X` / `Standard.X`, never short internal aliases.
+- [ ] Native import lowering emits canonical module names and symbols; no compatibility remapping table remains in final mode.
+- [ ] LSP completions, hover, signature help, semantic tokens, document links, snippets, and diagnostics use canonical names only.
+- [ ] Docs, README, examples, playgrounds, Website samples, tests, generated stdlib references, and editor assets contain no lowercase runtime modules and no legacy import examples except explicit rejection diagnostics.
+- [ ] Public byte/memory modules use the final four-part model where implemented: `System.Buffer` for low-level mutable native/runtime buffers, `System.Bytes` for low-level immutable/owned byte values, `Standard.Buffer` for ergonomic growable/cursor buffers, and `Standard.Bytes` for ergonomic byte-value conversion/helpers.
+- [ ] Legacy imports fail with targeted suggestions and tests for every legacy name: `IO`, `FS`, `DL`, `Time`, `Buffer`, `Channel`, `Math`, `OS`, `File`, `Path`, `Env`, `Random`, `Json`, `Log`, `Thread`, `Http`, `Socket`.
+- [ ] Duplicate root behavior is rejected: unimplemented `Standard.*` modules must not expose raw `System.*` members as placeholders.
+- [ ] Transitional high-level members exposed under `System.*` are removed or moved: `System.FS.readText/writeText/readBytes/writeBytes`, `System.Random.range`, `System.Log.info/warn/error`, `System.Time/OS.formatWallNs`.
+- [ ] Runtime module-name migration is versioned: old serialized/native module names are rejected with diagnostics or migrated at build time; no silent alias execution.
+- [ ] Full baseline is green after namespace migration: `ctest`, `svm check/run` fixtures, LSP tests, docs link checks where available.
+
+Native metadata contract for every final `System.*` function:
+
+- [ ] `layer = system`.
+- [ ] canonical `module`, canonical `symbol`, and exact Simple signature.
+- [ ] resource inputs/outputs, ownership transfer, cleanup behavior, blocking behavior, allocation behavior, and GC safepoint behavior.
+- [ ] capability tags, platform availability, stability, and doc summary.
+- [ ] JIT/direct-call safety derived only from metadata.
+- [ ] Metadata validation fails CI for missing docs, capabilities on host-touching APIs, wrong layer, wrong module casing, lowercase module names, or short internal module names.
+
+---
+
+## Phase 4: Low-Level `System.*` APIs
+
+`System.*` is explicit, low-level, capability-aware, native/runtime-facing, and close to the Simple VM ABI. It exposes typed handles, explicit cleanup, clear blocking behavior, capability checks, and `Result<T>` / `Option<T>` for expected failures or absence.
 
 Sync/async convention:
 
 - Sync APIs: `System.Domain.function(...) -> Result<T>` / `Option<T>`.
-- Async APIs: `System.Domain.async.function(...) -> Promise<T>`.
+- Async APIs, when present: `System.Domain.async.function(...) -> Promise<T>`.
 - Do not use `Async` suffixes or capital `Async` modules.
+- No library-specific shims, no implicit ABI guessing, and no duplicate ergonomic APIs under `System.*`.
+
+Required `System.*` modules:
+
+```txt
+System.IO
+System.FS
+System.Path
+System.Env
+System.OS
+System.Time
+System.FFI
+System.ASM
+System.Buffer
+System.Bytes
+System.Json
+System.Log
+System.Random
+System.Thread
+System.Job
+System.Channel
+System.Process
+System.Net
+System.HTTP
+System.Terminal
+System.Capability
+System.Runtime
+System.Debug
+```
+
+Byte/memory naming is intentional: `Buffer` means mutable/native/runtime/cursor-oriented storage; `Bytes` means owned byte values. Implement both only when both abstractions exist, but reserve their meanings now.
+
+### `System.IO`
+
+- [ ] `IOHandle` backed by generational native resources.
+- [ ] `stdin() -> IOHandle`, `stdout() -> IOHandle`, `stderr() -> IOHandle`.
+- [ ] `write(handle, bytes : Bytes) -> Result<i32>`.
+- [ ] `writeText(handle, text : string) -> Result<i32>`.
+- [ ] `flush(handle) -> Result<void>`.
+- [ ] No `print`/`println`; those belong only to `Standard.IO`.
 
 ### `System.FS`
 
-- [ ] `System.FS.open(path, mode) -> Result<System.FS.FileHandle>`.
-- [ ] `System.FS.close(file) -> Result<void>`.
-- [ ] `System.FS.read(file, maxBytes) -> Result<Bytes>`.
-- [ ] `System.FS.readAll(file) -> Result<Bytes>`.
-- [ ] `System.FS.write(file, data) -> Result<i32>`.
-- [ ] `System.FS.flush(file) -> Result<void>`.
-- [ ] `System.FS.seek(file, offset, origin) -> Result<i64>`.
-- [ ] `System.FS.tell(file) -> Result<i64>`.
-- [ ] `System.FS.stat(path) -> Result<System.FS.FileStat>`.
-- [ ] `System.FS.exists/isFile/isDir(path) -> Result<bool>`.
-- [ ] `System.FS.listDir(path) -> Result<List<string>>`.
-- [ ] `System.FS.mkdir/mkdirAll/remove/copy/rename(...) -> Result<void>`.
-- [ ] `System.FS.cwd() -> Result<string>`.
-- [ ] `System.FS.setCwd(path) -> Result<void>`.
-- [ ] Async variants under `System.FS.async.*`.
+- [ ] Types: `FileHandle`, `DirHandle`, `DirEntry`, `FileStat`, `OpenMode`, `SeekOrigin`.
+- [ ] `open(path, mode) -> Result<FileHandle>`.
+- [ ] `close(file) -> Result<void>`.
+- [ ] `read(file, maxBytes) -> Result<Bytes>`.
+- [ ] `write(file, data : Bytes) -> Result<i32>`.
+- [ ] `flush(file) -> Result<void>`.
+- [ ] `seek(file, offset, origin) -> Result<i64>`.
+- [ ] `tell(file) -> Result<i64>`.
+- [ ] `stat(path) -> Result<FileStat>`.
+- [ ] `exists/isFile/isDir(path) -> Result<bool>`.
+- [ ] `listDir(path) -> Result<DirHandle>`, `nextDirEntry(dir) -> Option<DirEntry>`, `closeDir(dir) -> Result<void>`.
+- [ ] `mkdir/mkdirAll/remove/copy/rename(...) -> Result<void>`.
+- [ ] `cwd() -> Result<string>`, `setCwd(path) -> Result<void>`.
+- [ ] Capability tags split filesystem read/write/open/delete/change-directory behavior.
 
 ### `System.Path`
 
-- [ ] join, joinMany, dirname, basename, ext, stem.
-- [ ] normalize, absolute, relative, isAbsolute, separator.
+- [ ] `separator() -> string`, `delimiter() -> string`.
+- [ ] `isAbsolute(path) -> bool`.
+- [ ] `normalize(path) -> string`.
+- [ ] `absolute(path) -> Result<string>`.
+- [ ] `relative(from, to) -> Result<string>`.
+- [ ] `join(a, b) -> string`.
+- [ ] `dirname/basename/ext/stem(path) -> string`.
+- [ ] Keep filesystem existence checks in `System.FS`, not `System.Path`.
 
-### `System.Buffer` / `System.Bytes`
+### `System.Env` and `System.OS`
 
-- [ ] Decide VM heap bytes vs native buffer handles or both.
-- [ ] buffer create/close/len/slice/copy APIs.
-- [ ] endian read/write APIs.
-- [ ] bounds diagnostics for all operations.
+- [ ] `System.Env.argsCount() -> i32`, `arg(index) -> Option<string>`.
+- [ ] `System.Env.get(name) -> Option<string>`.
+- [ ] `System.Env.set(name, value) -> Result<void>`.
+- [ ] `System.Env.unset(name) -> Result<void>`.
+- [ ] `System.Env.exePath() -> Result<string>`.
+- [ ] `System.OS.platform() -> string`, `arch() -> string`.
+- [ ] `System.OS.isLinux/isMacos/isWindows() -> bool`.
+- [ ] `System.OS.pid() -> i32`, `cpuCount() -> i32`, `pageSize() -> i32`.
+- [ ] `System.OS.exit(code) -> void`, `sleepMs(ms) -> void`.
+- [ ] Remove old Env `platform/arch`; update fixtures and registry tests accordingly.
+
+### `System.Time`
+
+- [ ] `monoNs() -> i64`, `wallNs() -> i64`.
+- [ ] `sleepNs(ns) -> void`, `sleepMs(ms) -> void`.
+- [ ] Types: `TimerHandle`.
+- [ ] `timerStart(ns) -> Result<TimerHandle>`.
+- [ ] `timerCancel(timer) -> Result<void>`.
+- [ ] Formatting belongs only to `Standard.Time`.
 
 ### `System.FFI`
 
-Foreign function interface and dynamic loading. Unsafe/system-level by default.
-
-- [ ] `System.FFI.open(path) -> Result<System.FFI.LibraryHandle>`.
-- [ ] `System.FFI.close(lib) -> Result<void>`.
-- [ ] `System.FFI.symbol(lib, name) -> Result<System.FFI.SymbolHandle>`.
-- [ ] `System.FFI.error() -> Option<string>`.
-- [ ] Extern declarations remain the preferred way to call typed FFI symbols.
-- [ ] Capability-gate FFI/dynamic loading.
-- [ ] Cleanup library handles on VM exit.
+- [ ] Types: `LibraryHandle`, `SymbolHandle`.
+- [ ] `supported() -> bool`.
+- [ ] `open(path) -> Result<LibraryHandle>`.
+- [ ] `open(path, manifest : namespace) -> Result<LibraryHandle>`.
+- [ ] `symbol(lib, name) -> Result<SymbolHandle>`.
+- [ ] `close(lib) -> Result<void>`.
+- [ ] `lastError() -> Option<string>`.
+- [ ] Extern declarations remain required for typed calls.
+- [ ] Remove `DL` terminology from diagnostics, TAST/ABI helpers, lowering, and runtime symbols except in legacy rejection messages.
+- [ ] All dynamic calls pass canonical ABI validation; no library-specific call shims.
+- [ ] Capability-gate FFI/dynamic loading and cleanup library handles on VM exit.
 
 ### `System.ASM`
 
-Native code-generation tooling for C/DynASM source units. Goal: compile/link native code into the generated stub or AOT output without shipping ad-hoc app-specific dynamic libraries.
+- [ ] Types: `UnitHandle`, `ObjectHandle`, `SymbolHandle`, `Target`, `Options`, `LinkMode`.
+- [ ] `fromC(source, options) -> Result<UnitHandle>`.
+- [ ] `fromDynASM(source, options) -> Result<UnitHandle>`.
+- [ ] `compile(unit, target) -> Result<ObjectHandle>`.
+- [ ] `symbol(object, name) -> Result<SymbolHandle>`.
+- [ ] `linkStub(object, mode) -> Result<void>`.
+- [ ] `linkAot(object, mode) -> Result<void>`.
+- [ ] `closeUnit(unit) -> Result<void>`, `closeObject(object) -> Result<void>`.
+- [ ] Capability: `native-code-generation`.
+- [ ] Build integration: manifest support, cache keys, diagnostics, stub embedding, AOT direct-link path.
 
-- [ ] Handles/types:
-  - [ ] `System.ASM.UnitHandle`.
-  - [ ] `System.ASM.ObjectHandle`.
-  - [ ] `System.ASM.SymbolHandle`.
-  - [ ] `System.ASM.Target`.
-  - [ ] `System.ASM.Options`.
-  - [ ] `System.ASM.LinkMode`.
-- [ ] APIs:
-  - [ ] `System.ASM.fromC(source, options) -> Result<UnitHandle>`.
-  - [ ] `System.ASM.fromDynASM(source, options) -> Result<UnitHandle>`.
-  - [ ] `System.ASM.compile(unit, target) -> Result<ObjectHandle>`.
-  - [ ] `System.ASM.symbol(object, name) -> Result<SymbolHandle>`.
-  - [ ] `System.ASM.linkStub(object, mode) -> Result<void>`.
-  - [ ] `System.ASM.linkAot(object, mode) -> Result<void>`.
-  - [ ] close unit/object APIs.
-- [ ] Build integration:
-  - [ ] `svm build` manifest support for C/DynASM units.
-  - [ ] symbol metadata tying Simple extern declarations to ASM-produced symbols.
-  - [ ] stub embedding path.
-  - [ ] AOT direct-link path.
-  - [ ] cache keys for source, target, options, ABI metadata, compiler version.
-  - [ ] diagnostics for missing compiler/toolchain/DynASM backend.
-- [ ] Safety:
-  - [ ] explicit native-code-generation capability.
-  - [ ] no implicit raw pointer/resource access.
-  - [ ] ABI signatures required before Simple calls generated code.
+### `System.Buffer` and `System.Bytes`
 
-### `System.Thread` / `System.Job` / `System.Channel`
+- [ ] `System.Buffer` is the low-level mutable/native/runtime buffer API.
+- [ ] Types: `BufferHandle` or equivalent resource-backed mutable buffer handle where native lifetime/pinning/FFI semantics are required.
+- [ ] `System.Buffer.alloc(size) -> Result<BufferHandle>`.
+- [ ] `System.Buffer.free(buffer) -> Result<void>`.
+- [ ] `System.Buffer.len(buffer) -> Result<i32>`.
+- [ ] `System.Buffer.get(buffer, index) -> Result<u8>`.
+- [ ] `System.Buffer.set(buffer, index, value : u8) -> Result<void>`.
+- [ ] `System.Buffer.slice(buffer, start, end) -> Result<BufferHandle>` or documented view/copy semantics.
+- [ ] `System.Buffer.copy(dst, dstOffset, src, srcOffset, count) -> Result<i32>`.
+- [ ] Endian accessors: `readU16LE/readU32LE/readU64LE`, `writeU16LE/writeU32LE/writeU64LE`.
+- [ ] Native/FFI behavior is explicit: ownership, cleanup, pinning/moving, borrowed views, and pointer exposure policy.
+- [ ] `System.Bytes` is the low-level immutable/owned byte-value API when the language/runtime has a distinct `Bytes` value type.
+- [ ] `System.Bytes.new(size) -> Result<Bytes>`, `len`, `get`, `slice`, `copy` for value-level byte data.
+- [ ] Do not expose duplicate APIs: mutable/resource/cursor behavior goes to `System.Buffer`; immutable value behavior goes to `System.Bytes`.
+- [ ] Bounds diagnostics for all operations.
 
-- [ ] Keep OS thread handles distinct from VM job handles.
-- [ ] thread sleep/yield/hardwareConcurrency.
-- [ ] job spawn/join/detach/cancel.
-- [ ] concrete channel variants until generic runtime support lands.
-- [ ] channel send/trySend/recv/tryRecv/pending/close.
-- [ ] close/cancel wakes blocked operations.
-- [ ] structured error propagation through `Result<T>`.
+### `System.Json`
+
+- [ ] Type: `JsonHandle` with cleanup on VM exit or explicit `free`.
+- [ ] `parse(text) -> Result<JsonHandle>`.
+- [ ] `free(json) -> Result<void>`.
+- [ ] `stringify(json) -> Result<string>`.
+- [ ] `kind(json) -> Result<i32>`.
+- [ ] `get(json, key) -> Result<JsonHandle>`.
+- [ ] `at(json, index) -> Result<JsonHandle>`.
+- [ ] `len(json) -> Result<i32>`.
+- [ ] `asString/asI64/asF64/asBool(json) -> Result<T>`.
+
+### `System.Log`
+
+- [ ] `log(level, message) -> void`.
+- [ ] `setLevel(level) -> void`.
+- [ ] `setFile(path) -> Result<void>`.
+- [ ] `flush() -> Result<void>`.
+- [ ] Move `debug/info/warn/error` convenience wrappers to `Standard.Log` only.
+
+### `System.Random`
+
+- [ ] `seed(seed : i64) -> void`.
+- [ ] `i32() -> i32`, `i64() -> i64`, `f64() -> f64`.
+- [ ] `fillBytes(bytes : Bytes) -> Result<void>`.
+- [ ] Move `range/bool/bytes(count)` helpers to `Standard.Random` only.
+
+### `System.Thread`, `System.Job`, and `System.Channel`
+
+- [ ] `System.Thread.ThreadHandle`; keep OS/runtime thread handles distinct from VM jobs.
+- [ ] `System.Thread.yield()`, `sleepMs(ms)`, `hardwareConcurrency()`.
+- [ ] `System.Thread.spawn(fn void ()) -> Result<ThreadHandle>` only after closure/rooting is correct.
+- [ ] `System.Thread.join/detach(thread) -> Result<void>`.
+- [ ] `System.Job.JobHandle`, `Promise<T>`.
+- [ ] `System.Job.spawn<T>(fn T ()) -> Result<Promise<T>>`.
+- [ ] `System.Job.cancel/poll/await<T>(promise)` with `Result`/`Option`.
+- [ ] `System.Channel.ChannelHandle` concrete families for `I32`, `I64`, `F32`, `F64`, `Bool`, `String`, `Bytes`.
+- [ ] Channel APIs: `newT`, `sendT`, `trySendT`, `recvT`, `tryRecvT`, `pendingT`, `close` with final `Result`/`Option` shapes.
+- [ ] Generic `Channel<T>` waits for generic/runtime support.
+- [ ] close/cancel wakes blocked operations and propagates structured errors.
+
+### `System.Process`
+
+- [ ] Types: `ProcessHandle`, `ProcessOptions`, `ProcessStatus`.
+- [ ] `spawn(path, args, options) -> Result<ProcessHandle>`.
+- [ ] `wait(process) -> Result<ProcessStatus>`.
+- [ ] `kill(process) -> Result<void>`.
+- [ ] `stdin/stdout/stderr(process) -> Result<System.IO.IOHandle>`.
+- [ ] Capability: `process-spawn`.
 
 ### `System.Net`
 
-- [ ] TCP client socket handle.
-- [ ] TCP listener handle.
-- [ ] UDP socket handle.
-- [ ] connect/listen/accept/send/recv/close returning `Result<T>`.
-- [ ] non-blocking/timeout variants.
-- [ ] platform error normalization.
+- [ ] Types: `SocketHandle`, `ListenerHandle`, `Address`.
+- [ ] TCP: `tcpConnect`, `tcpListen`, `accept`, `send`, `recv`, `close`.
+- [ ] UDP: `udpOpen`, `udpSendTo`, `udpRecvFrom`.
+- [ ] Capability tags: `network-client`, `network-server`.
+- [ ] Platform error normalization, timeout/non-blocking plan, and resource cleanup tests.
 
 ### `System.HTTP`
 
-- [ ] HTTP client request API returning `Result<HTTPResponse>`.
-- [ ] HTTPS client TLS verification options.
-- [ ] HTTP server handles:
-  - [ ] listenHttp.
-  - [ ] accept.
-  - [ ] readRequest/readBody.
-  - [ ] writeResponse.
-  - [ ] closeConnection/closeServer.
-- [ ] HTTPS server handles:
-  - [ ] loadTlsConfig.
-  - [ ] listenHttps.
-  - [ ] certificate/config diagnostics.
-- [ ] server robustness:
-  - [ ] request/header size limits.
-  - [ ] keep-alive policy.
-  - [ ] timeout policy.
-  - [ ] backpressure.
-  - [ ] graceful shutdown.
-  - [ ] parser fuzz/regression tests.
+- [ ] Types: `RequestHandle`, `ResponseHandle`, `ServerHandle`, `TlsConfigHandle`.
+- [ ] Client: `clientRequest`, `setHeader`, `writeBody`, `send`, `responseStatus`, `responseBody`, `closeResponse`.
+- [ ] Server: `listenHttp`, `listenHttps`, `accept`, `writeResponse`, `closeServer`.
+- [ ] Robustness: header limits, body limits, timeouts, backpressure, graceful shutdown, TLS verification/config diagnostics.
+- [ ] Parser fuzz/regression tests.
 
 ### `System.Terminal`
 
-Low-level terminal/console control; enough to build TUIs/games in user code, not a built-in widget/game framework.
-
-- [ ] terminal open/close.
-- [ ] raw mode enter/exit.
-- [ ] alternate screen enter/exit.
-- [ ] mouse enable/disable.
-- [ ] capabilities.
+- [ ] Types: `TerminalHandle`, `TerminalEvent`, `TerminalSize`.
+- [ ] `open/close`.
+- [ ] raw mode and alternate screen enter/exit.
 - [ ] size, clear, clearLine.
 - [ ] cursor move/show/hide.
-- [ ] set title.
-- [ ] write/writeAt/style/reset/flush.
+- [ ] write/writeAt/flush.
 - [ ] pollEvent/readEvent.
-- [ ] key, mouse, resize event values.
-- [ ] guaranteed terminal mode restoration on VM exit/trap.
+- [ ] Restore terminal mode on VM exit, trap, and Ctrl-C where possible.
 - [ ] Windows terminal support.
 
-### `System.Process` / `System.Time` / `System.Env` / `System.OS` / `System.Json` / `System.Log` / `System.Random`
+### `System.Capability`, `System.Runtime`, and `System.Debug`
 
-- [ ] Process spawn/wait/kill/stdin/stdout/stderr with capability policy.
-- [ ] Time wall/mono clocks and timer handles.
-- [ ] Env args/get/set with capability policy.
-- [ ] OS platform/arch/exePath.
-- [ ] Json handle-based parse/stringify/accessors with VM-exit cleanup.
-- [ ] Log levels/sinks/file sink through resource registry.
-- [ ] Random seeded RNG handles and process-global convenience later.
+- [ ] `System.Capability.has/require/deny(name)`.
+- [ ] Capability policy covers filesystem, environment, process args, FFI/dynamic loading, native code generation, threading, clock/time, randomness, network client/server, terminal control, and process spawn.
+- [ ] `System.Runtime.version/gcCollect/gcStats/heapStats/jitEnabled/jitStats` with debug/capability gating where appropriate.
+- [ ] `System.Debug.trap/assert/stackTrace/breakpoint` with debug/capability gating where appropriate.
 
 ---
 
-## Phase 4: High-Level `Standard.*` APIs
+## Phase 5: High-Level `Standard.*` APIs
 
-Canonical high-level modules live under `Standard.*`. The final public model has no top-level short aliases; old imports such as `IO`, `FS`, `DL`, and `Time` are migration-only and must be removed after the codebase moves to `System.*` and `Standard.*`.
+`Standard.*` is ergonomic, source-level where possible, and built over `System.*`. It never bypasses `System.*` ownership, capability, blocking, allocation, or cleanup rules. The final public model has no top-level short aliases and no duplicate Standard roots that expose raw System members.
+
+Required `Standard.*` modules:
+
+```txt
+Standard.IO
+Standard.Console
+Standard.FS
+Standard.Path
+Standard.Buffer
+Standard.Bytes
+Standard.Text
+Standard.Json
+Standard.Math
+Standard.Random
+Standard.Time
+Standard.Log
+Standard.Process
+Standard.Net
+Standard.HTTP
+Standard.HTTPS
+Standard.Terminal
+Standard.Promise
+Standard.Channel
+Standard.Collections
+Standard.Result
+Standard.Option
+```
 
 Rules:
 
-- [ ] High-level APIs wrap `System.*`; they do not bypass resource ownership.
-- [ ] High-level APIs preserve lowercase `.async`, e.g. `Standard.HTTP.async.get`, `Standard.FS.async.readText`.
-- [ ] Low-level APIs stay under `System.*`.
+- [ ] High-level APIs wrap documented `System.*` APIs; each API doc lists `wraps System.X.y`, allocation behavior, blocking behavior, `Result`/`Option` shape, cleanup behavior, examples, and tests.
+- [ ] Prefer source-level Simple wrappers once language features support them.
+- [ ] Low-level APIs stay under `System.*`; convenience, formatting, composition, safety wrappers, and user-facing ergonomics stay under `Standard.*`.
 - [ ] Generated docs show canonical `System.*` and `Standard.*` names only.
+- [ ] Async helpers use lowercase `.async`, e.g. `Standard.HTTP.async.get`, `Standard.FS.async.readText`.
 
-### Files / Paths / Bytes
+### `Standard.IO` and `Standard.Console`
 
-- [ ] `FS.readText/writeText/appendText -> Result<T>`.
-- [ ] `FS.readBytes/writeBytes -> Result<T>`.
-- [ ] `FS.copy/move/remove/ensureDir/list/walk -> Result<T>`.
-- [ ] async variants under `FS.async.*` returning `Promise<T>`.
-- [ ] `Path` wrappers over `System.Path`.
-- [x] `Bytes` heap-owned byte sequence; UTF-8 conversion and hex/base64 later.
+- [ ] `Standard.IO.print/println(value)` and format variants.
+- [ ] `Standard.IO.readLine() -> Result<string>`.
+- [ ] `Standard.IO` wraps `System.IO`; no low-level handle APIs exposed.
+- [ ] `Standard.Console.write/writeLine/readLine/clear`.
+- [ ] `Standard.Console.setColor/resetColor`.
+- [ ] Console wraps `System.IO` and `System.Terminal` and restores terminal state where applicable.
 
-### JSON
+### Files, paths, buffers, bytes, and text
 
-- [ ] `Json.parse(text) -> Result<JsonValue>`.
-- [ ] `Json.stringify(value) -> Result<string>`.
-- [ ] object/array builders.
-- [ ] typed getters with defaults.
+- [ ] `Standard.FS.readText/writeText/appendText -> Result<T>`.
+- [ ] `Standard.FS.readBytes/writeBytes -> Result<T>`.
+- [ ] `Standard.FS.copy/move/remove/ensureDir/list/walk -> Result<T>`.
+- [ ] `Standard.FS.async.*` variants returning `Promise<T>` after Promise support.
+- [ ] `Standard.Path.join(parts...)`, `dirname`, `basename`, `ext`, `stem`, `normalize`, `absolute`, `relative`.
+- [ ] `Standard.Buffer` is the high-level mutable/growable/cursor buffer API for builders, readers, writers, and binary IO composition.
+- [ ] `Standard.Buffer.new`, `withCapacity`, `len`, `capacity`, `clear`, `writeBytes`, `writeString`, `writeU16LE/writeU32LE/writeU64LE`, `readU*`, `toBytes`, and `fromBytes`.
+- [ ] `Standard.Bytes` is the high-level immutable byte-value helper module: `new/fromString/toString/concat/slice/toHex/fromHex/toBase64/fromBase64`.
+- [ ] `Standard.Text.len/isEmpty/contains/startsWith/endsWith/trim/split/join/replace`.
 
-### Promise / Concurrency
+### JSON, math, random, time, and log
 
-- [ ] `Promise.run(fn) -> Promise<T>`.
-- [ ] `Promise<T>.await() -> Result<T>`.
-- [ ] `Promise<T>.poll() -> Option<Result<T>>`.
-- [ ] `Promise<T>.cancel() -> Result<void>`.
-- [ ] `Promise<T>.isDone() -> bool`.
-- [ ] `Channel<T>` once runtime generic support exists.
+- [ ] `Standard.Json` remains unavailable until a real `JsonValue` API or deliberate thin handle wrapper is implemented.
+- [ ] Target `Standard.Json`: `parse/stringify/get/at/asString/asI64/asF64/asBool` over `JsonValue`.
+- [ ] `Standard.Math.PI`, `abs`, `min`, `max`, `sqrt`, `clamp`, `lerp`.
+- [ ] `Standard.Random.seed/i32/i64/range/f64/bool/bytes`.
+- [ ] `Standard.Time.monoNs/nowNs/sleepMs/formatWallNs` plus future `Duration` and `Instant` helpers.
+- [ ] `Standard.Log.debug/info/warn/error/setLevel/setFile`.
 
-### Net / HTTP / HTTPS
+### Process, network, HTTP, HTTPS, and terminal
 
-- [ ] `HTTP.get/post/put/delete -> Result<HTTPResponse>`.
-- [ ] `HTTP.async.get/post/put/delete -> Promise<HTTPResponse>`.
-- [ ] HTTP server helpers:
-  - [ ] `HTTP.serve(host, port, handler) -> Result<HTTPServer>`.
-  - [ ] request/response helpers: text, bytes, json, file.
-  - [ ] graceful shutdown.
-- [ ] HTTPS server helpers:
-  - [ ] `HTTPS.serve(host, port, certPath, keyPath, handler) -> Result<HTTPSServer>`.
-  - [ ] TLS options wrapper over `System.HTTP.TlsOptions`.
-  - [ ] secure defaults documented.
+- [ ] `Standard.Process.ProcessResult`, `run`, `runText`, `async.run`.
+- [ ] `Standard.Net.TcpStream/TcpListener`, `connect`, `listen`, `read`, `write`, `close`.
+- [ ] `Standard.HTTP.HTTPRequest/HTTPResponse/HTTPServer`, `get/post/put/delete`, `async.get/post`, `serve`.
+- [ ] `Standard.HTTPS.TlsOptions`, `get/post`, secure `serve`; secure defaults documented.
+- [ ] `Standard.Terminal.Terminal`, `open/close`, `withRaw`, `withAltScreen`, `clear`, `size`, `moveCursor`, `writeAt`, `readEvent`, `pollEvent`.
+- [ ] Terminal helpers guarantee restoration where possible.
 
-### Console / Terminal
+### Promise, channels, collections, result, and option
 
-- [ ] `Console.write/writeLine/readLine/clear`.
-- [ ] color helpers.
-- [ ] `Console.keyAvailable/readKey`.
-- [ ] `Terminal.size/clear/moveCursor/showCursor/hideCursor`.
-- [ ] raw mode / alternate screen helpers.
-- [ ] non-blocking event pump.
-- [ ] optional frame-buffer/cell helpers.
-- [ ] cleanup on panic/trap/Ctrl-C.
+- [ ] `Standard.Promise.run/await/poll/cancel/isDone` wrapping `System.Job`.
+- [ ] `Standard.Channel.Channel<T>` generic wrapper after generic/runtime support lands.
+- [ ] `Standard.Collections.List/Map/Set/Queue/Stack` as source-level generic code where possible.
+- [ ] `Standard.Result.ok/err/isOk/unwrap` helpers around language `Result<T,E>`.
+- [ ] `Standard.Option.some/none/isSome/unwrap` helpers around language `Option<T>`.
 
-### Process / Time / Random / Log
+### Release hardening for System/Standard
 
-- [ ] `Process.run(path, args) -> Result<ProcessResult>`.
-- [ ] async process run under `Process.async.run`.
-- [ ] `Time.now/mono/sleep` and duration type later.
-- [ ] `Random.i32/range/f64`, seeded RNG later.
-- [ ] top-level logging wrappers and structured logger later.
+- [ ] Migration docs updated: `Docs/System.md`, `Docs/Standard.md`, `Docs/LibraryMigration.md`, `Docs/Language.md`, README.
+- [ ] Inventory maps every removed alias to final owner and every transitional runtime symbol to final canonical symbol or deletion.
+- [ ] Native registry generated reference is canonical and complete.
+- [ ] LSP expectations and editor snippets/completions are canonical.
+- [ ] Playground, Website, and examples are canonical.
+- [ ] Full cross-platform tests for Linux/macOS/Windows behavior where APIs touch host/runtime state.
+- [ ] Version bump and changelog call out the breaking no-alias runtime naming change.
 
 ---
 
-## Phase 4.5: Simple Editor and LSP Experience
+## Phase 5.5: Simple Editor and LSP Experience
 
 Goal: make Simple pleasant to write in VS Code by wiring the existing `svm` pipeline into editor
 commands, tasks, diagnostics, and navigation. The TypeC extension is a process reference for how to
@@ -921,14 +1076,16 @@ Next Simple-specific LSP capabilities:
 
 ---
 
-## Phase 5: Documentation and Tests
+## Phase 6: Documentation and Tests
 
-- [ ] Generate native API docs grouped by layer.
+- [ ] Generate native API docs grouped by layer with canonical `System.*` / `Standard.*` names only.
   - [x] Generated native metadata docs include module/symbol/signature rows.
 - [x] Generate capability table in native metadata docs.
 - [x] Generate resource-use table in native metadata docs.
 - [x] Generate platform availability table in native metadata docs.
 - [x] Test every public native function has valid metadata.
+- [ ] Test generated docs, LSP completions, snippets, README, examples, playgrounds, Website samples, and fixtures contain no lowercase runtime modules or legacy aliases outside explicit rejection examples.
+- [ ] Test native registry rejects lowercase module names and short internal module identifiers.
 - [ ] Test every resource-producing function declares resource kind and cleanup behavior.
   - [x] File and FFI library metadata tests cover resource outputs/inputs, ownership, and cleanup behavior.
 - [x] Unit tests for resource registry.

@@ -1826,10 +1826,10 @@ bool LangValidateSplitBytesApis() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
-bool LangRejectRemovedSystemBuffer() {
-  const char* src = "import System.Buffer\nmain : void () { }";
+bool LangValidateSystemBufferImport() {
+  const char* src = "import System.Buffer\nmain : void () { b : i32[] = System.Buffer.new(4); size : i32 = System.Buffer.len(b); }";
   std::string error;
-  return !Simple::Lang::ValidateProgramFromString(src, &error);
+  return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangRejectSystemLogConvenienceApis() {
@@ -2400,11 +2400,11 @@ bool LangValidateCanonicalSystemStandardImports() {
 bool LangValidateAllPlannedSystemStandardImports() {
   const char* src =
     "import System.IO\nimport System.FS\nimport System.Path\nimport System.Env\nimport System.OS\n"
-    "import System.Time\nimport System.FFI\nimport System.ASM\nimport System.Bytes\n"
+    "import System.Time\nimport System.FFI\nimport System.ASM\nimport System.Buffer\nimport System.Bytes\n"
     "import System.Json\nimport System.Log\nimport System.Random\nimport System.Thread\nimport System.Job\n"
     "import System.Channel\nimport System.Process\nimport System.Net\nimport System.HTTP\nimport System.Terminal\n"
     "import System.Capability\nimport System.Runtime\nimport System.Debug\n"
-    "import Standard.IO\nimport Standard.Console\nimport Standard.FS\nimport Standard.Path\nimport Standard.Bytes\n"
+    "import Standard.IO\nimport Standard.Console\nimport Standard.FS\nimport Standard.Path\nimport Standard.Buffer\nimport Standard.Bytes\n"
     "import Standard.Text\nimport Standard.Json\nimport Standard.Math\nimport Standard.Random\nimport Standard.Time\n"
     "import Standard.Log\nimport Standard.Process\nimport Standard.Net\nimport Standard.HTTP\nimport Standard.HTTPS\n"
     "import Standard.Terminal\nimport Standard.Promise\nimport Standard.Channel\nimport Standard.Collections\n"
@@ -3478,7 +3478,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_system_json_handle_api", LangValidateSystemJsonHandleApi},
   {"lang_reject_standard_bytes_low_level_apis", LangRejectStandardBytesLowLevelApis},
   {"lang_validate_split_bytes_apis", LangValidateSplitBytesApis},
-  {"lang_reject_removed_system_buffer", LangRejectRemovedSystemBuffer},
+  {"lang_validate_system_buffer_import", LangValidateSystemBufferImport},
   {"lang_reject_system_log_convenience_apis", LangRejectSystemLogConvenienceApis},
   {"lang_reject_standard_log_raw_api", LangRejectStandardLogRawApi},
   {"lang_reject_legacy_system_log_argument_order", LangRejectLegacySystemLogArgumentOrder},

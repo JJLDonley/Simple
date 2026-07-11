@@ -1,13 +1,15 @@
 import System.Env
+import System.OS
 
 main : i32 () {
   count : i32 = System.Env.argsCount()
-  platform : string = System.Env.platform()
-  arch : string = System.Env.arch()
+  platform : string = System.OS.platform()
+  arch : string = System.OS.arch()
   exe : string = System.Env.exePath()
   ok : bool = System.Env.set("SIMPLE_TEST_ENV", "ok")
   value : string = System.Env.get("SIMPLE_TEST_ENV")
-  if (!ok) { return 0 }
+  unset_ok : bool = System.Env.unset("SIMPLE_TEST_ENV")
+  if (!ok || !unset_ok) { return 0 }
   if (len(platform) == 0 || len(arch) == 0 || len(exe) == 0) { return 0 }
   if (len(value) != 2) { return 0 }
   if (count < 0) { return 0 }

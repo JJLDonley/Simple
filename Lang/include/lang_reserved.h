@@ -17,7 +17,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     const char* name;
     const char* canonical;
   };
-  static constexpr std::array<ReservedImportEntry, 43> kReserved = {{
+  static constexpr std::array<ReservedImportEntry, 45> kReserved = {{
       {"System.IO", "SystemIO"},
       {"System.FS", "FS"},
       {"System.Path", "Path"},
@@ -26,6 +26,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"System.Time", "Time"},
       {"System.FFI", "DL"},
       {"System.ASM", "SystemASM"},
+      {"System.Buffer", "SystemBuffer"},
       {"System.Bytes", "SystemBytes"},
       {"System.Json", "SystemJson"},
       {"System.Log", "SystemLog"},
@@ -44,6 +45,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"Standard.Console", "StandardConsole"},
       {"Standard.FS", "StandardFS"},
       {"Standard.Path", "StandardPath"},
+      {"Standard.Buffer", "StandardBuffer"},
       {"Standard.Bytes", "StandardBytes"},
       {"Standard.Text", "StandardText"},
       {"Standard.Json", "StandardJson"},
@@ -88,7 +90,7 @@ inline bool LegacyReservedImportReplacement(const std::string& path, std::string
   else if (path == "Path") *out = "Standard.Path or System.Path";
   else if (path == "Env") *out = "System.Env";
   else if (path == "Random") *out = "Standard.Random or System.Random";
-  else if (path == "Buffer") *out = "Standard.Bytes or System.Bytes";
+  else if (path == "Buffer") *out = "System.Buffer, Standard.Buffer, System.Bytes, or Standard.Bytes";
   else if (path == "Json") *out = "System.Json or Standard.Json";
   else if (path == "Log") *out = "Standard.Log or System.Log";
   else if (path == "Thread") *out = "System.Thread";

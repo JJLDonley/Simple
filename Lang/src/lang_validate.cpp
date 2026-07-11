@@ -608,11 +608,18 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "platform" || member == "arch" || member == "exePath") {
+    if (member == "unset") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "exePath") {
       out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    return false;
   }
   if (resolved == "SystemRandom" || resolved == "StandardRandom") {
     if (member == "seed") {
@@ -781,27 +788,30 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "SystemBytes" || resolved == "StandardBytes") {
+  if (resolved == "SystemBuffer" || resolved == "SystemBytes" ||
+      resolved == "StandardBuffer" || resolved == "StandardBytes") {
+    if (resolved == "StandardBuffer") return false;
+    const bool low_level_buffer = resolved == "SystemBuffer" || resolved == "SystemBytes";
     if (member == "new") {
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeListType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (resolved == "SystemBytes" && member == "len") {
+    if (low_level_buffer && member == "len") {
       out->params.push_back(MakeListType("i32"));
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (resolved == "SystemBytes" && (member == "readU16LE" || member == "readU32LE")) {
+    if (low_level_buffer && (member == "readU16LE" || member == "readU32LE")) {
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (resolved == "SystemBytes" && (member == "writeU16LE" || member == "writeU32LE")) {
+    if (low_level_buffer && (member == "writeU16LE" || member == "writeU32LE")) {
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
@@ -817,7 +827,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (resolved == "SystemBytes" && member == "copy") {
+    if (low_level_buffer && member == "copy") {
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeListType("i32"));

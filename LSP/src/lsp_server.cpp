@@ -1003,10 +1003,10 @@ std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
       "System.IO", "System.FS", "System.Path", "System.Env", "System.OS", "System.Time", "System.FFI",
-      "System.ASM", "System.Bytes", "System.Buffer", "System.Json", "System.Log", "System.Random",
+      "System.ASM", "System.Buffer", "System.Bytes", "System.Json", "System.Log", "System.Random",
       "System.Thread", "System.Job", "System.Channel", "System.Process", "System.Net", "System.HTTP",
       "System.Terminal", "System.Capability", "System.Runtime", "System.Debug", "Standard.IO",
-      "Standard.Console", "Standard.FS", "Standard.Path", "Standard.Bytes", "Standard.Text", "Standard.Json",
+      "Standard.Console", "Standard.FS", "Standard.Path", "Standard.Buffer", "Standard.Bytes", "Standard.Text", "Standard.Json",
       "Standard.Math", "Standard.Random", "Standard.Time", "Standard.Log", "Standard.Process", "Standard.Net",
       "Standard.HTTP", "Standard.HTTPS", "Standard.Terminal", "Standard.Promise", "Standard.Channel",
       "Standard.Collections", "Standard.Result", "Standard.Option"};
@@ -1060,7 +1060,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
       {"SystemRandom", {"seed", "i32", "i64", "f64", "fillBytes"}},
       {"StandardRandom", {"seed", "i32", "i64", "range", "f64"}},
-      {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
+      {"Env", {"argsCount", "arg", "get", "set", "unset", "exePath"}},
       {"StandardPath", {"join", "dirname", "basename", "ext", "stem", "normalize"}},
       {"Path", {"separator", "delimiter", "isAbsolute", "join", "dirname", "basename", "ext", "stem", "normalize"}},
       {"StandardFS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
@@ -1074,7 +1074,9 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
       {"File", {"open", "close", "read", "write"}},
       {"SystemJson", {"parse", "stringify", "free"}},
+      {"SystemBuffer", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
       {"SystemBytes", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
+      {"StandardBuffer", {}},
       {"StandardBytes", {"new", "slice"}},
       {"SystemLog", {"log", "setLevel", "setFile", "flush"}},
       {"StandardLog", {"info", "warn", "error", "setLevel", "setFile"}},
@@ -1474,7 +1476,12 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
       out->return_type = "bool";
       return true;
     }
-    if (member == "platform" || member == "arch" || member == "exePath") {
+    if (member == "unset") {
+      out->params = {"name"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (member == "exePath") {
       out->return_type = "string";
       return true;
     }

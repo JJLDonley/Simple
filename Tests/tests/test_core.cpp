@@ -16165,7 +16165,7 @@ bool RunNativeRegistryModuleTest() {
   }
   const auto* random_i32 = default_registry.Find("System.random", "i32");
   const auto* os_time = default_registry.Find("System.os", "time_mono_ns");
-  const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
+  const auto* os_sleep = default_registry.Find("System.os", "sleepMs");
   const auto* os_cwd = default_registry.Find("System.os", "cwd_get");
   const auto* os_format = default_registry.Find("System.os", "formatWallNs");
   const auto* os_args_count = default_registry.Find("System.os", "args_count");
@@ -16227,8 +16227,9 @@ bool RunNativeRegistryModuleTest() {
   const auto* env_arg = default_registry.Find("System.env", "arg");
   const auto* env_get = default_registry.Find("System.env", "get");
   const auto* env_set = default_registry.Find("System.env", "set");
-  const auto* env_platform = default_registry.Find("System.env", "platform");
-  const auto* env_arch = default_registry.Find("System.env", "arch");
+  const auto* os_platform = default_registry.Find("System.os", "platform");
+  const auto* os_arch = default_registry.Find("System.os", "arch");
+  const auto* env_unset = default_registry.Find("System.env", "unset");
   const auto* env_exe = default_registry.Find("System.env", "exePath");
   const auto* io_buffer_new = default_registry.Find("System.io", "buffer_new");
   const auto* io_buffer_len = default_registry.Find("System.io", "buffer_len");
@@ -16258,10 +16259,10 @@ bool RunNativeRegistryModuleTest() {
   const auto os_format_result = os_format ? os_format->handler(os_format_ctx)
                                           : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext env_ctx;
-  const auto env_platform_result = env_platform ? env_platform->handler(env_ctx)
-                                                : Simple::VM::Native::NativeCallResult{};
-  const auto env_arch_result = env_arch ? env_arch->handler(env_ctx)
-                                        : Simple::VM::Native::NativeCallResult{};
+  const auto os_platform_result = os_platform ? os_platform->handler(env_ctx)
+                                              : Simple::VM::Native::NativeCallResult{};
+  const auto os_arch_result = os_arch ? os_arch->handler(env_ctx)
+                                      : Simple::VM::Native::NativeCallResult{};
   const auto env_exe_result = env_exe ? env_exe->handler(env_ctx)
                                       : Simple::VM::Native::NativeCallResult{};
   Heap metadata_heap;
@@ -16313,6 +16314,11 @@ bool RunNativeRegistryModuleTest() {
   os_env_get_ctx.args = {env_name};
   const auto os_env_get_result = os_env_get ? os_env_get->handler(os_env_get_ctx)
                                             : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext env_unset_ctx;
+  env_unset_ctx.heap = &metadata_heap;
+  env_unset_ctx.args = {env_name};
+  const auto env_unset_result = env_unset ? env_unset->handler(env_unset_ctx)
+                                          : Simple::VM::Native::NativeCallResult{};
   const uint32_t json_text = make_metadata_string("{\"ok\":true}");
   Simple::VM::Native::NativeCallContext json_parse_ctx;
   json_parse_ctx.heap = &metadata_heap;
@@ -16714,11 +16720,11 @@ bool RunNativeRegistryModuleTest() {
          env_args_count && env_arg && env_args_count_result.value == 2 &&
          env_arg_result.string_value == "arg-one" && env_get && env_set &&
          env_set_result.value == 1 && env_get_result.string_value == "metadata-env" &&
-         env_platform && env_arch && env_exe && io_buffer_new && io_buffer_len &&
+         env_unset && env_unset_result.value == 1 && os_platform && os_arch && env_exe && io_buffer_new && io_buffer_len &&
          io_buffer_fill && io_buffer_copy && io_new_result.ok && io_len_result.value == 3 &&
          io_fill_result.value == 3 && io_copy_result.value == 2 && io_dst_first == 11 &&
          buffer_new && buffer_len && buffer_write && buffer_read && buffer_slice && buffer_copy &&
-         !env_platform_result.string_value.empty() && !env_arch_result.string_value.empty() &&
+         !os_platform_result.string_value.empty() && !os_arch_result.string_value.empty() &&
          !env_exe_result.string_value.empty() && buffer_new_result.ok && buffer_result.value == 3 &&
          buffer_write_result.value == 1 &&
          buffer_read_result.value == 0x1234u && buffer_copy_result.value == 2 &&
@@ -16794,12 +16800,13 @@ bool RunNativeRegistryModuleTest() {
          env_arg->result_type == Simple::Byte::TypeKind::String &&
          env_get->result_type == Simple::Byte::TypeKind::String &&
          env_set->result_type == Simple::Byte::TypeKind::I32 &&
+         env_unset->result_type == Simple::Byte::TypeKind::Bool &&
          io_buffer_new->result_type == Simple::Byte::TypeKind::Ref &&
          io_buffer_len->result_type == Simple::Byte::TypeKind::I32 &&
          io_buffer_fill->result_type == Simple::Byte::TypeKind::I32 &&
          io_buffer_copy->result_type == Simple::Byte::TypeKind::I32 &&
-         env_platform->result_type == Simple::Byte::TypeKind::String &&
-         env_arch->result_type == Simple::Byte::TypeKind::String &&
+         os_platform->result_type == Simple::Byte::TypeKind::String &&
+         os_arch->result_type == Simple::Byte::TypeKind::String &&
          env_exe->result_type == Simple::Byte::TypeKind::String;
 }
 
