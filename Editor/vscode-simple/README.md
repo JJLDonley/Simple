@@ -17,6 +17,7 @@ VS Code support for the Simple language. The extension starts the real `svm lsp`
 - `simple.compilerPath`: optional path to `svm`; empty means auto-discover
 - `simple.outputDirectory`: optional generated output directory; relative paths resolve from the workspace folder
 - `simple.jitByDefault`: run the default Run command with `-jit --jit-stats`
+- `simple.trace`: pass Simple trace environment variables to `svm` commands and the LSP server
 - `simple.lspArgs`: args used to launch LSP, default `["lsp"]`
 
 ## Commands
@@ -35,6 +36,7 @@ VS Code support for the Simple language. The extension starts the real `svm lsp`
 - `Simple: Configure Compiler Path`
 - `Simple: Configure Output Directory`
 - `Simple: Toggle JIT Default`
+- `Simple: Toggle Trace`
 
 The extension never invokes the `simple` runtime stub for compiler/editor commands.
 

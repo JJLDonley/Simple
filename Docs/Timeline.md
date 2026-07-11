@@ -843,7 +843,7 @@ Simple toolchain facts this plan must respect:
   - [x] `Simple: Show svm Help` -> `svm help` task.
   - [x] `Simple: Configure Compiler Path` settings shortcut.
   - [x] Add build output directory and JIT default settings commands.
-  - [ ] Add trace settings commands.
+  - [x] Add trace settings command.
 - [x] Add command palette, editor title, and editor context entries for `.simple` files.
 - [x] Add explorer context entries for `.simple` files.
 - [ ] Add explorer context entries for `.sir` and `.sbc` where appropriate.

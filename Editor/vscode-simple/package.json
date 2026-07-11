@@ -120,6 +120,12 @@
         "title": "Simple: Toggle JIT Default",
         "category": "Simple",
         "icon": "$(rocket)"
+      },
+      {
+        "command": "simple.toggleTrace",
+        "title": "Simple: Toggle Trace",
+        "category": "Simple",
+        "icon": "$(bug)"
       }
     ],
     "menus": {
@@ -165,6 +171,9 @@
         },
         {
           "command": "simple.toggleJitDefault"
+        },
+        {
+          "command": "simple.toggleTrace"
         }
       ],
       "editor/title": [
@@ -271,6 +280,11 @@
           "type": "boolean",
           "default": false,
           "description": "Run Simple files with -jit --jit-stats from the default Run command."
+        },
+        "simple.trace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Simple trace environment variables for svm commands and the LSP server."
         }
       }
     },
@@ -346,6 +360,7 @@
     "onCommand:simple.showHelp",
     "onCommand:simple.configureCompilerPath",
     "onCommand:simple.configureOutputDirectory",
-    "onCommand:simple.toggleJitDefault"
+    "onCommand:simple.toggleJitDefault",
+    "onCommand:simple.toggleTrace"
   ]
 }

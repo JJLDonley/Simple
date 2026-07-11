@@ -45,7 +45,8 @@ const COMMANDS = {
     showHelp: 'simple.showHelp',
     configureCompilerPath: 'simple.configureCompilerPath',
     configureOutputDirectory: 'simple.configureOutputDirectory',
-    toggleJitDefault: 'simple.toggleJitDefault'
+    toggleJitDefault: 'simple.toggleJitDefault',
+    toggleTrace: 'simple.toggleTrace'
 };
 let client;
 let restartInFlight = false;
@@ -113,15 +114,24 @@ async function requireSvm(context) {
     }
     return undefined;
 }
+function simpleProcessEnv() {
+    const env = { ...process.env };
+    if (vscode.workspace.getConfiguration('simple').get('trace', false)) {
+        env.SIMPLE_TRACE = '1';
+        env.SIMPLE_LSP_TRACE = '1';
+    }
+    return env;
+}
 async function createServerOptions(context) {
     const command = await requireSvm(context);
     if (!command)
         throw new Error('Simple compiler not found');
     const config = vscode.workspace.getConfiguration('simple');
     const args = asStringArray(config.get('lspArgs'), ['lsp']);
+    const options = { env: simpleProcessEnv() };
     return {
-        run: { command, args, transport: node_1.TransportKind.stdio },
-        debug: { command, args, transport: node_1.TransportKind.stdio }
+        run: { command, args, transport: node_1.TransportKind.stdio, options },
+        debug: { command, args, transport: node_1.TransportKind.stdio, options }
     };
 }
 function createClientOptions() {
@@ -213,6 +223,7 @@ async function runSvm(context, label, args, document) {
     await new Promise((resolve) => {
         const proc = childProcess.spawn(svm, args, {
             cwd: workspaceCwd(document),
+            env: simpleProcessEnv(),
             shell: process.platform === 'win32'
         });
         proc.stdout.on('data', (data) => taskOutputChannel.append(data.toString()));
@@ -296,6 +307,7 @@ class SimpleTaskPseudoterminal {
         this.writeEmitter.fire(`> ${this.command} ${this.args.join(' ')}\r\n`);
         this.proc = childProcess.spawn(this.command, this.args, {
             cwd: this.cwd,
+            env: simpleProcessEnv(),
             shell: process.platform === 'win32'
         });
         this.proc.stdout?.on('data', (data) => this.writeEmitter.fire(data.toString().replace(/\n/g, '\r\n')));
@@ -358,6 +370,13 @@ function registerCommands(context) {
         await config.update('jitByDefault', !current, vscode.ConfigurationTarget.Workspace);
         vscode.window.setStatusBarMessage(`Simple JIT default ${!current ? 'enabled' : 'disabled'}`, 2000);
     });
+    registerCommand(context, COMMANDS.toggleTrace, async () => {
+        const config = vscode.workspace.getConfiguration('simple');
+        const current = config.get('trace', false);
+        await config.update('trace', !current, vscode.ConfigurationTarget.Workspace);
+        vscode.window.setStatusBarMessage(`Simple trace ${!current ? 'enabled' : 'disabled'}`, 2000);
+        await restartClient(context);
+    });
     registerCommand(context, COMMANDS.showVersion, () => runSvm(context, 'Simple version', ['version']));
     registerCommand(context, COMMANDS.showHelp, () => runSvm(context, 'Simple help', ['help']));
     registerCommand(context, COMMANDS.checkCurrentFile, async (resource) => {
@@ -410,7 +429,9 @@ async function activate(context) {
     registerCommands(context);
     context.subscriptions.push(vscode.tasks.registerTaskProvider(TASK_TYPE, new SimpleTaskProvider(context)));
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async (event) => {
-        if (!event.affectsConfiguration('simple.compilerPath') && !event.affectsConfiguration('simple.lspArgs'))
+        if (!event.affectsConfiguration('simple.compilerPath') &&
+            !event.affectsConfiguration('simple.lspArgs') &&
+            !event.affectsConfiguration('simple.trace'))
             return;
         await restartClient(context);
     }));

@@ -18,6 +18,7 @@ if (pkg.contributes?.configuration?.properties?.['simple.lspPath']) fail('simple
 if (!pkg.contributes?.configuration?.properties?.['simple.compilerPath']) fail('simple.compilerPath setting missing');
 if (!pkg.contributes?.configuration?.properties?.['simple.outputDirectory']) fail('simple.outputDirectory setting missing');
 if (!pkg.contributes?.configuration?.properties?.['simple.jitByDefault']) fail('simple.jitByDefault setting missing');
+if (!pkg.contributes?.configuration?.properties?.['simple.trace']) fail('simple.trace setting missing');
 if (!Array.isArray(pkg.contributes?.taskDefinitions) || !pkg.contributes.taskDefinitions.some((t) => t.type === 'simple')) fail('simple task definition missing');
 if (!Array.isArray(pkg.contributes?.problemMatchers) || !pkg.contributes.problemMatchers.some((m) => m.name === 'simple-svm')) fail('simple problem matcher missing');
 if (!Array.isArray(pkg.contributes?.menus?.['explorer/context']) || pkg.contributes.menus['explorer/context'].length === 0) fail('explorer context entries missing');
@@ -37,7 +38,8 @@ for (const command of [
   'simple.showHelp',
   'simple.configureCompilerPath',
   'simple.configureOutputDirectory',
-  'simple.toggleJitDefault'
+  'simple.toggleJitDefault',
+  'simple.toggleTrace'
 ]) {
   if (!commands.has(command)) fail(`command missing: ${command}`);
 }
@@ -45,5 +47,6 @@ for (const command of [
 const extensionText = fs.readFileSync(path.join(root, pkg.main), 'utf8');
 if (!extensionText.includes('svm')) fail('extension must discover and invoke svm');
 if (!extensionText.includes('registerTaskProvider')) fail('compiled extension must register Simple task provider');
+if (!extensionText.includes('SIMPLE_LSP_TRACE')) fail('compiled extension must pass trace environment to svm');
 if (extensionText.includes('simple.lspPath')) fail('compiled extension still references obsolete simple.lspPath');
 console.log('extension manifest ok');
