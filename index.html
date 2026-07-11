@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Simple Language Documentation</title>
-  <meta name="description" content="Documentation for Simple: a high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries." />
+  <meta name="description" content="Simple: identity-first, strictly typed — scripted in minutes, portable everywhere." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;650;750&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -46,8 +46,8 @@
         </div>
       </div>
 
-      <p class="subtitle tagline">A high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.</p>
-      <p class="landing-lead">Simple compiles source into SIR, then SBC bytecode, then runs on the Simple VM with JIT enabled by default when available. It is built around explicit types, direct control flow, readable compiler output, and canonical Standard/System libraries.</p>
+      <p class="subtitle tagline">Identity-first, strictly typed — scripted in minutes, portable everywhere.</p>
+      <p class="landing-lead">Simple compiles source into portable SBC bytecode for the Simple VM, with JIT enabled by default when available, GC, canonical System and Standard libraries, and explicit FFI.</p>
 
       <div class="example-header">
         <label for="example-select">Example</label>
@@ -169,8 +169,8 @@ main : i32 () {
             </div>
           </div>
 
-          <p class="subtitle tagline">A high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.</p>
-          <p>Simple compiles <code>.simple</code> source into SIR, then SBC bytecode, then runs on the Simple VM. CLI runs use JIT by default when LLVM ORC support is available. The language is designed for explicit types, direct control flow, readable compiler output, and native-backed programs.</p>
+          <p class="subtitle tagline">Identity-first, strictly typed — scripted in minutes, portable everywhere.</p>
+          <p>Simple compiles <code>.simple</code> source into SIR, then portable SBC bytecode for the Simple VM. CLI runs use JIT by default when LLVM ORC support is available. The language is designed for explicit types, direct control flow, readable compiler output, canonical libraries, and native-backed programs.</p>
 
           <pre><code class="language-simple">import Standard.IO
 
@@ -194,7 +194,7 @@ main : i32 () {
 
         <section id="why-simple" class="doc-section" data-title="Why Simple">
           <h2>Why Simple</h2>
-          <p>Simple came about from wanting a high-level, statically typed language with an identity-first paradigm, built on Standard and System libraries.</p>
+          <p>Simple came about from wanting an identity-first, strictly typed language that scripts quickly and ships as portable VM bytecode.</p>
           <p>Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.</p>
 
           <h3>Design goals</h3>
