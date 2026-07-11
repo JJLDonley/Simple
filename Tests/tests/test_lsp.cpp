@@ -543,7 +543,7 @@ bool LspDidChangeAppliesIncrementalRanges() {
       "\"text\":\"main : i32 () {\\nvalue : i32 = 1;\\nreturn value;\\n}\"}}}";
   const std::string change_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{"
-      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},
+      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},"
       "\"contentChanges\":[{\"range\":{\"start\":{\"line\":2,\"character\":0},"
       "\"end\":{\"line\":2,\"character\":6}},\"rangeLength\":6,\"text\":\"ok : i32 = value;\\nreturn\"}]}}";
   const std::string hover_req = "{\"jsonrpc\":\"2.0\",\"id\":55,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":1}}}";
@@ -3146,7 +3146,7 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
       "{\"jsonrpc\":\"2.0\",\"id\":22,\"method\":\"textDocument/codeAction\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},"
       "\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},"
-      "\"context\":{\"diagnostics\":[{\"code\":\"E9999\"}]}}}";
+      "\"context\":{\"diagnostics\":[{\"code\":\"E9999\"}],\"only\":[\"quickfix\"]}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -3164,6 +3164,34 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
          out_contents.find("\"id\":22") != std::string::npos &&
          out_contents.find("\"id\":22,\"result\":[]") != std::string::npos &&
          out_contents.find("Declare 'y' as i32") == std::string::npos;
+}
+
+bool LspCodeActionReturnsQuickBuildEmitCommands() {
+  const std::string in_path = TempPath("simple_lsp_code_action_source_in.txt");
+  const std::string out_path = TempPath("simple_lsp_code_action_source_out.txt");
+  const std::string err_path = TempPath("simple_lsp_code_action_source_err.txt");
+  const std::string uri = "file:///workspace/code_action_source.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () { return 0 }\"}}}";
+  const std::string action_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":56,\"method\":\"textDocument/codeAction\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},"
+      "\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},"
+      "\"context\":{\"diagnostics\":[],\"only\":[\"source\"]}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(action_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":56") != std::string::npos &&
+         out_contents.find("Simple: Build current file") != std::string::npos &&
+         out_contents.find("\"command\":\"simple.buildCurrentFile\"") != std::string::npos &&
+         out_contents.find("\"command\":\"simple.emitSir\"") != std::string::npos &&
+         out_contents.find("\"command\":\"simple.emitSbc\"") != std::string::npos &&
+         out_contents.find("\"arguments\":[\"" + uri + "\"]") != std::string::npos;
 }
 
 bool LspTypeDefinitionProviderResolvesLocalArtifactTypes() {
@@ -3670,6 +3698,7 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_infers_char_declaration_type", LspCodeActionInfersCharDeclarationType},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
+  {"lsp_code_action_returns_quick_build_emit_commands", LspCodeActionReturnsQuickBuildEmitCommands},
   {"lsp_type_definition_provider_resolves_local_artifact_types", LspTypeDefinitionProviderResolvesLocalArtifactTypes},
   {"lsp_type_definition_provider_resolves_variable_usage_types", LspTypeDefinitionProviderResolvesVariableUsageTypes},
   {"lsp_initialize_advertises_modern_navigation_providers", LspInitializeAdvertisesModernNavigationProviders},

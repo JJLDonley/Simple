@@ -336,15 +336,27 @@ std::vector<JsonTextChange> ExtractContentChanges(const std::string& json) {
   return changes;
 }
 
-bool CodeActionContextAllowsQuickFix(const std::string& json) {
+std::string CodeActionOnlyBody(const std::string& json) {
   const size_t only_key = json.find("\"only\"");
-  if (only_key == std::string::npos) return true;
+  if (only_key == std::string::npos) return {};
   const size_t lbracket = json.find('[', only_key);
-  if (lbracket == std::string::npos) return true;
+  if (lbracket == std::string::npos) return {};
   const size_t rbracket = json.find(']', lbracket + 1);
-  if (rbracket == std::string::npos) return true;
-  const std::string only_body = json.substr(lbracket + 1, rbracket - (lbracket + 1));
+  if (rbracket == std::string::npos) return {};
+  return json.substr(lbracket + 1, rbracket - (lbracket + 1));
+}
+
+bool CodeActionContextAllowsQuickFix(const std::string& json) {
+  const std::string only_body = CodeActionOnlyBody(json);
+  if (only_body.empty()) return true;
   return only_body.find("\"quickfix\"") != std::string::npos;
+}
+
+bool CodeActionContextAllowsSource(const std::string& json) {
+  const std::string only_body = CodeActionOnlyBody(json);
+  if (only_body.empty()) return true;
+  return only_body.find("\"source\"") != std::string::npos ||
+         only_body.find("\"source.simple\"") != std::string::npos;
 }
 
 bool CodeActionContextMentionsCode(const std::string& json, const std::string& code) {
@@ -4047,48 +4059,62 @@ void ReplyPrepareRename(std::ostream& out,
           JsonEscape(target->token.text) + "\"}}");
 }
 
+std::string CommandCodeActionJson(const std::string& title,
+                                  const std::string& command,
+                                  const std::string& uri) {
+  return "{\"title\":\"" + JsonEscape(title) + "\",\"kind\":\"source.simple\"," +
+         "\"command\":{\"title\":\"" + JsonEscape(title) + "\",\"command\":\"" +
+         JsonEscape(command) + "\",\"arguments\":[\"" + JsonEscape(uri) + "\"]}}";
+}
+
 void ReplyCodeAction(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
                      bool allow_quickfix,
                      bool allow_e0001_quickfix,
+                     bool allow_source,
                      const std::unordered_map<std::string, std::string>& open_docs) {
-  if (!allow_quickfix || !allow_e0001_quickfix) {
-    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
-    return;
-  }
   auto doc_it = open_docs.find(uri);
   if (doc_it == open_docs.end()) {
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
     return;
   }
-  std::string error;
-  if (Simple::Lang::ValidateProgramFromString(doc_it->second, &error)) {
-    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
-    return;
+  std::string result;
+  auto append_action = [&](const std::string& action) {
+    if (!result.empty()) result += ",";
+    result += action;
+  };
+
+  if (allow_source) {
+    append_action(CommandCodeActionJson("Simple: Build current file", "simple.buildCurrentFile", uri));
+    append_action(CommandCodeActionJson("Simple: Emit SIR", "simple.emitSir", uri));
+    append_action(CommandCodeActionJson("Simple: Emit SBC", "simple.emitSbc", uri));
   }
-  std::string ident;
-  if (!ExtractUndeclaredIdentifierName(error, &ident)) {
-    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
-    return;
+
+  if (allow_quickfix && allow_e0001_quickfix) {
+    std::string error;
+    if (!Simple::Lang::ValidateProgramFromString(doc_it->second, &error)) {
+      std::string ident;
+      if (ExtractUndeclaredIdentifierName(error, &ident)) {
+        const std::string inferred_type = InferNumericDeclarationType(doc_it->second, ident);
+        std::string inferred_init = "0";
+        if (inferred_type == "f64") inferred_init = "0.0";
+        else if (inferred_type == "bool") inferred_init = "false";
+        else if (inferred_type == "string") inferred_init = "\"\"";
+        else if (inferred_type == "char") inferred_init = "'\\0'";
+        const uint32_t insert_line = PreferredDeclarationInsertLine(doc_it->second);
+        const std::string declaration = ident + " : " + inferred_type + " = " + inferred_init + ";\n";
+        append_action("{\"title\":\"Declare '" + JsonEscape(ident) +
+                      "' as " + inferred_type + "\",\"kind\":\"quickfix\",\"edit\":{\"changes\":{\"" +
+                      JsonEscape(uri) + "\":[{\"range\":{\"start\":{\"line\":" + std::to_string(insert_line) +
+                      ",\"character\":0},\"end\":{\"line\":" + std::to_string(insert_line) +
+                      ",\"character\":0}},\"newText\":\"" + JsonEscape(declaration) +
+                      "\"}]}}}");
+      }
+    }
   }
-  const std::string inferred_type = InferNumericDeclarationType(doc_it->second, ident);
-  std::string inferred_init = "0";
-  if (inferred_type == "f64") inferred_init = "0.0";
-  else if (inferred_type == "bool") inferred_init = "false";
-  else if (inferred_type == "string") inferred_init = "\"\"";
-  else if (inferred_type == "char") inferred_init = "'\\0'";
-  const uint32_t insert_line = PreferredDeclarationInsertLine(doc_it->second);
-  const std::string declaration = ident + " : " + inferred_type + " = " + inferred_init + ";\n";
-  WriteLspMessage(
-      out,
-      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-          ",\"result\":[{\"title\":\"Declare '" + JsonEscape(ident) +
-          "' as " + inferred_type + "\",\"kind\":\"quickfix\",\"edit\":{\"changes\":{\"" +
-          JsonEscape(uri) + "\":[{\"range\":{\"start\":{\"line\":" + std::to_string(insert_line) +
-          ",\"character\":0},\"end\":{\"line\":" + std::to_string(insert_line) +
-          ",\"character\":0}},\"newText\":\"" + JsonEscape(declaration) +
-          "\"}]}}}]}");
+
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
 } // namespace
@@ -4481,8 +4507,9 @@ int RunServer(std::istream& in, std::ostream& out) {
         std::string uri;
         const bool allow_quickfix = CodeActionContextAllowsQuickFix(body);
         const bool allow_e0001_quickfix = CodeActionContextMentionsCode(body, "E0001");
+        const bool allow_source = CodeActionContextAllowsSource(body);
         if (ExtractJsonStringField(body, "uri", &uri)) {
-          ReplyCodeAction(out, id_raw, uri, allow_quickfix, allow_e0001_quickfix, open_docs);
+          ReplyCodeAction(out, id_raw, uri, allow_quickfix, allow_e0001_quickfix, allow_source, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

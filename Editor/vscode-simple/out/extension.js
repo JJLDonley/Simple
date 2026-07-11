@@ -184,6 +184,12 @@ async function commandDocument(resource) {
     if (resource instanceof vscode.Uri && resource.scheme === 'file' && resource.fsPath.endsWith('.simple')) {
         return vscode.workspace.openTextDocument(resource);
     }
+    if (typeof resource === 'string') {
+        const uri = vscode.Uri.parse(resource);
+        if (uri.scheme === 'file' && uri.fsPath.endsWith('.simple')) {
+            return vscode.workspace.openTextDocument(uri);
+        }
+    }
     return activeSimpleDocument();
 }
 function workspaceCwd(document) {
