@@ -263,11 +263,10 @@ bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out
     return true;
   }
   if (base.kind == Simple::Lang::AST::ExprKind::Member && base.op == "." && !base.children.empty()) {
-    const auto& root = base.children[0];
-    if (root.kind == Simple::Lang::AST::ExprKind::Identifier && root.text == "System") {
-      *out = root.text + "." + base.text;
-      return true;
-    }
+    std::string prefix;
+    if (!GetModuleNameFromExpr(base.children[0], &prefix)) return false;
+    *out = prefix + "." + base.text;
+    return true;
   }
   return false;
 }

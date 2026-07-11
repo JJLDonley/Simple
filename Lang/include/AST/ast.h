@@ -220,6 +220,7 @@ struct ExternDecl {
 
 struct ModuleDecl {
   std::string name;
+  std::string source_module;
   std::vector<VarDecl> variables;
   std::vector<FuncDecl> functions;
   std::vector<ExternDecl> externs;

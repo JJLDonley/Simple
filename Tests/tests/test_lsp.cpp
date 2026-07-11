@@ -28,7 +28,7 @@ bool LspUsesSharedRastSourceImportLoader() {
       &program,
       &error);
   std::filesystem::remove_all(dir);
-  return ok && program.decls.size() == 2;
+  return ok && program.decls.size() == 3;
 }
 
 bool LspUsesSharedRastSimpleFileIndex() {

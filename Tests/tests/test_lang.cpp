@@ -7,6 +7,7 @@
 #include "AST/lower_cast.h"
 #include "RAST/rast.h"
 #include "RAST/import_graph.h"
+#include "RAST/import_loader.h"
 #include "RAST/member_resolution.h"
 #include "RAST/reserved_resolution.h"
 #include "RAST/resolver.h"
@@ -2185,13 +2186,31 @@ bool LangValidateAssignToModuleFunctionFail() {
 }
 
 bool LangValidateNamespaceExternManifestAndCall() {
-  const char* src =
-    "import DL\n"
-    "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : string) }\n"
-    "using Raylib\n"
-    "main : void () { lib : i64 = DL.Open(\"libraylib.so\", Raylib); Raylib.InitWindow(1, 2, \"ok\"); InitWindow(1, 2, \"ok\"); }";
+  namespace fs = std::filesystem;
+  const fs::path dir = fs::temp_directory_path() / "simple_ns_extern_manifest_test";
+  std::error_code ec;
+  fs::remove_all(dir, ec);
+  fs::create_directories(dir, ec);
+  if (ec) return false;
+
+  {
+    std::ofstream raylib(dir / "raylib.simple", std::ios::binary);
+    raylib << "module Raylib\n"
+           << "import DL\n"
+           << "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : string) }\n"
+           << "lib :: i64 = DL.Open(\"libraylib.so\", Raylib)\n";
+  }
+  {
+    std::ofstream main_file(dir / "main.simple", std::ios::binary);
+    main_file << "import Raylib\n"
+              << "using Raylib.Raylib\n"
+              << "main : void () { Raylib.Raylib.InitWindow(1, 2, \"ok\"); InitWindow(1, 2, \"ok\"); }\n";
+  }
+
+  Simple::Lang::Program program;
   std::string error;
-  return Simple::Lang::ValidateProgramFromString(src, &error);
+  if (!Simple::Lang::RAST::LoadProgramWithImports(dir / "main.simple", &program, &error)) return false;
+  return Simple::Lang::ValidateProgram(program, &error);
 }
 
 bool LangValidateAssignToArtifactMethodFail() {

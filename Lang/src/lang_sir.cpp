@@ -48,6 +48,8 @@ struct EmitState {
   std::unordered_map<std::string, std::string> reserved_import_aliases;
   std::unordered_set<std::string> using_reserved_modules;
   std::unordered_set<std::string> using_modules;
+  std::unordered_set<std::string> imported_modules;
+  std::unordered_map<std::string, std::string> module_aliases;
   std::unordered_map<std::string, std::string> extern_ids;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> extern_ids_by_module;
   std::unordered_map<std::string, std::vector<TypeRef>> extern_params;
@@ -368,11 +370,10 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
     return true;
   }
   if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
-    const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier && root.text == "System") {
-      *out = root.text + "." + base.text;
-      return true;
-    }
+    std::string prefix;
+    if (!GetModuleNameFromExpr(base.children[0], &prefix)) return false;
+    *out = prefix + "." + base.text;
+    return true;
   }
   return false;
 }
@@ -580,6 +581,30 @@ bool ResolveDlModuleForIdentifier(const std::string& ident,
   for (const auto* glob : st.global_decls) {
     if (!glob || glob->name != ident || !glob->has_init_expr) continue;
     if (GetDlOpenManifestModule(glob->init_expr, st, out_module)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool FindDlHandleGlobalForModule(const EmitState& st,
+                                 const std::string& module,
+                                 std::string* out_global) {
+  if (!out_global) return false;
+  const auto alias_it = st.module_aliases.find(module);
+  const std::string target_module = alias_it == st.module_aliases.end() ? module : alias_it->second;
+  for (const auto& entry : st.global_dl_modules) {
+    if (entry.second == module || entry.second == target_module) {
+      *out_global = entry.first;
+      return true;
+    }
+  }
+  for (const auto* glob : st.global_decls) {
+    if (!glob || !glob->has_init_expr) continue;
+    std::string manifest;
+    if (GetDlOpenManifestModule(glob->init_expr, st, &manifest) &&
+        (manifest == module || manifest == target_module)) {
+      *out_global = glob->name;
       return true;
     }
   }
@@ -1096,6 +1121,97 @@ bool EmitAbiInflateReturn(EmitState& st,
 
   (*st.out) << "  ldloc " << root_index << "\n";
   PushStack(st, 1);
+  return true;
+}
+
+bool EmitDynamicDlCallByHandleGlobal(EmitState& st,
+                                     const std::string& handle_global,
+                                     const std::string& dl_module,
+                                     const std::string& symbol,
+                                     const std::vector<Expr>& args,
+                                     std::string* error) {
+  auto global_it = st.global_indices.find(handle_global);
+  if (global_it == st.global_indices.end()) {
+    if (error) *error = "missing dynamic DL handle global: " + handle_global;
+    return false;
+  }
+  auto params_mod_it = st.extern_params_by_module.find(dl_module);
+  auto returns_mod_it = st.extern_returns_by_module.find(dl_module);
+  if (params_mod_it == st.extern_params_by_module.end() ||
+      returns_mod_it == st.extern_returns_by_module.end()) {
+    if (error) *error = "unknown dynamic DL manifest module: " + dl_module;
+    return false;
+  }
+  auto params_it = params_mod_it->second.find(symbol);
+  auto ret_it = returns_mod_it->second.find(symbol);
+  if (params_it == params_mod_it->second.end() || ret_it == returns_mod_it->second.end()) {
+    if (error) *error = "unknown dynamic symbol: " + dl_module + "." + symbol;
+    return false;
+  }
+  const auto& params = params_it->second;
+  if (args.size() != params.size()) {
+    if (error) *error = "call argument count mismatch for dynamic symbol '" + dl_module + "." + symbol + "'";
+    return false;
+  }
+  auto call_mod_it = st.dl_call_import_ids_by_module.find(dl_module);
+  if (call_mod_it == st.dl_call_import_ids_by_module.end()) {
+    if (error) *error = "missing dynamic DL call import module: " + dl_module;
+    return false;
+  }
+  auto call_id_it = call_mod_it->second.find(symbol);
+  if (call_id_it == call_mod_it->second.end()) {
+    if (error) *error = "missing dynamic DL call import: " + dl_module + "." + symbol;
+    return false;
+  }
+  std::string sym_import_id;
+  if (!GetCoreDlSymImportId(st, &sym_import_id)) {
+    if (error) *error = "missing DL.sym import for dynamic symbol calls";
+    return false;
+  }
+  const EmitState::AbiTypeInfo* abi_ret = nullptr;
+  if (NeedsAbiFlattenType(ret_it->second, st)) {
+    abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+    if (!abi_ret) {
+      if (error) *error = "missing ABI type for dynamic return '" + symbol + "'";
+      return false;
+    }
+  }
+  (*st.out) << "  ldglob " << global_it->second << "\n";
+  PushStack(st, 1);
+  std::string symbol_name;
+  if (!AddStringConst(st, symbol, &symbol_name)) return false;
+  (*st.out) << "  const string " << symbol_name << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  call " << sym_import_id << " 2\n";
+  PopStack(st, 2);
+  PushStack(st, 1);
+  uint32_t abi_arg_count = 1;
+  for (size_t i = 0; i < params.size(); ++i) {
+    const EmitState::AbiTypeInfo* abi_param = nullptr;
+    if (NeedsAbiFlattenType(params[i], st)) {
+      abi_param = FindAbiTypeForArtifact(st, params[i].name);
+      if (!abi_param) {
+        if (error) *error = "missing ABI type for dynamic param '" + symbol + "'";
+        return false;
+      }
+    }
+    if (abi_param) {
+      if (!EmitAbiPackArtifactArg(st, args[i], params[i], *abi_param, error)) return false;
+    } else {
+      if (!EmitExpr(st, args[i], &params[i], error)) return false;
+    }
+    ++abi_arg_count;
+  }
+  if (abi_arg_count > 255) {
+    if (error) *error = "dynamic DL call has too many ABI parameters";
+    return false;
+  }
+  (*st.out) << "  call " << call_id_it->second << " " << abi_arg_count << "\n";
+  PopStack(st, abi_arg_count);
+  if (ret_it->second.name != "void") PushStack(st, 1);
+  if (abi_ret) {
+    if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
+  }
   return true;
 }
 
@@ -2843,6 +2959,10 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "call argument count mismatch for '" + qualified_name + "'";
             return false;
           }
+          std::string handle_global;
+          if (FindDlHandleGlobalForModule(st, using_module, &handle_global)) {
+            return EmitDynamicDlCallByHandleGlobal(st, handle_global, using_module, callee.text, expr.args, error);
+          }
           for (size_t i = 0; i < params.size(); ++i) {
             if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
           }
@@ -3381,6 +3501,10 @@ bool EmitExpr(EmitState& st,
               if (expr.args.size() != params.size()) {
                 if (error) *error = "call argument count mismatch for '" + ext_key + "'";
                 return false;
+              }
+              std::string handle_global;
+              if (FindDlHandleGlobalForModule(st, ext_module_name, &handle_global)) {
+                return EmitDynamicDlCallByHandleGlobal(st, handle_global, ext_module_name, extern_member_name, expr.args, error);
               }
               const EmitState::AbiTypeInfo* abi_ret = nullptr;
               if (NeedsAbiFlattenType(ret_it->second, st)) {
@@ -4737,6 +4861,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     module_globals.reserve(module_var_count);
   }
   for (const auto& decl : program.decls) {
+    if (decl.kind == DeclKind::ModuleHeader) {
+      continue;
+    }
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
       if (decl.kind == DeclKind::Import) {
         if (decl.import_decl.is_using) {
@@ -4744,6 +4871,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
           if (alias_it != st.reserved_import_aliases.end()) {
             st.reserved_imports.insert(alias_it->second);
             st.using_reserved_modules.insert(alias_it->second);
+          } else if (st.extern_ids_by_module.find(decl.import_decl.path) != st.extern_ids_by_module.end()) {
+            st.using_modules.insert(decl.import_decl.path);
+          } else if (st.imported_modules.find(decl.import_decl.path) != st.imported_modules.end()) {
+            // Imported file space is already flattened into this program.
           } else {
             const size_t dot = decl.import_decl.path.rfind('.');
             st.using_modules.insert(dot == std::string::npos ? decl.import_decl.path : decl.import_decl.path.substr(dot + 1));
@@ -4751,8 +4882,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         } else {
           std::string canonical_import;
           if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
-            if (error) *error = "unsupported import path: " + decl.import_decl.path;
-            return false;
+            st.imported_modules.insert(decl.import_decl.path);
+            continue;
           }
           st.reserved_imports.insert(canonical_import);
           if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
@@ -4804,6 +4935,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       }
       st.enum_values.emplace(decl.enm.name, std::move(values));
     } else if (decl.kind == DeclKind::Module) {
+      if (!decl.module.source_module.empty()) {
+        const std::string qualified_module = decl.module.source_module + "." + decl.module.name;
+        if (qualified_module != decl.module.name) st.module_aliases[qualified_module] = decl.module.name;
+      }
       if (!decl.module.variables.empty()) {
         for (const auto& var : decl.module.variables) {
           VarDecl qualified = var;
@@ -5020,6 +5155,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         st.imports.push_back(std::move(dyn_item));
       }
     }
+  }
+
+  for (const auto& alias_entry : st.module_aliases) {
+    const std::string& alias = alias_entry.first;
+    const std::string& target = alias_entry.second;
+    auto ids_it = st.extern_ids_by_module.find(target);
+    if (ids_it != st.extern_ids_by_module.end()) st.extern_ids_by_module[alias] = ids_it->second;
+    auto params_it = st.extern_params_by_module.find(target);
+    if (params_it != st.extern_params_by_module.end()) st.extern_params_by_module[alias] = params_it->second;
+    auto returns_it = st.extern_returns_by_module.find(target);
+    if (returns_it != st.extern_returns_by_module.end()) st.extern_returns_by_module[alias] = returns_it->second;
+    auto dl_it = st.dl_call_import_ids_by_module.find(target);
+    if (dl_it != st.dl_call_import_ids_by_module.end()) st.dl_call_import_ids_by_module[alias] = dl_it->second;
   }
 
   for (const auto* glob : globals) {

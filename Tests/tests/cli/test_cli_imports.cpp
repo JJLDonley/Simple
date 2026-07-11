@@ -176,7 +176,7 @@ bool CliSplitImportsLoadProgramWithSharedEntryPoint() {
   std::string error;
   const bool ok = Simple::Lang::RAST::LoadProgramWithImports(entry, &program, &error);
   std::filesystem::remove_all(dir);
-  return ok && program.decls.size() == 2;
+  return ok && program.decls.size() == 3;
 }
 
 bool CliSplitImportsAppendProgramWithSharedLoader() {
@@ -202,7 +202,7 @@ bool CliSplitImportsAppendProgramWithSharedLoader() {
                   Simple::Lang::RAST::AppendProgramWithLocalImports(
                       entry, files, modules, &program, &visiting, &visited, &error);
   std::filesystem::remove_all(dir);
-  return ok && program.decls.size() == 2;
+  return ok && program.decls.size() == 3;
 }
 
 bool CliSplitImportsResolveSharedModuleImport() {

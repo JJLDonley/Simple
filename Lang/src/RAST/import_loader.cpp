@@ -140,6 +140,14 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
     return false;
   }
 
+  std::string file_module_name;
+  for (const auto& decl : program.decls) {
+    if (decl.kind == DeclKind::ModuleHeader) {
+      file_module_name = decl.module_header.name;
+      break;
+    }
+  }
+
   const fs::path base_dir = canon.parent_path();
   for (const auto& decl : program.decls) {
     if (decl.kind != DeclKind::Import) continue;
@@ -158,8 +166,9 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
 
   for (auto& decl : program.decls) {
     if (decl.kind == DeclKind::ModuleHeader) continue;
-    if (decl.kind == DeclKind::Import && !decl.import_decl.is_using &&
-        !IsReservedImportPath(decl.import_decl.path)) continue;
+    if (decl.kind == DeclKind::Module && !file_module_name.empty()) {
+      decl.module.source_module = file_module_name;
+    }
     out->decls.push_back(std::move(decl));
   }
   for (auto& stmt : program.top_level_stmts) {

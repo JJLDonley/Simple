@@ -42,6 +42,7 @@ struct ValidateContext {
   std::unordered_map<std::string, std::string> reserved_import_aliases;
   std::unordered_set<std::string> using_reserved_modules;
   std::unordered_set<std::string> using_modules;
+  std::unordered_set<std::string> imported_modules;
 };
 
 struct LocalInfo {
@@ -3153,6 +3154,12 @@ bool CheckExpr(const Expr& expr,
             IsIoPrintCallExpr(expr, ctx)) {
           return true;
         }
+        std::string whole_module_name;
+        if (GetModuleNameFromExpr(expr, &whole_module_name) &&
+            (ctx.modules.find(whole_module_name) != ctx.modules.end() ||
+             ctx.externs_by_module.find(whole_module_name) != ctx.externs_by_module.end())) {
+          return true;
+        }
         if (base.kind == ExprKind::Identifier &&
             ctx.enum_types.find(base.text) != ctx.enum_types.end()) {
           auto members_it = ctx.enum_members_by_type.find(base.text);
@@ -3443,15 +3450,30 @@ bool ValidateProgram(const Program& program, std::string* error) {
             ctx.using_reserved_modules.insert(alias_it->second);
             break;
           }
+          if (ctx.modules.find(decl.import_decl.path) != ctx.modules.end() ||
+              ctx.externs_by_module.find(decl.import_decl.path) != ctx.externs_by_module.end()) {
+            ctx.using_modules.insert(decl.import_decl.path);
+            break;
+          }
+          if (ctx.imported_modules.find(decl.import_decl.path) != ctx.imported_modules.end()) {
+            break;
+          }
           const size_t dot = decl.import_decl.path.rfind('.');
-          const std::string leaf = dot == std::string::npos ? decl.import_decl.path : decl.import_decl.path.substr(dot + 1);
-          ctx.using_modules.insert(ctx.modules.find(decl.import_decl.path) != ctx.modules.end() ? decl.import_decl.path : leaf);
-          break;
+          if (dot != std::string::npos) {
+            const std::string leaf = decl.import_decl.path.substr(dot + 1);
+            if (ctx.modules.find(leaf) != ctx.modules.end() ||
+                ctx.externs_by_module.find(leaf) != ctx.externs_by_module.end()) {
+              ctx.using_modules.insert(leaf);
+              break;
+            }
+          }
+          if (error) *error = "using requires prior import or namespace: " + decl.import_decl.path;
+          return false;
         }
         std::string canonical_import;
         if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
-          if (error) *error = "unsupported import path: " + decl.import_decl.path;
-          return false;
+          ctx.imported_modules.insert(decl.import_decl.path);
+          break;
         }
         ctx.reserved_imports.insert(canonical_import);
         if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
@@ -3492,6 +3514,15 @@ bool ValidateProgram(const Program& program, std::string* error) {
         ctx.modules[decl.module.name] = &decl.module;
         for (const auto& ext : decl.module.externs) {
           ctx.externs_by_module[ext.module][ext.name] = &ext;
+        }
+        if (!decl.module.source_module.empty()) {
+          const std::string qualified_module = decl.module.source_module + "." + decl.module.name;
+          if (qualified_module != decl.module.name) {
+            ctx.modules[qualified_module] = &decl.module;
+            for (const auto& ext : decl.module.externs) {
+              ctx.externs_by_module[qualified_module][ext.name] = &ext;
+            }
+          }
         }
         break;
       case DeclKind::Function:
