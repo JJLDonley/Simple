@@ -81,7 +81,11 @@ pre {
 
 img { max-width: 100%; }
 a { color: var(--accent); }
-code, pre { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+code, pre {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
 
 .app-shell { min-height: calc(100vh - var(--app-header-height)); }
 .page[hidden] { display: none !important; }
