@@ -135,7 +135,7 @@
         },
         {
           "name": "keyword.declaration.simple",
-          "match": "\\b(?:fn|callback|module|namespace|import|extern|artifact|enum|as)\\b"
+          "match": "\\b(?:fn|callback|module|namespace|import|using|extern|artifact|enum|as)\\b"
         },
         {
           "name": "constant.language.simple",

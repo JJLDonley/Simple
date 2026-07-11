@@ -3336,6 +3336,54 @@ bool LspDocumentLinkResolvesLocalImports() {
          out_contents.find("dep.simple") != std::string::npos;
 }
 
+bool LspDocumentLinkResolvesModuleHeaderImports() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_doclink_module_test";
+  fs::create_directories(dir);
+  const auto main_path = dir / "main.simple";
+  const auto dep_path = dir / "dep.simple";
+  {
+    std::ofstream dep(dep_path);
+    dep << "module Tools.Dep\ndep : i32 () { return 1 }";
+  }
+  const std::string uri = "file://" + main_path.generic_string();
+  const std::string dep_uri = "file://" + dep_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_doclink_module_in.txt");
+  const std::string out_path = TempPath("simple_lsp_doclink_module_out.txt");
+  const std::string err_path = TempPath("simple_lsp_doclink_module_err.txt");
+  const std::string text = "import Tools.Dep\nmain : i32 () { return dep() }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string link_req = "{\"jsonrpc\":\"2.0\",\"id\":57,\"method\":\"textDocument/documentLink\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(link_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":57") != std::string::npos &&
+         out_contents.find("\"target\":\"" + dep_uri + "\"") != std::string::npos;
+}
+
+bool LspDocumentLinkResolvesReservedImportDocs() {
+  const std::string in_path = TempPath("simple_lsp_doclink_reserved_in.txt");
+  const std::string out_path = TempPath("simple_lsp_doclink_reserved_out.txt");
+  const std::string err_path = TempPath("simple_lsp_doclink_reserved_err.txt");
+  const std::string uri = "file:///workspace/reserved_doclink.simple";
+  const std::string text = "import IO\nmain : i32 () { return 0 }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string link_req = "{\"jsonrpc\":\"2.0\",\"id\":58,\"method\":\"textDocument/documentLink\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(link_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":58") != std::string::npos &&
+         out_contents.find("Compiler/Docs/Language.md#reservedsystem-modules-and-standard-library") != std::string::npos;
+}
+
 bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
   namespace fs = std::filesystem;
   const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_test";
@@ -3705,6 +3753,8 @@ const TestCase kLspTests[] = {
   {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
   {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},
   {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
+  {"lsp_document_link_resolves_module_header_imports", LspDocumentLinkResolvesModuleHeaderImports},
+  {"lsp_document_link_resolves_reserved_import_docs", LspDocumentLinkResolvesReservedImportDocs},
   {"lsp_workspace_symbols_index_sibling_simple_files", LspWorkspaceSymbolsIndexSiblingSimpleFiles},
   {"lsp_references_index_sibling_simple_files", LspReferencesIndexSiblingSimpleFiles},
   {"lsp_formatting_returns_whole_document_edit", LspFormattingReturnsWholeDocumentEdit},

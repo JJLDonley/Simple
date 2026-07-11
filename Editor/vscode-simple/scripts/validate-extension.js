@@ -44,6 +44,12 @@ for (const command of [
   if (!commands.has(command)) fail(`command missing: ${command}`);
 }
 
+const grammar = JSON.parse(fs.readFileSync(path.join(root, 'syntaxes', 'simple.tmLanguage.json'), 'utf8'));
+const grammarText = JSON.stringify(grammar);
+for (const keyword of ['module', 'import', 'using', 'extern', 'artifact', 'enum', 'namespace']) {
+  if (!grammarText.includes(keyword)) fail(`grammar missing keyword: ${keyword}`);
+}
+
 const extensionText = fs.readFileSync(path.join(root, pkg.main), 'utf8');
 if (!extensionText.includes('svm')) fail('extension must discover and invoke svm');
 if (!extensionText.includes('registerTaskProvider')) fail('compiled extension must register Simple task provider');

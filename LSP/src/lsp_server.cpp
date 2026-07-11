@@ -3725,6 +3725,50 @@ void ReplySelectionRanges(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+std::string ReservedImportDocsUri(const std::string& import_path) {
+  if (!Simple::Lang::IsReservedImportPath(import_path)) return {};
+  return "https://github.com/JJLDonley/Simple/blob/main/Compiler/Docs/Language.md#reservedsystem-modules-and-standard-library";
+}
+
+bool ModuleHeaderNameInText(const std::string& text, std::string* out_name) {
+  if (!out_name) return false;
+  out_name->clear();
+  const auto refs = LexTokenRefs(text);
+  using TK = Simple::Lang::TokenKind;
+  for (size_t i = 0; i + 1 < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::KwModule) continue;
+    if (refs[i + 1].token.kind != TK::Identifier) return false;
+    std::string name = refs[i + 1].token.text;
+    size_t j = i + 2;
+    while (j + 1 < refs.size() && refs[j].token.kind == TK::Dot && refs[j + 1].token.kind == TK::Identifier) {
+      name += ".";
+      name += refs[j + 1].token.text;
+      j += 2;
+    }
+    *out_name = std::move(name);
+    return true;
+  }
+  return false;
+}
+
+std::string FindModuleDocumentUri(const std::string& module_name,
+                                  const std::unordered_map<std::string, std::string>& open_docs) {
+  const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+  for (const auto& [candidate_uri, candidate_text] : workspace_docs) {
+    std::string candidate_module;
+    if (ModuleHeaderNameInText(candidate_text, &candidate_module) && candidate_module == module_name) {
+      return candidate_uri;
+    }
+  }
+  return {};
+}
+
+bool ImportLooksLikeFilePath(const std::string& import_path) {
+  return import_path.find('/') != std::string::npos ||
+         import_path.find('\\') != std::string::npos ||
+         (import_path.size() >= 7 && import_path.substr(import_path.size() - 7) == ".simple");
+}
+
 void ReplyDocumentLinks(std::ostream& out,
                         const std::string& id_raw,
                         const std::string& uri,
@@ -3745,15 +3789,25 @@ void ReplyDocumentLinks(std::ostream& out,
     const std::string line = doc_it->second.substr(start, i - start);
     std::string import_path;
     std::string alias;
-    if (ParseImportDeclLine(line, &import_path, &alias) && !Simple::Lang::IsReservedImportPath(import_path)) {
+    if (ParseImportDeclLine(line, &import_path, &alias)) {
       const size_t import_pos = line.find(import_path);
       if (import_pos != std::string::npos) {
-        std::filesystem::path target_path(import_path);
-        if (target_path.is_relative() && !base_dir.empty()) target_path = base_dir / target_path;
+        std::string target_uri;
+        const std::string docs_uri = ReservedImportDocsUri(import_path);
+        if (!docs_uri.empty()) {
+          target_uri = docs_uri;
+        } else if (!ImportLooksLikeFilePath(import_path)) {
+          target_uri = FindModuleDocumentUri(import_path, open_docs);
+        }
+        if (target_uri.empty()) {
+          std::filesystem::path target_path(import_path);
+          if (target_path.is_relative() && !base_dir.empty()) target_path = base_dir / target_path;
+          target_uri = PathToFileUri(target_path);
+        }
         const std::string link = "{\"range\":" +
             JsonRange(line_index, static_cast<uint32_t>(import_pos), line_index,
                       static_cast<uint32_t>(import_pos + import_path.size())) +
-            ",\"target\":\"" + JsonEscape(PathToFileUri(target_path)) + "\"}";
+            ",\"target\":\"" + JsonEscape(target_uri) + "\"}";
         if (!result.empty()) result += ",";
         result += link;
       }
