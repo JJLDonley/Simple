@@ -402,6 +402,19 @@ std::string JsonEscape(const std::string& text) {
   return out;
 }
 
+std::string JsonRange(uint32_t start_line, uint32_t start_col, uint32_t end_line, uint32_t end_col) {
+  return "{\"start\":{\"line\":" + std::to_string(start_line) + ",\"character\":" +
+         std::to_string(start_col) + "},\"end\":{\"line\":" + std::to_string(end_line) +
+         ",\"character\":" + std::to_string(end_col) + "}}";
+}
+
+std::string TokenRangeJson(const Simple::Lang::Token& tk) {
+  const uint32_t line = tk.line > 0 ? (tk.line - 1) : 0;
+  const uint32_t col = tk.column > 0 ? (tk.column - 1) : 0;
+  const uint32_t len = static_cast<uint32_t>(tk.text.empty() ? 1 : tk.text.size());
+  return JsonRange(line, col, line, col + len);
+}
+
 void PublishDiagnostics(std::ostream& out,
                         const std::string& uri,
                         const std::string& source_text) {
@@ -828,7 +841,6 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
   };
 
   std::unordered_set<std::string> labels;
-  uint32_t line_index = 0;
   size_t start = 0;
   for (size_t i = 0; i <= text.size(); ++i) {
     if (i != text.size() && text[i] != '\n') continue;
@@ -846,7 +858,6 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
         }
       }
     }
-    ++line_index;
     start = i + 1;
   }
 
@@ -2655,6 +2666,84 @@ std::string DocumentSymbolJson(const Simple::Lang::Token& tk,
   return out;
 }
 
+uint32_t LineCount(const std::string& text) {
+  uint32_t lines = 1;
+  for (char c : text) {
+    if (c == '\n') ++lines;
+  }
+  return lines;
+}
+
+std::string PathToFileUri(const std::filesystem::path& path) {
+  std::string value = std::filesystem::absolute(path).lexically_normal().generic_string();
+  std::string out = "file://";
+  for (char c : value) {
+    const unsigned char uc = static_cast<unsigned char>(c);
+    if (std::isalnum(uc) || c == '/' || c == '-' || c == '_' || c == '.' || c == '~' || c == ':') {
+      out.push_back(c);
+      continue;
+    }
+    static constexpr char kHex[] = "0123456789ABCDEF";
+    out.push_back('%');
+    out.push_back(kHex[(uc >> 4) & 0xF]);
+    out.push_back(kHex[uc & 0xF]);
+  }
+  return out;
+}
+
+std::vector<std::pair<uint32_t, uint32_t>> ExtractLspPositions(const std::string& json) {
+  std::vector<std::pair<uint32_t, uint32_t>> positions;
+  size_t search = 0;
+  while (search < json.size()) {
+    const size_t line_key = json.find("\"line\"", search);
+    if (line_key == std::string::npos) break;
+    uint32_t line = 0;
+    uint32_t character = 0;
+    if (!ExtractJsonUintField(json.substr(line_key), "line", &line) ||
+        !ExtractJsonUintField(json.substr(line_key), "character", &character)) {
+      search = line_key + 6;
+      continue;
+    }
+    positions.emplace_back(line, character);
+    search = line_key + 6;
+  }
+  return positions;
+}
+
+std::string EnclosingBraceRangeJson(const std::vector<TokenRef>& refs, size_t token_index) {
+  using TK = Simple::Lang::TokenKind;
+  if (token_index >= refs.size()) return {};
+  int depth = 0;
+  size_t open_index = refs.size();
+  for (size_t i = token_index + 1; i > 0; --i) {
+    const size_t idx = i - 1;
+    if (refs[idx].token.kind == TK::RBrace) ++depth;
+    if (refs[idx].token.kind == TK::LBrace) {
+      if (depth == 0) {
+        open_index = idx;
+        break;
+      }
+      --depth;
+    }
+  }
+  if (open_index == refs.size()) return {};
+  depth = 0;
+  for (size_t i = open_index + 1; i < refs.size(); ++i) {
+    if (refs[i].token.kind == TK::LBrace) ++depth;
+    if (refs[i].token.kind == TK::RBrace) {
+      if (depth == 0) {
+        const uint32_t start_line = refs[open_index].token.line > 0 ? refs[open_index].token.line - 1 : 0;
+        const uint32_t start_col = refs[open_index].token.column > 0 ? refs[open_index].token.column - 1 : 0;
+        const uint32_t end_line = refs[i].token.line > 0 ? refs[i].token.line - 1 : 0;
+        const uint32_t end_col = (refs[i].token.column > 0 ? refs[i].token.column - 1 : 0) + 1;
+        return JsonRange(start_line, start_col, end_line, end_col);
+      }
+      --depth;
+    }
+  }
+  return {};
+}
+
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
@@ -3000,6 +3089,122 @@ void ReplyWorkspaceSymbols(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+void ReplyFoldingRanges(std::ostream& out,
+                        const std::string& id_raw,
+                        const std::string& uri,
+                        const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  using TK = Simple::Lang::TokenKind;
+  std::vector<std::string> ranges;
+  std::vector<size_t> stack;
+  for (size_t i = 0; i < refs.size(); ++i) {
+    if (refs[i].token.kind == TK::LBrace) {
+      stack.push_back(i);
+      continue;
+    }
+    if (refs[i].token.kind != TK::RBrace || stack.empty()) continue;
+    const size_t open = stack.back();
+    stack.pop_back();
+    const uint32_t start_line = refs[open].token.line > 0 ? refs[open].token.line - 1 : 0;
+    const uint32_t end_line = refs[i].token.line > 0 ? refs[i].token.line - 1 : 0;
+    if (end_line <= start_line) continue;
+    ranges.push_back("{\"startLine\":" + std::to_string(start_line) +
+                     ",\"startCharacter\":" +
+                     std::to_string(refs[open].token.column > 0 ? refs[open].token.column - 1 : 0) +
+                     ",\"endLine\":" + std::to_string(end_line) +
+                     ",\"endCharacter\":" +
+                     std::to_string(refs[i].token.column > 0 ? refs[i].token.column : 1) +
+                     ",\"kind\":\"region\"}");
+  }
+  std::string result;
+  for (const auto& range : ranges) {
+    if (!result.empty()) result += ",";
+    result += range;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
+void ReplySelectionRanges(std::ostream& out,
+                          const std::string& id_raw,
+                          const std::string& uri,
+                          const std::vector<std::pair<uint32_t, uint32_t>>& positions,
+                          const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  std::string result;
+  for (const auto& [line, character] : positions) {
+    const TokenRef* token = nullptr;
+    for (const auto& ref : refs) {
+      if (TokenContainsPosition(ref.token, line, character)) {
+        token = &ref;
+        break;
+      }
+    }
+    std::string item;
+    if (token) {
+      item = "{\"range\":" + TokenRangeJson(token->token);
+      const std::string parent_range = EnclosingBraceRangeJson(refs, token->index);
+      if (!parent_range.empty()) item += ",\"parent\":{\"range\":" + parent_range + "}";
+      item += "}";
+    } else {
+      const uint32_t line_count = LineCount(doc_it->second);
+      item = "{\"range\":" + JsonRange(line, character, line, character) +
+             ",\"parent\":{\"range\":" + JsonRange(0, 0, line_count > 0 ? line_count - 1 : 0, 0) + "}}";
+    }
+    if (!result.empty()) result += ",";
+    result += item;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
+void ReplyDocumentLinks(std::ostream& out,
+                        const std::string& id_raw,
+                        const std::string& uri,
+                        const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  std::filesystem::path base_dir;
+  std::string doc_path;
+  if (FileUriToPath(uri, &doc_path)) base_dir = std::filesystem::path(doc_path).parent_path();
+  std::string result;
+  uint32_t line_index = 0;
+  size_t start = 0;
+  for (size_t i = 0; i <= doc_it->second.size(); ++i) {
+    if (i != doc_it->second.size() && doc_it->second[i] != '\n') continue;
+    const std::string line = doc_it->second.substr(start, i - start);
+    std::string import_path;
+    std::string alias;
+    if (ParseImportDeclLine(line, &import_path, &alias) && !Simple::Lang::IsReservedImportPath(import_path)) {
+      const size_t import_pos = line.find(import_path);
+      if (import_pos != std::string::npos) {
+        std::filesystem::path target_path(import_path);
+        if (target_path.is_relative() && !base_dir.empty()) target_path = base_dir / target_path;
+        const std::string link = "{\"range\":" +
+            JsonRange(line_index, static_cast<uint32_t>(import_pos), line_index,
+                      static_cast<uint32_t>(import_pos + import_path.size())) +
+            ",\"target\":\"" + JsonEscape(PathToFileUri(target_path)) + "\"}";
+        if (!result.empty()) result += ",";
+        result += link;
+      }
+    }
+    ++line_index;
+    start = i + 1;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
 void ReplyRename(std::ostream& out,
                  const std::string& id_raw,
                  const std::string& uri,
@@ -3205,6 +3410,8 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"documentHighlightProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
+                "\"documentLinkProvider\":{\"resolveProvider\":false},"
+                "\"foldingRangeProvider\":true,\"selectionRangeProvider\":true,"
                 "\"renameProvider\":{\"prepareProvider\":true},"
                 "\"codeActionProvider\":true,"
                 "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\",\"@\"]},"
@@ -3472,6 +3679,42 @@ int RunServer(std::istream& in, std::ostream& out) {
         std::string uri;
         if (ExtractJsonStringField(body, "uri", &uri)) {
           ReplyDocumentSymbols(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/documentLink") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplyDocumentLinks(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/foldingRange") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplyFoldingRanges(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/selectionRange") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplySelectionRanges(out, id_raw, uri, ExtractLspPositions(body), open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

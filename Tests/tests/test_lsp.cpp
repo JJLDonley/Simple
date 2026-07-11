@@ -3108,6 +3108,92 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
          out_contents.find("Declare 'y' as i32") == std::string::npos;
 }
 
+bool LspInitializeAdvertisesModernNavigationProviders() {
+  const std::string in_path = TempPath("simple_lsp_modern_init_in.txt");
+  const std::string out_path = TempPath("simple_lsp_modern_init_out.txt");
+  const std::string err_path = TempPath("simple_lsp_modern_init_err.txt");
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() &&
+         out_contents.find("\"documentLinkProvider\":{\"resolveProvider\":false}") != std::string::npos &&
+         out_contents.find("\"foldingRangeProvider\":true") != std::string::npos &&
+         out_contents.find("\"selectionRangeProvider\":true") != std::string::npos;
+}
+
+bool LspFoldingRangeReturnsBraceRegions() {
+  const std::string in_path = TempPath("simple_lsp_folding_in.txt");
+  const std::string out_path = TempPath("simple_lsp_folding_out.txt");
+  const std::string err_path = TempPath("simple_lsp_folding_err.txt");
+  const std::string uri = "file:///workspace/folding.simple";
+  const std::string text = "main : i32 () {\\n  x : i32 = 1;\\n  return x;\\n}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string fold_req = "{\"jsonrpc\":\"2.0\",\"id\":41,\"method\":\"textDocument/foldingRange\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(fold_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":41") != std::string::npos &&
+         out_contents.find("\"startLine\":0") != std::string::npos &&
+         out_contents.find("\"endLine\":3") != std::string::npos &&
+         out_contents.find("\"kind\":\"region\"") != std::string::npos;
+}
+
+bool LspSelectionRangeReturnsNestedRanges() {
+  const std::string in_path = TempPath("simple_lsp_selection_in.txt");
+  const std::string out_path = TempPath("simple_lsp_selection_out.txt");
+  const std::string err_path = TempPath("simple_lsp_selection_err.txt");
+  const std::string uri = "file:///workspace/selection.simple";
+  const std::string text = "main : i32 () {\\n  value : i32 = 1;\\n  return value;\\n}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string sel_req = "{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"textDocument/selectionRange\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"positions\":[{\"line\":1,\"character\":3}]}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(sel_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":42") != std::string::npos &&
+         out_contents.find("\"parent\"") != std::string::npos &&
+         out_contents.find("\"character\":2") != std::string::npos &&
+         out_contents.find("\"character\":7") != std::string::npos;
+}
+
+bool LspDocumentLinkResolvesLocalImports() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_doclink_test";
+  fs::create_directories(dir);
+  const auto main_path = dir / "main.simple";
+  const auto dep_path = dir / "dep.simple";
+  {
+    std::ofstream dep(dep_path);
+    dep << "dep : i32 () { return 1 }";
+  }
+  const std::string uri = "file://" + main_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_doclink_in.txt");
+  const std::string out_path = TempPath("simple_lsp_doclink_out.txt");
+  const std::string err_path = TempPath("simple_lsp_doclink_err.txt");
+  const std::string text = "import dep.simple\\nmain : i32 () { return dep() }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string link_req = "{\"jsonrpc\":\"2.0\",\"id\":43,\"method\":\"textDocument/documentLink\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(link_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":43") != std::string::npos &&
+         out_contents.find("\"target\":\"file://") != std::string::npos &&
+         out_contents.find("dep.simple") != std::string::npos;
+}
+
 bool LspCancelRequestSuppressesResponse() {
   const std::string in_path = TempPath("simple_lsp_cancel_in.txt");
   const std::string out_path = TempPath("simple_lsp_cancel_out.txt");
@@ -3282,6 +3368,10 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_infers_char_declaration_type", LspCodeActionInfersCharDeclarationType},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
+  {"lsp_initialize_advertises_modern_navigation_providers", LspInitializeAdvertisesModernNavigationProviders},
+  {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
+  {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},
+  {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},
   {"lsp_responses_follow_request_order", LspResponsesFollowRequestOrder},
 };

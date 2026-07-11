@@ -792,6 +792,101 @@ Rules:
 
 ---
 
+## Phase 4.5: Simple Editor and LSP Experience
+
+Goal: make Simple pleasant to write in VS Code by wiring the existing `svm` pipeline into editor
+commands, tasks, diagnostics, and navigation. The TypeC extension is a process reference for how to
+package and execute tooling, but the feature set and commands must be Simple-specific and must map
+to real Simple CLI/LSP capabilities.
+
+Simple toolchain facts this plan must respect:
+
+- `svm lsp` starts the stdio LSP server.
+- `svm check <file.simple|file.sir|file.sbc>` validates without running.
+- `svm run <file.simple|file.sir|file.sbc> [-jit|-int] [--jit-stats] [--no-verify]` runs programs.
+- `svm build|compile <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]` builds artifacts.
+- `svm emit -ir <file.simple> [--out <file.sir>]` emits SIR.
+- `svm emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]` emits bytecode.
+- `simple` is runtime-stub only and must not be used for editor compiler commands.
+
+### VS Code Build and Packaging
+
+- [ ] Convert `Editor/vscode-simple` from hand-written JavaScript to a TypeScript extension build.
+  - [ ] Add `src/extension.ts`, `tsconfig.json`, typed command constants, and generated `out/extension.js`.
+  - [ ] Add `compile`, `watch`, `lint`, `package`, and prepublish scripts.
+  - [ ] Add `@types/vscode`, `typescript`, and `@vscode/vsce` dev dependencies.
+  - [ ] Keep checked-in generated output only if VSIX packaging/release requires it.
+- [ ] Keep VSIX version synchronized with `VERSION`, but do not let extension packaging change the `svm` version.
+- [ ] Package VSIX in CI by running `npm ci`, `npm run compile`, lint, and `vsce package`.
+- [ ] Support `svm` discovery in this order:
+  - [ ] explicit `simple.compilerPath` setting.
+  - [ ] bundled release binary under the extension/package layout when present.
+  - [ ] workspace-local `Compiler/bin/svm` or `Compiler/build/bin/svm` for source checkouts.
+  - [ ] `svm` on `PATH`.
+- [ ] Show a clear error with settings shortcut when no usable `svm` is found.
+- [ ] Add extension smoke tests for activation, command registration, configured path resolution, and package manifest validity.
+
+### Simple VS Code Commands and Tasks
+
+- [ ] Add VS Code commands that execute real `svm` commands:
+  - [ ] `Simple: Check Current File` -> `svm check <file>`.
+  - [ ] `Simple: Run Current File` -> `svm run <file>`.
+  - [ ] `Simple: Run Current File With JIT` -> `svm run <file> -jit --jit-stats`.
+  - [ ] `Simple: Build Current File` -> `svm build <file>`.
+  - [ ] `Simple: Compile Current File` -> `svm compile <file>`.
+  - [ ] `Simple: Emit SIR` -> `svm emit -ir <file> --out <file.sir>`.
+  - [ ] `Simple: Emit SBC` -> `svm emit -sbc <file> --out <file.sbc>`.
+  - [ ] `Simple: Restart Language Server` -> stop/start `svm lsp`.
+  - [ ] `Simple: Show Language Server Output`.
+  - [ ] `Simple: Show svm Version` -> `svm version` task.
+  - [ ] `Simple: Show svm Help` -> `svm help` task.
+  - [ ] `Simple: Configure Compiler Path`, build output directory, trace, JIT default, and settings.
+- [ ] Add command palette, editor title, editor context, and explorer context entries for `.simple`, `.sir`, and `.sbc` where appropriate.
+- [ ] Add Simple task provider:
+  - [ ] default build task for active `.simple` file.
+  - [ ] run/check/emit tasks for active file.
+  - [ ] optional problem matcher for `path:line:column: message` diagnostics emitted by `svm`.
+- [ ] Route all command tasks through `svm` with workspace-aware cwd and optional configured output directory.
+- [ ] Never invoke the `simple` runtime stub for check/build/emit/lsp.
+
+### Simple LSP Feature Roadmap
+
+Current Simple LSP already has diagnostics, hover, completion, signature help, definition,
+declaration, references, document highlights, rename/prepare-rename, code actions, document
+symbols, workspace symbols, and semantic tokens.
+
+Next Simple-specific LSP capabilities:
+
+- [ ] Full and range formatting backed by a Simple formatter for `.simple` source.
+- [ ] Type-definition lookup for data/artifact/enum/function/generic/handle type uses.
+- [ ] Linked editing ranges for paired declarations/usages where Simple syntax has paired names.
+- [ ] Call hierarchy for Simple functions, methods, imports, and native wrappers.
+- [x] Folding ranges for brace-delimited Simple regions.
+- [x] Selection ranges for token -> enclosing brace-region nesting.
+- [ ] Inlay hints for inferred locals, generic instantiations, function result types, ABI/native-call effects, and optional JIT-safety facts.
+- [x] Document links for local `import` paths.
+- [ ] Document links for module-map entries, generated SIR/SBC outputs, and known standard/native docs.
+- [ ] Code lenses for runnable entrypoints, exported functions, tests/examples, and JIT-eligible hot functions where stats are available.
+- [ ] Code actions for unresolved imports, missing modules, unknown identifiers, signature mismatch fixes, and quick emit/build actions.
+- [ ] Workspace symbols and references across opened documents plus indexed `.simple` files, not only the active document.
+- [ ] Range-based document sync with incremental text changes tested across open/change/close.
+
+### Simple LSP Architecture
+
+- [ ] Split `LSP/src/lsp_server.cpp` into Simple feature modules:
+  JSON-RPC/framing, document store, diagnostics, formatting, symbols, semantic tokens,
+  completion, hover, signature help, inlay hints, document links, folding, selection ranges,
+  call hierarchy, code actions, code lenses, and workspace index.
+- [ ] Build a reusable opened-document store with URI, version, language id, text, dirty flag, and incremental change application.
+- [ ] Build a Simple workspace index over `.simple`, `.sir`, `.sbc`, module/import paths, declarations, exported symbols, type IDs, and native metadata.
+- [ ] Cache parse/RAST/TAST/SIR facts per document with invalidation on text/file/import changes.
+- [ ] Reuse the compiler pipeline exactly for diagnostics; LSP should only map spans/ranges and shape JSON-RPC responses.
+- [x] Advertise folding ranges, selection ranges, and document links only after protocol-level tests cover initialize + requests.
+- [ ] Advertise remaining LSP capabilities only after protocol-level tests cover initialize + request + edge cases.
+- [ ] Keep `svm check` and LSP diagnostics consistent by sharing diagnostic codes, messages, and span mapping.
+
+---
+
 ## Phase 5: Documentation and Tests
 
 - [ ] Generate native API docs grouped by layer.
