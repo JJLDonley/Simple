@@ -652,6 +652,55 @@ bool LspHoverIncludesDeclaredType() {
          out_contents.find("foo : i32") != std::string::npos;
 }
 
+bool LspHoverIncludesImmutableDeclaredType() {
+  const std::string in_path = TempPath("simple_lsp_hover_immutable_type_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_immutable_type_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_immutable_type_err.txt");
+  const std::string uri = "file:///workspace/hover_immutable_type.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"limit :: i32 = 1;\\nlimit;\"}}}";
+  const std::string hover_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":68,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":1}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":68") != std::string::npos &&
+         out_contents.find("limit : i32") != std::string::npos;
+}
+
+bool LspHoverIncludesFunctionParameterType() {
+  const std::string in_path = TempPath("simple_lsp_hover_param_type_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_param_type_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_param_type_err.txt");
+  const std::string uri = "file:///workspace/hover_param_type.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"use : i32 (x : i32, y :: i64) { return x; }\"}}}";
+  const std::string hover_x =
+      "{\"jsonrpc\":\"2.0\",\"id\":69,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":12}}}";
+  const std::string hover_y =
+      "{\"jsonrpc\":\"2.0\",\"id\":70,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":21}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_x) + BuildLspFrame(hover_y) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":69") != std::string::npos &&
+         out_contents.find("x : i32") != std::string::npos &&
+         out_contents.find("\"id\":70") != std::string::npos &&
+         out_contents.find("y : i64") != std::string::npos;
+}
+
 bool LspHoverResolvesTypeAcrossOpenDocuments() {
   const std::string in_path = TempPath("simple_lsp_hover_xdoc_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_xdoc_out.txt");
@@ -3869,6 +3918,8 @@ const TestCase kLspTests[] = {
   {"lsp_did_close_clears_incremental_document_state", LspDidCloseClearsIncrementalDocumentState},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_hover_includes_declared_type", LspHoverIncludesDeclaredType},
+  {"lsp_hover_includes_immutable_declared_type", LspHoverIncludesImmutableDeclaredType},
+  {"lsp_hover_includes_function_parameter_type", LspHoverIncludesFunctionParameterType},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_hover_shows_reserved_alias_signature", LspHoverShowsReservedAliasSignature},
   {"lsp_hover_shows_io_alias_signature", LspHoverShowsIoAliasSignature},

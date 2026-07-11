@@ -766,7 +766,8 @@ bool ResolveDeclaredTypeForIdent(const std::string& text, const std::string& ide
     if (ref.token.text != ident) continue;
     if (!IsDeclNameAt(refs, ref.index)) continue;
     if (ref.index + 2 < refs.size() &&
-        refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon &&
+        (refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon ||
+         refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::DoubleColon) &&
         refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
       *out_type = refs[ref.index + 2].token.text;
       return true;
@@ -4249,8 +4250,30 @@ void ReplyPrepareRename(std::ostream& out,
           JsonEscape(target->token.text) + "\"}}");
 }
 
+bool ImportPathIsModuleName(const std::string& import_path) {
+  return !import_path.empty() && !ImportLooksLikeFilePath(import_path) &&
+         import_path.find('.') != std::string::npos;
+}
+
+std::filesystem::path ModuleNameToRelativeSimplePath(const std::string& module_name) {
+  std::filesystem::path out;
+  size_t start = 0;
+  while (start < module_name.size()) {
+    const size_t dot = module_name.find('.', start);
+    const std::string part = module_name.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+    if (!part.empty()) out /= part;
+    if (dot == std::string::npos) break;
+    start = dot + 1;
+  }
+  out += ".simple";
+  return out;
+}
+
 std::string MissingImportTargetUri(const std::string& source_uri, const std::string& import_path) {
-  std::filesystem::path target(import_path);
+  std::filesystem::path target = ImportPathIsModuleName(import_path)
+                                     ? ModuleNameToRelativeSimplePath(import_path)
+                                     : std::filesystem::path(import_path);
+  if (!target.has_extension() && !ImportPathIsModuleName(import_path)) target += ".simple";
   if (target.is_relative()) {
     std::string source_path;
     if (FileUriToPath(source_uri, &source_path)) {
@@ -4260,6 +4283,11 @@ std::string MissingImportTargetUri(const std::string& source_uri, const std::str
   return PathToFileUri(target);
 }
 
+std::string MissingImportNewText(const std::string& import_path) {
+  if (ImportPathIsModuleName(import_path)) return "module " + import_path + "\n";
+  return "// Simple module created for " + import_path + "\n";
+}
+
 std::string CreateMissingImportCodeActionJson(const std::string& source_uri, const std::string& import_path) {
   const std::string title = "Create missing import '" + import_path + "'";
   const std::string target_uri = MissingImportTargetUri(source_uri, import_path);
@@ -4267,7 +4295,7 @@ std::string CreateMissingImportCodeActionJson(const std::string& source_uri, con
          "\"edit\":{\"documentChanges\":[{\"kind\":\"create\",\"uri\":\"" +
          JsonEscape(target_uri) + "\",\"ignoreIfExists\":true},{\"textDocument\":{\"uri\":\"" +
          JsonEscape(target_uri) + "\",\"version\":null},\"edits\":[{\"range\":" + JsonRange(0, 0, 0, 0) +
-         ",\"newText\":\"// Simple module created for " + JsonEscape(import_path) + "\\n\"}]}]}}";
+         ",\"newText\":\"" + JsonEscape(MissingImportNewText(import_path)) + "\"}]}]}}";
 }
 
 std::string CommandCodeActionJson(const std::string& title,
