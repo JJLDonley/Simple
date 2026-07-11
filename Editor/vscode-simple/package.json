@@ -45,6 +45,21 @@
         "path": "./syntaxes/simple.tmLanguage.json"
       }
     ],
+    "semanticTokenScopes": [
+      {
+        "language": "simple",
+        "scopes": {
+          "function": ["entity.name.function.simple"],
+          "function.declaration": ["entity.name.function.declaration.simple"],
+          "type": ["support.type.simple"],
+          "type.declaration": ["entity.name.type.declaration.simple"],
+          "variable.declaration": ["variable.other.definition.simple"],
+          "parameter": ["variable.parameter.simple"],
+          "property": ["variable.other.property.simple"],
+          "namespace": ["entity.name.namespace.simple"]
+        }
+      }
+    ],
     "commands": [
       {
         "command": "simple.checkCurrentFile",

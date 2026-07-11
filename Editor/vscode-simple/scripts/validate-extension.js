@@ -20,6 +20,16 @@ if (!pkg.contributes?.configuration?.properties?.['simple.outputDirectory']) fai
 if (!pkg.contributes?.configuration?.properties?.['simple.jitByDefault']) fail('simple.jitByDefault setting missing');
 if (!pkg.contributes?.configuration?.properties?.['simple.trace']) fail('simple.trace setting missing');
 if (!Array.isArray(pkg.contributes?.taskDefinitions) || !pkg.contributes.taskDefinitions.some((t) => t.type === 'simple')) fail('simple task definition missing');
+const semanticScopes = pkg.contributes?.semanticTokenScopes?.find((entry) => entry.language === 'simple')?.scopes;
+if (semanticScopes?.['function.declaration']?.[0] !== 'entity.name.function.declaration.simple') {
+  fail('semantic token function declarations must map to function declaration TextMate scope');
+}
+if (semanticScopes?.type?.[0] !== 'support.type.simple') {
+  fail('semantic token types must map to type TextMate scope');
+}
+if (semanticScopes?.['function.declaration']?.[0] === semanticScopes?.type?.[0]) {
+  fail('semantic function declaration and type scopes must not match');
+}
 if (!Array.isArray(pkg.contributes?.problemMatchers) || !pkg.contributes.problemMatchers.some((m) => m.name === 'simple-svm')) fail('simple problem matcher missing');
 if (!Array.isArray(pkg.contributes?.menus?.['explorer/context']) || pkg.contributes.menus['explorer/context'].length === 0) fail('explorer context entries missing');
 const simpleLanguage = (pkg.contributes?.languages ?? []).find((l) => l.id === 'simple');

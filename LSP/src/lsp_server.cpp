@@ -2855,6 +2855,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     }
     if (IsFunctionDeclNameAt(refs, i)) return 2; // function declaration
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
+    if (i > 0 && (refs[i - 1].token.kind == TK::Colon || refs[i - 1].token.kind == TK::DoubleColon)) return 1; // type position
     if (IsFunctionCallNameAt(refs, i)) return 2; // function call
     if (import_aliases.find(token.text) != import_aliases.end() ||
         module_names.find(token.text) != module_names.end()) return 7; // namespace
@@ -2864,7 +2865,6 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (artifact_field_indices.find(i) != artifact_field_indices.end()) return 5; // property
     if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
     if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
-    if (i > 0 && (refs[i - 1].token.kind == TK::Colon || refs[i - 1].token.kind == TK::DoubleColon)) return 1; // type position
     if (IsDeclNameAt(refs, i)) return 3; // variable-like declaration
     if (IsPrimitiveTypeName(token.text)) return 1;
   }

@@ -1839,6 +1839,44 @@ bool LspSemanticTokensClassifyModuleKeyword() {
   return false;
 }
 
+bool LspSemanticTokensClassifyNamespaceExternDeclarationParts() {
+  const std::string in_path = TempPath("simple_lsp_tokens_ns_extern_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_ns_extern_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_ns_extern_err.txt");
+  const std::string uri = "file:///workspace/tokens_ns_extern.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"Raylib :: namespace {\\n  extern InitWindow : void (width : i32)\\n}\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":70,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty() || out_contents.find("\"id\":70") == std::string::npos) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  bool saw_function_name = false;
+  bool saw_return_type = false;
+  for (const auto& entry : entries) {
+    if (entry.line == 1 && entry.col == 9 && entry.len == 10 && entry.type == 2) saw_function_name = true;
+    if (entry.line == 1 && entry.col == 22 && entry.len == 4 && entry.type == 1) saw_return_type = true;
+  }
+  return saw_function_name && saw_return_type;
+}
+
 bool LspSemanticTokensClassifyUsingKeyword() {
   const std::string in_path = TempPath("simple_lsp_tokens_using_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_using_out.txt");
@@ -4432,6 +4470,8 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_classify_module_keyword", LspSemanticTokensClassifyModuleKeyword},
+  {"lsp_semantic_tokens_classify_namespace_extern_declaration_parts",
+   LspSemanticTokensClassifyNamespaceExternDeclarationParts},
   {"lsp_semantic_tokens_classify_using_keyword", LspSemanticTokensClassifyUsingKeyword},
   {"lsp_semantic_tokens_cover_correctness_matrix", LspSemanticTokensCoverCorrectnessMatrix},
   {"lsp_semantic_tokens_classify_immutable_variables_and_parameters", LspSemanticTokensClassifyImmutableVariablesAndParameters},
