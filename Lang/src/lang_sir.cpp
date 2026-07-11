@@ -4761,6 +4761,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         st.module_func_names.emplace(key, emit_name);
         functions.push_back({&fn, emit_name, key, false, {}});
       }
+      for (const auto& ext : decl.module.externs) {
+        externs.push_back(&ext);
+      }
     } else if (decl.kind == DeclKind::Variable) {
       globals.push_back(&decl.var);
     } else {

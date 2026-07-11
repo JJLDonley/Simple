@@ -71,6 +71,8 @@ for (const requiredGrammarScope of [
 const declarationPatterns = new Map((grammar.repository?.declarations?.patterns ?? []).map((pattern) => [pattern.name, pattern.match]));
 for (const [name, sample] of [
   ['meta.declaration.namespace.simple', 'Tools :: namespace'],
+  ['meta.declaration.extern.simple', 'extern InitWindow : void (width : i32, height : i32, title : string)'],
+  ['meta.declaration.extern.simple', 'extern DrawText : void (text : string, color : Color)'],
   ['meta.declaration.aggregate.simple', 'Packet :: data'],
   ['meta.declaration.variable.simple', 'colors :: Color[]'],
   ['meta.declaration.variable.simple', 'grid :: Color[][]'],

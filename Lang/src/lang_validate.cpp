@@ -994,6 +994,13 @@ bool InferExprType(const Expr& expr,
         if (const FuncDecl* fn = FindModuleFunc(module_it->second, expr.text)) {
           return CloneTypeRef(fn->return_type, out);
         }
+        auto ext_mod_it = ctx.externs_by_module.find(base.text);
+        if (ext_mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = ext_mod_it->second.find(expr.text);
+          if (ext_it != ext_mod_it->second.end()) {
+            return CloneTypeRef(ext_it->second->return_type, out);
+          }
+        }
         return false;
       }
       std::string module_name;
@@ -1478,6 +1485,21 @@ bool CheckCallTarget(const Expr& callee,
           if (error) *error = "attempt to call non-function: " + base.text + "." + callee.text;
           return false;
         }
+        auto ext_mod_it = ctx.externs_by_module.find(base.text);
+        if (ext_mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = ext_mod_it->second.find(callee.text);
+          if (ext_it != ext_mod_it->second.end()) {
+            if (ext_it->second->params.size() != arg_count) {
+              if (error) {
+                *error = "call argument count mismatch for extern " + base.text + "." + callee.text +
+                         ": expected " + std::to_string(ext_it->second->params.size()) +
+                         ", got " + std::to_string(arg_count);
+              }
+              return false;
+            }
+            return true;
+          }
+        }
         return true;
       }
       std::string module_name;
@@ -1726,6 +1748,23 @@ bool GetCallTargetInfo(const Expr& callee,
           out->type_params.clear();
           out->is_proc = true;
           return true;
+        }
+        auto ext_mod_it = ctx.externs_by_module.find(base.text);
+        if (ext_mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = ext_mod_it->second.find(callee.text);
+          if (ext_it != ext_mod_it->second.end()) {
+            out->params.clear();
+            if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
+            out->return_mutability = ext_it->second->return_mutability;
+            out->type_params.clear();
+            out->is_proc = false;
+            for (const auto& param : ext_it->second->params) {
+              TypeRef copy;
+              if (!CloneTypeRef(param.type, &copy)) return false;
+              out->params.push_back(std::move(copy));
+            }
+            return true;
+          }
         }
       }
       std::string module_name;
@@ -2870,6 +2909,7 @@ bool CheckExpr(const Expr& expr,
       }
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
         if (ctx.modules.find(expr.text) != ctx.modules.end()) {
+          if (ctx.externs_by_module.find(expr.text) != ctx.externs_by_module.end()) return true;
           if (error) *error = "module is not a value: " + expr.text;
           PrefixErrorLocation(expr.line, expr.column, error);
           return false;
@@ -3104,8 +3144,12 @@ bool CheckExpr(const Expr& expr,
           }
           auto module_it = ctx.modules.find(base.text);
           if (module_it != ctx.modules.end()) {
+            const auto ext_mod_it = ctx.externs_by_module.find(base.text);
+            const bool has_extern_member = ext_mod_it != ctx.externs_by_module.end() &&
+                                           ext_mod_it->second.find(expr.text) != ext_mod_it->second.end();
             if (!FindModuleVar(module_it->second, expr.text) &&
-                !FindModuleFunc(module_it->second, expr.text)) {
+                !FindModuleFunc(module_it->second, expr.text) &&
+                !has_extern_member) {
               if (error) {
                 *error = UnknownMemberErrorWithSuggestion(
                     base.text, expr.text, ModuleMembers(module_it->second));
@@ -3148,8 +3192,12 @@ bool CheckExpr(const Expr& expr,
           }
           auto module_it = ctx.modules.find(base.text);
           if (module_it != ctx.modules.end()) {
+            const auto ext_mod_it = ctx.externs_by_module.find(base.text);
+            const bool has_extern_member = ext_mod_it != ctx.externs_by_module.end() &&
+                                           ext_mod_it->second.find(expr.text) != ext_mod_it->second.end();
             if (!FindModuleVar(module_it->second, expr.text) &&
-                !FindModuleFunc(module_it->second, expr.text)) {
+                !FindModuleFunc(module_it->second, expr.text) &&
+                !has_extern_member) {
               if (error) {
                 *error = UnknownMemberErrorWithSuggestion(
                     base.text, expr.text, ModuleMembers(module_it->second));
@@ -3407,6 +3455,9 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Module:
         name_ptr = &decl.module.name;
         ctx.modules[decl.module.name] = &decl.module;
+        for (const auto& ext : decl.module.externs) {
+          ctx.externs_by_module[ext.module][ext.name] = &ext;
+        }
         break;
       case DeclKind::Function:
         name_ptr = &decl.func.name;
@@ -3567,6 +3618,32 @@ bool ValidateProgram(const Program& program, std::string* error) {
           }
           for (const auto& fn : decl.module.functions) {
             if (!CheckUniqueNamedMember(fn.name, &names, "duplicate module member: ", error)) return false;
+          }
+          for (const auto& ext : decl.module.externs) {
+            if (!CheckUniqueNamedMember(ext.name, &names, "duplicate module member: ", error)) return false;
+            std::unordered_set<std::string> param_names;
+            std::unordered_set<std::string> type_params;
+            if (!CheckTypeRef(ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
+            if (!CheckExternAbiType(ext.return_type,
+                                    ctx.enum_types,
+                                    ctx.artifacts,
+                                    true,
+                                    "extern ABI return type is not supported",
+                                    error)) {
+              return false;
+            }
+            for (const auto& param : ext.params) {
+              if (!CheckUniqueParamName(param.name, &param_names, "duplicate extern parameter name: ", error)) return false;
+              if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
+              if (!CheckExternAbiType(param.type,
+                                      ctx.enum_types,
+                                      ctx.artifacts,
+                                      false,
+                                      "extern ABI parameter type is not supported",
+                                      error)) {
+                return false;
+              }
+            }
           }
         }
         for (const auto& fn : decl.module.functions) {

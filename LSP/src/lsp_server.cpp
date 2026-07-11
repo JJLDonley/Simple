@@ -1919,7 +1919,8 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     SimpleLspFact fact;
     fact.kind = SimpleLspFact::Kind::Function;
     fact.name = refs[name_index].token.text;
-    fact.qualified_name = fact.name;
+    const std::string namespace_name = EnclosingNamespaceNameAt(namespace_spans, name_index);
+    fact.qualified_name = namespace_name.empty() ? fact.name : (namespace_name + "." + fact.name);
     fact.return_type = BuildDeclaredTypeTextAt(refs, name_index + 2);
     fact.token_index = name_index;
     int depth = 1;

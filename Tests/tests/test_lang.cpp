@@ -2184,6 +2184,16 @@ bool LangValidateAssignToModuleFunctionFail() {
   return true;
 }
 
+bool LangValidateNamespaceExternManifestAndCall() {
+  const char* src =
+    "import DL\n"
+    "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : string) }\n"
+    "main : void () { lib : i64 = DL.Open(\"libraylib.so\", Raylib); Raylib.InitWindow(1, 2, \"ok\"); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateAssignToArtifactMethodFail() {
   const char* src =
     "Point :: artifact { x : i32 get : i32 () { return x; } }"
@@ -3424,6 +3434,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
   {"lang_validate_assign_to_function_fail", LangValidateAssignToFunctionFail},
   {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
+  {"lang_validate_namespace_extern_manifest_and_call", LangValidateNamespaceExternManifestAndCall},
   {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
   {"lang_validate_proc_value_rejects_artifact_method", LangValidateProcValueRejectsArtifactMethod},
   {"lang_validate_proc_value_rejects_module_function", LangValidateProcValueRejectsModuleFunction},

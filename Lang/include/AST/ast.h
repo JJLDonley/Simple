@@ -187,12 +187,6 @@ struct ArtifactDecl {
   std::vector<FuncDecl> methods;
 };
 
-struct ModuleDecl {
-  std::string name;
-  std::vector<VarDecl> variables;
-  std::vector<FuncDecl> functions;
-};
-
 struct EnumMember {
   std::string name;
   bool has_value = false;
@@ -222,6 +216,13 @@ struct ExternDecl {
   Mutability return_mutability = Mutability::Immutable;
   TypeRef return_type;
   std::vector<ParamDecl> params;
+};
+
+struct ModuleDecl {
+  std::string name;
+  std::vector<VarDecl> variables;
+  std::vector<FuncDecl> functions;
+  std::vector<ExternDecl> externs;
 };
 
 enum class DeclKind : uint8_t {

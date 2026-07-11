@@ -707,6 +707,59 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
 }
 
 bool Parser::ParseModuleMember(ModuleDecl* out) {
+  if (Match(TokenKind::KwExtern)) {
+    const Token& name_tok = Peek();
+    if (name_tok.kind != TokenKind::Identifier) {
+      error_ = "expected extern name";
+      return false;
+    }
+    Advance();
+    std::string module_name;
+    std::string extern_name = name_tok.text;
+    bool has_module = false;
+    if (Match(TokenKind::Dot)) {
+      const Token& member_tok = Peek();
+      if (member_tok.kind != TokenKind::Identifier) {
+        error_ = "expected extern name after '.'";
+        return false;
+      }
+      Advance();
+      module_name = extern_name;
+      extern_name = member_tok.text;
+      has_module = true;
+    }
+    Mutability mut = Mutability::Immutable;
+    if (Match(TokenKind::Colon)) {
+      mut = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      mut = Mutability::Immutable;
+    } else {
+      error_ = "expected ':' or '::' after extern name";
+      return false;
+    }
+    TypeRef return_type;
+    if (!ParseTypeInner(&return_type)) return false;
+    if (!Match(TokenKind::LParen)) {
+      error_ = "expected '(' after extern return type";
+      return false;
+    }
+    std::vector<ParamDecl> params;
+    if (!ParseParamList(&params)) return false;
+    if (out) {
+      ExternDecl ext;
+      ext.name = extern_name;
+      ext.module = has_module ? module_name : out->name;
+      ext.has_module = true;
+      ext.return_mutability = mut;
+      ext.return_type = std::move(return_type);
+      ext.params = std::move(params);
+      out->externs.push_back(std::move(ext));
+    }
+    if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) return true;
+    error_ = "expected end of extern declaration";
+    return false;
+  }
+
   const Token& name_tok = Peek();
   if (name_tok.kind != TokenKind::Identifier) {
     error_ = "expected module member name";

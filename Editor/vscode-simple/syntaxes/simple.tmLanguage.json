@@ -82,6 +82,19 @@
           }
         },
         {
+          "name": "meta.declaration.extern.simple",
+          "match": "\\b(extern)\\s+((?:[A-Za-z_][A-Za-z0-9_]*\\.)?)([A-Za-z_][A-Za-z0-9_]*)\\s*(::|:)\\s*([A-Za-z_][A-Za-z0-9_]*(?:<[^>]+>)?)(\\{\\d*\\}|\\[\\]|\\*)*\\s*(\\()",
+          "captures": {
+            "1": { "name": "keyword.declaration.simple" },
+            "2": { "name": "entity.name.namespace.simple" },
+            "3": { "name": "entity.name.function.simple" },
+            "4": { "name": "punctuation.separator.type.simple" },
+            "5": { "name": "storage.type.simple" },
+            "6": { "name": "storage.modifier.type.simple" },
+            "7": { "name": "punctuation.section.group.begin.simple" }
+          }
+        },
+        {
           "name": "meta.declaration.function.static-array-return.simple",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(:)\\s*([A-Za-z_][A-Za-z0-9_]*)(\\{)(\\d*)(\\})\\s*(\\()",
           "captures": {
