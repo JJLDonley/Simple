@@ -2415,7 +2415,16 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (ParseLibrarySymbol("Standard.Bytes", "definitelyMissing")) return false;
   const auto implemented_meta = GetLibraryMemberMetadata(ToLibraryModuleId(SystemModule::Buffer), "readU32LE");
   if (implemented_meta.availability != LibraryApiAvailability::Implemented ||
-      implemented_meta.level != LibraryApiLevel::LowLevelSystem) return false;
+      implemented_meta.level != LibraryApiLevel::LowLevelSystem ||
+      !implemented_meta.signature || implemented_meta.signature->params.size() != 2 ||
+      implemented_meta.signature->params[0].name != "buffer" ||
+      implemented_meta.signature->return_type.name != "i32") return false;
+  const auto print_sig = GetLibrarySignature(ToLibraryModuleId(StandardModule::IO), "println");
+  if (!print_sig || print_sig->params.size() != 1 || print_sig->params[0].type.name != "T" ||
+      print_sig->return_type.name != "void" || print_sig->type_params.size() != 1) return false;
+  const auto ffi_open_sig = GetLibrarySignature(ToLibraryModuleId(SystemModule::FFI), "Open");
+  if (!ffi_open_sig || ffi_open_sig->params.size() != 1 ||
+      ffi_open_sig->params[0].type.name != "string" || ffi_open_sig->return_type.name != "i64") return false;
   const auto planned_meta = GetLibraryMemberMetadata(ToLibraryModuleId(StandardModule::Bytes), "toBase64");
   if (planned_meta.availability != LibraryApiAvailability::Planned ||
       planned_meta.level != LibraryApiLevel::HighLevelStandard) return false;

@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -1252,12 +1253,434 @@ enum class LibraryApiBacking {
   Planned,
 };
 
+
+inline std::string NormalizeSystemFFIMemberName(std::string_view member);
+
+struct LibraryTypeSpec {
+  std::string_view name;
+};
+
+struct LibraryParamSpec {
+  std::string_view name;
+  LibraryTypeSpec type;
+};
+
+struct LibrarySignatureSpec {
+  std::vector<LibraryParamSpec> params;
+  LibraryTypeSpec return_type;
+  std::vector<std::string_view> type_params;
+  bool is_proc = false;
+};
+
+inline LibraryTypeSpec LibraryType(std::string_view name) { return LibraryTypeSpec{name}; }
+inline LibraryParamSpec LibraryParam(std::string_view name, std::string_view type) {
+  return LibraryParamSpec{name, LibraryType(type)};
+}
+inline LibrarySignatureSpec LibrarySignature(std::initializer_list<LibraryParamSpec> params,
+                                             std::string_view return_type,
+                                             std::initializer_list<std::string_view> type_params = {}) {
+  LibrarySignatureSpec spec;
+  spec.params.assign(params.begin(), params.end());
+  spec.return_type = LibraryType(return_type);
+  spec.type_params.assign(type_params.begin(), type_params.end());
+  return spec;
+}
+
+inline std::optional<LibrarySignatureSpec> GetSystemLibrarySignature(SystemModule module,
+                                                                     std::string_view member) {
+  const std::string normalized_member = module == SystemModule::FFI
+                                            ? NormalizeSystemFFIMemberName(member)
+                                            : std::string(member);
+  const auto parsed = ParseMember(module, normalized_member);
+  if (!parsed) return std::nullopt;
+  switch (module) {
+    case SystemModule::IO: {
+      const auto m = std::get<SystemIOMember>(*parsed);
+      switch (m) {
+        case SystemIOMember::BufferNew: return LibrarySignature({LibraryParam("length", "i32")}, "i32[]");
+        case SystemIOMember::BufferLen: return LibrarySignature({LibraryParam("buffer", "i32[]")}, "i32");
+        case SystemIOMember::BufferFill: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("value", "i32"), LibraryParam("count", "i32")}, "i32");
+        case SystemIOMember::BufferCopy: return LibrarySignature({LibraryParam("dst", "i32[]"), LibraryParam("src", "i32[]"), LibraryParam("count", "i32")}, "i32");
+        case SystemIOMember::Stdin:
+        case SystemIOMember::Stdout:
+        case SystemIOMember::Stderr:
+        case SystemIOMember::Write:
+        case SystemIOMember::WriteText:
+        case SystemIOMember::Flush: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::FS: {
+      const auto m = std::get<SystemFSMember>(*parsed);
+      switch (m) {
+        case SystemFSMember::Open: return LibrarySignature({LibraryParam("path", "string"), LibraryParam("flags", "i32")}, "i32");
+        case SystemFSMember::Close: return LibrarySignature({LibraryParam("fd", "i32")}, "void");
+        case SystemFSMember::Read:
+        case SystemFSMember::Write: return LibrarySignature({LibraryParam("fd", "i32"), LibraryParam("buffer", "i32[]"), LibraryParam("count", "i32")}, "i32");
+        case SystemFSMember::ReadText: return LibrarySignature({LibraryParam("path", "string")}, "string");
+        case SystemFSMember::WriteText: return LibrarySignature({LibraryParam("path", "string"), LibraryParam("text", "string")}, "bool");
+        case SystemFSMember::ReadBytes: return LibrarySignature({LibraryParam("path", "string")}, "i32[]");
+        case SystemFSMember::WriteBytes: return LibrarySignature({LibraryParam("path", "string"), LibraryParam("bytes", "i32[]")}, "bool");
+        case SystemFSMember::Exists:
+        case SystemFSMember::IsFile:
+        case SystemFSMember::IsDir: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case SystemFSMember::Copy: return LibrarySignature({LibraryParam("from", "string"), LibraryParam("to", "string")}, "bool");
+        case SystemFSMember::ListDir: return LibrarySignature({LibraryParam("path", "string")}, "string[]");
+        case SystemFSMember::Remove:
+        case SystemFSMember::Mkdir:
+        case SystemFSMember::MkdirAll:
+        case SystemFSMember::SetCwd: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case SystemFSMember::Cwd: return LibrarySignature({}, "string");
+        case SystemFSMember::Flush:
+        case SystemFSMember::Seek:
+        case SystemFSMember::Tell:
+        case SystemFSMember::Stat:
+        case SystemFSMember::NextDirEntry:
+        case SystemFSMember::CloseDir:
+        case SystemFSMember::Rename: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Path: {
+      const auto m = std::get<SystemPathMember>(*parsed);
+      switch (m) {
+        case SystemPathMember::Separator:
+        case SystemPathMember::Delimiter: return LibrarySignature({}, "string");
+        case SystemPathMember::IsAbsolute: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case SystemPathMember::Join: return LibrarySignature({LibraryParam("lhs", "string"), LibraryParam("rhs", "string")}, "string");
+        case SystemPathMember::Dirname:
+        case SystemPathMember::Basename:
+        case SystemPathMember::Ext:
+        case SystemPathMember::Stem:
+        case SystemPathMember::Normalize: return LibrarySignature({LibraryParam("path", "string")}, "string");
+        case SystemPathMember::Absolute:
+        case SystemPathMember::Relative:
+        case SystemPathMember::Exists:
+        case SystemPathMember::IsFile:
+        case SystemPathMember::IsDir: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Env: {
+      const auto m = std::get<SystemEnvMember>(*parsed);
+      switch (m) {
+        case SystemEnvMember::ArgsCount: return LibrarySignature({}, "i32");
+        case SystemEnvMember::Arg: return LibrarySignature({LibraryParam("index", "i32")}, "string");
+        case SystemEnvMember::Get: return LibrarySignature({LibraryParam("name", "string")}, "string");
+        case SystemEnvMember::Set: return LibrarySignature({LibraryParam("name", "string"), LibraryParam("value", "string")}, "bool");
+        case SystemEnvMember::Unset: return LibrarySignature({LibraryParam("name", "string")}, "bool");
+        case SystemEnvMember::ExePath: return LibrarySignature({}, "string");
+      }
+      return std::nullopt;
+    }
+    case SystemModule::OS: {
+      const auto m = std::get<SystemOSMember>(*parsed);
+      switch (m) {
+        case SystemOSMember::Platform:
+        case SystemOSMember::Arch: return LibrarySignature({}, "string");
+        case SystemOSMember::IsLinux:
+        case SystemOSMember::IsMacos:
+        case SystemOSMember::IsWindows: return LibrarySignature({}, "bool");
+        case SystemOSMember::Pid:
+        case SystemOSMember::CpuCount:
+        case SystemOSMember::PageSize: return LibrarySignature({}, "i32");
+        case SystemOSMember::Exit: return LibrarySignature({LibraryParam("code", "i32")}, "void");
+        case SystemOSMember::SleepMs: return LibrarySignature({LibraryParam("milliseconds", "i32")}, "void");
+        case SystemOSMember::ArgsCount:
+        case SystemOSMember::ArgsGet:
+        case SystemOSMember::EnvGet:
+        case SystemOSMember::CwdGet:
+        case SystemOSMember::TimeMonoNs:
+        case SystemOSMember::TimeWallNs:
+        case SystemOSMember::FormatWallNs: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Time: {
+      const auto m = std::get<SystemTimeMember>(*parsed);
+      switch (m) {
+        case SystemTimeMember::MonoNs:
+        case SystemTimeMember::WallNs:
+        case SystemTimeMember::MonoSnake:
+        case SystemTimeMember::WallSnake: return LibrarySignature({}, "i64");
+        case SystemTimeMember::SleepNs:
+        case SystemTimeMember::SleepMs:
+        case SystemTimeMember::TimerStart:
+        case SystemTimeMember::TimerCancel: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::FFI: {
+      const auto m = std::get<SystemFFIMember>(*parsed);
+      switch (m) {
+        case SystemFFIMember::Open: return LibrarySignature({LibraryParam("path", "string")}, "i64");
+        case SystemFFIMember::Sym:
+        case SystemFFIMember::Symbol: return LibrarySignature({LibraryParam("handle", "i64"), LibraryParam("name", "string")}, "i64");
+        case SystemFFIMember::Close: return LibrarySignature({LibraryParam("handle", "i64")}, "i32");
+        case SystemFFIMember::LastError:
+        case SystemFFIMember::LastErrorSnake: return LibrarySignature({}, "string");
+        case SystemFFIMember::CallStr0: return LibrarySignature({LibraryParam("handle", "i64")}, "string");
+        case SystemFFIMember::CallI32: return LibrarySignature({LibraryParam("fn_ptr", "i64"), LibraryParam("a0", "i32"), LibraryParam("a1", "i32")}, "i32");
+        case SystemFFIMember::CallI64: return LibrarySignature({LibraryParam("fn_ptr", "i64"), LibraryParam("a0", "i64"), LibraryParam("a1", "i64")}, "i64");
+        case SystemFFIMember::CallF32: return LibrarySignature({LibraryParam("fn_ptr", "i64"), LibraryParam("a0", "f32"), LibraryParam("a1", "f32")}, "f32");
+        case SystemFFIMember::CallF64: return LibrarySignature({LibraryParam("fn_ptr", "i64"), LibraryParam("a0", "f64"), LibraryParam("a1", "f64")}, "f64");
+        case SystemFFIMember::Supported: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Random: {
+      const auto m = std::get<SystemRandomMember>(*parsed);
+      switch (m) {
+        case SystemRandomMember::Seed: return LibrarySignature({LibraryParam("seed", "i64")}, "void");
+        case SystemRandomMember::I32: return LibrarySignature({}, "i32");
+        case SystemRandomMember::I64: return LibrarySignature({}, "i64");
+        case SystemRandomMember::F64: return LibrarySignature({}, "f64");
+        case SystemRandomMember::FillBytes: return LibrarySignature({LibraryParam("bytes", "i32[]")}, "bool");
+        case SystemRandomMember::Range: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Channel: {
+      const auto m = std::get<SystemChannelMember>(*parsed);
+      auto channel_type = [](SystemChannelMember value) -> std::string_view {
+        switch (value) {
+          case SystemChannelMember::NewI64: case SystemChannelMember::SendI64: case SystemChannelMember::TrySendI64: case SystemChannelMember::RecvI64: case SystemChannelMember::TryRecvI64: case SystemChannelMember::PendingI64: return "i64";
+          case SystemChannelMember::NewF32: case SystemChannelMember::SendF32: case SystemChannelMember::TrySendF32: case SystemChannelMember::RecvF32: case SystemChannelMember::TryRecvF32: case SystemChannelMember::PendingF32: return "f32";
+          case SystemChannelMember::NewF64: case SystemChannelMember::SendF64: case SystemChannelMember::TrySendF64: case SystemChannelMember::RecvF64: case SystemChannelMember::TryRecvF64: case SystemChannelMember::PendingF64: return "f64";
+          case SystemChannelMember::NewBool: case SystemChannelMember::SendBool: case SystemChannelMember::TrySendBool: case SystemChannelMember::RecvBool: case SystemChannelMember::TryRecvBool: case SystemChannelMember::PendingBool: return "bool";
+          case SystemChannelMember::NewString: case SystemChannelMember::SendString: case SystemChannelMember::TrySendString: case SystemChannelMember::RecvString: case SystemChannelMember::TryRecvString: case SystemChannelMember::PendingString: return "string";
+          case SystemChannelMember::NewBytes: case SystemChannelMember::SendBytes: case SystemChannelMember::TrySendBytes: case SystemChannelMember::RecvBytes: case SystemChannelMember::TryRecvBytes: case SystemChannelMember::PendingBytes: return "i32[]";
+          case SystemChannelMember::NewI32: case SystemChannelMember::SendI32: case SystemChannelMember::TrySendI32: case SystemChannelMember::RecvI32: case SystemChannelMember::TryRecvI32: case SystemChannelMember::PendingI32: case SystemChannelMember::Close: return "i32";
+        }
+        return "i32";
+      };
+      switch (m) {
+        case SystemChannelMember::NewI32: case SystemChannelMember::NewI64: case SystemChannelMember::NewF32: case SystemChannelMember::NewF64: case SystemChannelMember::NewBool: case SystemChannelMember::NewString: case SystemChannelMember::NewBytes: return LibrarySignature({}, "i64");
+        case SystemChannelMember::SendI32: case SystemChannelMember::TrySendI32: case SystemChannelMember::SendI64: case SystemChannelMember::TrySendI64: case SystemChannelMember::SendF32: case SystemChannelMember::TrySendF32: case SystemChannelMember::SendF64: case SystemChannelMember::TrySendF64: case SystemChannelMember::SendBool: case SystemChannelMember::TrySendBool: case SystemChannelMember::SendString: case SystemChannelMember::TrySendString: case SystemChannelMember::SendBytes: case SystemChannelMember::TrySendBytes: return LibrarySignature({LibraryParam("handle", "i64"), LibraryParam("value", channel_type(m))}, "bool");
+        case SystemChannelMember::RecvI32: case SystemChannelMember::TryRecvI32: case SystemChannelMember::RecvI64: case SystemChannelMember::TryRecvI64: case SystemChannelMember::RecvF32: case SystemChannelMember::TryRecvF32: case SystemChannelMember::RecvF64: case SystemChannelMember::TryRecvF64: case SystemChannelMember::RecvBool: case SystemChannelMember::TryRecvBool: case SystemChannelMember::RecvString: case SystemChannelMember::TryRecvString: case SystemChannelMember::RecvBytes: case SystemChannelMember::TryRecvBytes: return LibrarySignature({LibraryParam("handle", "i64")}, channel_type(m));
+        case SystemChannelMember::PendingI32: case SystemChannelMember::PendingI64: case SystemChannelMember::PendingF32: case SystemChannelMember::PendingF64: case SystemChannelMember::PendingBool: case SystemChannelMember::PendingString: case SystemChannelMember::PendingBytes: return LibrarySignature({LibraryParam("handle", "i64")}, "i32");
+        case SystemChannelMember::Close: return LibrarySignature({LibraryParam("handle", "i64")}, "void");
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Thread: {
+      const auto m = std::get<SystemThreadMember>(*parsed);
+      switch (m) {
+        case SystemThreadMember::Sleep: return LibrarySignature({LibraryParam("milliseconds", "i32")}, "void");
+        case SystemThreadMember::Yield: return LibrarySignature({}, "void");
+        case SystemThreadMember::HardwareConcurrency: return LibrarySignature({}, "i32");
+        case SystemThreadMember::SleepMs:
+        case SystemThreadMember::Spawn:
+        case SystemThreadMember::Join:
+        case SystemThreadMember::Detach: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Json: {
+      const auto m = std::get<SystemJsonMember>(*parsed);
+      switch (m) {
+        case SystemJsonMember::Parse: return LibrarySignature({LibraryParam("text", "string")}, "i64");
+        case SystemJsonMember::Stringify: return LibrarySignature({LibraryParam("handle", "i64")}, "string");
+        case SystemJsonMember::Free: return LibrarySignature({LibraryParam("handle", "i64")}, "bool");
+        case SystemJsonMember::Kind: case SystemJsonMember::Get: case SystemJsonMember::At: case SystemJsonMember::Len: case SystemJsonMember::AsString: case SystemJsonMember::AsI64: case SystemJsonMember::AsF64: case SystemJsonMember::AsBool: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Buffer: {
+      const auto m = std::get<SystemBufferMember>(*parsed);
+      switch (m) {
+        case SystemBufferMember::New: return LibrarySignature({LibraryParam("length", "i32")}, "i32[]");
+        case SystemBufferMember::Len: return LibrarySignature({LibraryParam("buffer", "i32[]")}, "i32");
+        case SystemBufferMember::ReadU16LE:
+        case SystemBufferMember::ReadU32LE: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("offset", "i32")}, "i32");
+        case SystemBufferMember::WriteU16LE:
+        case SystemBufferMember::WriteU32LE: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("offset", "i32"), LibraryParam("value", "i32")}, "bool");
+        case SystemBufferMember::Slice: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("start", "i32"), LibraryParam("length", "i32")}, "i32[]");
+        case SystemBufferMember::Copy: return LibrarySignature({LibraryParam("dst", "i32[]"), LibraryParam("dstOffset", "i32"), LibraryParam("src", "i32[]"), LibraryParam("srcOffset", "i32"), LibraryParam("count", "i32")}, "i32");
+        case SystemBufferMember::Get: case SystemBufferMember::Set: case SystemBufferMember::ReadU64LE: case SystemBufferMember::WriteU64LE: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Bytes: {
+      const auto m = std::get<SystemBytesMember>(*parsed);
+      switch (m) {
+        case SystemBytesMember::New: return LibrarySignature({LibraryParam("length", "i32")}, "i32[]");
+        case SystemBytesMember::Len: return LibrarySignature({LibraryParam("buffer", "i32[]")}, "i32");
+        case SystemBytesMember::ReadU16LE:
+        case SystemBytesMember::ReadU32LE: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("offset", "i32")}, "i32");
+        case SystemBytesMember::WriteU16LE:
+        case SystemBytesMember::WriteU32LE: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("offset", "i32"), LibraryParam("value", "i32")}, "bool");
+        case SystemBytesMember::Slice: return LibrarySignature({LibraryParam("buffer", "i32[]"), LibraryParam("start", "i32"), LibraryParam("length", "i32")}, "i32[]");
+        case SystemBytesMember::Copy: return LibrarySignature({LibraryParam("dst", "i32[]"), LibraryParam("dstOffset", "i32"), LibraryParam("src", "i32[]"), LibraryParam("srcOffset", "i32"), LibraryParam("count", "i32")}, "i32");
+        case SystemBytesMember::Get: case SystemBytesMember::Set: case SystemBytesMember::ReadU64LE: case SystemBytesMember::WriteU64LE: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::Log: {
+      const auto m = std::get<SystemLogMember>(*parsed);
+      switch (m) {
+        case SystemLogMember::Log: return LibrarySignature({LibraryParam("level", "i32"), LibraryParam("message", "string")}, "void");
+        case SystemLogMember::SetLevel: return LibrarySignature({LibraryParam("level", "i32")}, "void");
+        case SystemLogMember::SetFile: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case SystemLogMember::Flush: return LibrarySignature({}, "bool");
+        case SystemLogMember::Info: case SystemLogMember::Warn: case SystemLogMember::Error: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case SystemModule::ASM:
+    case SystemModule::Job:
+    case SystemModule::Process:
+    case SystemModule::Net:
+    case SystemModule::HTTP:
+    case SystemModule::Terminal:
+    case SystemModule::Capability:
+    case SystemModule::Runtime:
+    case SystemModule::Debug: return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+inline std::optional<LibrarySignatureSpec> GetStandardLibrarySignature(StandardModule module,
+                                                                       std::string_view member) {
+  const auto parsed = ParseMember(module, member);
+  if (!parsed) return std::nullopt;
+  switch (module) {
+    case StandardModule::IO: {
+      const auto m = std::get<StandardIOMember>(*parsed);
+      switch (m) {
+        case StandardIOMember::Print:
+        case StandardIOMember::Println: return LibrarySignature({LibraryParam("value", "T")}, "void", {"T"});
+        case StandardIOMember::ReadLine: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Math: {
+      const auto m = std::get<StandardMathMember>(*parsed);
+      switch (m) {
+        case StandardMathMember::Abs: return LibrarySignature({LibraryParam("value", "T")}, "T", {"T"});
+        case StandardMathMember::Sqrt: return LibrarySignature({LibraryParam("value", "T")}, "T", {"T"});
+        case StandardMathMember::Min:
+        case StandardMathMember::Max: return LibrarySignature({LibraryParam("lhs", "T"), LibraryParam("rhs", "T")}, "T", {"T"});
+        case StandardMathMember::PI:
+        case StandardMathMember::Clamp:
+        case StandardMathMember::Lerp: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Time: {
+      const auto m = std::get<StandardTimeMember>(*parsed);
+      switch (m) {
+        case StandardTimeMember::MonoNs:
+        case StandardTimeMember::NowNs:
+        case StandardTimeMember::MonoSnake:
+        case StandardTimeMember::WallSnake: return LibrarySignature({}, "i64");
+        case StandardTimeMember::FormatWallNs: return LibrarySignature({LibraryParam("timestamp", "i64")}, "string");
+        case StandardTimeMember::SleepMs: return LibrarySignature({LibraryParam("milliseconds", "i32")}, "void");
+      }
+      return std::nullopt;
+    }
+    case StandardModule::FS: {
+      const auto m = std::get<StandardFSMember>(*parsed);
+      switch (m) {
+        case StandardFSMember::ReadText: return LibrarySignature({LibraryParam("path", "string")}, "string");
+        case StandardFSMember::WriteText: return LibrarySignature({LibraryParam("path", "string"), LibraryParam("text", "string")}, "bool");
+        case StandardFSMember::ReadBytes: return LibrarySignature({LibraryParam("path", "string")}, "i32[]");
+        case StandardFSMember::WriteBytes: return LibrarySignature({LibraryParam("path", "string"), LibraryParam("bytes", "i32[]")}, "bool");
+        case StandardFSMember::Exists:
+        case StandardFSMember::IsFile:
+        case StandardFSMember::IsDir: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case StandardFSMember::Copy: return LibrarySignature({LibraryParam("from", "string"), LibraryParam("to", "string")}, "bool");
+        case StandardFSMember::ListDir: return LibrarySignature({LibraryParam("path", "string")}, "string[]");
+        case StandardFSMember::Remove:
+        case StandardFSMember::Mkdir:
+        case StandardFSMember::MkdirAll:
+        case StandardFSMember::SetCwd: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case StandardFSMember::Cwd: return LibrarySignature({}, "string");
+        case StandardFSMember::AppendText: case StandardFSMember::Move: case StandardFSMember::EnsureDir: case StandardFSMember::List: case StandardFSMember::Walk: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Path: {
+      const auto m = std::get<StandardPathMember>(*parsed);
+      switch (m) {
+        case StandardPathMember::Join: return LibrarySignature({LibraryParam("lhs", "string"), LibraryParam("rhs", "string")}, "string");
+        case StandardPathMember::Dirname:
+        case StandardPathMember::Basename:
+        case StandardPathMember::Ext:
+        case StandardPathMember::Stem:
+        case StandardPathMember::Normalize: return LibrarySignature({LibraryParam("path", "string")}, "string");
+        case StandardPathMember::Absolute:
+        case StandardPathMember::Relative: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Random: {
+      const auto m = std::get<StandardRandomMember>(*parsed);
+      switch (m) {
+        case StandardRandomMember::Seed: return LibrarySignature({LibraryParam("seed", "i64")}, "void");
+        case StandardRandomMember::I32: return LibrarySignature({}, "i32");
+        case StandardRandomMember::Range: return LibrarySignature({LibraryParam("min", "i32"), LibraryParam("max", "i32")}, "i32");
+        case StandardRandomMember::I64: return LibrarySignature({}, "i64");
+        case StandardRandomMember::F64: return LibrarySignature({}, "f64");
+        case StandardRandomMember::Bool:
+        case StandardRandomMember::Bytes:
+        case StandardRandomMember::FillBytes: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Bytes: {
+      const auto m = std::get<StandardBytesMember>(*parsed);
+      switch (m) {
+        case StandardBytesMember::New: return LibrarySignature({LibraryParam("length", "i32")}, "i32[]");
+        case StandardBytesMember::Slice: return LibrarySignature({LibraryParam("bytes", "i32[]"), LibraryParam("start", "i32"), LibraryParam("length", "i32")}, "i32[]");
+        case StandardBytesMember::FromString: case StandardBytesMember::ToString: case StandardBytesMember::Concat: case StandardBytesMember::ToHex: case StandardBytesMember::FromHex: case StandardBytesMember::ToBase64: case StandardBytesMember::FromBase64: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Log: {
+      const auto m = std::get<StandardLogMember>(*parsed);
+      switch (m) {
+        case StandardLogMember::Info:
+        case StandardLogMember::Warn:
+        case StandardLogMember::Error: return LibrarySignature({LibraryParam("message", "string")}, "void");
+        case StandardLogMember::SetLevel: return LibrarySignature({LibraryParam("level", "i32")}, "void");
+        case StandardLogMember::SetFile: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case StandardLogMember::Debug: return std::nullopt;
+      }
+      return std::nullopt;
+    }
+    case StandardModule::Console:
+    case StandardModule::Buffer:
+    case StandardModule::Text:
+    case StandardModule::Json:
+    case StandardModule::Process:
+    case StandardModule::Net:
+    case StandardModule::HTTP:
+    case StandardModule::HTTPS:
+    case StandardModule::Terminal:
+    case StandardModule::Promise:
+    case StandardModule::Channel:
+    case StandardModule::Collections:
+    case StandardModule::Result:
+    case StandardModule::Option: return std::nullopt;
+  }
+  return std::nullopt;
+}
+
+inline std::optional<LibrarySignatureSpec> GetLibrarySignature(LibraryModuleId module,
+                                                               std::string_view member) {
+  return module.root == LibraryRoot::System
+             ? GetSystemLibrarySignature(static_cast<SystemModule>(module.module_index), member)
+             : GetStandardLibrarySignature(static_cast<StandardModule>(module.module_index), member);
+}
+
 struct LibraryMemberMetadata {
   LibrarySymbol symbol;
   LibraryApiAvailability availability = LibraryApiAvailability::Planned;
   LibraryApiLevel level = LibraryApiLevel::LowLevelSystem;
   LibraryApiBacking backing = LibraryApiBacking::Planned;
   std::string_view summary;
+  std::optional<LibrarySignatureSpec> signature;
 };
 
 inline bool IsImplementedSystemMember(SystemModule module, std::string_view member) {
@@ -1578,6 +2001,7 @@ inline LibraryMemberMetadata GetLibraryMemberMetadata(LibraryModuleId module, st
   metadata.backing = module.root == LibraryRoot::System ? LibraryApiBacking::Native
                                                          : LibraryApiBacking::Source;
   metadata.summary = member;
+  metadata.signature = GetLibrarySignature(module, member);
   return metadata;
 }
 
