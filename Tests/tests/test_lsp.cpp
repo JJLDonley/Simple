@@ -4269,8 +4269,14 @@ bool LspCodeLensReturnsSimpleCommands() {
   if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(lens_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
+  size_t check_count = 0;
+  size_t search_pos = 0;
+  while ((search_pos = out_contents.find("simple.checkCurrentFile", search_pos)) != std::string::npos) {
+    ++check_count;
+    search_pos += std::string("simple.checkCurrentFile").size();
+  }
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":45") != std::string::npos &&
-         out_contents.find("simple.checkCurrentFile") != std::string::npos &&
+         check_count == 1 &&
          out_contents.find("simple.runCurrentFile") != std::string::npos &&
          out_contents.find("simple.runCurrentFileWithJit") != std::string::npos;
 }

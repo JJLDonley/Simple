@@ -73,22 +73,49 @@
           }
         },
         {
-          "name": "meta.declaration.function.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(:)\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?|[A-Za-z_][A-Za-z0-9_]*\\{\\d*\\})\\s*(\\()",
+          "name": "meta.declaration.function.static-array-return.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(:)\\s*([A-Za-z_][A-Za-z0-9_]*)(\\{)(\\d*)(\\})\\s*(\\()",
           "captures": {
             "1": { "name": "entity.name.function.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
             "3": { "name": "storage.type.simple" },
-            "4": { "name": "punctuation.section.group.begin.simple" }
+            "4": { "name": "punctuation.definition.array-size.begin.simple" },
+            "5": { "name": "constant.numeric.array-size.simple" },
+            "6": { "name": "punctuation.definition.array-size.end.simple" },
+            "7": { "name": "punctuation.section.group.begin.simple" }
+          }
+        },
+        {
+          "name": "meta.declaration.function.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(:)\\s*([A-Za-z_][A-Za-z0-9_]*)(\\[\\]|\\*)?\\s*(\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.simple" },
+            "2": { "name": "punctuation.separator.type.simple" },
+            "3": { "name": "storage.type.simple" },
+            "4": { "name": "storage.modifier.type.simple" },
+            "5": { "name": "punctuation.section.group.begin.simple" }
+          }
+        },
+        {
+          "name": "meta.declaration.variable.static-array.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::|:)\\s*([A-Za-z_][A-Za-z0-9_]*)(\\{)(\\d*)(\\})(?=\\s|[,;=)])",
+          "captures": {
+            "1": { "name": "variable.other.definition.simple" },
+            "2": { "name": "punctuation.separator.type.simple" },
+            "3": { "name": "storage.type.simple" },
+            "4": { "name": "punctuation.definition.array-size.begin.simple" },
+            "5": { "name": "constant.numeric.array-size.simple" },
+            "6": { "name": "punctuation.definition.array-size.end.simple" }
           }
         },
         {
           "name": "meta.declaration.variable.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::|:)\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?|[A-Za-z_][A-Za-z0-9_]*\\{\\d*\\})(?=\\s|[,;=)])",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::|:)\\s*([A-Za-z_][A-Za-z0-9_]*)(\\[\\]|\\*)?(?=\\s|[,;=)])",
           "captures": {
             "1": { "name": "variable.other.definition.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
-            "3": { "name": "storage.type.simple" }
+            "3": { "name": "storage.type.simple" },
+            "4": { "name": "storage.modifier.type.simple" }
           }
         }
       ]

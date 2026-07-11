@@ -57,6 +57,15 @@ const grammarText = JSON.stringify(grammar);
 for (const keyword of ['module', 'import', 'using', 'extern', 'artifact', 'enum', 'namespace']) {
   if (!grammarText.includes(keyword)) fail(`grammar missing keyword: ${keyword}`);
 }
+for (const requiredGrammarScope of [
+  'meta.declaration.variable.static-array.simple',
+  'meta.declaration.function.static-array-return.simple',
+  'constant.numeric.array-size.simple',
+  'punctuation.definition.array-size.begin.simple',
+  'punctuation.definition.array-size.end.simple'
+]) {
+  if (!grammarText.includes(requiredGrammarScope)) fail(`grammar missing static-array hover scope: ${requiredGrammarScope}`);
+}
 
 const extensionText = fs.readFileSync(path.join(root, pkg.main), 'utf8');
 if (!extensionText.includes('svm')) fail('extension must discover and invoke svm');
