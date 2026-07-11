@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Simple Language Documentation</title>
-  <meta name="description" content="Documentation for Simple, a C-like strict typed general-purpose language with quick scripting and a robust native library." />
+  <meta name="description" content="Documentation for Simple: a high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;650;750&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -46,8 +46,8 @@
         </div>
       </div>
 
-      <p class="subtitle tagline">Simple like C. Statically typed. General purpose.</p>
-      <p class="landing-lead">Simple compiles source into SIR, then SBC bytecode, then runs on the Simple VM. It is built around explicit types, direct control flow, readable compiler output, and a robust native library for low-level and high-level coding.</p>
+      <p class="subtitle tagline">A high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.</p>
+      <p class="landing-lead">Simple compiles source into SIR, then SBC bytecode, then runs on the Simple VM with JIT enabled by default when available. It is built around explicit types, direct control flow, readable compiler output, and canonical Standard/System libraries.</p>
 
       <div class="example-header">
         <label for="example-select">Example</label>
@@ -64,19 +64,19 @@
           <option value="asyncFlow">Async result flow</option>
         </select>
       </div>
-      <pre class="example-code"><code id="hero-example" class="language-simple">import IO
-import FS
+      <pre class="example-code"><code id="hero-example" class="language-simple">import Standard.IO
+import Standard.FS
 
 main : i32 () {
   path :: string = "build.log"
-  exists : bool = FS.exists(path)
+  exists : bool = Standard.FS.exists(path)
 
   if (exists) {
-    IO.println("{} exists", path)
+    Standard.IO.println("{} exists", path)
     return 0
   }
 
-  IO.println("{} missing", path)
+  Standard.IO.println("{} missing", path)
   return 1
 }</code></pre>
 
@@ -169,13 +169,13 @@ main : i32 () {
             </div>
           </div>
 
-          <p class="subtitle tagline">Simple like C. Statically typed. General purpose.</p>
-          <p>Simple compiles <code>.simple</code> source into SIR, then SBC bytecode, then runs on the Simple VM. The language is designed for explicit types, direct control flow, readable compiler output, and native-backed programs.</p>
+          <p class="subtitle tagline">A high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.</p>
+          <p>Simple compiles <code>.simple</code> source into SIR, then SBC bytecode, then runs on the Simple VM. CLI runs use JIT by default when LLVM ORC support is available. The language is designed for explicit types, direct control flow, readable compiler output, and native-backed programs.</p>
 
-          <pre><code class="language-simple">import IO
+          <pre><code class="language-simple">import Standard.IO
 
 main : i32 () {
-  IO.println("hello from Simple")
+  Standard.IO.println("hello from Simple")
   return 0
 }</code></pre>
 
@@ -194,14 +194,14 @@ main : i32 () {
 
         <section id="why-simple" class="doc-section" data-title="Why Simple">
           <h2>Why Simple</h2>
-          <p>Simple came about from wanting a C-like, strictly typed general-purpose language that still has quick and easy scripting capability.</p>
+          <p>Simple came about from wanting a high-level, statically typed language with an identity-first paradigm, built on Standard and System libraries.</p>
           <p>Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.</p>
 
           <h3>Design goals</h3>
           <ul>
             <li><strong>General-purpose programming:</strong> useful for tools, applications, scripts, and native-backed programs.</li>
-            <li><strong>C-like directness:</strong> functions, blocks, direct control flow, explicit declarations.</li>
-            <li><strong>Strict typing:</strong> reject type mistakes before execution.</li>
+            <li><strong>Identity-first model:</strong> data, functions, artifacts, modules, and libraries keep explicit names and boundaries.</li>
+            <li><strong>Static typing:</strong> reject type mistakes before execution.</li>
             <li><strong>Quick scripting:</strong> top-level statements are valid when a full application structure is unnecessary.</li>
             <li><strong>Robust native library:</strong> low-level <code>System.*</code> and high-level <code>Standard.*</code> APIs.</li>
           </ul>
@@ -240,10 +240,10 @@ PREFIX="$HOME/.local" ./install.sh</code></pre>
           <p class="section-status">Status: Implemented</p>
           <p>Create <code>hello.simple</code>:</p>
 
-          <pre><code class="language-simple">import IO
+          <pre><code class="language-simple">import Standard.IO
 
 main : i32 () {
-  IO.println("hello from Simple")
+  Standard.IO.println("hello from Simple")
   return 0
 }</code></pre>
 
@@ -255,15 +255,15 @@ svm emit -sbc hello.simple --out hello.sbc</code></pre>
 
           <p>Top-level statements are also valid for script-style files:</p>
 
-          <pre><code class="language-simple">import IO
+          <pre><code class="language-simple">import Standard.IO
 
-IO.println("script start")
+Standard.IO.println("script start")
 
 add : i32 (a : i32, b : i32) {
   return a + b
 }
 
-IO.println("sum={}", add(2, 3))</code></pre>
+Standard.IO.println("sum={}", add(2, 3))</code></pre>
         </section>
 
         <section id="program-structure" class="doc-section" data-title="Program structure">
@@ -273,13 +273,13 @@ IO.println("sum={}", add(2, 3))</code></pre>
 
           <pre><code class="language-simple">module app.main
 
-import IO
-import Math
+import Standard.IO
+import Standard.Math
 
-version :: string = "0.1"
+version :: string = "0.5"
 
 main : i32 () {
-  IO.println(version)
+  Standard.IO.println(version)
   return 0
 }</code></pre>
 
@@ -287,8 +287,8 @@ main : i32 () {
             <thead><tr><th>Construct</th><th>Meaning</th></tr></thead>
             <tbody>
               <tr><td><code>module name</code></td><td>Optional file/module header used by import indexing.</td></tr>
-              <tr><td><code>import IO</code></td><td>Reserved/runtime module import.</td></tr>
-              <tr><td><code>import Math</code></td><td>Module import resolved by the project/module index.</td></tr>
+              <tr><td><code>import Standard.IO</code></td><td>Canonical high-level library import.</td></tr>
+              <tr><td><code>import Standard.Math</code></td><td>Canonical standard math module import.</td></tr>
               <tr><td><code>main : i32 ()</code></td><td>Explicit entry point when no top-level script body is used.</td></tr>
             </tbody>
           </table>
@@ -311,7 +311,7 @@ count = count + 1
 }
 
 log : void (message : string) {
-  IO.println(message)
+  Standard.IO.println(message)
 }</code></pre>
         </section>
 
@@ -426,7 +426,7 @@ count : i32 = len(items)</code></pre>
 
 c : Counter = { .value = 0 }
 c.inc()
-IO.println("{}", c.get())</code></pre>
+Standard.IO.println("{}", c.get())</code></pre>
 
           <p>Inside methods, artifact fields are accessed through <code>self</code>.</p>
         </section>
@@ -468,17 +468,17 @@ value : i32 = Maths.add(2, 3)</code></pre>
           <p class="section-status">Status: Partial</p>
           <p>Simple supports reserved runtime modules and named module imports resolved by the project/module index. Imports should not depend on quoted relative source-file paths. Import resolution handles project-root modules, module-map entries, missing imports, ambiguity, and cycles.</p>
 
-          <pre><code class="language-simple">import IO
-import FS
-import System.io
-import Math</code></pre>
+          <pre><code class="language-simple">import Standard.IO
+import Standard.FS
+import System.IO
+import Standard.Math</code></pre>
 
           <table>
             <thead><tr><th>Import form</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><code>import IO</code></td><td>Reserved runtime module import.</td></tr>
-              <tr><td><code>import System.io</code></td><td>Canonical system module path where supported.</td></tr>
-              <tr><td><code>import Math</code></td><td>Named project module import resolved by module indexing.</td></tr>
+              <tr><td><code>import Standard.IO</code></td><td>Canonical high-level library module import.</td></tr>
+              <tr><td><code>import System.IO</code></td><td>Canonical low-level system module import.</td></tr>
+              <tr><td><code>import app.config</code></td><td>Named project module import resolved by module indexing.</td></tr>
             </tbody>
           </table>
         </section>
@@ -488,15 +488,15 @@ import Math</code></pre>
           <p class="section-status">Status: Partial</p>
           <p>Simple exposes native interop through strict <code>extern</code> declarations and dynamic-library runtime APIs. Extern signatures are checked; unsupported ABI shapes are rejected instead of guessed.</p>
 
-          <pre><code class="language-simple">import DL
-import IO
+          <pre><code class="language-simple">import System.FFI
+import Standard.IO
 
 extern raylib.InitWindow : void (w : i32, h : i32, title : string)
 extern raylib.CloseWindow : void ()
 
-lib : i64 = DL.open("libraylib.so", raylib)
+lib : i64 = System.FFI.open("libraylib.so", raylib)
 if (lib == 0) {
-  IO.println("raylib load failed: {}", DL.last_error())
+  Standard.IO.println("raylib load failed: {}", System.FFI.lastError())
 }
 
 raylib.InitWindow(800, 600, "Simple")
@@ -511,7 +511,7 @@ raylib.CloseWindow()</code></pre>
             <li>Artifacts are treated as structs for ABI layout: fields define layout; methods do not.</li>
           </ul>
 
-          <p>The native-library roadmap renames the low-level foreign-function surface to <code>System.FFI</code>. Existing compatibility modules may still appear as <code>DL</code> or <code>System.dl</code> while the runtime evolves.</p>
+          <p>The low-level foreign-function surface is canonicalized as <code>System.FFI</code>. Short imports such as <code>DL</code> are rejected with migration diagnostics, not treated as aliases.</p>
         </section>
 
         <section id="native-library" class="doc-section" data-title="Native library">
@@ -526,7 +526,7 @@ raylib.CloseWindow()</code></pre>
               <tr><td>VM Native Core</td><td>Internal resource registry, native dispatch metadata, handle validation, cleanup, and capability checks.</td></tr>
               <tr><td><code>System.*</code></td><td>Low-level explicit APIs close to host/runtime behavior.</td></tr>
               <tr><td><code>Standard.*</code></td><td>High-level APIs built over <code>System.*</code> for normal application code.</td></tr>
-              <tr><td>Aliases</td><td>The Standard library provides short aliases such as <code>FS</code>, <code>HTTP</code>, <code>HTTPS</code>, <code>Console</code>, and <code>Terminal</code> for quick, simple imports.</td></tr>
+              <tr><td>Legacy diagnostics</td><td>Short imports are rejected with canonical <code>System.*</code> / <code>Standard.*</code> replacements; they are not aliases.</td></tr>
             </tbody>
           </table>
 
@@ -552,7 +552,6 @@ raylib.CloseWindow()</code></pre>
               <tr><td><code>System.Bytes</code></td><td>Planned</td><td>Heap-owned byte sequences, byte/string conversion, endian reads/writes, and safe byte operations.</td></tr>
               <tr><td><code>System.Net</code></td><td>Planned</td><td>TCP/UDP sockets, listeners, connect, listen, accept, send, receive, close.</td></tr>
               <tr><td><code>System.HTTP</code></td><td>Planned</td><td>HTTP client requests, HTTP server handles, request parsing, response writing, limits, and timeouts.</td></tr>
-              <tr><td><code>System.HTTPS</code></td><td>Planned</td><td>TLS configuration, HTTPS clients, HTTPS server handles, certificate loading, and verification diagnostics.</td></tr>
               <tr><td><code>System.Terminal</code></td><td>Planned</td><td>Raw mode, alternate screen, cursor control, terminal size, styles, key/mouse/resize events, cleanup on exit.</td></tr>
               <tr><td><code>System.Process</code></td><td>Planned</td><td>Process spawn, wait, kill, stdin/stdout/stderr handling, and process capability checks.</td></tr>
               <tr><td><code>System.Thread</code></td><td>Partial</td><td>OS thread handles, sleep, yield, hardware concurrency, and thread-related runtime operations.</td></tr>
@@ -562,7 +561,7 @@ raylib.CloseWindow()</code></pre>
               <tr><td><code>System.Random</code></td><td>Partial</td><td>Seeded random generator handles and random numeric values.</td></tr>
               <tr><td><code>System.Json</code></td><td>Partial</td><td>JSON parse, stringify, object/array accessors, typed getters, and JSON value handles.</td></tr>
               <tr><td><code>System.Log</code></td><td>Partial</td><td>Log levels, structured messages, runtime sinks, file sinks, and logger resource cleanup.</td></tr>
-              <tr><td><code>System.FFI</code></td><td>Planned</td><td>Foreign function interface, dynamic libraries, symbols, strict ABI signatures.</td></tr>
+              <tr><td><code>System.FFI</code></td><td>Partial</td><td>Foreign function interface, dynamic libraries, symbols, strict ABI signatures.</td></tr>
               <tr><td><code>System.ASM</code></td><td>Planned</td><td>C/DynASM native-code units, object generation, symbol lookup, stub embedding, AOT linking.</td></tr>
             </tbody>
           </table>
@@ -570,34 +569,37 @@ raylib.CloseWindow()</code></pre>
           <h3>Standard modules</h3>
           <p><code>Standard.*</code> provides higher-level APIs over <code>System.*</code>. These APIs reduce ceremony while keeping ownership and failure explicit.</p>
           <table>
-            <thead><tr><th>Module</th><th>Status</th><th>Alias</th><th>High-level shape</th></tr></thead>
+            <thead><tr><th>Module</th><th>Status</th><th>High-level shape</th></tr></thead>
             <tbody>
-              <tr><td><code>Standard.FS</code></td><td>Planned</td><td><code>FS</code></td><td><code>readText</code>, <code>writeText</code>, <code>readBytes</code>, <code>copy</code>, <code>move</code>, <code>walk</code>.</td></tr>
-              <tr><td><code>Standard.Path</code></td><td>Planned</td><td><code>Path</code></td><td>Path joining, normalization, basename, dirname, extension, and platform separators.</td></tr>
-              <tr><td><code>Standard.Bytes</code></td><td>Planned</td><td><code>Bytes</code></td><td>Byte construction, UTF-8 conversion, slices, copying, and encoding helpers.</td></tr>
-              <tr><td><code>Standard.Json</code></td><td>Planned</td><td><code>Json</code></td><td><code>parse</code>, <code>stringify</code>, object/array builders, typed getters, and defaults.</td></tr>
-              <tr><td><code>Standard.HTTP</code></td><td>Planned</td><td><code>HTTP</code></td><td><code>get</code>, <code>post</code>, <code>serve</code>, request/response helpers, async client APIs.</td></tr>
-              <tr><td><code>Standard.HTTPS</code></td><td>Planned</td><td><code>HTTPS</code></td><td>TLS-backed server/client helpers with secure defaults and clear certificate diagnostics.</td></tr>
-              <tr><td><code>Standard.Console</code></td><td>Planned</td><td><code>Console</code></td><td>Write, writeLine, readLine, clear, colors, and key helpers.</td></tr>
-              <tr><td><code>Standard.Terminal</code></td><td>Planned</td><td><code>Terminal</code></td><td>Raw mode, alternate screen helpers, event pump, cursor, screen primitives, and cleanup helpers.</td></tr>
-              <tr><td><code>Standard.Process</code></td><td>Planned</td><td><code>Process</code></td><td>Run commands, collect exit code/stdout/stderr, and async process execution.</td></tr>
-              <tr><td><code>Standard.Time</code></td><td>Planned</td><td><code>Time</code></td><td>Current time, monotonic time, sleep, timers, and duration helpers.</td></tr>
-              <tr><td><code>Standard.Random</code></td><td>Planned</td><td><code>Random</code></td><td>Random integers, ranges, floating-point values, and seeded RNG wrappers.</td></tr>
-              <tr><td><code>Standard.Log</code></td><td>Planned</td><td><code>Log</code></td><td>Simple logging helpers, levels, structured fields, and high-level sinks.</td></tr>
-              <tr><td><code>Standard.Promise</code></td><td>Planned</td><td><code>Promise</code></td><td><code>run</code>, <code>await</code>, <code>poll</code>, <code>cancel</code>, <code>isDone</code>.</td></tr>
+              <tr><td><code>Standard.IO</code></td><td>Implemented</td><td><code>print</code>, <code>println</code>, format variants, and future <code>readLine</code>.</td></tr>
+              <tr><td><code>Standard.FS</code></td><td>Partial</td><td><code>readText</code>, <code>writeText</code>, <code>readBytes</code>, <code>copy</code>, <code>move</code>, <code>walk</code>.</td></tr>
+              <tr><td><code>Standard.Path</code></td><td>Partial</td><td>Path joining, normalization, basename, dirname, extension, and platform separators.</td></tr>
+              <tr><td><code>Standard.Buffer</code></td><td>Reserved</td><td>High-level mutable/growable/cursor buffer helpers.</td></tr>
+              <tr><td><code>Standard.Bytes</code></td><td>Reserved</td><td>Byte construction, UTF-8 conversion, slices, copying, and encoding helpers.</td></tr>
+              <tr><td><code>Standard.Json</code></td><td>Reserved</td><td>Future high-level JSON value API.</td></tr>
+              <tr><td><code>Standard.Math</code></td><td>Partial</td><td><code>PI</code>, <code>abs</code>, <code>min</code>, <code>max</code>, <code>sqrt</code>, and future math helpers.</td></tr>
+              <tr><td><code>Standard.HTTP</code></td><td>Planned</td><td><code>get</code>, <code>post</code>, <code>serve</code>, request/response helpers, async client APIs.</td></tr>
+              <tr><td><code>Standard.HTTPS</code></td><td>Planned</td><td>TLS-backed server/client helpers with secure defaults and clear certificate diagnostics.</td></tr>
+              <tr><td><code>Standard.Console</code></td><td>Planned</td><td>Write, writeLine, readLine, clear, colors, and key helpers.</td></tr>
+              <tr><td><code>Standard.Terminal</code></td><td>Planned</td><td>Raw mode, alternate screen helpers, event pump, cursor, screen primitives, and cleanup helpers.</td></tr>
+              <tr><td><code>Standard.Process</code></td><td>Planned</td><td>Run commands, collect exit code/stdout/stderr, and async process execution.</td></tr>
+              <tr><td><code>Standard.Time</code></td><td>Reserved</td><td>Current time, monotonic time, sleep, timers, and duration helpers.</td></tr>
+              <tr><td><code>Standard.Random</code></td><td>Partial</td><td>Random integers, ranges, floating-point values, and seeded RNG wrappers.</td></tr>
+              <tr><td><code>Standard.Log</code></td><td>Partial</td><td>Simple logging helpers, levels, structured fields, and high-level sinks.</td></tr>
+              <tr><td><code>Standard.Promise</code></td><td>Planned</td><td><code>run</code>, <code>await</code>, <code>poll</code>, <code>cancel</code>, <code>isDone</code>.</td></tr>
             </tbody>
           </table>
 
           <h3>API conventions</h3>
           <ul>
             <li>Sync native APIs return <code>Result&lt;T&gt;</code> or <code>Option&lt;T&gt;</code> for expected failures and absence.</li>
-            <li>Async APIs live under lowercase <code>.async</code>, for example <code>HTTP.async.get(...)</code>.</li>
+            <li>Async APIs live under lowercase <code>.async</code>, for example <code>Standard.HTTP.async.get(...)</code>.</li>
             <li>Wrong handle kind, stale handle, invalid API contract, and VM invariants trap.</li>
-            <li>Standard aliases are short import names for high-level APIs; they do not bypass <code>System.*</code> ownership or capability checks.</li>
+            <li>There are no public short aliases. Use canonical <code>System.*</code> and <code>Standard.*</code> imports.</li>
           </ul>
 
           <pre><code class="language-simple">file : Result&lt;System.FS.FileHandle&gt; = System.FS.open("data.txt", mode)
-page : Promise&lt;HTTPResponse&gt; = HTTP.async.get("https://example.com")
+page : Promise&lt;HTTPResponse&gt; = Standard.HTTP.async.get("https://example.com")
 ready : Option&lt;Result&lt;HTTPResponse&gt;&gt; = page.poll()</code></pre>
         </section>
 
@@ -632,7 +634,7 @@ svm run main.simple</code></pre>
               <tr><td>Verifier</td><td>Partial</td><td>Rejects malformed bytecode before execution. Planned work extends this to result/option/promise and typed handle metadata.</td></tr>
               <tr><td>Interpreter</td><td>Implemented</td><td>Executes VM instructions, manages call frames, locals, globals, traps, and runtime limits.</td></tr>
               <tr><td>Heap and GC</td><td>Partial</td><td>Owns heap values such as strings, arrays, lists, artifacts, and runtime objects. Stack maps and declared roots keep references alive.</td></tr>
-              <tr><td>Native dispatch</td><td>Partial</td><td>Connects language/runtime calls to native modules such as IO, FS, JSON, buffers, channels, time, random, logging, and dynamic loading.</td></tr>
+              <tr><td>Native dispatch</td><td>Partial</td><td>Connects language/runtime calls to canonical modules such as <code>System.IO</code>, <code>System.FS</code>, <code>System.Json</code>, buffers, channels, time, random, logging, and FFI.</td></tr>
               <tr><td>Runtime limits</td><td>Partial</td><td>Tracks execution constraints so runaway programs can be limited by the VM.</td></tr>
             </tbody>
           </table>
@@ -642,7 +644,7 @@ svm run main.simple</code></pre>
             <li><code>svm</code> compiles or loads a program.</li>
             <li>The loader reads SBC metadata and bytecode sections.</li>
             <li>The verifier rejects unsupported or malformed bytecode.</li>
-            <li>The interpreter executes verified instructions.</li>
+            <li>The VM executes verified instructions. CLI runs use LLVM ORC JIT by default when available and fall back safely where unsupported.</li>
             <li>Native calls cross through runtime dispatch instead of direct unchecked host access.</li>
           </ol>
 
@@ -664,7 +666,7 @@ svm run main.simple</code></pre>
             <li><strong>Native ABI contract</strong><span>Define exact ABI behavior for scalars, artifacts-as-structs, strings, bytes, handles, results, options, promises, and native calls.</span></li>
             <li><strong>VM Native Core</strong><span>Implement resource registry, native metadata, handle generation checks, cleanup behavior, and capability policy.</span></li>
             <li><strong>Low-level <code>System.*</code></strong><span>Build explicit host/runtime APIs for FS, path, buffers, FFI, ASM, threads/jobs/channels, net, HTTP, terminal, process, env, time, random, log, and JSON.</span></li>
-            <li><strong>High-level <code>Standard.*</code></strong><span>Add high-level library APIs and short aliases such as <code>FS</code>, <code>HTTP</code>, <code>HTTPS</code>, <code>Console</code>, and <code>Terminal</code> for quick, simple imports.</span></li>
+            <li><strong>High-level <code>Standard.*</code></strong><span>Add high-level library APIs over <code>System.*</code> without public short aliases.</span></li>
             <li><strong>Docs and tests</strong><span>Generate API docs, capability tables, lifecycle tables, platform availability, native tests, CLI integration tests, and cross-platform checks.</span></li>
           </ol>
 
@@ -674,8 +676,8 @@ svm run main.simple</code></pre>
 
         <section id="status" class="doc-section" data-title="Status">
           <h2>Status</h2>
-          <p>Simple is in active development. Current surface includes parser, resolver, type checker, imports, artifacts, enums, arrays, lists, strings, SIR/SBC emission, loader/verifier, VM execution, native modules, CLI, LSP, and JIT scaffolding.</p>
-          <p>Current tool version: <code>v0.4.0</code>.</p>
+          <p>Simple is in active development. Current surface includes parser, resolver, type checker, canonical <code>System.*</code>/<code>Standard.*</code> imports, artifacts, enums, arrays, lists, strings, SIR/SBC emission, loader/verifier, VM execution, native modules, CLI, LSP, and LLVM ORC JIT.</p>
+          <p>Current tool version: <code>v0.5.0</code>. Full suite status: <code>1809/1809</code>, including JIT <code>61/61</code>.</p>
         </section>
       </article>
     </main>

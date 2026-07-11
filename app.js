@@ -111,7 +111,7 @@ const simpleTypes = new Set([
   'void', 'bool', 'char', 'string', 'i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64',
   'f32', 'f64', 'Result', 'Option', 'Promise', 'System', 'Standard'
 ]);
-const modules = new Set(['IO', 'FS', 'DL', 'FFI', 'HTTP', 'HTTPS', 'Console', 'Terminal', 'Path', 'Json', 'System', 'Standard']);
+const modules = new Set(['System', 'Standard', 'FFI', 'IO', 'FS', 'HTTP', 'HTTPS', 'Console', 'Terminal', 'Path', 'Json', 'Buffer', 'Bytes', 'Channel', 'Log', 'Random', 'Time']);
 
 function highlightSimple(source) {
   let out = '';
@@ -202,22 +202,22 @@ function highlightBash(source) {
 }
 
 const examples = {
-  toolScript: `import IO
-import FS
+  toolScript: `import Standard.IO
+import Standard.FS
 
 main : i32 () {
   path :: string = "build.log"
-  exists : bool = FS.exists(path)
+  exists : bool = Standard.FS.exists(path)
 
   if (exists) {
-    IO.println("{} exists", path)
+    Standard.IO.println("{} exists", path)
     return 0
   }
 
-  IO.println("{} missing", path)
+  Standard.IO.println("{} missing", path)
   return 1
 }`,
-  artifactModel: `import IO
+  artifactModel: `import Standard.IO
 
 Vec2 :: artifact {
   x : f64
@@ -245,10 +245,10 @@ Player :: artifact {
 main : i32 () {
   p : Player = { .name = "Ada", .pos = { .x = 3.0, .y = 4.0 }, .hp = 10 }
   p.damage(3)
-  IO.println("{} alive={} dist2={}", p.name, p.alive(), p.pos.lengthSquared())
+  Standard.IO.println("{} alive={} dist2={}", p.name, p.alive(), p.pos.lengthSquared())
   return 0
 }`,
-  namespaceApi: `import IO
+  namespaceApi: `import Standard.IO
 
 Checksum :: namespace {
   step : i32 (hash : i32, value : i32) {
@@ -266,14 +266,14 @@ Checksum :: namespace {
 
 main : i32 () {
   values : i32[] = [4, 8, 15, 16, 23, 42]
-  IO.println("checksum={}", Checksum.list(values))
+  Standard.IO.println("checksum={}", Checksum.list(values))
   return 0
 }`,
   moduleSurface: `module app.config
 
 Config :: namespace {
   APP_NAME :: string = "simple-tool"
-  VERSION :: string = "0.4.0"
+  VERSION :: string = "0.5.0"
   MAX_RETRIES :: i32 = 3
 }
 
@@ -282,7 +282,7 @@ main : i32 () {
   // import app.config
   return Config.MAX_RETRIES
 }`,
-  typedCollections: `import IO
+  typedCollections: `import Standard.IO
 
 Score :: artifact {
   name : string
@@ -303,11 +303,11 @@ main : i32 () {
     }
   }
 
-  IO.println("winner={} score={}", scores[best].name, scores[best].points)
+  Standard.IO.println("winner={} score={}", scores[best].name, scores[best].points)
   return scores[best].points
 }`,
-  ffiBinding: `import DL
-import IO
+  ffiBinding: `import System.FFI
+import Standard.IO
 
 Raylib :: namespace {
   extern raylib.InitWindow : void (w : i32, h : i32, title : string)
@@ -319,9 +319,9 @@ Raylib :: namespace {
 }
 
 main : i32 () {
-  lib : i64 = DL.open("libraylib.so", raylib)
+  lib : i64 = System.FFI.open("libraylib.so", raylib)
   if (lib == 0) {
-    IO.println("raylib load failed: {}", DL.last_error())
+    Standard.IO.println("raylib load failed: {}", System.FFI.lastError())
     return 1
   }
 
@@ -334,71 +334,74 @@ main : i32 () {
   Raylib.CloseWindow()
   return 0
 }`,
-  systemFs: `// planned System.FS shape
-readConfig : Result<string> (path : string) {
-  file : System.FS.FileHandle = System.FS.open(path, System.FS.FileMode.Read)?
-  bytes : Bytes = System.FS.readAll(file)?
-  System.FS.close(file)?
-  return Bytes.toString(bytes)
-}
+  systemFs: `// current canonical System.FS / Standard.IO shape
+import System.FS
+import Standard.IO
 
 main : i32 () {
-  text : string = readConfig("simple.toml")?
-  Console.writeLine(text)
-  return 0
+  path :: string = "simple.toml"
+  if (System.FS.exists(path)) {
+    text : string = System.FS.readText(path)
+    Standard.IO.println(text)
+    return 0
+  }
+  Standard.IO.println("missing {}", path)
+  return 1
 }`,
-  httpServer: `// planned HTTP server shape
-import HTTP
+  httpServer: `// planned Standard.HTTP server shape
+import Standard.HTTP
+import Standard.IO
 
 main : i32 () {
-  server : HTTP.Server = HTTP.serve("127.0.0.1", 8080, handler)?
-  Console.writeLine("listening on http://127.0.0.1:8080")
+  server : Standard.HTTP.Server = Standard.HTTP.serve("127.0.0.1", 8080, handler)?
+  Standard.IO.println("listening on http://127.0.0.1:8080")
   return server.wait()?
 }
 
-handler : HTTP.Response (request : HTTP.Request) {
+handler : Standard.HTTP.Response (request : Standard.HTTP.Request) {
   if (request.path == "/health") {
-    return HTTP.Response.text(200, "ok")
+    return Standard.HTTP.Response.text(200, "ok")
   }
-  return HTTP.Response.json(200, Json.object({ "name": "Simple" }))
+  return Standard.HTTP.Response.json(200, Standard.Json.object({ "name": "Simple" }))
 }`,
-  terminalLoop: `// planned Terminal primitives
-import Terminal
+  terminalLoop: `// planned Standard.Terminal primitives
+import Standard.Terminal
 
 main : i32 () {
-  term : Terminal.Handle = Terminal.open()?
-  Terminal.enterRaw(term)?
-  Terminal.enterAltScreen(term)?
-  Terminal.hideCursor(term)?
+  term : Standard.Terminal.Handle = Standard.Terminal.open()?
+  Standard.Terminal.enterRaw(term)?
+  Standard.Terminal.enterAltScreen(term)?
+  Standard.Terminal.hideCursor(term)?
 
   running : bool = true
   while (running) {
-    event : Option<Terminal.Event> = Terminal.pollEvent(term)
+    event : Option<Standard.Terminal.Event> = Standard.Terminal.pollEvent(term)
     if (event.hasValue()) {
       if (event.value().key == "q") {
         running = false
       }
     }
-    Terminal.writeAt(term, 2, 2, "press q to quit")?
-    Terminal.flush(term)?
+    Standard.Terminal.writeAt(term, 2, 2, "press q to quit")?
+    Standard.Terminal.flush(term)?
   }
 
-  Terminal.showCursor(term)?
-  Terminal.exitAltScreen(term)?
-  Terminal.close(term)?
+  Standard.Terminal.showCursor(term)?
+  Standard.Terminal.exitAltScreen(term)?
+  Standard.Terminal.close(term)?
   return 0
 }`,
   asyncFlow: `// planned async result flow
-import HTTP
+import Standard.HTTP
+import Standard.IO
 
 main : i32 () {
-  home : Promise<HTTP.Response> = HTTP.async.get("https://example.com")
-  api : Promise<HTTP.Response> = HTTP.async.get("https://example.com/api")
+  home : Promise<Standard.HTTP.Response> = Standard.HTTP.async.get("https://example.com")
+  api : Promise<Standard.HTTP.Response> = Standard.HTTP.async.get("https://example.com/api")
 
-  homeResult : HTTP.Response = home.await()?
-  apiResult : HTTP.Response = api.await()?
+  homeResult : Standard.HTTP.Response = home.await()?
+  apiResult : Standard.HTTP.Response = api.await()?
 
-  Console.writeLine("home={} api={}", homeResult.status, apiResult.status)
+  Standard.IO.println("home={} api={}", homeResult.status, apiResult.status)
   return 0
 }`
 };
