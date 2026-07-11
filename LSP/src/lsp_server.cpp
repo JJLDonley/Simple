@@ -2237,9 +2237,9 @@ void ReplySignatureHelp(std::ostream& out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":["
             "{\"label\":\"" + call_name +
-            "(value)\",\"parameters\":[{\"label\":\"value\"}]},"
+            " : void (value)\",\"parameters\":[{\"label\":\"value\"}]},"
             "{\"label\":\"" + call_name +
-            "(format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
+            " : void (format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
             "],\"activeSignature\":" + std::to_string(active_signature) +
             ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
     return;
@@ -2256,9 +2256,9 @@ void ReplySignatureHelp(std::ostream& out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":["
             "{\"label\":\"" + call_name +
-            "(value)\",\"parameters\":[{\"label\":\"value\"}]},"
+            " : void (value)\",\"parameters\":[{\"label\":\"value\"}]},"
             "{\"label\":\"" + call_name +
-            "(format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
+            " : void (format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
             "],\"activeSignature\":" + std::to_string(active_signature) +
             ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
     return;
@@ -2273,9 +2273,9 @@ void ReplySignatureHelp(std::ostream& out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":["
             "{\"label\":\"" + call_name +
-            "(path)\",\"parameters\":[{\"label\":\"path\"}]},"
+            " : i64 (path)\",\"parameters\":[{\"label\":\"path\"}]},"
             "{\"label\":\"" + call_name +
-            "(path, manifest)\",\"parameters\":[{\"label\":\"path\"},{\"label\":\"manifest\"}]}"
+            " : i64 (path, manifest)\",\"parameters\":[{\"label\":\"path\"},{\"label\":\"manifest\"}]}"
             "],\"activeSignature\":" + std::to_string(active_signature) +
             ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
     return;
@@ -2309,7 +2309,7 @@ void ReplySignatureHelp(std::ostream& out,
         out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":[{\"label\":\"" +
-            JsonEscape(call_name + "(" + params + ")") +
+            JsonEscape(call_name + (reserved_sig.return_type.empty() ? "" : (" : " + reserved_sig.return_type)) + " (" + params + ")") +
             "\",\"parameters\":[" + parameters_json + "]}],"
             "\"activeSignature\":0,\"activeParameter\":" +
             std::to_string(clamped_active) + "}}");
@@ -2322,6 +2322,7 @@ void ReplySignatureHelp(std::ostream& out,
     if (refs[i].token.text != call_name) continue;
     if (refs[i + 1].token.kind != Simple::Lang::TokenKind::Colon) continue;
     if (refs[i + 3].token.kind != Simple::Lang::TokenKind::LParen) continue;
+    const std::string direct_return_type = refs[i + 2].token.text;
     std::string params;
     std::string parameters_json;
     uint32_t param_count = 0;
@@ -2329,9 +2330,12 @@ void ReplySignatureHelp(std::ostream& out,
     while (p < refs.size() && refs[p].token.kind != Simple::Lang::TokenKind::RParen) {
       if (refs[p].token.kind == Simple::Lang::TokenKind::Identifier &&
           p + 2 < refs.size() &&
-          refs[p + 1].token.kind == Simple::Lang::TokenKind::Colon &&
+          (refs[p + 1].token.kind == Simple::Lang::TokenKind::Colon ||
+           refs[p + 1].token.kind == Simple::Lang::TokenKind::DoubleColon) &&
           refs[p + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
-        const std::string param_label = refs[p].token.text + " : " + refs[p + 2].token.text;
+        const std::string param_label = refs[p].token.text +
+            (refs[p + 1].token.kind == Simple::Lang::TokenKind::DoubleColon ? " :: " : " : ") +
+            refs[p + 2].token.text;
         if (!params.empty()) params += ", ";
         params += param_label;
         if (!parameters_json.empty()) parameters_json += ",";
@@ -2348,7 +2352,7 @@ void ReplySignatureHelp(std::ostream& out,
         out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":[{\"label\":\"" +
-            JsonEscape(call_name + "(" + params + ")") +
+            JsonEscape(call_name + " : " + direct_return_type + " (" + params + ")") +
             "\",\"parameters\":[" + parameters_json + "]}],"
             "\"activeSignature\":0,\"activeParameter\":" +
             std::to_string(clamped_active) + "}}");
@@ -2377,7 +2381,9 @@ void ReplySignatureHelp(std::ostream& out,
       }
     }
     if (!params.empty() || !return_type.empty()) {
-      std::string label = call_name + "(";
+      std::string label = call_name;
+      if (!return_type.empty()) label += " : " + return_type;
+      label += " (";
       std::string parameters_json;
       for (size_t i = 0; i < params.size(); ++i) {
         if (i > 0) label += ", ";
@@ -2386,7 +2392,6 @@ void ReplySignatureHelp(std::ostream& out,
         parameters_json += "{\"label\":\"" + JsonEscape(params[i]) + "\"}";
       }
       label += ")";
-      if (!return_type.empty()) label += " -> " + return_type;
       const uint32_t clamped_active =
           params.empty() ? 0
                          : std::min(active_parameter,
@@ -4618,7 +4623,7 @@ void ReplyInlayHints(std::ostream& out,
           if (!result.empty()) result += ",";
           result += "{\"position\":{\"line\":" + std::to_string(refs[j].token.line > 0 ? refs[j].token.line - 1 : 0) +
                     ",\"character\":" + std::to_string(refs[j].token.column > 0 ? refs[j].token.column - 1 : 0) +
-                    "},\"label\":\"" + JsonEscape(param_names[param_index] + ":") + "\",\"kind\":2}";
+                    "},\"label\":\"" + JsonEscape(param_names[param_index] + ": ") + "\",\"kind\":2}";
           expect_argument = false;
         }
         ++depth;
@@ -4640,7 +4645,7 @@ void ReplyInlayHints(std::ostream& out,
       if (!result.empty()) result += ",";
       result += "{\"position\":{\"line\":" + std::to_string(refs[j].token.line > 0 ? refs[j].token.line - 1 : 0) +
                 ",\"character\":" + std::to_string(refs[j].token.column > 0 ? refs[j].token.column - 1 : 0) +
-                "},\"label\":\"" + JsonEscape(param_names[param_index] + ":") + "\",\"kind\":2}";
+                "},\"label\":\"" + JsonEscape(param_names[param_index] + ": ") + "\",\"kind\":2}";
       expect_argument = false;
     }
     if (has_return_type && closing_paren < refs.size()) {

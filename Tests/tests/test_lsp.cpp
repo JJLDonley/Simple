@@ -1392,7 +1392,7 @@ bool LspSignatureHelpReturnsSignature() {
          out_contents.find("\"signatureHelpProvider\"") != std::string::npos &&
          out_contents.find("\"id\":10") != std::string::npos &&
          out_contents.find("\"signatures\"") != std::string::npos &&
-         out_contents.find("IO.println(value)") != std::string::npos &&
+         out_contents.find("IO.println : void (value)") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
          out_contents.find("\"activeParameter\":0") != std::string::npos;
 }
@@ -1457,7 +1457,7 @@ bool LspSignatureHelpReturnsFormatSignature() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":28") != std::string::npos &&
-         out_contents.find("IO.println(format, values...)") != std::string::npos &&
+         out_contents.find("IO.println : void (format, values...)") != std::string::npos &&
          out_contents.find("\"activeSignature\":1") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
@@ -1523,7 +1523,7 @@ bool LspSignatureHelpForLocalFunctionDeclaration() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":27") != std::string::npos &&
-         out_contents.find("add(a : i32, b : i32)") != std::string::npos &&
+         out_contents.find("add : i32 (a : i32, b : i32)") != std::string::npos &&
          out_contents.find("\"label\":\"a : i32\"") != std::string::npos &&
          out_contents.find("\"label\":\"b : i32\"") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
@@ -1558,7 +1558,7 @@ bool LspSignatureHelpForReservedAliasMember() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":34") != std::string::npos &&
-         out_contents.find("OS.args_get(index)") != std::string::npos &&
+         out_contents.find("OS.args_get : string (index)") != std::string::npos &&
          out_contents.find("\"label\":\"index\"") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
          out_contents.find("\"activeParameter\":0") != std::string::npos;
@@ -1592,7 +1592,7 @@ bool LspSignatureHelpForIoAliasFormatCall() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":36") != std::string::npos &&
-         out_contents.find("Out.println(format, values...)") != std::string::npos &&
+         out_contents.find("Out.println : void (format, values...)") != std::string::npos &&
          out_contents.find("\"activeSignature\":1") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
@@ -1625,8 +1625,8 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":37") != std::string::npos &&
-         out_contents.find("DL.open(path)") != std::string::npos &&
-         out_contents.find("DL.open(path, manifest)") != std::string::npos &&
+         out_contents.find("DL.open : i64 (path)") != std::string::npos &&
+         out_contents.find("DL.open : i64 (path, manifest)") != std::string::npos &&
          out_contents.find("\"activeSignature\":1") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
@@ -1660,7 +1660,7 @@ bool LspSignatureHelpForUserFunction() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
-         out_contents.find("sum(lhs : i32, rhs : i32)") != std::string::npos &&
+         out_contents.find("sum : i32 (lhs : i32, rhs : i32)") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
@@ -4096,8 +4096,8 @@ bool LspInlayHintReturnsParameterHints() {
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":52") != std::string::npos &&
-         out_contents.find("\"label\":\"lhs:\"") != std::string::npos &&
-         out_contents.find("\"label\":\"rhs:\"") != std::string::npos &&
+         out_contents.find("\"label\":\"lhs: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"rhs: \"") != std::string::npos &&
          out_contents.find("\"label\":\": i32\"") != std::string::npos &&
          out_contents.find("->") == std::string::npos &&
          out_contents.find("\"kind\":1") != std::string::npos &&
@@ -4126,8 +4126,8 @@ bool LspInlayHintReturnsExternParameterHints() {
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":85") != std::string::npos &&
-         out_contents.find("\"label\":\"width:\"") != std::string::npos &&
-         out_contents.find("\"label\":\"height:\"") != std::string::npos &&
+         out_contents.find("\"label\":\"width: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"height: \"") != std::string::npos &&
          out_contents.find("\"label\":\": RenderTexture2D\"") != std::string::npos &&
          out_contents.find("->") == std::string::npos;
 }
