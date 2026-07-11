@@ -520,24 +520,112 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return false;
     }
     case SystemModule::Channel: {
-      auto channel_value_type = [](const std::string& suffix) -> TypeRef {
-        if (suffix == "I64") return MakeSimpleType("i64");
-        if (suffix == "F32") return MakeSimpleType("f32");
-        if (suffix == "F64") return MakeSimpleType("f64");
-        if (suffix == "Bool") return MakeSimpleType("bool");
-        if (suffix == "String") return MakeSimpleType("string");
-        if (suffix == "Bytes") return MakeListType("i32");
+      const auto m = std::get<SystemChannelMember>(*parsed);
+      auto channel_value_type = [](SystemChannelMember value) -> TypeRef {
+        switch (value) {
+          case SystemChannelMember::NewI64:
+          case SystemChannelMember::SendI64:
+          case SystemChannelMember::TrySendI64:
+          case SystemChannelMember::RecvI64:
+          case SystemChannelMember::TryRecvI64:
+          case SystemChannelMember::PendingI64:
+            return MakeSimpleType("i64");
+          case SystemChannelMember::NewF32:
+          case SystemChannelMember::SendF32:
+          case SystemChannelMember::TrySendF32:
+          case SystemChannelMember::RecvF32:
+          case SystemChannelMember::TryRecvF32:
+          case SystemChannelMember::PendingF32:
+            return MakeSimpleType("f32");
+          case SystemChannelMember::NewF64:
+          case SystemChannelMember::SendF64:
+          case SystemChannelMember::TrySendF64:
+          case SystemChannelMember::RecvF64:
+          case SystemChannelMember::TryRecvF64:
+          case SystemChannelMember::PendingF64:
+            return MakeSimpleType("f64");
+          case SystemChannelMember::NewBool:
+          case SystemChannelMember::SendBool:
+          case SystemChannelMember::TrySendBool:
+          case SystemChannelMember::RecvBool:
+          case SystemChannelMember::TryRecvBool:
+          case SystemChannelMember::PendingBool:
+            return MakeSimpleType("bool");
+          case SystemChannelMember::NewString:
+          case SystemChannelMember::SendString:
+          case SystemChannelMember::TrySendString:
+          case SystemChannelMember::RecvString:
+          case SystemChannelMember::TryRecvString:
+          case SystemChannelMember::PendingString:
+            return MakeSimpleType("string");
+          case SystemChannelMember::NewBytes:
+          case SystemChannelMember::SendBytes:
+          case SystemChannelMember::TrySendBytes:
+          case SystemChannelMember::RecvBytes:
+          case SystemChannelMember::TryRecvBytes:
+          case SystemChannelMember::PendingBytes:
+            return MakeListType("i32");
+          case SystemChannelMember::NewI32:
+          case SystemChannelMember::SendI32:
+          case SystemChannelMember::TrySendI32:
+          case SystemChannelMember::RecvI32:
+          case SystemChannelMember::TryRecvI32:
+          case SystemChannelMember::PendingI32:
+          case SystemChannelMember::Close:
+            return MakeSimpleType("i32");
+        }
         return MakeSimpleType("i32");
       };
-      static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
-      for (const char* suffix_c : suffixes) {
-        const std::string suffix = suffix_c;
-        if (member == "new" + suffix) return set_ret(simple("i64"));
-        if (member == "send" + suffix || member == "trySend" + suffix) { add(simple("i64")); add(channel_value_type(suffix)); return set_ret(simple("bool")); }
-        if (member == "recv" + suffix || member == "tryRecv" + suffix) { add(simple("i64")); return set_ret(channel_value_type(suffix)); }
-        if (member == "pending" + suffix) { add(simple("i64")); return set_ret(simple("i32")); }
+      switch (m) {
+        case SystemChannelMember::NewI32:
+        case SystemChannelMember::NewI64:
+        case SystemChannelMember::NewF32:
+        case SystemChannelMember::NewF64:
+        case SystemChannelMember::NewBool:
+        case SystemChannelMember::NewString:
+        case SystemChannelMember::NewBytes:
+          return set_ret(simple("i64"));
+        case SystemChannelMember::SendI32:
+        case SystemChannelMember::TrySendI32:
+        case SystemChannelMember::SendI64:
+        case SystemChannelMember::TrySendI64:
+        case SystemChannelMember::SendF32:
+        case SystemChannelMember::TrySendF32:
+        case SystemChannelMember::SendF64:
+        case SystemChannelMember::TrySendF64:
+        case SystemChannelMember::SendBool:
+        case SystemChannelMember::TrySendBool:
+        case SystemChannelMember::SendString:
+        case SystemChannelMember::TrySendString:
+        case SystemChannelMember::SendBytes:
+        case SystemChannelMember::TrySendBytes:
+          add(simple("i64")); add(channel_value_type(m)); return set_ret(simple("bool"));
+        case SystemChannelMember::RecvI32:
+        case SystemChannelMember::TryRecvI32:
+        case SystemChannelMember::RecvI64:
+        case SystemChannelMember::TryRecvI64:
+        case SystemChannelMember::RecvF32:
+        case SystemChannelMember::TryRecvF32:
+        case SystemChannelMember::RecvF64:
+        case SystemChannelMember::TryRecvF64:
+        case SystemChannelMember::RecvBool:
+        case SystemChannelMember::TryRecvBool:
+        case SystemChannelMember::RecvString:
+        case SystemChannelMember::TryRecvString:
+        case SystemChannelMember::RecvBytes:
+        case SystemChannelMember::TryRecvBytes:
+          add(simple("i64")); return set_ret(channel_value_type(m));
+        case SystemChannelMember::PendingI32:
+        case SystemChannelMember::PendingI64:
+        case SystemChannelMember::PendingF32:
+        case SystemChannelMember::PendingF64:
+        case SystemChannelMember::PendingBool:
+        case SystemChannelMember::PendingString:
+        case SystemChannelMember::PendingBytes:
+          add(simple("i64")); return set_ret(simple("i32"));
+        case SystemChannelMember::Close:
+          add(simple("i64")); return set_ret(simple("void"));
       }
-      if (std::get<SystemChannelMember>(*parsed) == SystemChannelMember::Close) { add(simple("i64")); return set_ret(simple("void")); }
       return false;
     }
     case SystemModule::Thread: {
@@ -554,14 +642,50 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       if (m == SystemJsonMember::Free) { add(simple("i64")); return set_ret(simple("bool")); }
       return false;
     }
-    case SystemModule::Buffer:
+    case SystemModule::Buffer: {
+      const auto m = std::get<SystemBufferMember>(*parsed);
+      switch (m) {
+        case SystemBufferMember::New: add(simple("i32")); return set_ret(list_i32());
+        case SystemBufferMember::Len: add(list_i32()); return set_ret(simple("i32"));
+        case SystemBufferMember::ReadU16LE:
+        case SystemBufferMember::ReadU32LE:
+          add(list_i32()); add(simple("i32")); return set_ret(simple("i32"));
+        case SystemBufferMember::WriteU16LE:
+        case SystemBufferMember::WriteU32LE:
+          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("bool"));
+        case SystemBufferMember::Slice:
+          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32());
+        case SystemBufferMember::Copy:
+          add(list_i32()); add(simple("i32")); add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32"));
+        case SystemBufferMember::Get:
+        case SystemBufferMember::Set:
+        case SystemBufferMember::ReadU64LE:
+        case SystemBufferMember::WriteU64LE:
+          return false;
+      }
+      return false;
+    }
     case SystemModule::Bytes: {
-      if (member == "new") { add(simple("i32")); return set_ret(list_i32()); }
-      if (member == "len") { add(list_i32()); return set_ret(simple("i32")); }
-      if (member == "readU16LE" || member == "readU32LE") { add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
-      if (member == "writeU16LE" || member == "writeU32LE") { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("bool")); }
-      if (member == "slice") { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32()); }
-      if (member == "copy") { add(list_i32()); add(simple("i32")); add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32")); }
+      const auto m = std::get<SystemBytesMember>(*parsed);
+      switch (m) {
+        case SystemBytesMember::New: add(simple("i32")); return set_ret(list_i32());
+        case SystemBytesMember::Len: add(list_i32()); return set_ret(simple("i32"));
+        case SystemBytesMember::ReadU16LE:
+        case SystemBytesMember::ReadU32LE:
+          add(list_i32()); add(simple("i32")); return set_ret(simple("i32"));
+        case SystemBytesMember::WriteU16LE:
+        case SystemBytesMember::WriteU32LE:
+          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("bool"));
+        case SystemBytesMember::Slice:
+          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32());
+        case SystemBytesMember::Copy:
+          add(list_i32()); add(simple("i32")); add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32"));
+        case SystemBytesMember::Get:
+        case SystemBytesMember::Set:
+        case SystemBytesMember::ReadU64LE:
+        case SystemBytesMember::WriteU64LE:
+          return false;
+      }
       return false;
     }
     case SystemModule::Log: {
