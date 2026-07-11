@@ -8,10 +8,11 @@ main : i32 () {
   Standard.Log.info("hidden")
   Standard.Log.warn("hidden")
   Standard.Log.error("shown")
-  System.Log.log("also shown", 3)
+  System.Log.log(3, "also shown")
   if (!Standard.Log.setFile(path)) { return 0 }
   Standard.Log.error("file shown")
-  System.Log.log("file also shown", 3)
+  System.Log.log(3, "file also shown")
+  if (!System.Log.flush()) { return 0 }
   if (!Standard.FS.exists(path)) { return 1 }
   Standard.Log.setFile("")
   Standard.Log.setLevel(0)

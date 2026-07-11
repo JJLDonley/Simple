@@ -1077,7 +1077,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"SystemJson", {"parse", "stringify", "free"}},
       {"SystemBytes", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
       {"StandardBytes", {"new", "slice"}},
-      {"SystemLog", {"log", "setLevel", "setFile"}},
+      {"SystemLog", {"log", "setLevel", "setFile", "flush"}},
       {"StandardLog", {"info", "warn", "error", "setLevel", "setFile"}},
   };
 
@@ -1554,7 +1554,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   }
   if (module == "SystemLog" || module == "StandardLog") {
     if (module == "SystemLog" && member == "log") {
-      out->params = {"message", "level"};
+      out->params = {"level", "message"};
       out->return_type = "void";
       return true;
     }
@@ -1570,6 +1570,10 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     if (member == "setFile") {
       out->params = {"path"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (module == "SystemLog" && member == "flush") {
       out->return_type = "bool";
       return true;
     }

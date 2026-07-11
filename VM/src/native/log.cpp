@@ -33,6 +33,17 @@ bool SetFile(const std::string& path) {
   return true;
 }
 
+bool Flush() {
+  std::lock_guard<std::mutex> lock(g_file_mutex);
+  if (g_file && g_file->is_open()) {
+    g_file->flush();
+    return static_cast<bool>(*g_file);
+  }
+  std::cout.flush();
+  std::cerr.flush();
+  return static_cast<bool>(std::cout) && static_cast<bool>(std::cerr);
+}
+
 void Emit(const std::string& message, int32_t level) {
   if (level < g_level.load()) return;
   const char* label = LabelForLevel(level);

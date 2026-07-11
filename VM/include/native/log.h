@@ -8,6 +8,7 @@ namespace Simple::VM::Native::Log {
 
 void SetLevel(int32_t level);
 bool SetFile(const std::string& path);
+bool Flush();
 void Emit(const std::string& message, int32_t level);
 
 } // namespace Simple::VM::Native::Log

@@ -837,8 +837,8 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   }
   if (resolved == "SystemLog" || resolved == "StandardLog") {
     if (resolved == "SystemLog" && member == "log") {
-      out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("void");
       out->return_mutability = Mutability::Mutable;
       return true;
@@ -857,6 +857,11 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
     if (member == "setFile") {
       out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (resolved == "SystemLog" && member == "flush") {
       out->return_type = MakeSimpleType("bool");
       out->return_mutability = Mutability::Mutable;
       return true;
@@ -2052,6 +2057,16 @@ bool CheckCallArgTypes(const Expr& call_expr,
           arg_types.push_back(std::move(arg));
         }
         return CheckReservedFileCallArgTypes(name, arg_types, error);
+      }
+      CallTargetInfo reserved_info;
+      if (GetReservedModuleCallTarget(ctx, module_name, name, &reserved_info)) {
+        for (size_t i = 0; i < reserved_info.params.size() && i < call_expr.args.size(); ++i) {
+          TypeRef actual;
+          if (!infer_arg(i, &actual)) return true;
+          if (!CheckTypesCompatibleForExpr(reserved_info.params[i], actual, call_expr.args[i],
+                                           "call argument type mismatch", error)) return false;
+        }
+        return true;
       }
     }
   }

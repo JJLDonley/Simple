@@ -118,7 +118,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
   }
   if (canonical_module == "StandardBytes") return {"new", "slice"};
-  if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile"};
+  if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile", "flush"};
   if (canonical_module == "StandardLog") return {"info", "warn", "error", "setLevel", "setFile"};
   return out;
 }
@@ -178,7 +178,7 @@ bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_i
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
   if (canonical_module == "SystemRandom") return member == "seed" || member == "i32" || member == "i64" || member == "f64" || member == "fillBytes";
   if (canonical_module == "StandardRandom") return member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64";
-  if (canonical_module == "SystemLog") return member == "log" || member == "setLevel" || member == "setFile";
+  if (canonical_module == "SystemLog") return member == "log" || member == "setLevel" || member == "setFile" || member == "flush";
   if (canonical_module == "StandardLog") return member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
   std::string native_module;
   if (NativeModuleNameForReserved(canonical_module, &native_module) &&

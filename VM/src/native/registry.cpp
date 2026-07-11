@@ -620,9 +620,13 @@ NativeCallResult LogSetFile(NativeCallContext& context) {
 NativeCallResult LogEmit(NativeCallContext& context) {
   NativeCallResult result;
   std::string message;
-  if (ReadStringArg(context, 0, &message)) Log::Emit(message, UnpackI32(context.args[1]));
+  if (ReadStringArg(context, 1, &message)) Log::Emit(message, UnpackI32(context.args[0]));
   result.has_value = false;
   return result;
+}
+
+NativeCallResult LogFlush(NativeCallContext&) {
+  return NativeCallResult::Bool(Log::Flush());
 }
 
 NativeCallResult LogInfo(NativeCallContext& context) {
@@ -2053,8 +2057,9 @@ void RegisterSystemLog(NativeRegistry& registry) {
                              LogSetLevel));
   registry.Register(MakeSpec("System.log", "setFile", {TypeKind::String}, TypeKind::I32,
                              LogSetFile));
-  registry.Register(MakeSpec("System.log", "log", {TypeKind::String, TypeKind::I32},
+  registry.Register(MakeSpec("System.log", "log", {TypeKind::I32, TypeKind::String},
                              TypeKind::Unspecified, LogEmit));
+  registry.Register(MakeSpec("System.log", "flush", {}, TypeKind::Bool, LogFlush));
   registry.Register(MakeSpec("System.log", "info", {TypeKind::String}, TypeKind::Unspecified,
                              LogInfo));
   registry.Register(MakeSpec("System.log", "warn", {TypeKind::String}, TypeKind::Unspecified,

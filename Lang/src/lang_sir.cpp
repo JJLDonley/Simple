@@ -469,7 +469,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if ((module == "SystemLog" && (member == "log" || member == "setLevel" || member == "setFile")) ||
+    } else if ((module == "SystemLog" && (member == "log" || member == "setLevel" || member == "setFile" || member == "flush")) ||
                (module == "StandardLog" &&
                 (member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile"))) {
       if (found) return false;
@@ -5702,9 +5702,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   if (st.reserved_imports.find("SystemLog") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("SystemLog")) {
       std::vector<TypeRef> params;
-      params.push_back(make_type("string"));
       params.push_back(make_type("i32"));
+      params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.log", "log", std::move(params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.log", "flush", {}, make_type("bool"))) return false;
       if (!add_log_control_imports(alias)) return false;
     }
   }
