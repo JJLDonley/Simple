@@ -1040,42 +1040,6 @@ std::string DefaultImportAlias(const std::string& path) {
 }
 
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
-  static const std::unordered_map<std::string, std::vector<std::string>> kModuleMembers = {
-      {"StandardIO", {"print", "println"}},
-      {"IO", {"buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
-      {"Math", {"abs", "min", "max", "pi"}},
-      {"Time", {"mono_ns", "wall_ns"}},
-      {"StandardTime", {"mono_ns", "wall_ns", "formatWallNs"}},
-      {"File", {"open", "close", "read", "write"}},
-      {"DL",
-       {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
-        "call_str0", "supported"}},
-      {"OS", {"platform", "arch", "isLinux", "isMacos", "isWindows", "pid", "cpuCount", "pageSize", "exit", "sleepMs"}},
-      {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
-      {"SystemRandom", {"seed", "i32", "i64", "f64", "fillBytes"}},
-      {"StandardRandom", {"seed", "i32", "i64", "range", "f64"}},
-      {"Env", {"argsCount", "arg", "get", "set", "unset", "exePath"}},
-      {"StandardPath", {"join", "dirname", "basename", "ext", "stem", "normalize"}},
-      {"Path", {"separator", "delimiter", "isAbsolute", "join", "dirname", "basename", "ext", "stem", "normalize"}},
-      {"StandardFS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
-      {"FS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
-      {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
-                   "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
-                   "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
-                   "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64",
-                   "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool",
-                   "newString", "sendString", "trySendString", "recvString", "tryRecvString",
-                   "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
-      {"File", {"open", "close", "read", "write"}},
-      {"SystemJson", {"parse", "stringify", "free"}},
-      {"SystemBuffer", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
-      {"SystemBytes", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
-      {"StandardBuffer", {}},
-      {"StandardBytes", {"new", "slice"}},
-      {"SystemLog", {"log", "setLevel", "setFile", "flush"}},
-      {"StandardLog", {"info", "warn", "error", "setLevel", "setFile"}},
-  };
-
   std::unordered_set<std::string> labels;
   size_t start = 0;
   for (size_t i = 0; i <= text.size(); ++i) {
@@ -1086,10 +1050,9 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
     if (ParseImportDeclLine(line, &import_path, &alias)) {
       std::string canonical;
       if (Simple::Lang::CanonicalizeReservedImportPath(import_path, &canonical)) {
-        const auto mod_it = kModuleMembers.find(canonical);
-        if (mod_it != kModuleMembers.end()) {
-          for (const auto& member : mod_it->second) {
-            labels.insert(alias + "." + member);
+        if (const auto module = Simple::Lang::ParseCanonicalLibraryModule(canonical)) {
+          for (std::string_view member : Simple::Lang::MemberNames(*module)) {
+            labels.insert(alias + "." + std::string(member));
           }
         }
       }
