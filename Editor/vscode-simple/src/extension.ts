@@ -19,7 +19,9 @@ const COMMANDS = {
   showLanguageServerOutput: 'simple.showLanguageServerOutput',
   showVersion: 'simple.showVersion',
   showHelp: 'simple.showHelp',
-  configureCompilerPath: 'simple.configureCompilerPath'
+  configureCompilerPath: 'simple.configureCompilerPath',
+  configureOutputDirectory: 'simple.configureOutputDirectory',
+  toggleJitDefault: 'simple.toggleJitDefault'
 } as const;
 
 let client: LanguageClient | undefined;
@@ -224,9 +226,40 @@ function currentFilePath(document: vscode.TextDocument): string {
   return document.uri.fsPath;
 }
 
+function configuredOutputDirectory(document: vscode.TextDocument): string {
+  const config = vscode.workspace.getConfiguration('simple');
+  const configured = config.get<string>('outputDirectory', '').trim();
+  const file = currentFilePath(document);
+  if (!configured) return path.dirname(file);
+  if (path.isAbsolute(configured)) return configured;
+  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+  return path.resolve(folder?.uri.fsPath ?? path.dirname(file), configured);
+}
+
+function ensureDirectory(dir: string): void {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
 function outputPath(document: vscode.TextDocument, extension: string): string {
   const file = currentFilePath(document);
-  return path.join(path.dirname(file), `${path.basename(file, path.extname(file))}.${extension}`);
+  const dir = configuredOutputDirectory(document);
+  ensureDirectory(dir);
+  return path.join(dir, `${path.basename(file, path.extname(file))}.${extension}`);
+}
+
+function binaryOutputPath(document: vscode.TextDocument): string {
+  const file = currentFilePath(document);
+  const dir = configuredOutputDirectory(document);
+  ensureDirectory(dir);
+  const suffix = process.platform === 'win32' ? '.exe' : '';
+  return path.join(dir, `${path.basename(file, path.extname(file))}${suffix}`);
+}
+
+function runArgs(document: vscode.TextDocument, forceJit: boolean): string[] {
+  const args = ['run', currentFilePath(document)];
+  const jitByDefault = vscode.workspace.getConfiguration('simple').get<boolean>('jitByDefault', false);
+  if (forceJit || jitByDefault) args.push('-jit', '--jit-stats');
+  return args;
 }
 
 function simpleTask(context: vscode.ExtensionContext,
@@ -288,9 +321,9 @@ class SimpleTaskProvider implements vscode.TaskProvider {
     const scope = folder ?? vscode.TaskScope.Workspace;
     return [
       simpleTask(this.context, 'Simple: check current file', ['check', file], scope, cwd),
-      simpleTask(this.context, 'Simple: run current file', ['run', file], scope, cwd),
-      simpleTask(this.context, 'Simple: run current file with JIT', ['run', file, '-jit', '--jit-stats'], scope, cwd),
-      simpleTask(this.context, 'Simple: build current file', ['build', file], scope, cwd),
+      simpleTask(this.context, 'Simple: run current file', runArgs(document, false), scope, cwd),
+      simpleTask(this.context, 'Simple: run current file with JIT', runArgs(document, true), scope, cwd),
+      simpleTask(this.context, 'Simple: build current file', ['build', file, '--out', binaryOutputPath(document)], scope, cwd),
       simpleTask(this.context, 'Simple: emit SIR', ['emit', '-ir', file, '--out', outputPath(document, 'sir')], scope, cwd),
       simpleTask(this.context, 'Simple: emit SBC', ['emit', '-sbc', file, '--out', outputPath(document, 'sbc')], scope, cwd)
     ];
@@ -316,6 +349,13 @@ function registerCommands(context: vscode.ExtensionContext): void {
   registerCommand(context, COMMANDS.restartLanguageServer, () => restartClient(context));
   registerCommand(context, COMMANDS.showLanguageServerOutput, () => lspOutputChannel.show(true));
   registerCommand(context, COMMANDS.configureCompilerPath, () => vscode.commands.executeCommand('workbench.action.openSettings', 'simple.compilerPath'));
+  registerCommand(context, COMMANDS.configureOutputDirectory, () => vscode.commands.executeCommand('workbench.action.openSettings', 'simple.outputDirectory'));
+  registerCommand(context, COMMANDS.toggleJitDefault, async () => {
+    const config = vscode.workspace.getConfiguration('simple');
+    const current = config.get<boolean>('jitByDefault', false);
+    await config.update('jitByDefault', !current, vscode.ConfigurationTarget.Workspace);
+    vscode.window.setStatusBarMessage(`Simple JIT default ${!current ? 'enabled' : 'disabled'}`, 2000);
+  });
   registerCommand(context, COMMANDS.showVersion, () => runSvm(context, 'Simple version', ['version']));
   registerCommand(context, COMMANDS.showHelp, () => runSvm(context, 'Simple help', ['help']));
 
@@ -325,19 +365,19 @@ function registerCommands(context: vscode.ExtensionContext): void {
   });
   registerCommand(context, COMMANDS.runCurrentFile, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
-    if (doc) await runSvm(context, 'Simple run', ['run', currentFilePath(doc)], doc);
+    if (doc) await runSvm(context, 'Simple run', runArgs(doc, false), doc);
   });
   registerCommand(context, COMMANDS.runCurrentFileWithJit, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
-    if (doc) await runSvm(context, 'Simple run with JIT', ['run', currentFilePath(doc), '-jit', '--jit-stats'], doc);
+    if (doc) await runSvm(context, 'Simple run with JIT', runArgs(doc, true), doc);
   });
   registerCommand(context, COMMANDS.buildCurrentFile, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
-    if (doc) await runSvm(context, 'Simple build', ['build', currentFilePath(doc)], doc);
+    if (doc) await runSvm(context, 'Simple build', ['build', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
   });
   registerCommand(context, COMMANDS.compileCurrentFile, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
-    if (doc) await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc)], doc);
+    if (doc) await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
   });
   registerCommand(context, COMMANDS.emitSir, async (resource?: unknown) => {
     const doc = await commandDocument(resource);

@@ -842,7 +842,8 @@ Simple toolchain facts this plan must respect:
   - [x] `Simple: Show svm Version` -> `svm version` task.
   - [x] `Simple: Show svm Help` -> `svm help` task.
   - [x] `Simple: Configure Compiler Path` settings shortcut.
-  - [ ] Add build output directory, trace, JIT default, and settings commands.
+  - [x] Add build output directory and JIT default settings commands.
+  - [ ] Add trace settings commands.
 - [x] Add command palette, editor title, and editor context entries for `.simple` files.
 - [x] Add explorer context entries for `.simple` files.
 - [ ] Add explorer context entries for `.sir` and `.sbc` where appropriate.
@@ -851,7 +852,7 @@ Simple toolchain facts this plan must respect:
   - [x] run/check/emit tasks for active file.
   - [x] optional problem matcher for `path:line:column: message` diagnostics emitted by `svm`.
 - [x] Route all command tasks through `svm` with workspace-aware cwd.
-- [ ] Add optional configured output directory.
+- [x] Add optional configured output directory.
 - [x] Never invoke the `simple` runtime stub for check/build/emit/lsp.
 
 ### Simple LSP Feature Roadmap

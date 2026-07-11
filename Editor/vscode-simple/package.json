@@ -109,6 +109,17 @@
         "command": "simple.configureCompilerPath",
         "title": "Simple: Configure Compiler Path",
         "category": "Simple"
+      },
+      {
+        "command": "simple.configureOutputDirectory",
+        "title": "Simple: Configure Output Directory",
+        "category": "Simple"
+      },
+      {
+        "command": "simple.toggleJitDefault",
+        "title": "Simple: Toggle JIT Default",
+        "category": "Simple",
+        "icon": "$(rocket)"
       }
     ],
     "menus": {
@@ -148,6 +159,12 @@
         },
         {
           "command": "simple.configureCompilerPath"
+        },
+        {
+          "command": "simple.configureOutputDirectory"
+        },
+        {
+          "command": "simple.toggleJitDefault"
         }
       ],
       "editor/title": [
@@ -244,6 +261,16 @@
             "type": "string"
           },
           "description": "Arguments passed to svm to start the Simple LSP server."
+        },
+        "simple.outputDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Directory for generated build/SIR/SBC outputs. Relative paths resolve from the workspace folder."
+        },
+        "simple.jitByDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run Simple files with -jit --jit-stats from the default Run command."
         }
       }
     },
@@ -317,6 +344,8 @@
     "onCommand:simple.showLanguageServerOutput",
     "onCommand:simple.showVersion",
     "onCommand:simple.showHelp",
-    "onCommand:simple.configureCompilerPath"
+    "onCommand:simple.configureCompilerPath",
+    "onCommand:simple.configureOutputDirectory",
+    "onCommand:simple.toggleJitDefault"
   ]
 }

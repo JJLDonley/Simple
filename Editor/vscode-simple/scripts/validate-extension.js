@@ -16,6 +16,8 @@ if (pkg.main !== './out/extension.js') fail('package main must point at compiled
 if (!fs.existsSync(path.join(root, pkg.main))) fail(`compiled extension missing: ${pkg.main}`);
 if (pkg.contributes?.configuration?.properties?.['simple.lspPath']) fail('simple.lspPath is obsolete; use simple.compilerPath');
 if (!pkg.contributes?.configuration?.properties?.['simple.compilerPath']) fail('simple.compilerPath setting missing');
+if (!pkg.contributes?.configuration?.properties?.['simple.outputDirectory']) fail('simple.outputDirectory setting missing');
+if (!pkg.contributes?.configuration?.properties?.['simple.jitByDefault']) fail('simple.jitByDefault setting missing');
 if (!Array.isArray(pkg.contributes?.taskDefinitions) || !pkg.contributes.taskDefinitions.some((t) => t.type === 'simple')) fail('simple task definition missing');
 if (!Array.isArray(pkg.contributes?.problemMatchers) || !pkg.contributes.problemMatchers.some((m) => m.name === 'simple-svm')) fail('simple problem matcher missing');
 if (!Array.isArray(pkg.contributes?.menus?.['explorer/context']) || pkg.contributes.menus['explorer/context'].length === 0) fail('explorer context entries missing');
@@ -33,7 +35,9 @@ for (const command of [
   'simple.showLanguageServerOutput',
   'simple.showVersion',
   'simple.showHelp',
-  'simple.configureCompilerPath'
+  'simple.configureCompilerPath',
+  'simple.configureOutputDirectory',
+  'simple.toggleJitDefault'
 ]) {
   if (!commands.has(command)) fail(`command missing: ${command}`);
 }
