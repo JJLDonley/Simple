@@ -3199,6 +3199,40 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
          out_contents.find("Declare 'y' as i32") == std::string::npos;
 }
 
+bool LspCodeActionCreatesMissingImportFile() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_missing_import_action_test";
+  fs::create_directories(dir);
+  const auto main_path = dir / "main.simple";
+  const auto missing_path = dir / "missing.simple";
+  const std::string uri = "file://" + main_path.generic_string();
+  const std::string missing_uri = "file://" + missing_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_missing_import_action_in.txt");
+  const std::string out_path = TempPath("simple_lsp_missing_import_action_out.txt");
+  const std::string err_path = TempPath("simple_lsp_missing_import_action_err.txt");
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import missing.simple\\nmain : i32 () { return 0 }\"}}}";
+  const std::string action_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":63,\"method\":\"textDocument/codeAction\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},"
+      "\"range\":{\"start\":{\"line\":0,\"character\":7},\"end\":{\"line\":0,\"character\":21}},"
+      "\"context\":{\"diagnostics\":[],\"only\":[\"quickfix\"]}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(action_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":63") != std::string::npos &&
+         out_contents.find("Create missing import 'missing.simple'") != std::string::npos &&
+         out_contents.find("\"kind\":\"create\"") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + missing_uri + "\"") != std::string::npos;
+}
+
 bool LspCodeActionReturnsQuickBuildEmitCommands() {
   const std::string in_path = TempPath("simple_lsp_code_action_source_in.txt");
   const std::string out_path = TempPath("simple_lsp_code_action_source_out.txt");
@@ -3858,6 +3892,7 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_infers_char_declaration_type", LspCodeActionInfersCharDeclarationType},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
+  {"lsp_code_action_creates_missing_import_file", LspCodeActionCreatesMissingImportFile},
   {"lsp_code_action_returns_quick_build_emit_commands", LspCodeActionReturnsQuickBuildEmitCommands},
   {"lsp_type_definition_provider_resolves_local_artifact_types", LspTypeDefinitionProviderResolvesLocalArtifactTypes},
   {"lsp_type_definition_provider_resolves_variable_usage_types", LspTypeDefinitionProviderResolvesVariableUsageTypes},

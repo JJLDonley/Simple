@@ -882,7 +882,8 @@ Next Simple-specific LSP capabilities:
 - [x] Code lenses for tests/examples.
 - [ ] Code lenses for exported functions and persisted JIT stats.
 - [x] Code actions for unknown identifiers and quick emit/build actions.
-- [ ] Code actions for unresolved imports, missing modules, and signature mismatch fixes.
+- [x] Code actions for missing import files.
+- [ ] Code actions for unresolved module imports and signature mismatch fixes.
 - [x] Workspace symbols and references across opened documents plus sibling indexed `.simple` files.
 - [x] Workspace symbols across recursive opened-document project directories.
 - [ ] Workspace symbols and references across full project roots/module maps.

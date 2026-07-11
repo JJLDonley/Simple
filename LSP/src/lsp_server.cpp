@@ -3027,6 +3027,27 @@ bool IsValidIdentifierName(const std::string& name) {
   return true;
 }
 
+bool ExtractMissingImportPath(const std::string& error, std::string* out_path) {
+  if (!out_path) return false;
+  static const std::vector<std::string> kMarkers = {
+      "import file not found:",
+      "import not found in project root:"
+  };
+  for (const auto& marker : kMarkers) {
+    const size_t pos = error.find(marker);
+    if (pos == std::string::npos) continue;
+    std::string path = TrimCopy(error.substr(pos + marker.size()));
+    if (path.empty()) return false;
+    const size_t newline = path.find_first_of("\r\n");
+    if (newline != std::string::npos) path = path.substr(0, newline);
+    path = TrimCopy(path);
+    if (path.empty()) return false;
+    *out_path = path;
+    return true;
+  }
+  return false;
+}
+
 bool ExtractUndeclaredIdentifierName(const std::string& error, std::string* out_name) {
   if (!out_name) return false;
   static const std::string marker = "undeclared identifier:";
@@ -4221,6 +4242,27 @@ void ReplyPrepareRename(std::ostream& out,
           JsonEscape(target->token.text) + "\"}}");
 }
 
+std::string MissingImportTargetUri(const std::string& source_uri, const std::string& import_path) {
+  std::filesystem::path target(import_path);
+  if (target.is_relative()) {
+    std::string source_path;
+    if (FileUriToPath(source_uri, &source_path)) {
+      target = std::filesystem::path(source_path).parent_path() / target;
+    }
+  }
+  return PathToFileUri(target);
+}
+
+std::string CreateMissingImportCodeActionJson(const std::string& source_uri, const std::string& import_path) {
+  const std::string title = "Create missing import '" + import_path + "'";
+  const std::string target_uri = MissingImportTargetUri(source_uri, import_path);
+  return "{\"title\":\"" + JsonEscape(title) + "\",\"kind\":\"quickfix\"," +
+         "\"edit\":{\"documentChanges\":[{\"kind\":\"create\",\"uri\":\"" +
+         JsonEscape(target_uri) + "\",\"ignoreIfExists\":true},{\"textDocument\":{\"uri\":\"" +
+         JsonEscape(target_uri) + "\",\"version\":null},\"edits\":[{\"range\":" + JsonRange(0, 0, 0, 0) +
+         ",\"newText\":\"// Simple module created for " + JsonEscape(import_path) + "\\n\"}]}]}}";
+}
+
 std::string CommandCodeActionJson(const std::string& title,
                                   const std::string& command,
                                   const std::string& uri) {
@@ -4253,11 +4295,15 @@ void ReplyCodeAction(std::ostream& out,
     append_action(CommandCodeActionJson("Simple: Emit SBC", "simple.emitSbc", uri));
   }
 
-  if (allow_quickfix && allow_e0001_quickfix) {
+  if (allow_quickfix) {
     std::string error;
-    if (!Simple::Lang::ValidateProgramFromString(doc_it->second, &error)) {
+    if (!ValidateProgramFromUriAndText(uri, doc_it->second, &error)) {
+      std::string missing_import;
+      if (ExtractMissingImportPath(error, &missing_import)) {
+        append_action(CreateMissingImportCodeActionJson(uri, missing_import));
+      }
       std::string ident;
-      if (ExtractUndeclaredIdentifierName(error, &ident)) {
+      if (allow_e0001_quickfix && ExtractUndeclaredIdentifierName(error, &ident)) {
         const std::string inferred_type = InferNumericDeclarationType(doc_it->second, ident);
         std::string inferred_init = "0";
         if (inferred_type == "f64") inferred_init = "0.0";
