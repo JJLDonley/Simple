@@ -2046,6 +2046,7 @@ inline bool IsSystemBufferMember(std::string_view member) {
 
 std::optional<std::string_view> StaleLowercaseRuntimeModuleReplacement(std::string_view module);
 std::optional<std::string_view> LegacyReservedImportReplacementView(std::string_view path);
+std::optional<std::string_view> LegacyRuntimeModuleReplacementView(std::string_view module);
 
 inline std::array<std::string_view, kSystemModules.size() + kStandardModules.size()> AllLibraryImportPaths() {
   std::array<std::string_view, kSystemModules.size() + kStandardModules.size()> out{};

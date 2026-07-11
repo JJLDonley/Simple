@@ -347,11 +347,9 @@ std::string NormalizeCoreDlMember(const std::string& name) {
 }
 
 std::string ResolveImportModule(const std::string& module) {
-  if (module == "System_os") return "System.OS";
-  if (module == "System_io") return "System.IO";
-  if (module == "System_fs") return "System.FS";
-  if (module == "System_log") return "System.Log";
-  if (module == "System_dl") return "System.FFI";
+  if (const auto replacement = LegacyRuntimeModuleReplacementView(module)) {
+    return std::string(*replacement);
+  }
   return module;
 }
 

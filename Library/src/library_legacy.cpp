@@ -49,6 +49,15 @@ std::optional<std::string_view> StaleLowercaseRuntimeModuleReplacement(std::stri
   return std::nullopt;
 }
 
+std::optional<std::string_view> LegacyRuntimeModuleReplacementView(std::string_view module) {
+  if (module == "System_os") return "System.OS";
+  if (module == "System_io") return "System.IO";
+  if (module == "System_fs") return "System.FS";
+  if (module == "System_log") return "System.Log";
+  if (module == "System_dl") return "System.FFI";
+  return std::nullopt;
+}
+
 std::optional<std::string_view> LegacyReservedImportReplacementView(std::string_view path) {
   if (path == "IO") return "Standard.IO";
   if (path == "Math") return "Standard.Math";
