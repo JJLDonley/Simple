@@ -51,12 +51,11 @@ foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
 endforeach()
 
 set(SIMPLEVM_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-set(SIMPLEVM_VERSION_OVERRIDE "" CACHE STRING "Override SimpleVM tool/package version")
-if (SIMPLEVM_VERSION_OVERRIDE)
-  set(SIMPLEVM_VERSION "${SIMPLEVM_VERSION_OVERRIDE}")
-else()
-  file(READ "${SIMPLEVM_ROOT}/VERSION" SIMPLEVM_VERSION)
-  string(STRIP "${SIMPLEVM_VERSION}" SIMPLEVM_VERSION)
+set(SIMPLEVM_VERSION_OVERRIDE "" CACHE STRING "Deprecated: must match VERSION when set")
+file(READ "${SIMPLEVM_ROOT}/VERSION" SIMPLEVM_VERSION)
+string(STRIP "${SIMPLEVM_VERSION}" SIMPLEVM_VERSION)
+if (SIMPLEVM_VERSION_OVERRIDE AND NOT SIMPLEVM_VERSION_OVERRIDE STREQUAL SIMPLEVM_VERSION)
+  message(FATAL_ERROR "SIMPLEVM_VERSION_OVERRIDE (${SIMPLEVM_VERSION_OVERRIDE}) does not match VERSION (${SIMPLEVM_VERSION}); clear the CMake cache override")
 endif()
 if (NOT SIMPLEVM_VERSION MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+$")
   message(FATAL_ERROR "VERSION must be vMAJOR.MINOR.PATCH, got '${SIMPLEVM_VERSION}'")
@@ -65,6 +64,7 @@ set(SIMPLEVM_VM_ROOT ${SIMPLEVM_ROOT}/VM)
 set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/IR)
 set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/Byte)
 set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/Lang)
+set(SIMPLEVM_LIBRARY_ROOT ${SIMPLEVM_ROOT}/Library)
 set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
 set(SIMPLEVM_CLI_ROOT ${SIMPLEVM_ROOT}/CLI)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
@@ -112,6 +112,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_verifier.cpp
 )
 set(SIMPLEVM_FRONTEND_SRC
+  ${SIMPLEVM_LIBRARY_ROOT}/src/library_catalog.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_builder.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_compiler.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_lang.cpp
@@ -156,11 +157,12 @@ target_include_directories(simplevm_core_obj PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_IR_ROOT}/include
   ${SIMPLEVM_LANG_ROOT}/include
+  ${SIMPLEVM_LIBRARY_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
 set_target_properties(simplevm_core_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
-  target_include_directories(simplevm_core_obj PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_include_directories(simplevm_core_obj SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   target_compile_definitions(simplevm_core_obj PRIVATE SIMPLEVM_HAS_LLVM)
   target_compile_options(simplevm_core_obj PRIVATE ${SIMPLEVM_LLVM_DEFINITIONS})
 endif()
@@ -171,6 +173,7 @@ target_include_directories(simplevm_core_static PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_IR_ROOT}/include
   ${SIMPLEVM_LANG_ROOT}/include
+  ${SIMPLEVM_LIBRARY_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
 if (SIMPLEVM_NEEDS_FFI)
@@ -192,6 +195,7 @@ target_include_directories(simplevm_core_shared PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_IR_ROOT}/include
   ${SIMPLEVM_LANG_ROOT}/include
+  ${SIMPLEVM_LIBRARY_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
 if (SIMPLEVM_NEEDS_FFI)
@@ -212,10 +216,11 @@ add_library(simplevm_runtime_static STATIC ${SIMPLEVM_RUNTIME_SRC})
 set_target_properties(simplevm_runtime_static PROPERTIES OUTPUT_NAME simplevm_runtime)
 target_include_directories(simplevm_runtime_static PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
+  ${SIMPLEVM_LIBRARY_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
 if (SIMPLEVM_ENABLE_LLVM_JIT)
-  target_include_directories(simplevm_runtime_static PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_include_directories(simplevm_runtime_static SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   target_compile_definitions(simplevm_runtime_static PRIVATE SIMPLEVM_HAS_LLVM)
   target_compile_options(simplevm_runtime_static PRIVATE ${SIMPLEVM_LLVM_DEFINITIONS})
 endif()
@@ -237,10 +242,11 @@ add_library(simplevm_runtime_shared SHARED ${SIMPLEVM_RUNTIME_SRC})
 set_target_properties(simplevm_runtime_shared PROPERTIES OUTPUT_NAME simplevm_runtime)
 target_include_directories(simplevm_runtime_shared PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
+  ${SIMPLEVM_LIBRARY_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
 if (SIMPLEVM_ENABLE_LLVM_JIT)
-  target_include_directories(simplevm_runtime_shared PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_include_directories(simplevm_runtime_shared SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
   target_compile_definitions(simplevm_runtime_shared PRIVATE SIMPLEVM_HAS_LLVM)
   target_compile_options(simplevm_runtime_shared PRIVATE ${SIMPLEVM_LLVM_DEFINITIONS})
 endif()
@@ -341,6 +347,18 @@ target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm_tests PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
 endif()
+
+install(TARGETS simplevm simple_stub simplevm_core_static simplevm_core_shared simplevm_runtime_static simplevm_runtime_shared
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+install(DIRECTORY ${SIMPLEVM_VM_ROOT}/include/ DESTINATION include/simple/VM)
+install(DIRECTORY ${SIMPLEVM_BYTE_ROOT}/include/ DESTINATION include/simple/Byte)
+install(DIRECTORY ${SIMPLEVM_IR_ROOT}/include/ DESTINATION include/simple/IR)
+install(DIRECTORY ${SIMPLEVM_LANG_ROOT}/include/ DESTINATION include/simple/Lang)
+install(DIRECTORY ${SIMPLEVM_LIBRARY_ROOT}/include/ DESTINATION include/simple/Library)
+install(FILES ${SIMPLEVM_ROOT}/VERSION DESTINATION share/simple)
 
 function(simplevm_apply_warnings target_name)
   if (MSVC)

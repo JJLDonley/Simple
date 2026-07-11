@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "heap.h"
-#include "../../../Lang/include/lang_library.h"
+#include "library_catalog.h"
 #include "native/resource_registry.h"
 #include "runtime/abi.h"
 #include "sbc_types.h"

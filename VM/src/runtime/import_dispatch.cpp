@@ -1,7 +1,7 @@
 #include "runtime/import_dispatch.h"
 
 #include "ffi/dl_call.h"
-#include "../../../Lang/include/lang_library.h"
+#include "library_catalog.h"
 #include "native/dispatch.h"
 #include "runtime/values.h"
 #include "sbc_loader.h"

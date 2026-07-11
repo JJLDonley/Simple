@@ -594,7 +594,7 @@ import Channel
 Canonical naming requirements:
 
 - [x] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Buffer`, `System.OS`, `System.IO`, `System.Channel`; lowercase runtime names are rejected as stale serialized/import metadata.
-- [ ] Compiler reserved-import internals use enum IDs; remaining transitional canonical-string APIs are being retired from downstream call sites.
+- [ ] Compiler reserved-import internals use enum IDs; remaining transitional canonical-string APIs are being retired from downstream call sites. The catalog has moved behind the shared `Library/include/library_catalog.h` boundary with `Lang/include/lang_library.h` kept as a compatibility shim.
 - [ ] RAST/TAST/SIR/IR/import metadata stores `System.X` / `Standard.X`, never short internal aliases.
 - [x] Native import lowering emits canonical module names and symbols; stale lowercase compatibility execution is rejected.
 - [ ] LSP completions, hover, signature help, semantic tokens, document links, snippets, and diagnostics use canonical names only.
@@ -603,8 +603,8 @@ Canonical naming requirements:
 - [ ] Legacy imports fail with targeted suggestions and tests for every legacy name: `IO`, `FS`, `DL`, `Time`, `Buffer`, `Channel`, `Math`, `OS`, `File`, `Path`, `Env`, `Random`, `Json`, `Log`, `Thread`, `Http`, `Socket`.
 - [ ] Duplicate root behavior is rejected: unimplemented `Standard.*` modules must not expose raw `System.*` members as placeholders.
 - [ ] Transitional high-level members exposed under `System.*` are removed or moved: `System.FS.readText/writeText/readBytes/writeBytes`, `System.Random.range`, `System.Log.info/warn/error`, `System.Time/OS.formatWallNs`.
-- [ ] Runtime module-name migration is versioned: old serialized/native module names are rejected with diagnostics or migrated at build time; no silent alias execution.
-- [ ] Full baseline is green after namespace migration: `ctest`, `svm check/run` fixtures, LSP tests, docs link checks where available.
+- [x] Runtime module-name migration is versioned through `v0.4.63`: old serialized/native module names are rejected with diagnostics or migrated at build time; no silent alias execution. CMake now rejects stale `SIMPLEVM_VERSION_OVERRIDE` cache values that do not match `VERSION`.
+- [ ] Full baseline is green after namespace migration: `ctest`, `svm check/run` fixtures, LSP tests, docs link checks where available. Current early runtime/native sections pass, but known IR text/emission failures remain tracked separately.
 
 Native metadata contract for every final `System.*` function:
 
