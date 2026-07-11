@@ -865,6 +865,7 @@ Next Simple-specific LSP capabilities:
 - [ ] Call hierarchy for methods, imports, and native wrappers.
 - [x] Folding ranges for brace-delimited Simple regions.
 - [x] Selection ranges for token -> enclosing brace-region nesting.
+- [x] Inlay hints for Simple function-call parameter names.
 - [ ] Inlay hints for inferred locals, generic instantiations, function result types, ABI/native-call effects, and optional JIT-safety facts.
 - [x] Document links for local `import` paths.
 - [ ] Document links for module-map entries, generated SIR/SBC outputs, and known standard/native docs.
