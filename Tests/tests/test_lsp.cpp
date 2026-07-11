@@ -3108,6 +3108,55 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
          out_contents.find("Declare 'y' as i32") == std::string::npos;
 }
 
+bool LspTypeDefinitionProviderResolvesLocalArtifactTypes() {
+  const std::string in_path = TempPath("simple_lsp_type_definition_in.txt");
+  const std::string out_path = TempPath("simple_lsp_type_definition_out.txt");
+  const std::string err_path = TempPath("simple_lsp_type_definition_err.txt");
+  const std::string uri = "file:///workspace/type_definition.simple";
+  const std::string text =
+      "Point :: artifact { x : i32; y : i32 }\\n"
+      "main : i32 () {\\n"
+      "  p : Point = Point{x:1,y:2};\\n"
+      "  return p.x;\\n"
+      "}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string type_req = "{\"jsonrpc\":\"2.0\",\"id\":40,\"method\":\"textDocument/typeDefinition\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":8}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(type_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":40") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"character\":0") != std::string::npos;
+}
+
+bool LspTypeDefinitionProviderResolvesVariableUsageTypes() {
+  const std::string in_path = TempPath("simple_lsp_type_usage_in.txt");
+  const std::string out_path = TempPath("simple_lsp_type_usage_out.txt");
+  const std::string err_path = TempPath("simple_lsp_type_usage_err.txt");
+  const std::string uri = "file:///workspace/type_usage.simple";
+  const std::string text =
+      "Point :: artifact { x : i32; y : i32 }\\n"
+      "main : i32 () {\\n"
+      "  p : Point = Point{x:1,y:2};\\n"
+      "  return p.x;\\n"
+      "}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string type_req = "{\"jsonrpc\":\"2.0\",\"id\":44,\"method\":\"textDocument/typeDefinition\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":3,\"character\":9}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(type_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":44") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"character\":0") != std::string::npos;
+}
+
 bool LspInitializeAdvertisesModernNavigationProviders() {
   const std::string in_path = TempPath("simple_lsp_modern_init_in.txt");
   const std::string out_path = TempPath("simple_lsp_modern_init_out.txt");
@@ -3119,6 +3168,7 @@ bool LspInitializeAdvertisesModernNavigationProviders() {
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() &&
+         out_contents.find("\"typeDefinitionProvider\":true") != std::string::npos &&
          out_contents.find("\"documentLinkProvider\":{\"resolveProvider\":false}") != std::string::npos &&
          out_contents.find("\"foldingRangeProvider\":true") != std::string::npos &&
          out_contents.find("\"selectionRangeProvider\":true") != std::string::npos;
@@ -3368,6 +3418,8 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_infers_char_declaration_type", LspCodeActionInfersCharDeclarationType},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
+  {"lsp_type_definition_provider_resolves_local_artifact_types", LspTypeDefinitionProviderResolvesLocalArtifactTypes},
+  {"lsp_type_definition_provider_resolves_variable_usage_types", LspTypeDefinitionProviderResolvesVariableUsageTypes},
   {"lsp_initialize_advertises_modern_navigation_providers", LspInitializeAdvertisesModernNavigationProviders},
   {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
   {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},

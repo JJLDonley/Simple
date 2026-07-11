@@ -2584,6 +2584,14 @@ const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t lin
   return nullptr;
 }
 
+bool IsTypeDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i + 2 >= refs.size()) return false;
+  if (refs[i].token.kind != TK::Identifier) return false;
+  if (refs[i + 1].token.kind != TK::DoubleColon) return false;
+  return refs[i + 2].token.kind == TK::KwArtifact || refs[i + 2].token.kind == TK::KwEnum;
+}
+
 bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return false;
@@ -2881,6 +2889,76 @@ void ReplyDefinition(std::ostream& out,
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" +
                            LocationJson(best_uri, best_token) + "]}");
+}
+
+void ReplyTypeDefinition(std::ostream& out,
+                         const std::string& id_raw,
+                         const std::string& uri,
+                         uint32_t line,
+                         uint32_t character,
+                         const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+
+  std::string type_name;
+  using TK = Simple::Lang::TokenKind;
+  const size_t idx = target->index;
+  if (idx > 0 && (refs[idx - 1].token.kind == TK::Colon || refs[idx - 1].token.kind == TK::Arrow)) {
+    type_name = target->token.text;
+  } else if (idx + 1 < refs.size() && refs[idx + 1].token.kind == TK::DoubleColon) {
+    type_name = target->token.text;
+  } else if (!ResolveDeclaredTypeForIdent(doc_it->second, target->token.text, &type_name)) {
+    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+    for (const auto& other_uri : sorted_uris) {
+      const auto other_it = open_docs.find(other_uri);
+      if (other_it == open_docs.end()) continue;
+      if (ResolveDeclaredTypeForIdent(other_it->second, target->token.text, &type_name)) break;
+    }
+  }
+
+  if (type_name.empty()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+
+  std::string best_uri;
+  Simple::Lang::Token best_token;
+  bool found = false;
+  auto find_in_doc = [&](const std::string& doc_uri, const std::string& text) {
+    const auto doc_refs = LexTokenRefs(text);
+    for (const auto& ref : doc_refs) {
+      if (ref.token.kind != TK::Identifier) continue;
+      if (ref.token.text != type_name) continue;
+      if (!IsTypeDeclNameAt(doc_refs, ref.index)) continue;
+      best_uri = doc_uri;
+      best_token = ref.token;
+      found = true;
+      return;
+    }
+  };
+
+  find_in_doc(uri, doc_it->second);
+  if (!found) {
+    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+    for (const auto& other_uri : sorted_uris) {
+      const auto other_it = open_docs.find(other_uri);
+      if (other_it == open_docs.end()) continue;
+      find_in_doc(other_uri, other_it->second);
+      if (found) break;
+    }
+  }
+
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":" +
+                           (found ? ("[" + LocationJson(best_uri, best_token) + "]") : "[]") + "}");
 }
 
 void ReplyReferences(std::ostream& out,
@@ -3407,6 +3485,7 @@ int RunServer(std::istream& in, std::ostream& out) {
             "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
                 ",\"result\":{\"capabilities\":{\"textDocumentSync\":2,"
                 "\"hoverProvider\":true,\"definitionProvider\":true,\"declarationProvider\":true,"
+                "\"typeDefinitionProvider\":true,"
                 "\"documentHighlightProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
@@ -3585,6 +3664,22 @@ int RunServer(std::istream& in, std::ostream& out) {
             ExtractJsonUintField(body, "line", &line) &&
             ExtractJsonUintField(body, "character", &character)) {
           ReplyDefinition(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/typeDefinition") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyTypeDefinition(out, id_raw, uri, line, character, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

@@ -858,7 +858,8 @@ symbols, workspace symbols, and semantic tokens.
 Next Simple-specific LSP capabilities:
 
 - [ ] Full and range formatting backed by a Simple formatter for `.simple` source.
-- [ ] Type-definition lookup for data/artifact/enum/function/generic/handle type uses.
+- [x] Type-definition lookup for artifact/enum type declarations and typed variable usages.
+- [ ] Type-definition lookup for generic/handle/native ABI type uses.
 - [ ] Linked editing ranges for paired declarations/usages where Simple syntax has paired names.
 - [ ] Call hierarchy for Simple functions, methods, imports, and native wrappers.
 - [x] Folding ranges for brace-delimited Simple regions.
