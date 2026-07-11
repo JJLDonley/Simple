@@ -1681,6 +1681,61 @@ bool IsDirectNativeBindingSafe(const NativeFunctionSpec& spec) {
          spec.gc_behavior == NativeGcBehavior::NoSafepoint && spec.resources.empty();
 }
 
+bool NativeTypeMatchesLibraryType(Simple::Byte::TypeKind native_type,
+                                  std::string_view library_type) {
+  using Simple::Byte::TypeKind;
+  switch (native_type) {
+    case TypeKind::Unspecified:
+    case TypeKind::Void: return library_type == "void";
+    case TypeKind::Bool: return library_type == "bool";
+    case TypeKind::I8: return library_type == "i8";
+    case TypeKind::I16: return library_type == "i16";
+    case TypeKind::I32: return library_type == "i32" || library_type == "bool";
+    case TypeKind::I64: return library_type == "i64";
+    case TypeKind::I128: return library_type == "i128";
+    case TypeKind::U8: return library_type == "u8";
+    case TypeKind::U16: return library_type == "u16";
+    case TypeKind::U32: return library_type == "u32";
+    case TypeKind::U64: return library_type == "u64";
+    case TypeKind::U128: return library_type == "u128";
+    case TypeKind::F32: return library_type == "f32";
+    case TypeKind::F64: return library_type == "f64";
+    case TypeKind::String: return library_type == "string";
+    case TypeKind::Ref:
+    case TypeKind::Array:
+    case TypeKind::List: return library_type == "ref" || library_type == "i32[]" || library_type == "string[]";
+    case TypeKind::Ptr: return library_type == "ptr" || library_type == "i64" || library_type == "handle";
+    case TypeKind::Char: return library_type == "char";
+    case TypeKind::Never: return library_type == "never";
+    case TypeKind::Function: return library_type == "function";
+    case TypeKind::Result: return library_type == "result";
+    case TypeKind::Option: return library_type == "option";
+    case TypeKind::Vector: return library_type == "vector";
+  }
+  return false;
+}
+
+bool ValidateNativeSpecAgainstLibrarySignature(const NativeFunctionSpec& spec,
+                                               const Simple::Lang::LibrarySignatureSpec& signature,
+                                               std::string* error) {
+  const std::string name = spec.module_name + "." + spec.symbol_name;
+  if (spec.parameter_types.size() != signature.params.size()) {
+    if (error) *error = name + " catalog signature arity mismatch";
+    return false;
+  }
+  for (size_t i = 0; i < spec.parameter_types.size(); ++i) {
+    if (!NativeTypeMatchesLibraryType(spec.parameter_types[i], signature.params[i].type.name)) {
+      if (error) *error = name + " catalog signature parameter mismatch at " + std::to_string(i);
+      return false;
+    }
+  }
+  if (!NativeTypeMatchesLibraryType(spec.result_type, signature.return_type.name)) {
+    if (error) *error = name + " catalog signature result mismatch";
+    return false;
+  }
+  return true;
+}
+
 NativeJitCallValidation AnalyzeNativeJitCall(const NativeFunctionSpec& spec,
                                              const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                              Simple::Byte::TypeKind result_type) {
@@ -1763,6 +1818,10 @@ bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string*
     const Simple::Lang::LibraryModuleId expected{parsed_module->root, parsed_module->module_index};
     if (!(*spec.library_module == expected)) {
       if (error) *error = name + " native module catalog id mismatch";
+      return false;
+    }
+    const auto signature = Simple::Lang::GetLibrarySignature(*spec.library_module, spec.symbol_name);
+    if (signature && !ValidateNativeSpecAgainstLibrarySignature(spec, *signature, error)) {
       return false;
     }
   }

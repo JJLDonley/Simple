@@ -610,7 +610,7 @@ Native metadata contract for every final `System.*` function:
 
 - [x] Native registry entries carry enum-backed `LibraryModuleId` metadata when their module is a cataloged `System.*` / `Standard.*` module.
 - [ ] `layer = system`.
-- [ ] canonical `module`, canonical `symbol`, and exact Simple signature.
+- [ ] canonical `module`, canonical `symbol`, and exact Simple signature. `v0.4.66` validates native specs against catalog signatures when a catalog signature exists for the registered `LibraryModuleId`/symbol.
 - [ ] resource inputs/outputs, ownership transfer, cleanup behavior, blocking behavior, allocation behavior, and GC safepoint behavior.
 - [ ] capability tags, platform availability, stability, and doc summary.
 - [ ] JIT/direct-call safety derived only from metadata.
