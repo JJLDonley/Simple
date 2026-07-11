@@ -4,11 +4,14 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const compilerVersion = fs.readFileSync(path.resolve(root, '..', '..', 'VERSION'), 'utf8').trim();
+const expectedVsixVersion = compilerVersion.startsWith('v') ? compilerVersion.slice(1) : compilerVersion;
 const fail = (message) => {
   console.error(message);
   process.exit(1);
 };
 
+if (pkg.version !== expectedVsixVersion) fail(`VSIX version ${pkg.version} does not match VERSION ${compilerVersion}`);
 if (pkg.main !== './out/extension.js') fail('package main must point at compiled TypeScript output');
 if (!fs.existsSync(path.join(root, pkg.main))) fail(`compiled extension missing: ${pkg.main}`);
 if (pkg.contributes?.configuration?.properties?.['simple.lspPath']) fail('simple.lspPath is obsolete; use simple.compilerPath');

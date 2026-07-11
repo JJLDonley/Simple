@@ -2,7 +2,7 @@
   "name": "simple-vscode",
   "displayName": "Simple Language",
   "description": "VS Code support for the Simple language (LSP + syntax highlighting)",
-  "version": "0.3.0",
+  "version": "0.4.42",
   "publisher": "jjldonley",
   "license": "MIT",
   "repository": {
@@ -289,10 +289,11 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "tsc -p ./ --noEmit",
-    "package": "vsce package",
-    "vscode:prepublish": "npm run compile",
-    "validate": "npm run compile && node scripts/validate-extension.js",
-    "install:vsix": "code --install-extension simple-vscode.vsix --force"
+    "package": "npm run sync-version && vsce package",
+    "vscode:prepublish": "npm run sync-version && npm run compile",
+    "validate": "npm run sync-version && npm run compile && node scripts/validate-extension.js",
+    "install:vsix": "code --install-extension simple-vscode.vsix --force",
+    "sync-version": "node scripts/sync-version.js"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"

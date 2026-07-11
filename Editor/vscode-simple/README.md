@@ -40,6 +40,7 @@ The extension never invokes the `simple` runtime stub for compiler/editor comman
 
 ```bash
 npm ci
+npm run sync-version
 npm run validate
 ```
 

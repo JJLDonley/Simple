@@ -816,7 +816,7 @@ Simple toolchain facts this plan must respect:
   - [x] Add `compile`, `watch`, `lint`, `package`, and prepublish scripts.
   - [x] Add `@types/vscode`, `typescript`, and `@vscode/vsce` dev dependencies.
   - [x] Keep checked-in generated output only if VSIX packaging/release requires it.
-- [ ] Keep VSIX version synchronized with `VERSION`, but do not let extension packaging change the `svm` version.
+- [x] Keep VSIX version synchronized with `VERSION`, but do not let extension packaging change the `svm` version.
 - [x] Package VSIX in CI by running `npm ci`, extension validation, and `vsce package`.
 - [x] Support `svm` discovery in this order:
   - [x] explicit `simple.compilerPath` setting.
