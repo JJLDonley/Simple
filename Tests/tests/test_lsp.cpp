@@ -559,7 +559,7 @@ bool LspDidChangeAppliesIncrementalRanges() {
   const std::string tail = out_contents.substr(second_diag);
   return ReadFileText(err_path).empty() && tail.find("\"diagnostics\":[]") != std::string::npos &&
          out_contents.find("\"id\":55") != std::string::npos &&
-         out_contents.find("`ok : i32`") != std::string::npos;
+         out_contents.find("```simple\\nok : i32\\n```") != std::string::npos;
 }
 
 bool LspDidCloseClearsIncrementalDocumentState() {
@@ -649,7 +649,7 @@ bool LspHoverIncludesDeclaredType() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":19") != std::string::npos &&
-         out_contents.find("foo : i32") != std::string::npos;
+         out_contents.find("```simple\\nfoo : i32\\n```") != std::string::npos;
 }
 
 bool LspHoverIncludesImmutableDeclaredType() {
@@ -1035,7 +1035,7 @@ bool LspHoverShowsReservedAliasSignature() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":35") != std::string::npos &&
-         out_contents.find("`OS.args_get : string (index)`") != std::string::npos;
+         out_contents.find("```simple\\nOS.args_get : string (index)\\n```") != std::string::npos;
 }
 
 bool LspHoverShowsIoAliasSignature() {
@@ -1066,7 +1066,7 @@ bool LspHoverShowsIoAliasSignature() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":45") != std::string::npos &&
-         out_contents.find("`Out.println : void (value)`") != std::string::npos;
+         out_contents.find("```simple\\nOut.println : void (value)\\n```") != std::string::npos;
 }
 
 bool LspHoverShowsFunctionSignature() {
@@ -1098,7 +1098,7 @@ bool LspHoverShowsFunctionSignature() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":46") != std::string::npos &&
-         out_contents.find("`sum : i32 (lhs : i32, rhs : i32)`") != std::string::npos;
+         out_contents.find("```simple\\nsum : i32 (lhs : i32, rhs : i32)\\n```") != std::string::npos;
 }
 
 bool LspCompletionReturnsItems() {

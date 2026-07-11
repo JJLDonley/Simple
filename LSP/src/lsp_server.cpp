@@ -1796,6 +1796,10 @@ std::string FormatSimpleFunctionFact(const SimpleLspFact& fact) {
   return out;
 }
 
+std::string SimpleHoverMarkdown(const std::string& simple_text) {
+  return "```simple\n" + simple_text + "\n```";
+}
+
 std::string FormatSimpleLspFactHover(const SimpleLspFact& fact) {
   switch (fact.kind) {
     case SimpleLspFact::Kind::Variable:
@@ -2105,8 +2109,8 @@ void ReplyHover(std::ostream& out,
   if (HoverTextForImportContext(it->second, line, character, &import_hover)) {
     WriteLspMessage(out,
                     "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-                        ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
-                        JsonEscape(import_hover) + "`\"}}}");
+                        ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"" +
+                        JsonEscape(SimpleHoverMarkdown(import_hover)) + "\"}}}");
     return;
   }
   const std::string ident = IdentifierAtPosition(it->second, line, character);
@@ -2124,8 +2128,8 @@ void ReplyHover(std::ostream& out,
       WriteLspMessage(
           out,
           "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-              ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
-              JsonEscape(hover_text) + "`\"}}}");
+              ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"" +
+              JsonEscape(SimpleHoverMarkdown(hover_text)) + "\"}}}");
       return;
     }
   }
@@ -2222,8 +2226,8 @@ void ReplyHover(std::ostream& out,
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-          ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
-          JsonEscape(hover_text) + "`\"}}}");
+          ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"" +
+          JsonEscape(SimpleHoverMarkdown(hover_text)) + "\"}}}");
 }
 
 void ReplyCompletion(std::ostream& out,
