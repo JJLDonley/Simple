@@ -404,15 +404,6 @@ bool ResolveReservedModuleId(const EmitState& st,
   return false;
 }
 
-bool ResolveReservedModuleName(const EmitState& st,
-                               const std::string& name,
-                               std::string* out) {
-  LibraryModuleId id{};
-  if (!out || !ResolveReservedModuleId(st, name, &id)) return false;
-  *out = std::string(ToCanonicalName(id));
-  return true;
-}
-
 bool IsLibraryModule(LibraryModuleId id, SystemModule module) {
   return id.root == LibraryRoot::System && static_cast<SystemModule>(id.module_index) == module;
 }
@@ -2792,7 +2783,7 @@ bool EmitExpr(EmitState& st,
       if (callee.kind == ExprKind::Identifier) {
         std::string using_module;
         if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
-          if (using_module == "StandardIO" && IsIoPrintName(callee.text)) {
+          if (IsCanonicalLibraryModule(using_module, StandardModule::IO) && IsIoPrintName(callee.text)) {
             if (expr.args.empty()) {
               if (error) *error = "call argument count mismatch for '" + callee.text + "'";
               return false;
@@ -2841,7 +2832,11 @@ bool EmitExpr(EmitState& st,
             }
             return true;
           }
-          if (using_module == "Math" && (callee.text == "abs" || callee.text == "sqrt")) {
+          const auto math_member = ParseMember(StandardModule::Math, callee.text);
+          if (IsCanonicalLibraryModule(using_module, StandardModule::Math) &&
+              math_member &&
+              (std::get<StandardMathMember>(*math_member) == StandardMathMember::Abs ||
+               std::get<StandardMathMember>(*math_member) == StandardMathMember::Sqrt)) {
             if (expr.args.size() != 1) {
               if (error) *error = "call argument count mismatch for '" + callee.text + "'";
               return false;
@@ -2863,7 +2858,9 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if ((using_module == "Time" || using_module == "StandardTime") && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+          if ((IsCanonicalLibraryModule(using_module, SystemModule::Time) ||
+               IsCanonicalLibraryModule(using_module, StandardModule::Time)) &&
+              (callee.text == "mono_ns" || callee.text == "wall_ns")) {
             if (!expr.args.empty()) {
               if (error) *error = "call argument count mismatch for '" + callee.text + "'";
               return false;
@@ -2874,7 +2871,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBuffer" || using_module == "SystemBytes" || using_module == "StandardBuffer" || using_module == "StandardBytes" || using_module == "SystemJson" || using_module == "SystemLog" || using_module == "StandardLog") {
+          if (IsNativeReservedModule(using_module)) {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -3211,12 +3208,12 @@ bool EmitExpr(EmitState& st,
         }
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name)) {
-          std::string resolved;
-          if (!ResolveReservedModuleName(st, module_name, &resolved)) {
+          LibraryModuleId reserved_module_id{};
+          if (!ResolveReservedModuleId(st, module_name, &reserved_module_id)) {
             // Not a reserved module; fall through to normal call handling.
           } else {
-            const std::string reserved_module = resolved;
-            if (reserved_module == "Math") {
+            const std::string reserved_module = std::string(ToCanonicalName(reserved_module_id));
+            if (IsLibraryModule(reserved_module_id, StandardModule::Math)) {
               if (callee.text == "abs") {
                 if (expr.args.size() != 1) {
                   if (error) *error = "call argument count mismatch for 'Math.abs'";
@@ -3262,9 +3259,10 @@ bool EmitExpr(EmitState& st,
                 return true;
               }
             }
+            const bool reserved_is_ffi = IsLibraryModule(reserved_module_id, SystemModule::FFI);
             const std::string member_name =
-                (reserved_module == "DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            if (reserved_module == "DL") {
+                reserved_is_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (reserved_is_ffi) {
               if (member_name == "open") {
                 if (expr.args.size() != 1 && expr.args.size() != 2) {
                   if (error) *error = "call argument count mismatch for 'DL.open'";
@@ -3400,7 +3398,8 @@ bool EmitExpr(EmitState& st,
               return true;
             }
           }
-          if (resolved == "Time" || resolved == "StandardTime") {
+          if (IsLibraryModule(reserved_module_id, SystemModule::Time) ||
+              IsLibraryModule(reserved_module_id, StandardModule::Time)) {
             if (callee.text == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
@@ -3422,11 +3421,12 @@ bool EmitExpr(EmitState& st,
           }
         }
         if (GetModuleNameFromExpr(base, &module_name)) {
-          std::string resolved_module_name;
-          const bool module_is_reserved =
-              ResolveReservedModuleName(st, module_name, &resolved_module_name);
+          LibraryModuleId resolved_module_id{};
+          const bool module_is_reserved = ResolveReservedModuleId(st, module_name, &resolved_module_id);
           const bool module_is_System_dl =
-              module_name == "DL" || (module_is_reserved && resolved_module_name == "DL");
+              (ParseCanonicalLibraryModule(module_name) &&
+               IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
+              (module_is_reserved && IsLibraryModule(resolved_module_id, SystemModule::FFI));
           const std::string member_name =
               module_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
@@ -3464,12 +3464,15 @@ bool EmitExpr(EmitState& st,
             return true;
           }
           std::string ext_module_name = module_name;
-          std::string resolved_module_name_for_ext;
+          LibraryModuleId resolved_module_id_for_ext{};
           const bool has_resolved_module_for_ext =
-              ResolveReservedModuleName(st, module_name, &resolved_module_name_for_ext);
-          bool ext_is_System_dl = (ext_module_name == "DL") ||
-                                (has_resolved_module_for_ext &&
-                                 resolved_module_name_for_ext == "DL");
+              ResolveReservedModuleId(st, module_name, &resolved_module_id_for_ext);
+          std::string resolved_module_name_for_ext;
+          if (has_resolved_module_for_ext) resolved_module_name_for_ext = std::string(ToCanonicalName(resolved_module_id_for_ext));
+          bool ext_is_System_dl =
+              (ParseCanonicalLibraryModule(ext_module_name) &&
+               IsCanonicalLibraryModule(ext_module_name, SystemModule::FFI)) ||
+              (has_resolved_module_for_ext && IsLibraryModule(resolved_module_id_for_ext, SystemModule::FFI));
           auto ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
           if (ext_mod_it == st.extern_ids_by_module.end()) {
             if (has_resolved_module_for_ext) {
@@ -4179,19 +4182,21 @@ bool EmitExpr(EmitState& st,
       }
       const Expr& base = expr.children[0];
       if (base.kind == ExprKind::Identifier) {
-        std::string resolved;
-        if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Math" && expr.text == "PI") {
+        LibraryModuleId resolved{};
+        if (ResolveReservedModuleId(st, base.text, &resolved) &&
+            IsLibraryModule(resolved, StandardModule::Math) &&
+            ParseMember(StandardModule::Math, expr.text) == StandardMember(StandardMathMember::PI)) {
           (*st.out) << "  const f64 3.141592653589793\n";
           return PushStack(st, 1);
         }
-        if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "DL" && expr.text == "supported") {
+        if (ResolveReservedModuleId(st, base.text, &resolved) &&
+            IsLibraryModule(resolved, SystemModule::FFI) &&
+            ParseMember(SystemModule::FFI, expr.text) == SystemMember(SystemFFIMember::Supported)) {
           (*st.out) << "  const i32 " << (HostHasDl() ? 1 : 0) << "\n";
           return PushStack(st, 1);
         }
-        if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "OS" &&
+        if (ResolveReservedModuleId(st, base.text, &resolved) &&
+            IsLibraryModule(resolved, SystemModule::OS) &&
             (expr.text == "is_linux" || expr.text == "is_macos" ||
              expr.text == "is_windows" || expr.text == "has_dl")) {
           bool value = false;
