@@ -16492,16 +16492,8 @@ bool RunGlobalTest() {
 
 bool RunDupTest() {
   std::vector<uint8_t> module_bytes = BuildDupModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
@@ -16517,16 +16509,8 @@ bool RunDupTest() {
 
 bool RunSwapTest() {
   std::vector<uint8_t> module_bytes = BuildSwapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
@@ -16542,16 +16526,8 @@ bool RunSwapTest() {
 
 bool RunRotTest() {
   std::vector<uint8_t> module_bytes = BuildRotModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -16570,16 +16546,8 @@ bool RunRotTest() {
 
 bool RunPopTest() {
   std::vector<uint8_t> module_bytes = BuildPopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16594,16 +16562,8 @@ bool RunPopTest() {
 
 bool RunDup2Test() {
   std::vector<uint8_t> module_bytes = BuildDup2Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16618,16 +16578,8 @@ bool RunDup2Test() {
 
 bool RunLocalTest() {
   std::vector<uint8_t> module_bytes = BuildLocalModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16642,16 +16594,8 @@ bool RunLocalTest() {
 
 bool RunLoopTest() {
   std::vector<uint8_t> module_bytes = BuildLoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16709,16 +16653,8 @@ bool RunFixtureUuidLenTest() {
 
 bool RunRecursiveCallTest() {
   std::vector<uint8_t> module_bytes = BuildRecursiveCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16733,16 +16669,8 @@ bool RunRecursiveCallTest() {
 
 bool RunRecursiveCallJitTest() {
   std::vector<uint8_t> module_bytes = BuildRecursiveCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16765,16 +16693,8 @@ bool RunRecursiveCallJitTest() {
 
 bool RunRefTest() {
   std::vector<uint8_t> module_bytes = BuildRefModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16789,16 +16709,8 @@ bool RunRefTest() {
 
 bool RunUpvalueTest() {
   std::vector<uint8_t> module_bytes = BuildUpvalueModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16813,16 +16725,8 @@ bool RunUpvalueTest() {
 
 bool RunUpvalueObjectTest() {
   std::vector<uint8_t> module_bytes = BuildUpvalueObjectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16837,16 +16741,8 @@ bool RunUpvalueObjectTest() {
 
 bool RunUpvalueOrderTest() {
   std::vector<uint8_t> module_bytes = BuildUpvalueOrderModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16861,16 +16757,8 @@ bool RunUpvalueOrderTest() {
 
 bool RunNewClosureTest() {
   std::vector<uint8_t> module_bytes = BuildNewClosureModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16885,16 +16773,8 @@ bool RunNewClosureTest() {
 
 bool RunArrayTest() {
   std::vector<uint8_t> module_bytes = BuildArrayModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16909,16 +16789,8 @@ bool RunArrayTest() {
 
 bool RunArrayI64Test() {
   std::vector<uint8_t> module_bytes = BuildArrayI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16933,16 +16805,8 @@ bool RunArrayI64Test() {
 
 bool RunArrayF32Test() {
   std::vector<uint8_t> module_bytes = BuildArrayF32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16957,16 +16821,8 @@ bool RunArrayF32Test() {
 
 bool RunArrayF64Test() {
   std::vector<uint8_t> module_bytes = BuildArrayF64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -16981,16 +16837,8 @@ bool RunArrayF64Test() {
 
 bool RunArrayRefTest() {
   std::vector<uint8_t> module_bytes = BuildArrayRefModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17005,16 +16853,8 @@ bool RunArrayRefTest() {
 
 bool RunArrayLenTest() {
   std::vector<uint8_t> module_bytes = BuildArrayLenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
@@ -17030,16 +16870,8 @@ bool RunArrayLenTest() {
 
 bool RunListTest() {
   std::vector<uint8_t> module_bytes = BuildListModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17054,16 +16886,8 @@ bool RunListTest() {
 
 bool RunListI64Test() {
   std::vector<uint8_t> module_bytes = BuildListI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17078,16 +16902,8 @@ bool RunListI64Test() {
 
 bool RunListF32Test() {
   std::vector<uint8_t> module_bytes = BuildListF32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17102,16 +16918,8 @@ bool RunListF32Test() {
 
 bool RunListF64Test() {
   std::vector<uint8_t> module_bytes = BuildListF64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17126,16 +16934,8 @@ bool RunListF64Test() {
 
 bool RunListRefTest() {
   std::vector<uint8_t> module_bytes = BuildListRefModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17150,16 +16950,8 @@ bool RunListRefTest() {
 
 bool RunListLenTest() {
   std::vector<uint8_t> module_bytes = BuildListLenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
@@ -17175,16 +16967,8 @@ bool RunListLenTest() {
 
 bool RunListInsertTest() {
   std::vector<uint8_t> module_bytes = BuildListInsertModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17199,16 +16983,8 @@ bool RunListInsertTest() {
 
 bool RunListRemoveTest() {
   std::vector<uint8_t> module_bytes = BuildListRemoveModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17223,16 +16999,8 @@ bool RunListRemoveTest() {
 
 bool RunListClearTest() {
   std::vector<uint8_t> module_bytes = BuildListClearModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17247,16 +17015,8 @@ bool RunListClearTest() {
 
 bool RunStringTest() {
   std::vector<uint8_t> module_bytes = BuildStringModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17271,16 +17031,8 @@ bool RunStringTest() {
 
 bool RunStringGetCharTest() {
   std::vector<uint8_t> module_bytes = BuildStringGetCharModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17295,16 +17047,8 @@ bool RunStringGetCharTest() {
 
 bool RunStringSliceTest() {
   std::vector<uint8_t> module_bytes = BuildStringSliceModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17319,16 +17063,8 @@ bool RunStringSliceTest() {
 
 bool RunConstU32Test() {
   std::vector<uint8_t> module_bytes = BuildConstU32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17343,16 +17079,8 @@ bool RunConstU32Test() {
 
 bool RunConstCharTest() {
   std::vector<uint8_t> module_bytes = BuildConstCharModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17367,16 +17095,8 @@ bool RunConstCharTest() {
 
 bool RunConstI64Test() {
   std::vector<uint8_t> module_bytes = BuildConstI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17391,16 +17111,8 @@ bool RunConstI64Test() {
 
 bool RunConstU64Test() {
   std::vector<uint8_t> module_bytes = BuildConstU64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17415,16 +17127,8 @@ bool RunConstU64Test() {
 
 bool RunConstF32Test() {
   std::vector<uint8_t> module_bytes = BuildConstF32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17439,16 +17143,8 @@ bool RunConstF32Test() {
 
 bool RunConstF64Test() {
   std::vector<uint8_t> module_bytes = BuildConstF64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17463,16 +17159,8 @@ bool RunConstF64Test() {
 
 bool RunConstI128Test() {
   std::vector<uint8_t> module_bytes = BuildConstI128Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17487,16 +17175,8 @@ bool RunConstI128Test() {
 
 bool RunConstU128Test() {
   std::vector<uint8_t> module_bytes = BuildConstU128Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17511,16 +17191,8 @@ bool RunConstU128Test() {
 
 bool RunI64ArithTest() {
   std::vector<uint8_t> module_bytes = BuildI64ArithModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17535,16 +17207,8 @@ bool RunI64ArithTest() {
 
 bool RunI64ModTest() {
   std::vector<uint8_t> module_bytes = BuildI64ModModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17559,16 +17223,8 @@ bool RunI64ModTest() {
 
 bool RunNegI32Test() {
   std::vector<uint8_t> module_bytes = BuildNegI32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17583,16 +17239,8 @@ bool RunNegI32Test() {
 
 bool RunNegI64Test() {
   std::vector<uint8_t> module_bytes = BuildNegI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17607,16 +17255,8 @@ bool RunNegI64Test() {
 
 bool RunNegF32Test() {
   std::vector<uint8_t> module_bytes = BuildNegF32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17631,16 +17271,8 @@ bool RunNegF32Test() {
 
 bool RunNegF64Test() {
   std::vector<uint8_t> module_bytes = BuildNegF64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17655,16 +17287,8 @@ bool RunNegF64Test() {
 
 bool RunIncDecI32Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecI32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17679,16 +17303,8 @@ bool RunIncDecI32Test() {
 
 bool RunIncDecI64Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17703,16 +17319,8 @@ bool RunIncDecI64Test() {
 
 bool RunIncDecF32Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecF32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17727,16 +17335,8 @@ bool RunIncDecF32Test() {
 
 bool RunIncDecF64Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecF64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17751,16 +17351,8 @@ bool RunIncDecF64Test() {
 
 bool RunIncDecU32Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecU32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17775,16 +17367,8 @@ bool RunIncDecU32Test() {
 
 bool RunIncDecU64Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecU64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17799,16 +17383,8 @@ bool RunIncDecU64Test() {
 
 bool RunIncDecU32WrapTest() {
   std::vector<uint8_t> module_bytes = BuildIncDecU32WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17823,16 +17399,8 @@ bool RunIncDecU32WrapTest() {
 
 bool RunIncDecU64WrapTest() {
   std::vector<uint8_t> module_bytes = BuildIncDecU64WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17847,16 +17415,8 @@ bool RunIncDecU64WrapTest() {
 
 bool RunIncDecI8Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecI8Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17871,16 +17431,8 @@ bool RunIncDecI8Test() {
 
 bool RunIncDecI16Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecI16Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17895,16 +17447,8 @@ bool RunIncDecI16Test() {
 
 bool RunIncDecU8Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecU8Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17919,16 +17463,8 @@ bool RunIncDecU8Test() {
 
 bool RunIncDecU16Test() {
   std::vector<uint8_t> module_bytes = BuildIncDecU16Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17943,16 +17479,8 @@ bool RunIncDecU16Test() {
 
 bool RunIncDecU8WrapTest() {
   std::vector<uint8_t> module_bytes = BuildIncDecU8WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17967,16 +17495,8 @@ bool RunIncDecU8WrapTest() {
 
 bool RunIncDecU16WrapTest() {
   std::vector<uint8_t> module_bytes = BuildIncDecU16WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -17991,16 +17511,8 @@ bool RunIncDecU16WrapTest() {
 
 bool RunNegI8Test() {
   std::vector<uint8_t> module_bytes = BuildNegI8Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18015,16 +17527,8 @@ bool RunNegI8Test() {
 
 bool RunNegI16Test() {
   std::vector<uint8_t> module_bytes = BuildNegI16Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18039,16 +17543,8 @@ bool RunNegI16Test() {
 
 bool RunNegU8Test() {
   std::vector<uint8_t> module_bytes = BuildNegU8Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18063,16 +17559,8 @@ bool RunNegU8Test() {
 
 bool RunNegU16Test() {
   std::vector<uint8_t> module_bytes = BuildNegU16Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18134,16 +17622,8 @@ bool RunNegU16WrapTest() {
 }
 bool RunNegI8WrapTest() {
   std::vector<uint8_t> module_bytes = BuildNegI8WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18158,16 +17638,8 @@ bool RunNegI8WrapTest() {
 
 bool RunNegI16WrapTest() {
   std::vector<uint8_t> module_bytes = BuildNegI16WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18181,16 +17653,8 @@ bool RunNegI16WrapTest() {
 }
 bool RunF32ArithTest() {
   std::vector<uint8_t> module_bytes = BuildF32ArithModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18205,16 +17669,8 @@ bool RunF32ArithTest() {
 
 bool RunNegU32Test() {
   std::vector<uint8_t> module_bytes = BuildNegU32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18229,16 +17685,8 @@ bool RunNegU32Test() {
 
 bool RunNegU64Test() {
   std::vector<uint8_t> module_bytes = BuildNegU64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18253,16 +17701,8 @@ bool RunNegU64Test() {
 
 bool RunNegU32WrapTest() {
   std::vector<uint8_t> module_bytes = BuildNegU32WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18277,16 +17717,8 @@ bool RunNegU32WrapTest() {
 
 bool RunNegU64WrapTest() {
   std::vector<uint8_t> module_bytes = BuildNegU64WrapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18300,16 +17732,8 @@ bool RunNegU64WrapTest() {
 }
 bool RunF64ArithTest() {
   std::vector<uint8_t> module_bytes = BuildF64ArithModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18324,16 +17748,8 @@ bool RunF64ArithTest() {
 
 bool RunConvIntTest() {
   std::vector<uint8_t> module_bytes = BuildConvIntModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18348,16 +17764,8 @@ bool RunConvIntTest() {
 
 bool RunConvFloatTest() {
   std::vector<uint8_t> module_bytes = BuildConvFloatModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18372,16 +17780,8 @@ bool RunConvFloatTest() {
 
 bool RunU32ArithTest() {
   std::vector<uint8_t> module_bytes = BuildU32ArithModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18396,16 +17796,8 @@ bool RunU32ArithTest() {
 
 bool RunU64CmpTest() {
   std::vector<uint8_t> module_bytes = BuildU64CmpModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18420,16 +17812,8 @@ bool RunU64CmpTest() {
 
 bool RunU32CmpBoundsTest() {
   std::vector<uint8_t> module_bytes = BuildU32CmpBoundsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18444,16 +17828,8 @@ bool RunU32CmpBoundsTest() {
 
 bool RunU64CmpBoundsTest() {
   std::vector<uint8_t> module_bytes = BuildU64CmpBoundsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18468,16 +17844,8 @@ bool RunU64CmpBoundsTest() {
 
 bool RunU32CmpMinMaxTest() {
   std::vector<uint8_t> module_bytes = BuildU32CmpMinMaxModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18492,16 +17860,8 @@ bool RunU32CmpMinMaxTest() {
 
 bool RunU64CmpMinMaxTest() {
   std::vector<uint8_t> module_bytes = BuildU64CmpMinMaxModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18516,16 +17876,8 @@ bool RunU64CmpMinMaxTest() {
 
 bool RunU32DivZeroTest() {
   std::vector<uint8_t> module_bytes = BuildU32DivZeroModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18540,16 +17892,8 @@ bool RunU32DivZeroTest() {
 
 bool RunU32OverflowTest() {
   std::vector<uint8_t> module_bytes = BuildU32OverflowModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18564,16 +17908,8 @@ bool RunU32OverflowTest() {
 
 bool RunU64DivZeroTest() {
   std::vector<uint8_t> module_bytes = BuildU64DivZeroModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18588,16 +17924,8 @@ bool RunU64DivZeroTest() {
 
 bool RunU64OverflowTest() {
   std::vector<uint8_t> module_bytes = BuildU64OverflowModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18612,16 +17940,8 @@ bool RunU64OverflowTest() {
 
 bool RunBitwiseI32Test() {
   std::vector<uint8_t> module_bytes = BuildBitwiseI32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18636,16 +17956,8 @@ bool RunBitwiseI32Test() {
 
 bool RunShiftMaskI32Test() {
   std::vector<uint8_t> module_bytes = BuildShiftMaskI32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18660,16 +17972,8 @@ bool RunShiftMaskI32Test() {
 
 bool RunBitwiseI64Test() {
   std::vector<uint8_t> module_bytes = BuildBitwiseI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18684,16 +17988,8 @@ bool RunBitwiseI64Test() {
 
 bool RunShiftMaskI64Test() {
   std::vector<uint8_t> module_bytes = BuildShiftMaskI64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18708,31 +18004,15 @@ bool RunShiftMaskI64Test() {
 
 bool RunReturnRefTest() {
   std::vector<uint8_t> module_bytes = BuildReturnRefModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   return true;
 }
 
 bool RunDebugNoopTest() {
   std::vector<uint8_t> module_bytes = BuildDebugNoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -18747,16 +18027,9 @@ bool RunDebugNoopTest() {
 
 bool RunVerifyMetadataTest() {
   std::vector<uint8_t> module_bytes = BuildVerifyMetadataModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  Simple::Byte::VerifyResult vr;
+  if (!LoadAndVerifyModule(module_bytes, &load, &vr)) return false;
   if (vr.methods.size() != 1) {
     std::cerr << "expected 1 method info\n";
     return false;
@@ -18797,16 +18070,9 @@ bool RunVerifyMetadataTest() {
 
 bool RunVerifyMetadataNonRefGlobalTest() {
   std::vector<uint8_t> module_bytes = BuildVerifyMetadataNonRefGlobalModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  Simple::Byte::VerifyResult vr;
+  if (!LoadAndVerifyModule(module_bytes, &load, &vr)) return false;
   if (vr.globals_ref_bits.empty()) {
     std::cerr << "expected globals ref bitmap\n";
     return false;
@@ -18820,16 +18086,8 @@ bool RunVerifyMetadataNonRefGlobalTest() {
 
 bool RunFieldTest() {
   std::vector<uint8_t> module_bytes = BuildFieldModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
@@ -19907,16 +19165,8 @@ bool RunBadGlobalUninitVerifyTest() {
 
 bool RunGlobalInitStringTest() {
   std::vector<uint8_t> module_bytes = BuildGlobalInitStringModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -19931,16 +19181,8 @@ bool RunGlobalInitStringTest() {
 
 bool RunGlobalInitF32Test() {
   std::vector<uint8_t> module_bytes = BuildGlobalInitF32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -19955,16 +19197,8 @@ bool RunGlobalInitF32Test() {
 
 bool RunGlobalInitF64Test() {
   std::vector<uint8_t> module_bytes = BuildGlobalInitF64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -20523,16 +19757,8 @@ bool RunBadExportDuplicateLoadTest() {
 
 bool RunImportCallTest() {
   std::vector<uint8_t> module_bytes = BuildImportCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20551,16 +19777,8 @@ bool RunImportCallTest() {
 
 bool RunImportCallHostResolverTest() {
   std::vector<uint8_t> module_bytes = BuildImportCallHostModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecOptions options;
   options.import_resolver =
       [](const std::string& mod, const std::string& sym, const std::vector<uint64_t>& args,
@@ -20595,16 +19813,8 @@ bool RunImportCallHostResolverTest() {
 
 bool RunImportCallIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildImportCallIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20623,16 +19833,8 @@ bool RunImportCallIndirectTest() {
 
 bool RunImportDlOpenNullTest() {
   std::vector<uint8_t> module_bytes = BuildImportDlOpenNullModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20651,16 +19853,8 @@ bool RunImportDlOpenNullTest() {
 
 bool RunImportTimeMonoTest() {
   std::vector<uint8_t> module_bytes = BuildImportTimeMonoModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20679,16 +19873,8 @@ bool RunImportTimeMonoTest() {
 
 bool RunImportCwdGetTest() {
   std::vector<uint8_t> module_bytes = BuildImportCwdGetModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20707,16 +19893,8 @@ bool RunImportCwdGetTest() {
 
 bool RunImportTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildImportTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20735,16 +19913,8 @@ bool RunImportTailCallTest() {
 
 bool RunImportArgsCountTest() {
   std::vector<uint8_t> module_bytes = BuildImportArgsCountModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecOptions options;
   options.argv = {"one", "two", "three"};
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true, options);
@@ -20765,16 +19935,8 @@ bool RunImportArgsCountTest() {
 
 bool RunImportArgsGetCharEqTest() {
   std::vector<uint8_t> module_bytes = BuildImportArgsGetCharEqModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecOptions options;
   options.argv = {"one"};
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true, options);
@@ -20795,16 +19957,8 @@ bool RunImportArgsGetCharEqTest() {
 
 bool RunImportEnvGetCharEqTest() {
   std::vector<uint8_t> module_bytes = BuildImportEnvGetCharEqModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   SetEnvVar("SIMPLEVM_ENV_TEST", "abc");
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   UnsetEnvVar("SIMPLEVM_ENV_TEST");
@@ -20825,16 +19979,8 @@ bool RunImportEnvGetCharEqTest() {
 
 bool RunImportEnvGetMissingTest() {
   std::vector<uint8_t> module_bytes = BuildImportEnvGetMissingModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   UnsetEnvVar("SIMPLEVM_ENV_MISSING");
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
@@ -20854,16 +20000,8 @@ bool RunImportEnvGetMissingTest() {
 
 bool RunImportArgsGetOobTest() {
   std::vector<uint8_t> module_bytes = BuildImportArgsGetIsNullModule(10);
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecOptions options;
   options.argv = {"one"};
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true, options);
@@ -20884,16 +20022,8 @@ bool RunImportArgsGetOobTest() {
 
 bool RunImportArgsGetNegTest() {
   std::vector<uint8_t> module_bytes = BuildImportArgsGetIsNullModule(-1);
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecOptions options;
   options.argv = {"one"};
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true, options);
@@ -20914,16 +20044,8 @@ bool RunImportArgsGetNegTest() {
 
 bool RunImportFsOpenStubTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsOpenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20942,16 +20064,8 @@ bool RunImportFsOpenStubTest() {
 
 bool RunImportFsReadClampTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadClampModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20970,16 +20084,8 @@ bool RunImportFsReadClampTest() {
 
 bool RunImportFsReadBadFdTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadBadFdModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -20998,16 +20104,8 @@ bool RunImportFsReadBadFdTest() {
 
 bool RunImportFsWriteNullBufTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteNullBufModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21026,16 +20124,8 @@ bool RunImportFsWriteNullBufTest() {
 
 bool RunImportFsReadNonArrayBufTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadNonArrayBufModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21054,16 +20144,8 @@ bool RunImportFsReadNonArrayBufTest() {
 
 bool RunImportFsWriteBadFdTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteBadFdModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21082,16 +20164,8 @@ bool RunImportFsWriteBadFdTest() {
 
 bool RunImportFsCloseBadFdTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsCloseBadFdModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21110,16 +20184,8 @@ bool RunImportFsCloseBadFdTest() {
 
 bool RunImportFsWriteClampTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteClampModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21138,16 +20204,8 @@ bool RunImportFsWriteClampTest() {
 
 bool RunImportFsCloseTwiceTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsCloseTwiceModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21166,16 +20224,8 @@ bool RunImportFsCloseTwiceTest() {
 
 bool RunImportFsOpenNullPathTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsOpenNullPathModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21194,16 +20244,8 @@ bool RunImportFsOpenNullPathTest() {
 
 bool RunImportFsReadZeroLenTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadZeroLenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21222,16 +20264,8 @@ bool RunImportFsReadZeroLenTest() {
 
 bool RunImportFsReadAfterCloseTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadAfterCloseModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21250,16 +20284,8 @@ bool RunImportFsReadAfterCloseTest() {
 
 bool RunImportFsWriteAfterCloseTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteAfterCloseModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21278,16 +20304,8 @@ bool RunImportFsWriteAfterCloseTest() {
 
 bool RunImportFsOpenCloseReopenTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsOpenCloseReopenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21306,16 +20324,8 @@ bool RunImportFsOpenCloseReopenTest() {
 
 bool RunImportFsWriteZeroLenTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteZeroLenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21334,16 +20344,8 @@ bool RunImportFsWriteZeroLenTest() {
 
 bool RunImportFsReadZeroBufTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadZeroBufModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21362,16 +20364,8 @@ bool RunImportFsReadZeroBufTest() {
 
 bool RunImportFsWriteZeroBufTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteZeroBufModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21390,16 +20384,8 @@ bool RunImportFsWriteZeroBufTest() {
 
 bool RunImportFsReadClampNoOverwriteTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadClampNoOverwriteModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21418,16 +20404,8 @@ bool RunImportFsReadClampNoOverwriteTest() {
 
 bool RunImportFsWriteAfterReadOnlyOpenTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteAfterReadOnlyOpenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21446,16 +20424,8 @@ bool RunImportFsWriteAfterReadOnlyOpenTest() {
 
 bool RunImportFsOpenCloseLoopTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsOpenCloseLoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21474,16 +20444,8 @@ bool RunImportFsOpenCloseLoopTest() {
 
 bool RunImportFsWriteClampCountTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteClampCountModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21502,16 +20464,8 @@ bool RunImportFsWriteClampCountTest() {
 
 bool RunImportFsOpenCloseStressTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsOpenCloseStressModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21530,16 +20484,8 @@ bool RunImportFsOpenCloseStressTest() {
 
 bool RunImportFsReadZeroLenPreserveTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadZeroLenPreserveModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21558,16 +20504,8 @@ bool RunImportFsReadZeroLenPreserveTest() {
 
 bool RunImportFsWriteReadPersistTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteReadPersistModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21586,16 +20524,8 @@ bool RunImportFsWriteReadPersistTest() {
 
 bool RunImportFsReadWriteCycleTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadWriteReopenCycleModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21614,16 +20544,8 @@ bool RunImportFsReadWriteCycleTest() {
 
 bool RunImportFsReadZeroLenNonEmptyBufTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadZeroLenNonEmptyBufModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21642,16 +20564,8 @@ bool RunImportFsReadZeroLenNonEmptyBufTest() {
 
 bool RunImportCoreLogTest() {
   std::vector<uint8_t> module_bytes = BuildImportCoreLogModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21670,16 +20584,8 @@ bool RunImportCoreLogTest() {
 
 bool RunImportFsReadStubTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsReadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21698,16 +20604,8 @@ bool RunImportFsReadStubTest() {
 
 bool RunImportFsWriteStubTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsWriteModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21726,16 +20624,8 @@ bool RunImportFsWriteStubTest() {
 
 bool RunImportFsCloseStubTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsCloseModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -21754,16 +20644,8 @@ bool RunImportFsCloseStubTest() {
 
 bool RunImportFsRoundTripTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsRoundTripModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   std::remove("Tests/bin/sbc_fs_roundtrip.bin");
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
@@ -21998,16 +20880,8 @@ bool RunBadMethodFlagsLoadTest() {
 
 bool RunJumpToEndTest() {
   std::vector<uint8_t> module_bytes = BuildJumpToEndModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -22087,16 +20961,8 @@ bool RunBadFunctionOverlapLoadTest() {
 
 bool RunCallCheckTest() {
   std::vector<uint8_t> module_bytes = BuildCallCheckModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
@@ -22112,16 +20978,8 @@ bool RunCallCheckTest() {
 
 bool RunCallParamTypeTest() {
   std::vector<uint8_t> module_bytes = BuildCallParamTypeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -22136,16 +20994,8 @@ bool RunCallParamTypeTest() {
 
 bool RunCallIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildCallIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -22308,16 +21158,8 @@ bool RunBadConvVerifyTest() {
 
 bool RunCallIndirectParamTypeTest() {
   std::vector<uint8_t> module_bytes = BuildCallIndirectParamTypeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -22332,16 +21174,8 @@ bool RunCallIndirectParamTypeTest() {
 
 bool RunTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23489,16 +22323,8 @@ bool RunGcStressTest() {
 
 bool RunGcVmStressTest() {
   std::vector<uint8_t> module_bytes = BuildGcVmStressModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23513,16 +22339,8 @@ bool RunGcVmStressTest() {
 
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23633,16 +22451,8 @@ bool RunBadNamedMethodSigLoadTest() {
 
 bool RunBoolTest() {
   std::vector<uint8_t> module_bytes = BuildBoolModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23657,16 +22467,8 @@ bool RunBoolTest() {
 
 bool RunCmpTest() {
   std::vector<uint8_t> module_bytes = BuildCmpModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23681,16 +22483,8 @@ bool RunCmpTest() {
 
 bool RunBranchTest() {
   std::vector<uint8_t> module_bytes = BuildBranchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23705,16 +22499,8 @@ bool RunBranchTest() {
 
 bool RunJmpTableCase0Test() {
   std::vector<uint8_t> module_bytes = BuildJmpTableModule(0);
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23729,16 +22515,8 @@ bool RunJmpTableCase0Test() {
 
 bool RunJmpTableCase1Test() {
   std::vector<uint8_t> module_bytes = BuildJmpTableModule(1);
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23753,16 +22531,8 @@ bool RunJmpTableCase1Test() {
 
 bool RunJmpTableDefaultTest() {
   std::vector<uint8_t> module_bytes = BuildJmpTableModule(7);
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23777,16 +22547,8 @@ bool RunJmpTableDefaultTest() {
 
 bool RunJmpTableDefaultEndTest() {
   std::vector<uint8_t> module_bytes = BuildJmpTableDefaultEndModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23801,16 +22563,8 @@ bool RunJmpTableDefaultEndTest() {
 
 bool RunJmpTableDefaultStartTest() {
   std::vector<uint8_t> module_bytes = BuildJmpTableDefaultStartModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -23825,16 +22579,8 @@ bool RunJmpTableDefaultStartTest() {
 
 bool RunJmpTableEmptyTest() {
   std::vector<uint8_t> module_bytes = BuildJmpTableEmptyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";

@@ -190,18 +190,20 @@ std::vector<uint8_t> BuildJmpTableModule(int32_t index) {
 }
 
 bool LoadAndVerifyModule(const std::vector<uint8_t>& module_bytes,
-                         Simple::Byte::LoadResult* out) {
+                         Simple::Byte::LoadResult* out,
+                         Simple::Byte::VerifyResult* out_verify) {
   if (!out) return false;
   *out = Simple::Byte::LoadModuleFromBytes(module_bytes);
   if (!out->ok) {
     std::cerr << "load failed: " << out->error << "\n";
     return false;
   }
-  const Simple::Byte::VerifyResult verify = Simple::Byte::VerifyModule(out->module);
+  Simple::Byte::VerifyResult verify = Simple::Byte::VerifyModule(out->module);
   if (!verify.ok) {
     std::cerr << "verify failed: " << verify.error << "\n";
     return false;
   }
+  if (out_verify) *out_verify = std::move(verify);
   return true;
 }
 
