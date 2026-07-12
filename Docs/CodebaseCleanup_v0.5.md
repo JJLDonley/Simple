@@ -187,6 +187,7 @@ Deliverables:
   - `import Time`
   - `import Buffer`
   - `import Channel`
+- [x] Add source audit tests for stale legacy diagnostic/member names and native registry member string drift.
 - [ ] Add a WIP/API policy test:
   - implemented catalog members must have signatures;
   - native-backed implemented members must have native metadata;

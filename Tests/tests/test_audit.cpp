@@ -122,10 +122,54 @@ bool AuditNoPublicAliasImportsInFixtures() {
   return ok;
 }
 
+bool AuditNoStaleLibraryDiagnosticNames() {
+  const std::regex stale_name(
+      R"((^|[^.A-Za-z0-9_])(IO\.print|IO\.buffer|DL\.open|File\.(open|close|write))\b)");
+  bool ok = true;
+  for (const char* root : {"Lang", "VM", "LSP", "CLI", "Tests/tests"}) {
+    for (const auto& path : CollectFiles(root, ".cpp")) {
+      if (NormalizePath(path).find("Tests/tests/test_audit.cpp") != std::string::npos) continue;
+      std::ifstream in(path);
+      if (!in) return false;
+      std::string line;
+      size_t line_no = 0;
+      while (std::getline(in, line)) {
+        ++line_no;
+        if (std::regex_search(line, stale_name)) {
+          std::cerr << "stale library diagnostic/member name in " << NormalizePath(path) << ":"
+                    << line_no << "\n";
+          ok = false;
+        }
+      }
+    }
+  }
+  return ok;
+}
+
+bool AuditNativeRegistryUsesCatalogMemberNames() {
+  const std::regex string_member_spec(R"(MakeSpec\(module,\s*\")");
+  bool ok = true;
+  std::ifstream in("VM/src/native/registry.cpp");
+  if (!in) return false;
+  std::string line;
+  size_t line_no = 0;
+  while (std::getline(in, line)) {
+    ++line_no;
+    if (std::regex_search(line, string_member_spec)) {
+      std::cerr << "native registry MakeSpec should use catalog ToMember(...) or generated family names at VM/src/native/registry.cpp:"
+                << line_no << "\n";
+      ok = false;
+    }
+  }
+  return ok;
+}
+
 const TestCase kAuditTests[] = {
   {"audit_duplicate_test_names", AuditDuplicateTestNames},
   {"audit_simple_fixtures_registered", AuditSimpleFixturesAreRegistered},
   {"audit_no_public_alias_imports", AuditNoPublicAliasImportsInFixtures},
+  {"audit_no_stale_library_diagnostic_names", AuditNoStaleLibraryDiagnosticNames},
+  {"audit_native_registry_uses_catalog_member_names", AuditNativeRegistryUsesCatalogMemberNames},
 };
 
 const TestSection kAuditSections[] = {
