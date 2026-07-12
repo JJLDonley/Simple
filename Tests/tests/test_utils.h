@@ -58,6 +58,7 @@ std::vector<uint8_t> BuildJmpTableModule(int32_t index);
 bool LoadAndVerifyModule(const std::vector<uint8_t>& module_bytes,
                          Simple::Byte::LoadResult* out,
                          Simple::Byte::VerifyResult* out_verify = nullptr);
+bool RunExpectLoadFail(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* name);

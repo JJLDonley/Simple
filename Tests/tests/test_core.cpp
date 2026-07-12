@@ -18497,73 +18497,31 @@ bool RunGlobalInitF64Test() {
 }
 
 bool RunBadGlobalInitConstLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadGlobalInitConstModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadGlobalInitConstModule(), "RunBadGlobalInitConstLoadTest");
 }
 
 bool RunBadStringConstNoNullLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringConstNoNullModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadStringConstNoNullModule(), "RunBadStringConstNoNullLoadTest");
 }
 
 bool RunBadI128BlobLenLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadI128BlobLenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadI128BlobLenModule(), "RunBadI128BlobLenLoadTest");
 }
 
 bool RunBadFieldOffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFieldOffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFieldOffsetLoadModule(), "RunBadFieldOffsetLoadTest");
 }
 
 bool RunBadFieldSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFieldSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFieldSizeLoadModule(), "RunBadFieldSizeLoadTest");
 }
 
 bool RunBadFieldAlignmentLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFieldAlignmentLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFieldAlignmentLoadModule(), "RunBadFieldAlignmentLoadTest");
 }
 
 bool RunBadTypeConstLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeConstLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeConstLoadModule(), "RunBadTypeConstLoadTest");
 }
 
 bool RunBadGlobalInitTypeRuntimeTest() {
@@ -18612,173 +18570,71 @@ bool RunBadParamLocalsVerifyTest() {
 }
 
 bool RunBadSigCallConvLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigCallConvLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigCallConvLoadModule(), "RunBadSigCallConvLoadTest");
 }
 
 bool RunBadSigParamTypesMissingLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigParamTypesMissingLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigParamTypesMissingLoadModule(), "RunBadSigParamTypesMissingLoadTest");
 }
 
 bool RunBadSigParamTypeStartLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigParamTypeStartLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigParamTypeStartLoadModule(), "RunBadSigParamTypeStartLoadTest");
 }
 
 bool RunBadSigParamTypeMisalignedLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigParamTypeMisalignedLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigParamTypeMisalignedLoadModule(), "RunBadSigParamTypeMisalignedLoadTest");
 }
 
 bool RunBadSigParamTypeIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigParamTypeIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigParamTypeIdLoadModule(), "RunBadSigParamTypeIdLoadTest");
 }
 
 bool RunBadSigRetTypeIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigRetTypeIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigRetTypeIdLoadModule(), "RunBadSigRetTypeIdLoadTest");
 }
 
 bool RunBadSigTableTruncatedLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigTableTruncatedLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigTableTruncatedLoadModule(), "RunBadSigTableTruncatedLoadTest");
 }
 
 bool RunBadSectionAlignmentLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSectionAlignmentLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSectionAlignmentLoadModule(), "RunBadSectionAlignmentLoadTest");
 }
 
 bool RunBadSectionOverlapLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSectionOverlapLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSectionOverlapLoadModule(), "RunBadSectionOverlapLoadTest");
 }
 
 bool RunBadUnknownSectionIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadUnknownSectionIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadUnknownSectionIdLoadModule(), "RunBadUnknownSectionIdLoadTest");
 }
 
 bool RunBadDuplicateSectionIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadDuplicateSectionIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadDuplicateSectionIdLoadModule(), "RunBadDuplicateSectionIdLoadTest");
 }
 
 bool RunBadSectionTableOobLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSectionTableOobLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSectionTableOobLoadModule(), "RunBadSectionTableOobLoadTest");
 }
 
 bool RunBadEndianHeaderLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadEndianHeaderLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadEndianHeaderLoadModule(), "RunBadEndianHeaderLoadTest");
 }
 
 bool RunBadHeaderFlagsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadHeaderFlagsLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadHeaderFlagsLoadModule(), "RunBadHeaderFlagsLoadTest");
 }
 
 bool RunBadHeaderMagicLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadHeaderMagicLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadHeaderMagicLoadModule(), "RunBadHeaderMagicLoadTest");
 }
 
 bool RunBadHeaderVersionLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadHeaderVersionLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadHeaderVersionLoadModule(), "RunBadHeaderVersionLoadTest");
 }
 
 bool RunPastHeaderVersionLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildPastHeaderVersionLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildPastHeaderVersionLoadModule(), "RunPastHeaderVersionLoadTest");
 }
 
 bool RunGoodHeaderVersionLoadTest() {
@@ -18792,13 +18648,7 @@ bool RunGoodHeaderVersionLoadTest() {
 }
 
 bool RunBadHeaderReservedLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadHeaderReservedLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadHeaderReservedLoadModule(), "RunBadHeaderReservedLoadTest");
 }
 
 bool RunBadDebugHeaderLoadTest() {
@@ -18850,183 +18700,75 @@ bool RunGoodDebugLoadTest() {
 }
 
 bool RunBadSectionCountZeroLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSectionCountZeroLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSectionCountZeroLoadModule(), "RunBadSectionCountZeroLoadTest");
 }
 
 bool RunBadSectionTableMisalignedLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSectionTableMisalignedLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSectionTableMisalignedLoadModule(), "RunBadSectionTableMisalignedLoadTest");
 }
 
 bool RunBadSectionTableOffsetOobLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSectionTableOffsetOobLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSectionTableOffsetOobLoadModule(), "RunBadSectionTableOffsetOobLoadTest");
 }
 
 bool RunBadTypesTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypesTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypesTableSizeLoadModule(), "RunBadTypesTableSizeLoadTest");
 }
 
 bool RunBadTypeKindLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeKindLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeKindLoadModule(), "RunBadTypeKindLoadTest");
 }
 
 bool RunBadImportsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadImportsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadImportsTableSizeLoadModule(), "RunBadImportsTableSizeLoadTest");
 }
 
 bool RunBadImportsMissingConstPoolLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadImportsMissingConstPoolLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadImportsMissingConstPoolLoadModule(), "RunBadImportsMissingConstPoolLoadTest");
 }
 
 bool RunBadExportsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportsTableSizeLoadModule(), "RunBadExportsTableSizeLoadTest");
 }
 
 bool RunBadExportsMissingConstPoolLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportsMissingConstPoolLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportsMissingConstPoolLoadModule(), "RunBadExportsMissingConstPoolLoadTest");
 }
 
 bool RunBadImportNameOffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadImportNameOffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadImportNameOffsetLoadModule(), "RunBadImportNameOffsetLoadTest");
 }
 
 bool RunBadImportSigIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadImportSigIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadImportSigIdLoadModule(), "RunBadImportSigIdLoadTest");
 }
 
 bool RunBadImportFlagsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadImportFlagsLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadImportFlagsLoadModule(), "RunBadImportFlagsLoadTest");
 }
 
 bool RunBadExportNameOffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportNameOffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportNameOffsetLoadModule(), "RunBadExportNameOffsetLoadTest");
 }
 
 bool RunBadExportFuncIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportFuncIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportFuncIdLoadModule(), "RunBadExportFuncIdLoadTest");
 }
 
 bool RunBadExportFlagsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportFlagsLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportFlagsLoadModule(), "RunBadExportFlagsLoadTest");
 }
 
 bool RunBadExportReservedLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportReservedLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportReservedLoadModule(), "RunBadExportReservedLoadTest");
 }
 
 bool RunBadImportDuplicateLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadImportDuplicateLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadImportDuplicateLoadModule(), "RunBadImportDuplicateLoadTest");
 }
 
 bool RunBadExportDuplicateLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadExportDuplicateLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadExportDuplicateLoadModule(), "RunBadExportDuplicateLoadTest");
 }
 
 bool RunImportCallTest() {
@@ -19943,43 +19685,19 @@ bool RunBadImportCallParamVerifyTest() {
 }
 
 bool RunBadTypeKindSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeKindSizeLoadModule(), "RunBadTypeKindSizeLoadTest");
 }
 
 bool RunBadTypeKindRefSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeKindRefSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeKindRefSizeLoadModule(), "RunBadTypeKindRefSizeLoadTest");
 }
 
 bool RunBadTypeKindFieldsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeKindFieldsLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeKindFieldsLoadModule(), "RunBadTypeKindFieldsLoadTest");
 }
 
 bool RunBadTypeKindRefFieldsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeKindRefFieldsLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeKindRefFieldsLoadModule(), "RunBadTypeKindRefFieldsLoadTest");
 }
 
 bool RunGoodTypeKindRefSizeLoadTest() {
@@ -19993,163 +19711,67 @@ bool RunGoodTypeKindRefSizeLoadTest() {
 }
 
 bool RunBadFieldsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFieldsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFieldsTableSizeLoadModule(), "RunBadFieldsTableSizeLoadTest");
 }
 
 bool RunBadMethodsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMethodsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadMethodsTableSizeLoadModule(), "RunBadMethodsTableSizeLoadTest");
 }
 
 bool RunBadSigsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadSigsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadSigsTableSizeLoadModule(), "RunBadSigsTableSizeLoadTest");
 }
 
 bool RunBadGlobalsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadGlobalsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadGlobalsTableSizeLoadModule(), "RunBadGlobalsTableSizeLoadTest");
 }
 
 bool RunBadFunctionsTableSizeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFunctionsTableSizeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFunctionsTableSizeLoadModule(), "RunBadFunctionsTableSizeLoadTest");
 }
 
 bool RunBadTypeFieldRangeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeFieldRangeLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadTypeFieldRangeLoadModule(), "RunBadTypeFieldRangeLoadTest");
 }
 
 bool RunBadFieldTypeIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFieldTypeIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFieldTypeIdLoadModule(), "RunBadFieldTypeIdLoadTest");
 }
 
 bool RunBadGlobalTypeIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadGlobalTypeIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadGlobalTypeIdLoadModule(), "RunBadGlobalTypeIdLoadTest");
 }
 
 bool RunBadFunctionMethodIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFunctionMethodIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFunctionMethodIdLoadModule(), "RunBadFunctionMethodIdLoadTest");
 }
 
 bool RunBadMethodSigIdLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMethodSigIdLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadMethodSigIdLoadModule(), "RunBadMethodSigIdLoadTest");
 }
 
 bool RunMissingCodeSectionLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildMissingCodeSectionLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildMissingCodeSectionLoadModule(), "RunMissingCodeSectionLoadTest");
 }
 
 bool RunMissingFunctionsSectionLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildMissingFunctionsSectionLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildMissingFunctionsSectionLoadModule(), "RunMissingFunctionsSectionLoadTest");
 }
 
 bool RunBadConstStringOffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadConstStringOffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadConstStringOffsetLoadModule(), "RunBadConstStringOffsetLoadTest");
 }
 
 bool RunBadConstI128OffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadConstI128OffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadConstI128OffsetLoadModule(), "RunBadConstI128OffsetLoadTest");
 }
 
 bool RunBadConstF64TruncatedLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadConstF64TruncatedLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadConstF64TruncatedLoadModule(), "RunBadConstF64TruncatedLoadTest");
 }
 
 bool RunBadMethodFlagsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadMethodFlagsLoadModule(), "RunBadMethodFlagsLoadTest");
 }
 
 bool RunJumpToEndTest() {
@@ -20173,53 +19795,23 @@ bool RunBadStackMaxVerifyTest() {
 }
 
 bool RunBadStackMaxZeroLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStackMaxZeroLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadStackMaxZeroLoadModule(), "RunBadStackMaxZeroLoadTest");
 }
 
 bool RunBadEntryMethodLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadEntryMethodLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadEntryMethodLoadModule(), "RunBadEntryMethodLoadTest");
 }
 
 bool RunBadFunctionOffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFunctionOffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFunctionOffsetLoadModule(), "RunBadFunctionOffsetLoadTest");
 }
 
 bool RunBadMethodOffsetLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMethodOffsetLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadMethodOffsetLoadModule(), "RunBadMethodOffsetLoadTest");
 }
 
 bool RunBadFunctionOverlapLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFunctionOverlapLoadModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectLoadFail(BuildBadFunctionOverlapLoadModule(), "RunBadFunctionOverlapLoadTest");
 }
 
 bool RunCallCheckTest() {

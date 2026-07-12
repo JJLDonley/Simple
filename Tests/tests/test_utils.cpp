@@ -207,6 +207,15 @@ bool LoadAndVerifyModule(const std::vector<uint8_t>& module_bytes,
   return true;
 }
 
+bool RunExpectLoadFail(const std::vector<uint8_t>& module_bytes, const char* name) {
+  const Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure: " << name << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
   Simple::Byte::LoadResult load;
   if (!LoadAndVerifyModule(module_bytes, &load)) return false;
