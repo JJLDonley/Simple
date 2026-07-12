@@ -374,24 +374,6 @@ bool ResolveReservedModuleId(const EmitState& st,
   return false;
 }
 
-bool IsLibraryModule(LibraryModuleId id, SystemModule module) {
-  return id.root == LibraryRoot::System && static_cast<SystemModule>(id.module_index) == module;
-}
-
-bool IsLibraryModule(LibraryModuleId id, StandardModule module) {
-  return id.root == LibraryRoot::Standard && static_cast<StandardModule>(id.module_index) == module;
-}
-
-bool IsCanonicalLibraryModule(const std::string& canonical, SystemModule module) {
-  const auto id = ParseCanonicalLibraryModule(canonical);
-  return id && IsLibraryModule(*id, module);
-}
-
-bool IsCanonicalLibraryModule(const std::string& canonical, StandardModule module) {
-  const auto id = ParseCanonicalLibraryModule(canonical);
-  return id && IsLibraryModule(*id, module);
-}
-
 bool IsNativeReservedModule(const std::string& canonical) {
   const auto id = ParseCanonicalLibraryModule(canonical);
   return id && !ToNativeModule(*id).empty();
@@ -5106,7 +5088,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
 
     if (ext->has_module &&
-        ResolveImportModule(ext->module) != "System.FFI" &&
+        !IsCanonicalLibraryModule(ResolveImportModule(ext->module), SystemModule::FFI) &&
         IsSupportedDlAbiType(st.imports.back().ret, st, true)) {
       bool all_params_scalar = true;
       for (const auto& p : st.imports.back().params) {

@@ -2410,6 +2410,12 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (ToNativeModule(SystemModule::Buffer) != "System.Buffer") return false;
   if (ToCanonicalName(SystemModule::Buffer) != "System.Buffer") return false;
   if (ToCanonicalName(StandardModule::Buffer) != "Standard.Buffer") return false;
+  if (!IsLibraryModule(ToLibraryModuleId(SystemModule::Buffer), SystemModule::Buffer)) return false;
+  if (!IsLibraryModule(ToLibraryModuleId(StandardModule::Buffer), StandardModule::Buffer)) return false;
+  if (IsLibraryModule(ToLibraryModuleId(SystemModule::Buffer), StandardModule::Buffer)) return false;
+  if (!IsCanonicalLibraryModule("System.Buffer", SystemModule::Buffer)) return false;
+  if (!IsCanonicalLibraryModule("Standard.Buffer", StandardModule::Buffer)) return false;
+  if (IsCanonicalLibraryModule("Buffer", SystemModule::Buffer)) return false;
   if (ToMember(SystemBufferMember::ReadU32LE) != "readU32LE") return false;
   if (ToMember(SystemFSMember::NextDirEntry) != "nextDirEntry") return false;
   if (ToMember(SystemFFIMember::LastError) != "lastError") return false;

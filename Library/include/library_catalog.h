@@ -1149,6 +1149,14 @@ inline LibraryModuleId ToLibraryModuleId(StandardModule module) {
   return LibraryModuleId{LibraryRoot::Standard, static_cast<int>(module)};
 }
 
+inline bool IsLibraryModule(LibraryModuleId id, SystemModule module) {
+  return id == ToLibraryModuleId(module);
+}
+
+inline bool IsLibraryModule(LibraryModuleId id, StandardModule module) {
+  return id == ToLibraryModuleId(module);
+}
+
 inline std::optional<LibraryModuleId> ParseCanonicalLibraryModule(std::string_view canonical) {
   for (SystemModule module : kSystemModules) {
     if (canonical == ToCanonicalName(module)) {
@@ -1161,6 +1169,16 @@ inline std::optional<LibraryModuleId> ParseCanonicalLibraryModule(std::string_vi
     }
   }
   return std::nullopt;
+}
+
+inline bool IsCanonicalLibraryModule(std::string_view canonical, SystemModule module) {
+  const auto id = ParseCanonicalLibraryModule(canonical);
+  return id && IsLibraryModule(*id, module);
+}
+
+inline bool IsCanonicalLibraryModule(std::string_view canonical, StandardModule module) {
+  const auto id = ParseCanonicalLibraryModule(canonical);
+  return id && IsLibraryModule(*id, module);
 }
 
 inline std::vector<std::string_view> MemberNames(LibraryModuleId module) {

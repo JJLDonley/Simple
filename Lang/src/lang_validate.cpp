@@ -242,19 +242,6 @@ bool ResolveReservedModuleId(const ValidateContext& ctx,
   return RAST::ResolveReservedModuleId(ctx.reserved_imports, ctx.reserved_import_aliases, name, out);
 }
 
-bool IsLibraryModule(LibraryModuleId id, SystemModule module) {
-  return id.root == LibraryRoot::System && static_cast<SystemModule>(id.module_index) == module;
-}
-
-bool IsLibraryModule(LibraryModuleId id, StandardModule module) {
-  return id.root == LibraryRoot::Standard && static_cast<StandardModule>(id.module_index) == module;
-}
-
-bool IsCanonicalLibraryModule(const std::string& canonical, StandardModule module) {
-  const auto id = ParseCanonicalLibraryModule(canonical);
-  return id && IsLibraryModule(*id, module);
-}
-
 bool IsLibraryRootEnabled(const ValidateContext& ctx, LibraryRoot root) {
   for (const auto& module : ctx.reserved_imports) {
     if (module.root == root) return true;

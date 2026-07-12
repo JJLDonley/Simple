@@ -1335,7 +1335,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     std::string module_name;
     std::string symbol_name;
     if (!import_name(func_id, &module_name, &symbol_name)) return {true, true};
-    if (module_name == "System.FFI" && symbol_name.rfind("call$", 0) == 0) return {true, false};
+    if (Simple::Lang::IsCanonicalLibraryModule(module_name, Simple::Lang::SystemModule::FFI) &&
+        symbol_name.rfind("call$", 0) == 0) return {true, false};
     const auto* spec = native_import_spec(func_id);
     if (!spec) return {true, true};
     const bool may_block = spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking;
@@ -1352,7 +1353,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     std::string symbol_name;
     if (!import_name(func_id, &module_name, &symbol_name)) return unsafe("native/import", "missing-import-metadata", target);
     if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name", target);
-    if (module_name == "System.FFI" && symbol_name.rfind("call$", 0) == 0) {
+    if (Simple::Lang::IsCanonicalLibraryModule(module_name, Simple::Lang::SystemModule::FFI) &&
+        symbol_name.rfind("call$", 0) == 0) {
       if (dl_call_loop_safe(row)) return std::string();
       if (!sig_is_scalar_loop_call_safe(row)) {
         return unsafe("dynamic-dl/external-c", "non-scalar-or-managed-signature", target);
@@ -4805,7 +4807,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         const bool dynamic_dl_direct_call = import_like_call && [&]() {
           std::string module_name;
           std::string symbol_name;
-          return import_name(target_func, &module_name, &symbol_name) && module_name == "System.FFI" &&
+          return import_name(target_func, &module_name, &symbol_name) &&
+                 Simple::Lang::IsCanonicalLibraryModule(module_name, Simple::Lang::SystemModule::FFI) &&
                  symbol_name.rfind("call$", 0) == 0 && dl_call_loop_safe(target_sig);
         }();
         if (target_func == func_index && arg_count != param_count) {

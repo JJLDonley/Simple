@@ -309,6 +309,7 @@ Deliverables:
   - `IsPromiseType`
   - `IsChannelType`
 - [ ] Add library predicates:
+  - [x] Centralize typed `IsLibraryModule` and `IsCanonicalLibraryModule` predicates and reuse them in Lang, native dispatch, and JIT.
   - `IsCanonicalLibraryModuleName`
   - `IsSystemModule`
   - `IsStandardModule`
