@@ -348,8 +348,8 @@ Deliverables:
 - [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
 - [x] Merge repeated test-section registration logic into one shared append helper.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
-- [ ] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
-  - [x] Add typed `LibraryModuleId` native spec builder and migrate Random/OS/Thread registrations.
+- [x] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
+  - [x] Add typed `LibraryModuleId` native spec builder and migrate current System native registrations.
 - [x] Replace copied LSP signature-help response snippets with small JSON builder helpers.
 - [ ] Replace copied command execution helpers in CLI tests with one shared test utility.
 - [ ] Add comments only where the shared abstraction encodes a non-obvious rule.
