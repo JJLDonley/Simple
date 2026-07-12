@@ -112,9 +112,14 @@ void RegisterSystemDl(NativeRegistry& registry) {
                                   "ffi.dynamic_load"),
                    NativeResourceKind::FfiLibrary, NativeResourceAccess::InputOutput, 0),
       NativeStability::Unsafe));
-  registry.Register(WithStability(MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::LastErrorSnake), {}, TypeKind::String,
-                                           DlLastError),
-                                  NativeStability::Unsafe));
+  registry.Register(WithStability(
+      MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::LastError), {},
+               TypeKind::String, DlLastError),
+      NativeStability::Unsafe));
+  registry.Register(WithStability(
+      MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::LastErrorSnake), {},
+               TypeKind::String, DlLastError),
+      NativeStability::Unsafe));
 }
 
 

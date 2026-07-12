@@ -87,15 +87,15 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
       -DSIMPLEVM_VERSION_OVERRIDE="$VERSION"
   fi
   cmake --build "$BUILD_DIR" --config Release --target simplevm_runtime_static simplevm_runtime_shared simplevm simple_stub --parallel "${JOBS:-2}"
-  if [[ "$RUN_TESTS" -eq 1 ]]; then
-    cmake --build "$BUILD_DIR" --config Release --target simplevm_tests --parallel "${JOBS:-2}"
-    "$BIN_OUT/simplevm_tests"
-  fi
   rm -rf "$ROOT_DIR/bin"
   mkdir -p "$ROOT_DIR/bin"
   cp "$BIN_OUT/svm" "$ROOT_DIR/bin/svm"
   cp "$BIN_OUT/simple" "$ROOT_DIR/bin/simple"
   chmod +x "$ROOT_DIR/bin/svm" "$ROOT_DIR/bin/simple"
+  if [[ "$RUN_TESTS" -eq 1 ]]; then
+    cmake --build "$BUILD_DIR" --config Release --target simplevm_tests --parallel "${JOBS:-2}"
+    "$BIN_OUT/simplevm_tests"
+  fi
 fi
 
 if [[ "$SKIP_RELEASE" -eq 0 ]]; then

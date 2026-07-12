@@ -27,19 +27,22 @@ When enabled and completed, `.sbc` remains the portable artifact while the platf
 
 ## Enabling JIT
 
-Official releases use runtime flavor classifiers rather than separate version tags:
+Official LLVM packages and CI builds target LLVM 18. Releases use runtime flavor classifiers
+rather than separate version tags:
 
 | Operating system | Interpreter (`int`) | LLVM ORC (`llvm`) |
 |---|:---:|:---:|
 | Linux x86_64 | ✅ | ✅ |
 | macOS hosted-runner architecture | ✅ | ✅ |
-| Windows x86_64 | ✅ | ☐ Deferred |
+| Windows x86_64 | ✅ | 🧪 Build/test only |
 
 For example, `simple-v0.5.0-linux-x86_64-int.tar.gz` and
 `simple-v0.5.0-linux-x86_64-llvm.tar.gz` belong to the same `v0.5.0` release. The suffix is an
 artifact flavor, not a SemVer prerelease suffix. Release CI builds and tests each published flavor.
-The interpreter package remains the dependency-light default. Windows LLVM packaging remains
-deferred until its LLVM toolchain and runtime distribution are stable.
+The interpreter package remains the dependency-light default. Windows LLVM 18 runs as an
+allowed-to-fail build-and-test job; it is not uploaded and cannot block stable package publication.
+Windows LLVM packaging remains deferred until its LLVM toolchain and runtime distribution are
+stable.
 
 CLI execution uses JIT by default when `svm` is built with LLVM ORC support. Use `-int` or `--interpreter` to force the interpreter. The compatibility `-jit` flag is still accepted.
 

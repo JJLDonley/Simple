@@ -66,12 +66,14 @@ classifier, not a separate SemVer version.
 |---|---|:---:|:---:|---|
 | Linux | x86_64 | ✅ | ✅ | `.tar.gz` |
 | macOS | runner architecture (`arm64` or `x86_64`) | ✅ | ✅ | `.tar.gz` |
-| Windows | x86_64 | ✅ | ☐ | `.zip` |
+| Windows | x86_64 | ✅ | 🧪 Build/test only | `.zip` (`int` only) |
 
 - `int` is the dependency-light interpreter build.
 - `llvm` includes the LLVM ORC JIT and falls back to the interpreter for unsupported functions.
+- Windows LLVM 18 is built and tested as an allowed-to-fail experimental CI job, but is not
+  published and cannot block the stable packages.
 - Windows LLVM packaging is deferred until its LLVM runtime and toolchain distribution are stable.
-- Both published flavors run the full test suite during release CI.
+- Every published flavor runs the full test suite during release CI.
 
 Artifact names follow this form:
 
@@ -135,7 +137,7 @@ without a full path.
 | C++ toolchain | GCC or Clang | Xcode Command Line Tools | Visual Studio 2022 C++ tools |
 | Build system | CMake | CMake | CMake |
 | FFI | `libffi-dev`, `pkg-config` | Homebrew `libffi`, `pkg-config` | vcpkg `libffi:x64-windows` |
-| LLVM flavor | `llvm-dev` | Homebrew `llvm` | Not currently packaged |
+| LLVM flavor | `llvm-18-dev` | Homebrew `llvm@18` | Not currently packaged |
 | Shell | Bash | Bash | Git Bash/MSYS2 for release scripts |
 
 Typical dependency installation:
@@ -145,12 +147,12 @@ Typical dependency installation:
 sudo apt-get install cmake build-essential libffi-dev pkg-config
 
 # Ubuntu/Debian, LLVM build
-sudo apt-get install cmake build-essential libffi-dev pkg-config llvm-dev
+sudo apt-get install cmake build-essential libffi-dev pkg-config llvm-18-dev
 
 # macOS
 xcode-select --install
 brew install cmake libffi pkg-config        # interpreter
-brew install llvm                           # additionally for LLVM JIT
+brew install llvm@18                        # additionally for LLVM JIT
 ```
 
 ### Build from source
@@ -172,7 +174,7 @@ On Homebrew systems, CMake may need the LLVM package location:
 
 ```bash
 cmake -S . -B build -DSIMPLEVM_ENABLE_LLVM_JIT=ON \
-  -DLLVM_DIR="$(brew --prefix llvm)/lib/cmake/llvm"
+  -DLLVM_DIR="$(brew --prefix llvm@18)/lib/cmake/llvm"
 ```
 
 Windows interpreter build:

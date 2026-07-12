@@ -8,13 +8,14 @@ if (SIMPLEVM_ENABLE_LLVM_JIT)
     Core
     ExecutionEngine
     OrcJIT
+    OrcTargetProcess
     Support
     Target
     native
   )
   separate_arguments(SIMPLEVM_LLVM_DEFINITIONS NATIVE_COMMAND "${LLVM_DEFINITIONS}")
   execute_process(
-    COMMAND "${LLVM_TOOLS_BINARY_DIR}/llvm-config" --ldflags --libs core executionengine orcjit native support target --system-libs
+    COMMAND "${LLVM_TOOLS_BINARY_DIR}/llvm-config" --ldflags --libs core executionengine orcjit orctargetprocess native support target --system-libs
     OUTPUT_VARIABLE SIMPLEVM_LLVM_EMBED_LINK_FLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
