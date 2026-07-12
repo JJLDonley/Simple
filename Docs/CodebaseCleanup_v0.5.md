@@ -271,6 +271,7 @@ Deliverables:
   - [x] Move process/environment/platform/time/thread handlers and `System.Env`/`System.OS`/`System.Thread` registration into `native/system_os.cpp`.
   - [x] Move scalar/string/bytes channel handlers and `System.Channel` registration into `native/system_channel.cpp`.
   - [x] Move path/file handlers, file resource cleanup, and `System.Path`/`System.FS` registration into `native/system_fs.cpp`.
+  - [x] Move buffer handlers and `System.Buffer`/`System.IO` buffer registration into `native/system_buffer.cpp`.
   - `VM/src/native/specs/io_specs.cpp`
   - `VM/src/native/specs/fs_specs.cpp`
   - `VM/src/native/specs/path_specs.cpp`
