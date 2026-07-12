@@ -357,6 +357,7 @@ Deliverables:
   - [x] Use the verifier intrinsic signature table as the single validity source instead of maintaining a duplicate intrinsic-ID switch.
 - [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
 - [x] Merge repeated test-section registration logic into one shared append helper.
+- [x] Collapse repeated single-function IR finish/module/compile setup into `CompileSingleFunctionIr`.
 - [x] Collapse repeated JIT and core module load/verify setup into shared `LoadAndVerifyModule` test utility.
 - [x] Collapse uniform tier1-compiled callee assertions into `ExpectTier1CompiledCallee`.
 - [x] Route uniform invalid-bytecode verifier cases through shared `RunExpectVerifyFail`.

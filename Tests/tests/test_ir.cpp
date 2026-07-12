@@ -159,6 +159,31 @@ bool RunIrTextExpectFail(const char* text, const char* name) {
   return false;
 }
 
+std::vector<uint8_t> CompileSingleFunctionIr(Simple::IR::IrBuilder& builder,
+                                             uint16_t local_count,
+                                             uint32_t stack_max,
+                                             std::vector<uint8_t>* out_code) {
+  if (!out_code) return {};
+  std::string error;
+  if (!builder.Finish(out_code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  Simple::IR::IrFunction function;
+  function.code = *out_code;
+  function.local_count = local_count;
+  function.stack_max = stack_max;
+  Simple::IR::IrModule module;
+  module.functions.push_back(std::move(function));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> output;
+  if (!Simple::IR::CompileToSbc(module, &output, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  return output;
+}
+
 std::vector<uint8_t> BuildIrAddModule() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(0);
@@ -167,23 +192,8 @@ std::vector<uint8_t> BuildIrAddModule() {
   builder.EmitOp(Simple::Byte::OpCode::AddI32);
   builder.EmitOp(Simple::Byte::OpCode::Ret);
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_add_module")) {
     return {};
@@ -202,23 +212,8 @@ std::vector<uint8_t> BuildIrJumpModule() {
   builder.EmitConstI32(7);
   builder.EmitOp(Simple::Byte::OpCode::Ret);
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_jmp_module")) {
     return {};
@@ -284,23 +279,8 @@ std::vector<uint8_t> BuildIrStackOps2Module() {
   builder.EmitOp(Simple::Byte::OpCode::AddI32);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_stack_ops2_module")) {
     return {};
@@ -317,23 +297,8 @@ std::vector<uint8_t> BuildIrI64BitwiseModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_i64_bitwise_module")) {
     return {};
@@ -353,23 +318,8 @@ std::vector<uint8_t> BuildIrConstSmallModule() {
   builder.EmitAddI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_const_small_module")) {
     return {};
@@ -388,23 +338,8 @@ std::vector<uint8_t> BuildIrIncDecNegModule() {
   builder.EmitAddI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_inc_dec_neg_module")) {
     return {};
@@ -437,23 +372,8 @@ std::vector<uint8_t> BuildIrIncDecNegWideModule() {
   builder.EmitConstI32(6);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_inc_dec_neg_wide_module")) {
     return {};
@@ -478,23 +398,8 @@ std::vector<uint8_t> BuildIrListInsertRemoveI64Module() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_list_insert_remove_i64_module")) {
     return {};
@@ -510,23 +415,8 @@ std::vector<uint8_t> BuildIrU32ArithModule() {
   builder.EmitSubU32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_arith_module")) {
     return {};
@@ -555,23 +445,8 @@ std::vector<uint8_t> BuildIrCmpVariantsModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_cmp_variants_module")) {
     return {};
@@ -588,23 +463,8 @@ std::vector<uint8_t> BuildIrU64ArithModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_arith_module")) {
     return {};
@@ -628,23 +488,8 @@ std::vector<uint8_t> BuildIrF64CmpModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f64_cmp_module")) {
     return {};
@@ -668,23 +513,8 @@ std::vector<uint8_t> BuildIrU64CmpModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_cmp_module")) {
     return {};
@@ -701,23 +531,8 @@ std::vector<uint8_t> BuildIrF32ArithModule2() {
   builder.EmitConvF32ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f32_arith_module2")) {
     return {};
@@ -734,23 +549,8 @@ std::vector<uint8_t> BuildIrF64ArithModule2() {
   builder.EmitConvF64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f64_arith_module2")) {
     return {};
@@ -766,23 +566,8 @@ std::vector<uint8_t> BuildIrU32ArithModule2() {
   builder.EmitMulU32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_arith_module2")) {
     return {};
@@ -799,23 +584,8 @@ std::vector<uint8_t> BuildIrU64ArithModule2() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_arith_module2")) {
     return {};
@@ -839,23 +609,8 @@ std::vector<uint8_t> BuildIrU32CmpModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_cmp_module")) {
     return {};
@@ -879,23 +634,8 @@ std::vector<uint8_t> BuildIrU64CmpModule2() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_cmp_module2")) {
     return {};
@@ -919,23 +659,8 @@ std::vector<uint8_t> BuildIrF32CmpModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f32_cmp_module")) {
     return {};
@@ -959,23 +684,8 @@ std::vector<uint8_t> BuildIrF64CmpModule2() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f64_cmp_module2")) {
     return {};
@@ -992,23 +702,8 @@ std::vector<uint8_t> BuildIrI64ArithModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_i64_arith_module")) {
     return {};
@@ -1024,23 +719,8 @@ std::vector<uint8_t> BuildIrU32ModModule() {
   builder.EmitModU32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_mod_module")) {
     return {};
@@ -1057,23 +737,8 @@ std::vector<uint8_t> BuildIrU64ModModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_mod_module")) {
     return {};
@@ -1090,23 +755,8 @@ std::vector<uint8_t> BuildIrI64MulModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_i64_mul_module")) {
     return {};
@@ -1123,23 +773,8 @@ std::vector<uint8_t> BuildIrI64DivModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_i64_div_module")) {
     return {};
@@ -1155,23 +790,8 @@ std::vector<uint8_t> BuildIrU32ArithModule3() {
   builder.EmitAddU32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_arith_module3")) {
     return {};
@@ -1188,23 +808,8 @@ std::vector<uint8_t> BuildIrU64DivModule2() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_div_module2")) {
     return {};
@@ -1220,23 +825,8 @@ std::vector<uint8_t> BuildIrU32DivModule() {
   builder.EmitDivU32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_div_module")) {
     return {};
@@ -1253,23 +843,8 @@ std::vector<uint8_t> BuildIrU64AddModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_add_module")) {
     return {};
@@ -1286,23 +861,8 @@ std::vector<uint8_t> BuildIrF32SubModule() {
   builder.EmitConvF32ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f32_sub_module")) {
     return {};
@@ -1319,23 +879,8 @@ std::vector<uint8_t> BuildIrF64SubModule() {
   builder.EmitConvF64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f64_sub_module")) {
     return {};
@@ -1351,23 +896,8 @@ std::vector<uint8_t> BuildIrU32MulModule() {
   builder.EmitMulU32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u32_mul_module")) {
     return {};
@@ -1384,23 +914,8 @@ std::vector<uint8_t> BuildIrU64SubModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_u64_sub_module")) {
     return {};
@@ -1417,23 +932,8 @@ std::vector<uint8_t> BuildIrF32MulModule() {
   builder.EmitConvF32ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f32_mul_module")) {
     return {};
@@ -1450,23 +950,8 @@ std::vector<uint8_t> BuildIrF64DivModule() {
   builder.EmitConvF64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f64_div_module")) {
     return {};
@@ -1486,23 +971,8 @@ std::vector<uint8_t> BuildIrI32ArithModule2() {
   builder.EmitSubI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_i32_arith_module2")) {
     return {};
@@ -1521,23 +991,8 @@ std::vector<uint8_t> BuildIrI64AddSubModule() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_i64_add_sub_module")) {
     return {};
@@ -1636,23 +1091,8 @@ std::vector<uint8_t> BuildIrCallCheckModule() {
   builder.EmitConstI32(0);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_callcheck_module")) {
     return {};
@@ -1667,23 +1107,8 @@ std::vector<uint8_t> BuildIrIntrinsicModule() {
   builder.EmitConstI32(0);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_intrinsic_module")) {
     return {};
@@ -1698,23 +1123,8 @@ std::vector<uint8_t> BuildIrSysCallModule() {
   builder.EmitConstI32(0);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_syscall_module")) {
     return {};
@@ -1883,23 +1293,8 @@ std::vector<uint8_t> BuildIrStackOpsModule() {
   builder.EmitConstI32(5);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_stack_ops_module")) {
     return {};
@@ -1921,23 +1316,8 @@ std::vector<uint8_t> BuildIrBranchModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_branch_module")) {
     return {};
@@ -1965,23 +1345,8 @@ std::vector<uint8_t> BuildIrCompareModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_compare_module")) {
     return {};
@@ -2006,23 +1371,8 @@ std::vector<uint8_t> BuildIrBoolModule() {
   builder.BindLabel(done, nullptr);
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_bool_module")) {
     return {};
@@ -2040,23 +1390,8 @@ std::vector<uint8_t> BuildIrConvI32ToI64Module() {
   builder.EmitConvI64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_conv_i32_i64_module")) {
     return {};
@@ -2074,23 +1409,8 @@ std::vector<uint8_t> BuildIrConvI32ToF64Module() {
   builder.EmitConvF64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_conv_i32_f64_module")) {
     return {};
@@ -2108,23 +1428,8 @@ std::vector<uint8_t> BuildIrConvF32F64Module() {
   builder.EmitConvF64ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_conv_f32_f64_module")) {
     return {};
@@ -2141,23 +1446,8 @@ std::vector<uint8_t> BuildIrF32ArithModule() {
   builder.EmitConvF32ToI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_f32_arith_module")) {
     return {};
@@ -2181,23 +1471,8 @@ std::vector<uint8_t> BuildIrBitwiseI32Module() {
   builder.EmitShrI32();
   builder.EmitRet();
   std::vector<uint8_t> code;
-  std::string error;
-  if (!builder.Finish(&code, &error)) {
-    std::cerr << "IR finish failed: " << error << "\n";
-    return {};
-  }
-  Simple::IR::IrModule module;
-  Simple::IR::IrFunction func;
-  func.code = code;
-  func.local_count = 0;
-  func.stack_max = 8;
-  module.functions.push_back(std::move(func));
-  module.entry_method_id = 0;
-  std::vector<uint8_t> out;
-  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
-    std::cerr << "IR compile failed: " << error << "\n";
-    return {};
-  }
+  std::vector<uint8_t> out = CompileSingleFunctionIr(builder, 0, 8, &code);
+  if (out.empty()) return {};
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_bitwise_i32_module")) {
     return {};
