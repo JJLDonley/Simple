@@ -72,6 +72,7 @@ const TestSection* GetCliImportsSections(size_t* count);
 #if SIMPLEVM_TEST_INCLUDE_LSP
 const TestSection* GetLspSections(size_t* count);
 #endif
+const TestSection* GetAuditSections(size_t* count);
 
 } // namespace Simple::VM::Tests
 
@@ -205,6 +206,10 @@ int main(int argc, char** argv) {
   }
 
   std::vector<Simple::VM::Tests::TestSection> sections;
+  size_t audit_count = 0;
+  const Simple::VM::Tests::TestSection* audit_sections =
+      Simple::VM::Tests::GetAuditSections(&audit_count);
+  sections.insert(sections.end(), audit_sections, audit_sections + audit_count);
 #if SIMPLEVM_TEST_INCLUDE_CORE
   size_t System_count = 0;
   const Simple::VM::Tests::TestSection* System_sections = Simple::VM::Tests::GetCoreSections(&System_count);

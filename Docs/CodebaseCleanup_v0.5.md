@@ -142,15 +142,16 @@ perf report
 
 Create `scripts/audit_codebase.py` to report:
 
-- largest files/functions;
-- duplicate test names;
-- unreferenced fixtures;
-- public alias imports outside migration tests;
-- top repeated string literals;
-- top repeated numeric literals;
-- stale diagnostic substrings;
-- direct `"System."` / `"Standard."` string checks outside allowed boundary files;
-- repeated native registration patterns where detectable.
+- [x] largest files;
+- [ ] largest functions;
+- [x] duplicate test names;
+- [x] unreferenced fixtures;
+- [x] public alias imports outside migration tests;
+- [x] top repeated string literals;
+- [x] top repeated numeric literals;
+- [ ] stale diagnostic substrings;
+- [ ] direct `"System."` / `"Standard."` string checks outside allowed boundary files;
+- [ ] repeated native registration patterns where detectable.
 
 ## Refactor rule
 
@@ -176,10 +177,10 @@ Deliverables:
 - [x] Remove duplicate registered test entries found during audit.
 - [x] Remove stale duplicate fixture `Tests/simple_bad/module_var_access.simple`.
 - [x] Register previously unreferenced positive fixtures.
-- [ ] Add a meta-test that fails on duplicate registered test names within a section.
-- [ ] Add a meta-test that fails when `Tests/simple/*.simple` is not referenced or explicitly ignored.
-- [ ] Add a meta-test that fails when `Tests/simple_bad/*.simple` is not referenced or explicitly ignored.
-- [ ] Add a fixture scan that rejects public alias imports except explicit migration/diagnostic tests:
+- [x] Add a meta-test that fails on duplicate registered test names within a section.
+- [x] Add a meta-test that fails when `Tests/simple/*.simple` is not referenced or explicitly ignored.
+- [x] Add a meta-test that fails when `Tests/simple_bad/*.simple` is not referenced or explicitly ignored.
+- [x] Add a fixture scan that rejects public alias imports except explicit migration/diagnostic tests:
   - `import IO`
   - `import FS`
   - `import DL`

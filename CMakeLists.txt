@@ -303,6 +303,7 @@ target_include_directories(simple_stub PRIVATE
 target_link_libraries(simple_stub PRIVATE simplevm_core_static)
 
 add_executable(simplevm_tests
+  ${SIMPLEVM_TEST_ROOT}/test_audit.cpp
   ${SIMPLEVM_TEST_ROOT}/test_core.cpp
   ${SIMPLEVM_TEST_ROOT}/test_ir.cpp
   ${SIMPLEVM_TEST_ROOT}/test_jit.cpp
