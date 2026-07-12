@@ -137,7 +137,7 @@ without a full path.
 | C++ toolchain | GCC or Clang | Xcode Command Line Tools | Visual Studio 2022 C++ tools |
 | Build system | CMake | CMake | CMake |
 | FFI | `libffi-dev`, `pkg-config` | Homebrew `libffi`, `pkg-config` | vcpkg `libffi:x64-windows` |
-| LLVM flavor | `llvm-18-dev` | Homebrew `llvm@18` | Not currently packaged |
+| LLVM flavor | `llvm-18-dev` | Homebrew `llvm@18` | vcpkg LLVM 18 SDK (CI build/test) |
 | Shell | Bash | Bash | Git Bash/MSYS2 for release scripts |
 
 Typical dependency installation:
@@ -154,6 +154,24 @@ xcode-select --install
 brew install cmake libffi pkg-config        # interpreter
 brew install llvm@18                        # additionally for LLVM JIT
 ```
+
+### Platform build layout
+
+Platform build policy is kept out of the compiler sources:
+
+```txt
+cmake/Platform.cmake
+cmake/platform/Linux.cmake
+cmake/platform/macOS.cmake
+cmake/platform/Windows.cmake
+scripts/build/linux.sh
+scripts/build/macos.sh
+scripts/build/windows.sh
+```
+
+The root `build_linux`, `build_macos`, and `build_windows` commands remain small compatibility
+wrappers. CI invokes the scripts under `scripts/build/` directly. Common language, VM, and runtime
+sources are shared; platform files own dependency discovery, runtime-library naming, and packaging.
 
 ### Build from source
 

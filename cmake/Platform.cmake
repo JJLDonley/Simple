@@ -1,0 +1,11 @@
+if(WIN32)
+  include(${CMAKE_CURRENT_LIST_DIR}/platform/Windows.cmake)
+elseif(APPLE)
+  include(${CMAKE_CURRENT_LIST_DIR}/platform/macOS.cmake)
+elseif(UNIX)
+  include(${CMAKE_CURRENT_LIST_DIR}/platform/Linux.cmake)
+else()
+  message(FATAL_ERROR "Unsupported Simple host platform")
+endif()
+
+message(STATUS "Simple platform: ${SIMPLEVM_PLATFORM_NAME}")

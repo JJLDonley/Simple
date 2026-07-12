@@ -1,0 +1,3 @@
+set(SIMPLEVM_PLATFORM_NAME "linux")
+set(SIMPLEVM_RUNTIME_SHARED_NAME "libsimplevm_runtime.so")
+set(SIMPLEVM_PACKAGE_EXTENSION "tar.gz")

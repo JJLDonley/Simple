@@ -166,10 +166,8 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
   if (is_static) {
     runtime_lib = lib_dir / "libsimplevm_runtime.a";
   } else {
-#if defined(__APPLE__)
-    runtime_lib = lib_dir / "libsimplevm_runtime.dylib";
-#elif defined(_WIN32)
-    runtime_lib = lib_dir / "simplevm_runtime.lib";
+#ifdef SIMPLEVM_RUNTIME_SHARED_NAME
+    runtime_lib = lib_dir / SIMPLEVM_RUNTIME_SHARED_NAME;
 #else
     runtime_lib = lib_dir / "libsimplevm_runtime.so";
 #endif

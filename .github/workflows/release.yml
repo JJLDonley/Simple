@@ -45,32 +45,32 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            script: ./build_linux
+            script: ./scripts/build/linux.sh
             pkg_ext: tar.gz
             flavor: int
             experimental: false
           - os: ubuntu-latest
-            script: ./build_linux
+            script: ./scripts/build/linux.sh
             pkg_ext: tar.gz
             flavor: llvm
             experimental: false
           - os: macos-latest
-            script: ./build_macos
+            script: ./scripts/build/macos.sh
             pkg_ext: tar.gz
             flavor: int
             experimental: false
           - os: macos-latest
-            script: ./build_macos
+            script: ./scripts/build/macos.sh
             pkg_ext: tar.gz
             flavor: llvm
             experimental: false
           - os: windows-latest
-            script: ./build_windows
+            script: ./scripts/build/windows.sh
             pkg_ext: zip
             flavor: int
             experimental: false
           - os: windows-latest
-            script: ./build_windows
+            script: ./scripts/build/windows.sh
             pkg_ext: zip
             flavor: llvm
             experimental: true
@@ -102,41 +102,49 @@ jobs:
             echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> "$GITHUB_ENV"
           fi
 
-      - name: Setup Windows vcpkg + libffi
+      - name: Cache Windows vcpkg binaries
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/vcpkg-bincache
+          key: vcpkg-${{ runner.os }}-${{ matrix.flavor }}-llvm18-libffi-v1
+
+      - name: Setup Windows vcpkg dependencies
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $binaryCache = Join-Path $env:RUNNER_TEMP "vcpkg-bincache"
           if (Test-Path Env:VCPKG_ROOT) { Remove-Item Env:VCPKG_ROOT }
           git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
+          if ("${{ matrix.flavor }}" -eq "llvm") {
+            # This baseline provides LLVM 18.1.6. vcpkg builds and caches the
+            # complete Windows development SDK, including LLVMConfig.cmake.
+            git -C $vcpkgRoot checkout f4a2b74e2c6e4e419a3d26c41b5fd6e64a711de9
+          }
           & "$vcpkgRoot/bootstrap-vcpkg.bat"
           $env:VCPKG_ROOT = $vcpkgRoot
           $env:VCPKG_FORCE_SYSTEM_BINARIES = "1"
+          $env:VCPKG_DEFAULT_BINARY_CACHE = $binaryCache
+          New-Item -ItemType Directory -Force -Path $binaryCache | Out-Null
+          $packages = @("libffi:x64-windows")
+          if ("${{ matrix.flavor }}" -eq "llvm") { $packages += "llvm:x64-windows" }
           $maxAttempts = 4
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            & "$vcpkgRoot/vcpkg.exe" install libffi:x64-windows
+            & "$vcpkgRoot/vcpkg.exe" install $packages
             if ($LASTEXITCODE -eq 0) { break }
             if ($attempt -eq $maxAttempts) { exit $LASTEXITCODE }
             Write-Host "vcpkg install failed (attempt $attempt/$maxAttempts), retrying in 15s..."
             Start-Sleep -Seconds 15
           }
           "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Setup Windows LLVM 18
-        if: runner.os == 'Windows' && matrix.flavor == 'llvm'
-        shell: pwsh
-        run: |
-          $llvmRoot = Join-Path $env:RUNNER_TEMP "llvm-18"
-          $installer = Join-Path $env:RUNNER_TEMP "LLVM-18.1.8-win64.exe"
-          Invoke-WebRequest `
-            "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/LLVM-18.1.8-win64.exe" `
-            -OutFile $installer
-          Start-Process -Wait -FilePath $installer -ArgumentList "/S", "/D=$llvmRoot"
-          $llvmDir = Join-Path $llvmRoot "lib/cmake/llvm"
-          if (-not (Test-Path (Join-Path $llvmDir "LLVMConfig.cmake"))) {
-            throw "LLVM 18 CMake package not found at $llvmDir"
+          if ("${{ matrix.flavor }}" -eq "llvm") {
+            $llvmDir = Join-Path $vcpkgRoot "installed/x64-windows/share/llvm"
+            if (-not (Test-Path (Join-Path $llvmDir "LLVMConfig.cmake"))) {
+              throw "vcpkg LLVM CMake package not found at $llvmDir"
+            }
+            "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
-          "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build + test + package (Linux/macOS)
         if: runner.os != 'Windows'
@@ -144,7 +152,7 @@ jobs:
         env:
           VERSION: ${{ needs.compute-version.outputs.version }}
         run: |
-          chmod +x ./build_linux ./build_macos ./build_windows
+          chmod +x ./scripts/build/linux.sh ./scripts/build/macos.sh ./scripts/build/windows.sh
           cmake_args=()
           if [[ "${{ matrix.flavor }}" == "llvm" ]]; then
             cmake_args+=(--cmake-arg "-DSIMPLEVM_ENABLE_LLVM_JIT=ON")
@@ -168,7 +176,7 @@ jobs:
           VERSION: ${{ needs.compute-version.outputs.version }}
           VCPKG_INSTALLATION_ROOT: ${{ env.VCPKG_INSTALLATION_ROOT }}
         run: |
-          chmod +x ./build_linux ./build_macos ./build_windows
+          chmod +x ./scripts/build/linux.sh ./scripts/build/macos.sh ./scripts/build/windows.sh
           cmake_args=(
             --cmake-arg "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake"
             --cmake-arg "-DVCPKG_TARGET_TRIPLET=x64-windows"
@@ -177,7 +185,7 @@ jobs:
             cmake_args+=(--cmake-arg "-DSIMPLEVM_ENABLE_LLVM_JIT=ON")
             cmake_args+=(--cmake-arg "-DLLVM_DIR=${LLVM_DIR}")
           fi
-          ./build_windows \
+          ./scripts/build/windows.sh \
             --version "${VERSION}" \
             --tests \
             --skip-install \

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(simplevm LANGUAGES C CXX)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Platform.cmake)
+
 option(SIMPLEVM_ENABLE_LLVM_JIT "Build experimental LLVM ORC JIT backend" OFF)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   find_package(LLVM REQUIRED CONFIG)
@@ -319,6 +321,7 @@ target_link_libraries(simplevm PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm PRIVATE
   SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}"
   SIMPLEVM_VERSION="${SIMPLEVM_VERSION}"
+  SIMPLEVM_RUNTIME_SHARED_NAME="${SIMPLEVM_RUNTIME_SHARED_NAME}"
 )
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
@@ -384,6 +387,9 @@ target_include_directories(simplevm_tests PRIVATE
   ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)
+target_compile_definitions(simplevm_tests PRIVATE
+  SIMPLEVM_RUNTIME_SHARED_NAME="${SIMPLEVM_RUNTIME_SHARED_NAME}"
+)
 add_dependencies(simplevm_tests simpleffi_test)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm_tests PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")

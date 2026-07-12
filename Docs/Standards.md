@@ -58,6 +58,11 @@ Required SRP refactor order:
 
 End-state rule: this refactor must not leave permanent shims, compatibility facades, facade-only modules, or forwarding wrappers. Temporary facades are allowed only inside an active migration step and must be removed before the refactor is considered complete.
 
+Platform build policy belongs under `cmake/platform/` and `scripts/build/`. Root build commands are
+compatibility wrappers only. Do not fork compiler or VM implementations by operating system;
+platform-specific C++ belongs behind narrow modules such as environment or dynamic-library
+adapters.
+
 New VM runtime features must move toward dedicated modules:
 
 - `VM/src/interpreter/interpreter.cpp`
