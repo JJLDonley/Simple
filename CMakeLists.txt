@@ -96,6 +96,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/fs.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/json.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/log.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/metadata.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/os.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/path.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/random.cpp

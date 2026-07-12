@@ -262,6 +262,7 @@ Problem:
 Deliverables:
 
 - [x] Move default native registry orchestration into `native/default_registry.cpp`.
+- [x] Move native metadata validation/JIT analysis/docs generation into `native/metadata.cpp`.
 - [ ] Split registration specs by domain without changing behavior:
   - `VM/src/native/specs/io_specs.cpp`
   - `VM/src/native/specs/fs_specs.cpp`
