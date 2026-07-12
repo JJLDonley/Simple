@@ -189,17 +189,25 @@ std::vector<uint8_t> BuildJmpTableModule(int32_t index) {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+bool LoadAndVerifyModule(const std::vector<uint8_t>& module_bytes,
+                         Simple::Byte::LoadResult* out) {
+  if (!out) return false;
+  *out = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!out->ok) {
+    std::cerr << "load failed: " << out->error << "\n";
+    return false;
+  }
+  const Simple::Byte::VerifyResult verify = Simple::Byte::VerifyModule(out->module);
+  if (!verify.ok) {
+    std::cerr << "verify failed: " << verify.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Trapped) {
     std::cerr << "expected trap: " << name << "\n";
@@ -237,16 +245,8 @@ bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* n
 }
 
 bool RunExpectExit(const std::vector<uint8_t>& module_bytes, int32_t expected) {
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";

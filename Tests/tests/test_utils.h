@@ -4,6 +4,10 @@
 #include <string>
 #include <vector>
 
+namespace Simple::Byte {
+struct LoadResult;
+}
+
 namespace Simple::VM::Tests {
 
 struct TestCase {
@@ -50,6 +54,8 @@ std::vector<uint8_t> BuildModuleWithDebugSection(const std::vector<uint8_t>& cod
                                                  const std::vector<uint8_t>& debug_bytes);
 std::vector<uint8_t> BuildJmpTableModule(int32_t index);
 
+bool LoadAndVerifyModule(const std::vector<uint8_t>& module_bytes,
+                         Simple::Byte::LoadResult* out);
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* name);

@@ -3941,16 +3941,8 @@ std::vector<uint8_t> BuildJitOpcodeHotI32ArithmeticTailCallModule() {
 
 bool RunJitTierTest() {
   std::vector<uint8_t> module_bytes = BuildJitTierModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4042,16 +4034,8 @@ bool RunJitTierTest() {
 
 bool RunJitDispatchCallIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitCallIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4091,16 +4075,8 @@ bool RunJitDispatchCallIndirectTest() {
 
 bool RunJitDispatchTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4140,16 +4116,8 @@ bool RunJitDispatchTailCallTest() {
 
 bool RunJitOpcodeHotCalleeTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCalleeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4192,16 +4160,8 @@ bool RunJitOpcodeHotCalleeTest() {
 
 bool RunJitOpcodeHotCalleeTickTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCalleeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4220,16 +4180,8 @@ bool RunJitOpcodeHotCalleeTickTest() {
 
 bool RunJitOpcodeHotCalleeDispatchTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCalleeDispatchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4268,16 +4220,8 @@ bool RunJitOpcodeHotCalleeDispatchTest() {
 
 bool RunJitOpcodeHotCallIndirectDispatchTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCallIndirectDispatchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4316,16 +4260,8 @@ bool RunJitOpcodeHotCallIndirectDispatchTest() {
 
 bool RunJitOpcodeHotTailCallDispatchTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotTailCallDispatchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4364,16 +4300,8 @@ bool RunJitOpcodeHotTailCallDispatchTest() {
 
 bool RunJitMixedPromotionDispatchTest() {
   std::vector<uint8_t> module_bytes = BuildJitMixedPromotionDispatchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4413,16 +4341,8 @@ bool RunJitMixedPromotionDispatchTest() {
 
 bool RunJitEntryOnlyHotTest() {
   std::vector<uint8_t> module_bytes = BuildJitEntryOnlyHotModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4453,16 +4373,8 @@ bool RunJitEntryOnlyHotTest() {
 
 bool RunJitCompileTickOrderingTest() {
   std::vector<uint8_t> module_bytes = BuildJitTierModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4485,16 +4397,8 @@ bool RunJitCompileTickOrderingTest() {
 
 bool RunJitCompiledLocalsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLocalsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4530,16 +4434,8 @@ bool RunJitCompiledLocalsTest() {
 
 bool RunJitCompiledI32ArithmeticTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledI32ArithmeticModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4579,16 +4475,8 @@ bool RunJitCompiledI32ArithmeticTest() {
 
 bool RunJitCompiledScalarI32Test() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledScalarI32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4628,16 +4516,8 @@ bool RunJitCompiledScalarI32Test() {
 
 bool RunJitCompiledI64U64Test() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledI64U64Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4677,16 +4557,8 @@ bool RunJitCompiledI64U64Test() {
 
 bool RunJitCompiledFloatOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledFloatOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4726,16 +4598,8 @@ bool RunJitCompiledFloatOpsTest() {
 
 bool RunJitCompiledConversionsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledConversionsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4775,16 +4639,8 @@ bool RunJitCompiledConversionsTest() {
 
 bool RunJitCompiledCompareScalarTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledCompareScalarModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4824,16 +4680,8 @@ bool RunJitCompiledCompareScalarTest() {
 
 bool RunJitCompiledI32LocalsArithmeticTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledI32LocalsArithmeticModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4873,16 +4721,8 @@ bool RunJitCompiledI32LocalsArithmeticTest() {
 
 bool RunJitCompiledI32CompareTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledI32CompareModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4922,16 +4762,8 @@ bool RunJitCompiledI32CompareTest() {
 
 bool RunJitCompiledCompareBoolIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledCompareBoolIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -4979,16 +4811,8 @@ bool RunJitCompiledCompareBoolIndirectTest() {
 
 bool RunJitCompiledCompareBoolTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledCompareBoolTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5036,16 +4860,8 @@ bool RunJitCompiledCompareBoolTailCallTest() {
 
 bool RunJitCompiledBranchTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledBranchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5093,16 +4909,8 @@ bool RunJitCompiledBranchTest() {
 
 bool RunJitCompiledBranchIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledBranchIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5150,16 +4958,8 @@ bool RunJitCompiledBranchIndirectTest() {
 
 bool RunJitCompiledBranchTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledBranchTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5207,16 +5007,8 @@ bool RunJitCompiledBranchTailCallTest() {
 
 bool RunJitCompiledLoopTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5264,16 +5056,8 @@ bool RunJitCompiledLoopTest() {
 
 bool RunJitCompiledLoopIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLoopIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5321,16 +5105,8 @@ bool RunJitCompiledLoopIndirectTest() {
 
 bool RunJitDifferentialTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledI32ArithmeticModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false);
   Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec_nojit.status != exec_jit.status) {
@@ -5346,16 +5122,8 @@ bool RunJitDifferentialTest() {
 
 bool RunJitDifferentialBranchTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledBranchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false);
   Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec_nojit.status != exec_jit.status) {
@@ -5371,16 +5139,8 @@ bool RunJitDifferentialBranchTest() {
 
 bool RunJitDifferentialLoopTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false);
   Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec_nojit.status != exec_jit.status) {
@@ -5396,16 +5156,8 @@ bool RunJitDifferentialLoopTest() {
 
 bool RunJitDifferentialCompareBoolTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledBoolOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false);
   Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec_nojit.status != exec_jit.status) {
@@ -5421,16 +5173,8 @@ bool RunJitDifferentialCompareBoolTest() {
 
 bool RunJitDifferentialIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledCompareBoolIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false);
   Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec_nojit.status != exec_jit.status) {
@@ -5446,16 +5190,8 @@ bool RunJitDifferentialIndirectTest() {
 
 bool RunJitDifferentialTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledCompareBoolTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false);
   Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true);
   if (exec_nojit.status != exec_jit.status) {
@@ -5471,16 +5207,8 @@ bool RunJitDifferentialTailCallTest() {
 
 bool RunJitOpcodeHotLoopTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5511,16 +5239,8 @@ bool RunJitOpcodeHotLoopTest() {
 
 bool RunJitOpcodeHotLoopIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5551,16 +5271,8 @@ bool RunJitOpcodeHotLoopIndirectTest() {
 
 bool RunJitOpcodeHotLoopTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5591,16 +5303,8 @@ bool RunJitOpcodeHotLoopTailCallTest() {
 
 bool RunJitTier1ExecCountTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledI32ArithmeticModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5623,16 +5327,8 @@ bool RunJitTier1ExecCountTest() {
 
 bool RunJitTier1SkipNopTest() {
   std::vector<uint8_t> module_bytes = BuildJitTierModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5651,16 +5347,8 @@ bool RunJitTier1SkipNopTest() {
 
 bool RunJitOpcodeHotBranchTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBranchModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5691,16 +5379,8 @@ bool RunJitOpcodeHotBranchTest() {
 
 bool RunJitOpcodeHotBranchTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBranchTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5731,16 +5411,8 @@ bool RunJitOpcodeHotBranchTailCallTest() {
 
 bool RunJitOpcodeHotBranchIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBranchIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5771,16 +5443,8 @@ bool RunJitOpcodeHotBranchIndirectTest() {
 
 bool RunJitOpcodeHotUnsupportedTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotUnsupportedModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5811,16 +5475,8 @@ bool RunJitOpcodeHotUnsupportedTest() {
 
 bool RunJitTypedArrayFallbackTest() {
   std::vector<uint8_t> module_bytes = BuildJitTypedArrayFallbackModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5859,16 +5515,8 @@ bool RunJitTypedArrayFallbackTest() {
 
 bool RunJitTypedListFallbackTest() {
   std::vector<uint8_t> module_bytes = BuildJitTypedListFallbackModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5907,16 +5555,8 @@ bool RunJitTypedListFallbackTest() {
 
 bool RunJitCompiledFallbackTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledFallbackModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5947,16 +5587,8 @@ bool RunJitCompiledFallbackTest() {
 
 bool RunJitCompiledFallbackTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledFallbackTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -5987,16 +5619,8 @@ bool RunJitCompiledFallbackTailCallTest() {
 
 bool RunJitCompiledFallbackIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledFallbackIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6027,16 +5651,8 @@ bool RunJitCompiledFallbackIndirectTest() {
 
 bool RunJitTier1FallbackTest() {
   std::vector<uint8_t> module_bytes = BuildJitTier1FallbackModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6067,16 +5683,8 @@ bool RunJitTier1FallbackTest() {
 
 bool RunJitTier1FallbackNoReenableTest() {
   std::vector<uint8_t> module_bytes = BuildJitTier1FallbackNoReenableModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6107,16 +5715,8 @@ bool RunJitTier1FallbackNoReenableTest() {
 
 bool RunJitTier1FallbackIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitTier1FallbackIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6147,16 +5747,8 @@ bool RunJitTier1FallbackIndirectTest() {
 
 bool RunJitTier1FallbackTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitTier1FallbackTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6187,16 +5779,8 @@ bool RunJitTier1FallbackTailCallTest() {
 
 bool RunJitFallbackDirectThenIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitFallbackDirectThenIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6227,16 +5811,8 @@ bool RunJitFallbackDirectThenIndirectTest() {
 
 bool RunJitFallbackIndirectThenDirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitFallbackIndirectThenDirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6267,16 +5843,8 @@ bool RunJitFallbackIndirectThenDirectTest() {
 
 bool RunJitOpcodeHotFallbackTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotFallbackModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6307,16 +5875,8 @@ bool RunJitOpcodeHotFallbackTest() {
 
 bool RunJitOpcodeHotFallbackNoReenableTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotFallbackNoReenableModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6347,16 +5907,8 @@ bool RunJitOpcodeHotFallbackNoReenableTest() {
 
 bool RunJitDispatchAfterFallbackTest() {
   std::vector<uint8_t> module_bytes = BuildJitDispatchAfterFallbackModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6387,16 +5939,8 @@ bool RunJitDispatchAfterFallbackTest() {
 
 bool RunJitCompiledRefOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledRefOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6436,16 +5980,8 @@ bool RunJitCompiledRefOpsTest() {
 
 bool RunJitCompiledRefOpsNoStackMapTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledRefOpsNoStackMapModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6484,16 +6020,8 @@ bool RunJitCompiledRefOpsNoStackMapTest() {
 
 bool RunJitCompiledArrayOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledArrayOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6533,16 +6061,8 @@ bool RunJitCompiledArrayOpsTest() {
 
 bool RunJitCompiledListOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledListOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6582,16 +6102,8 @@ bool RunJitCompiledListOpsTest() {
 
 bool RunJitCompiledStringLenTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledStringLenModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6631,16 +6143,8 @@ bool RunJitCompiledStringLenTest() {
 
 bool RunJitCompiledCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6687,16 +6191,8 @@ bool RunJitEnvThresholdTest() {
   EnvGuard guard2("SIMPLE_JIT_OPCODE");
 
   std::vector<uint8_t> module_bytes = BuildJitEnvThresholdModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6727,16 +6223,8 @@ bool RunJitEnvThresholdTest() {
 
 bool RunJitParamCalleeTest() {
   std::vector<uint8_t> module_bytes = BuildJitParamCalleeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6767,16 +6255,8 @@ bool RunJitParamCalleeTest() {
 
 bool RunJitOpcodeHotParamCalleeTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotParamCalleeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6807,16 +6287,8 @@ bool RunJitOpcodeHotParamCalleeTest() {
 
 bool RunJitDisabledTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, false);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -6966,16 +6438,8 @@ int RunBenchHotLoop(size_t iterations) {
 
 bool RunJitOpcodeHotI32CompareTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32CompareModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7006,16 +6470,8 @@ bool RunJitOpcodeHotI32CompareTest() {
 
 bool RunJitOpcodeHotCompareBoolIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCompareBoolIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7046,16 +6502,8 @@ bool RunJitOpcodeHotCompareBoolIndirectTest() {
 
 bool RunJitOpcodeHotCompareBoolTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCompareBoolTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7086,16 +6534,8 @@ bool RunJitOpcodeHotCompareBoolTailCallTest() {
 
 bool RunJitCompiledBoolOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledBoolOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7135,16 +6575,8 @@ bool RunJitCompiledBoolOpsTest() {
 
 bool RunJitCompiledLocalsBoolChainTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLocalsBoolChainModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7184,16 +6616,8 @@ bool RunJitCompiledLocalsBoolChainTest() {
 
 bool RunJitCompiledLocalBoolStoreTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLocalBoolStoreModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7233,16 +6657,8 @@ bool RunJitCompiledLocalBoolStoreTest() {
 
 bool RunJitCompiledLocalBoolAndOrTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLocalBoolAndOrModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7282,16 +6698,8 @@ bool RunJitCompiledLocalBoolAndOrTest() {
 
 bool RunJitOpcodeHotLocalBoolAndOrTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalBoolAndOrModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7322,16 +6730,8 @@ bool RunJitOpcodeHotLocalBoolAndOrTest() {
 
 bool RunJitOpcodeHotLocalBoolAndOrIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalBoolAndOrIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7362,16 +6762,8 @@ bool RunJitOpcodeHotLocalBoolAndOrIndirectTest() {
 
 bool RunJitOpcodeHotLocalBoolAndOrTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalBoolAndOrTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7402,16 +6794,8 @@ bool RunJitOpcodeHotLocalBoolAndOrTailCallTest() {
 
 bool RunJitOpcodeHotLocalBoolStoreTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalBoolStoreModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7442,16 +6826,8 @@ bool RunJitOpcodeHotLocalBoolStoreTest() {
 
 bool RunJitOpcodeHotLocalBoolStoreIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalBoolStoreIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7482,16 +6858,8 @@ bool RunJitOpcodeHotLocalBoolStoreIndirectTest() {
 
 bool RunJitOpcodeHotLocalBoolStoreTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalBoolStoreTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7522,16 +6890,8 @@ bool RunJitOpcodeHotLocalBoolStoreTailCallTest() {
 
 bool RunJitOpcodeHotLocalsBoolChainTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalsBoolChainModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7562,16 +6922,8 @@ bool RunJitOpcodeHotLocalsBoolChainTest() {
 
 bool RunJitOpcodeHotLocalsBoolChainIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalsBoolChainIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7602,16 +6954,8 @@ bool RunJitOpcodeHotLocalsBoolChainIndirectTest() {
 
 bool RunJitOpcodeHotLocalsBoolChainTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLocalsBoolChainTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7642,16 +6986,8 @@ bool RunJitOpcodeHotLocalsBoolChainTailCallTest() {
 
 bool RunJitOpcodeHotBoolOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBoolOpsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7682,16 +7018,8 @@ bool RunJitOpcodeHotBoolOpsTest() {
 
 bool RunJitOpcodeHotBoolOpsIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBoolOpsIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7722,16 +7050,8 @@ bool RunJitOpcodeHotBoolOpsIndirectTest() {
 
 bool RunJitOpcodeHotBoolOpsTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBoolOpsTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7762,16 +7082,8 @@ bool RunJitOpcodeHotBoolOpsTailCallTest() {
 
 bool RunJitOpcodeHotI32LocalsArithmeticTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32LocalsArithmeticModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7802,16 +7114,8 @@ bool RunJitOpcodeHotI32LocalsArithmeticTest() {
 
 bool RunJitOpcodeHotI32LocalsArithmeticIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32LocalsArithmeticIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7842,16 +7146,8 @@ bool RunJitOpcodeHotI32LocalsArithmeticIndirectTest() {
 
 bool RunJitOpcodeHotI32ArithmeticTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32ArithmeticModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7882,16 +7178,8 @@ bool RunJitOpcodeHotI32ArithmeticTest() {
 
 bool RunJitOpcodeHotI32ArithmeticIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32ArithmeticIndirectModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
@@ -7922,16 +7210,8 @@ bool RunJitOpcodeHotI32ArithmeticIndirectTest() {
 
 bool RunJitOpcodeHotI32ArithmeticTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32ArithmeticTailCallModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed\n";
