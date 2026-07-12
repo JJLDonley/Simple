@@ -106,6 +106,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/registry_core.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/resource_registry.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/spec_builder.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/system_channel.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_os.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_random.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/thread.cpp

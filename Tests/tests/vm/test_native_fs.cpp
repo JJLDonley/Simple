@@ -72,9 +72,17 @@ bool VmRuntimeHasNoNativeStdlibForwardingGlue() {
 }
 
 bool VmNativeRegistryUsesNamedMetadataHandlers() {
-  std::ifstream in("VM/src/native/registry.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  const char* files[] = {
+      "VM/src/native/registry.cpp",
+      "VM/src/native/system_channel.cpp",
+  };
+  std::string text;
+  for (const char* file : files) {
+    std::ifstream in(file);
+    if (!in) return false;
+    text.append((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    text.push_back('\n');
+  }
   if (text.find("FsReadText") == std::string::npos) return false;
   if (text.find("ChannelPendingI32") == std::string::npos) return false;
   if (text.find("JsonParse") == std::string::npos) return false;

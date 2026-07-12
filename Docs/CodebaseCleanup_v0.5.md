@@ -269,6 +269,7 @@ Deliverables:
 - [ ] Split registration specs by domain without changing behavior:
   - [x] Move `System.Random` handlers and registration into `native/system_random.cpp`.
   - [x] Move process/environment/platform/time/thread handlers and `System.Env`/`System.OS`/`System.Thread` registration into `native/system_os.cpp`.
+  - [x] Move scalar/string/bytes channel handlers and `System.Channel` registration into `native/system_channel.cpp`.
   - `VM/src/native/specs/io_specs.cpp`
   - `VM/src/native/specs/fs_specs.cpp`
   - `VM/src/native/specs/path_specs.cpp`
