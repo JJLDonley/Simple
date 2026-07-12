@@ -75,6 +75,7 @@ bool VmNativeRegistryUsesNamedMetadataHandlers() {
   const char* files[] = {
       "VM/src/native/registry.cpp",
       "VM/src/native/system_channel.cpp",
+      "VM/src/native/system_fs.cpp",
   };
   std::string text;
   for (const char* file : files) {
