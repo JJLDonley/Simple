@@ -188,11 +188,11 @@ Deliverables:
   - `import Buffer`
   - `import Channel`
 - [x] Add source audit tests for stale legacy diagnostic/member names and native registry member string drift.
-- [ ] Add a WIP/API policy test:
-  - implemented catalog members must have signatures;
-  - native-backed implemented members must have native metadata;
-  - planned/WIP members must not accidentally dispatch;
-  - unavailable members must produce clear diagnostics.
+- [x] Add a WIP/API policy test:
+  - public native-backed members must agree with catalog availability and signatures;
+  - planned members may dispatch only through the explicit internal-backing quarantine used by implemented Standard APIs or transitional OS ABI names;
+  - unclassified internal native names fail the test;
+  - unavailable public members remain covered by language diagnostics tests.
 
 Exit criteria:
 

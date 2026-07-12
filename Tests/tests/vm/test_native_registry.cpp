@@ -3,7 +3,9 @@
 #include <chrono>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -13,6 +15,42 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool NativeRegistryMatchesCatalogAvailability() {
+  using namespace Simple::Lang;
+  const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const std::unordered_set<std::string> internal_native_backing = {
+      "System.OS.args_count", "System.OS.args_get", "System.OS.env_get",
+      "System.OS.cwd_get", "System.OS.time_mono_ns", "System.OS.time_wall_ns",
+      "System.OS.formatWallNs", "System.Random.range", "System.Log.info",
+      "System.Log.warn", "System.Log.error",
+  };
+  for (const auto& spec : registry.Functions()) {
+    if (!spec.library_module) return false;
+    const auto symbol = ParseLibraryMember(*spec.library_module, spec.symbol_name);
+    const std::string qualified = spec.module_name + "." + spec.symbol_name;
+    if (!symbol) {
+      if (internal_native_backing.find(qualified) == internal_native_backing.end()) {
+        std::cerr << "unclassified internal native: " << qualified << "\n";
+        return false;
+      }
+      continue;
+    }
+    const LibraryMemberMetadata metadata =
+        GetLibraryMemberMetadata(*spec.library_module, spec.symbol_name);
+    if (metadata.availability == LibraryApiAvailability::Implemented) {
+      if (!metadata.signature) {
+        std::cerr << "implemented native missing catalog signature: " << qualified << "\n";
+        return false;
+      }
+    } else if (internal_native_backing.find(qualified) == internal_native_backing.end()) {
+      std::cerr << "planned catalog member dispatches without internal-backing policy: "
+                << qualified << "\n";
+      return false;
+    }
+  }
+  return true;
+}
 
 bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeRegistry registry;
@@ -712,6 +750,7 @@ bool RunNativeRegistryModuleTest() {
 }
 
 const TestCase kVmNativeRegistryTests[] = {
+    {"vm_native_registry_matches_catalog_availability", NativeRegistryMatchesCatalogAvailability},
     {"vm_native_registry_module", RunNativeRegistryModuleTest},
 };
 

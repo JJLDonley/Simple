@@ -1088,7 +1088,7 @@ inline std::vector<std::string_view> MemberNames(SystemModule module) {
   switch (module) {
     case SystemModule::IO: return {ToMember(SystemIOMember::Stdin), ToMember(SystemIOMember::Stdout), ToMember(SystemIOMember::Stderr), ToMember(SystemIOMember::Write), ToMember(SystemIOMember::WriteText), ToMember(SystemIOMember::Flush), ToMember(SystemIOMember::BufferNew), ToMember(SystemIOMember::BufferLen), ToMember(SystemIOMember::BufferFill), ToMember(SystemIOMember::BufferCopy)};
     case SystemModule::FS: return {ToMember(SystemFSMember::Open), ToMember(SystemFSMember::Close), ToMember(SystemFSMember::Read), ToMember(SystemFSMember::Write), ToMember(SystemFSMember::Flush), ToMember(SystemFSMember::Seek), ToMember(SystemFSMember::Tell), ToMember(SystemFSMember::Stat), ToMember(SystemFSMember::Exists), ToMember(SystemFSMember::IsFile), ToMember(SystemFSMember::IsDir), ToMember(SystemFSMember::ListDir), ToMember(SystemFSMember::NextDirEntry), ToMember(SystemFSMember::CloseDir), ToMember(SystemFSMember::Mkdir), ToMember(SystemFSMember::MkdirAll), ToMember(SystemFSMember::Remove), ToMember(SystemFSMember::Copy), ToMember(SystemFSMember::Rename), ToMember(SystemFSMember::Cwd), ToMember(SystemFSMember::SetCwd), ToMember(SystemFSMember::ReadText), ToMember(SystemFSMember::WriteText), ToMember(SystemFSMember::ReadBytes), ToMember(SystemFSMember::WriteBytes)};
-    case SystemModule::Path: return {ToMember(SystemPathMember::Separator), ToMember(SystemPathMember::Delimiter), ToMember(SystemPathMember::IsAbsolute), ToMember(SystemPathMember::Normalize), ToMember(SystemPathMember::Absolute), ToMember(SystemPathMember::Relative), ToMember(SystemPathMember::Join), ToMember(SystemPathMember::Dirname), ToMember(SystemPathMember::Basename), ToMember(SystemPathMember::Ext), ToMember(SystemPathMember::Stem)};
+    case SystemModule::Path: return {ToMember(SystemPathMember::Separator), ToMember(SystemPathMember::Delimiter), ToMember(SystemPathMember::IsAbsolute), ToMember(SystemPathMember::Normalize), ToMember(SystemPathMember::Absolute), ToMember(SystemPathMember::Relative), ToMember(SystemPathMember::Join), ToMember(SystemPathMember::Dirname), ToMember(SystemPathMember::Basename), ToMember(SystemPathMember::Ext), ToMember(SystemPathMember::Stem), ToMember(SystemPathMember::Exists), ToMember(SystemPathMember::IsFile), ToMember(SystemPathMember::IsDir)};
     case SystemModule::Env: return {ToMember(SystemEnvMember::ArgsCount), ToMember(SystemEnvMember::Arg), ToMember(SystemEnvMember::Get), ToMember(SystemEnvMember::Set), ToMember(SystemEnvMember::Unset), ToMember(SystemEnvMember::ExePath)};
     case SystemModule::OS: return {ToMember(SystemOSMember::Platform), ToMember(SystemOSMember::Arch), ToMember(SystemOSMember::IsLinux), ToMember(SystemOSMember::IsMacos), ToMember(SystemOSMember::IsWindows), ToMember(SystemOSMember::Pid), ToMember(SystemOSMember::CpuCount), ToMember(SystemOSMember::PageSize), ToMember(SystemOSMember::Exit), ToMember(SystemOSMember::SleepMs)};
     case SystemModule::Time: return {ToMember(SystemTimeMember::MonoNs), ToMember(SystemTimeMember::WallNs), ToMember(SystemTimeMember::SleepNs), ToMember(SystemTimeMember::SleepMs), ToMember(SystemTimeMember::TimerStart), ToMember(SystemTimeMember::TimerCancel), ToMember(SystemTimeMember::MonoSnake), ToMember(SystemTimeMember::WallSnake)};
@@ -1371,11 +1371,11 @@ inline std::optional<LibrarySignatureSpec> GetSystemLibrarySignature(SystemModul
         case SystemPathMember::Ext:
         case SystemPathMember::Stem:
         case SystemPathMember::Normalize: return LibrarySignature({LibraryParam("path", "string")}, "string");
-        case SystemPathMember::Absolute:
-        case SystemPathMember::Relative:
         case SystemPathMember::Exists:
         case SystemPathMember::IsFile:
-        case SystemPathMember::IsDir: return std::nullopt;
+        case SystemPathMember::IsDir: return LibrarySignature({LibraryParam("path", "string")}, "bool");
+        case SystemPathMember::Absolute:
+        case SystemPathMember::Relative: return std::nullopt;
       }
       return std::nullopt;
     }
