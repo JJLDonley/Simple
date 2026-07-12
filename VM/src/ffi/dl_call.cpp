@@ -19,20 +19,16 @@ namespace Simple::VM::Ffi {
 using Simple::Byte::SbcModule;
 using Simple::Byte::TypeKind;
 using Slot = Simple::VM::Interpreter::Slot;
-using Simple::VM::Runtime::BitsToF32;
-using Simple::VM::Runtime::BitsToF64;
-using Simple::VM::Runtime::F32ToBits;
-using Simple::VM::Runtime::F64ToBits;
-using Simple::VM::Runtime::PackF32Bits;
-using Simple::VM::Runtime::PackF64Bits;
+using Simple::VM::Runtime::PackF32;
+using Simple::VM::Runtime::PackF64;
 using Simple::VM::Runtime::PackI32;
 using Simple::VM::Runtime::PackI64;
 using Simple::VM::Runtime::PackRef;
 using Simple::VM::Runtime::UnpackI32;
+using Simple::VM::Runtime::UnpackF32;
+using Simple::VM::Runtime::UnpackF64;
 using Simple::VM::Runtime::UnpackI64;
 using Simple::VM::Runtime::UnpackRef;
-using Simple::VM::Runtime::UnpackU32Bits;
-using Simple::VM::Runtime::UnpackU64Bits;
 constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
 
 inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
@@ -89,10 +85,10 @@ bool ConvertDlArg(Slot slot,
     *out = static_cast<uint64_t>(UnpackI64(slot));
     return true;
   } else if constexpr (std::is_same_v<T, float>) {
-    *out = BitsToF32(UnpackU32Bits(slot));
+    *out = UnpackF32(slot);
     return true;
   } else if constexpr (std::is_same_v<T, double>) {
-    *out = BitsToF64(UnpackU64Bits(slot));
+    *out = UnpackF64(slot);
     return true;
   } else if constexpr (std::is_same_v<T, bool>) {
     *out = (UnpackI32(slot) != 0);
@@ -144,10 +140,10 @@ bool PackDlReturn(T value, Heap& heap, Slot* out_ret, std::string* out_error) {
     *out_ret = PackI64(static_cast<int64_t>(value));
     return true;
   } else if constexpr (std::is_same_v<T, float>) {
-    *out_ret = PackF32Bits(F32ToBits(value));
+    *out_ret = PackF32(value);
     return true;
   } else if constexpr (std::is_same_v<T, double>) {
-    *out_ret = PackF64Bits(F64ToBits(value));
+    *out_ret = PackF64(value);
     return true;
   } else if constexpr (std::is_same_v<T, bool>) {
     *out_ret = PackI32(value ? 1 : 0);

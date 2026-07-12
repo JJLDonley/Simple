@@ -29,7 +29,6 @@ struct RootTraceContext {
   const std::vector<Slot>* locals_arena = nullptr;
 };
 
-bool IsNullRef(Slot value);
 void TraceRoots(const RootTraceContext& context);
 
 } // namespace Simple::VM::Gc

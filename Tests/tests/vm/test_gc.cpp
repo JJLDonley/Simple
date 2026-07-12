@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "gc/root_tracer.h"
+#include "runtime/values.h"
 
 namespace Simple::VM::Tests {
 namespace {
@@ -22,7 +23,7 @@ bool VmSplitGcTracesGlobalRoots() {
   Simple::VM::Gc::TraceRoots(context);
   heap.Sweep();
   return heap.Get(live) != nullptr && heap.Get(dead) == nullptr &&
-         Simple::VM::Gc::IsNullRef(Simple::VM::HeapLayout::kNullRef);
+         Simple::VM::Runtime::IsNullRef(Simple::VM::HeapLayout::kNullRef);
 }
 
 bool VmGcTracesSwitchLoopLocalRefs() {

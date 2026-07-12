@@ -1,15 +1,13 @@
 #include "gc/root_tracer.h"
 
 #include "jit/call_context.h"
+#include "runtime/values.h"
 
 namespace Simple::VM::Gc {
 namespace {
 
-constexpr uint32_t kNullRef = 0xFFFFFFFFu;
-
-uint32_t UnpackRef(Slot value) {
-  return static_cast<uint32_t>(value & 0xFFFFFFFFu);
-}
+using Simple::VM::Runtime::IsNullRef;
+using Simple::VM::Runtime::UnpackRef;
 
 bool RefBitSet(const std::vector<uint8_t>& bits, size_t index) {
   const size_t byte = index / 8;
@@ -31,10 +29,6 @@ void TraceLocals(Heap& heap, const std::vector<Slot>& locals, const RootTraceFra
 }
 
 } // namespace
-
-bool IsNullRef(Slot value) {
-  return UnpackRef(value) == kNullRef;
-}
 
 void TraceRoots(const RootTraceContext& context) {
   if (!context.heap) return;

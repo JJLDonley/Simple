@@ -52,12 +52,12 @@ bool PrintAny(Heap& heap, uint32_t tag, Simple::VM::Interpreter::Slot value, std
       WriteStdoutText(std::to_string(static_cast<uint64_t>(UnpackI64(value))));
       return true;
     case kPrintAnyTagF32: {
-      float v = BitsToF32(UnpackU32Bits(value));
+      float v = UnpackF32(value);
       WriteStdoutText(std::to_string(v));
       return true;
     }
     case kPrintAnyTagF64: {
-      double v = BitsToF64(UnpackU64Bits(value));
+      double v = UnpackF64(value);
       WriteStdoutText(std::to_string(v));
       return true;
     }

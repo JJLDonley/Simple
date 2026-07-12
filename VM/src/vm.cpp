@@ -77,12 +77,16 @@ using Simple::VM::Runtime::BitsToF64;
 using Simple::VM::Runtime::F32ToBits;
 using Simple::VM::Runtime::F64ToBits;
 using Simple::VM::Runtime::IsNullRef;
+using Simple::VM::Runtime::PackF32;
 using Simple::VM::Runtime::PackF32Bits;
+using Simple::VM::Runtime::PackF64;
 using Simple::VM::Runtime::PackF64Bits;
 using Simple::VM::Runtime::PackI32;
 using Simple::VM::Runtime::PackI64;
 using Simple::VM::Runtime::PackRef;
 using Simple::VM::Runtime::UnpackI32;
+using Simple::VM::Runtime::UnpackF32;
+using Simple::VM::Runtime::UnpackF64;
 using Simple::VM::Runtime::UnpackI64;
 using Simple::VM::Runtime::UnpackRef;
 using Simple::VM::Runtime::UnpackU32Bits;
@@ -869,11 +873,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               break;
             }
             case Simple::Byte::ExtendedOpCode::CheckedConvI32ToF32: {
-              Push(stack, PackF32Bits(F32ToBits(static_cast<float>(UnpackI32(Pop(stack))))));
+              Push(stack, PackF32(static_cast<float>(UnpackI32(Pop(stack)))));
               break;
             }
             case Simple::Byte::ExtendedOpCode::CheckedConvI32ToF64: {
-              Push(stack, PackF64Bits(F64ToBits(static_cast<double>(UnpackI32(Pop(stack))))));
+              Push(stack, PackF64(static_cast<double>(UnpackI32(Pop(stack)))));
               break;
             }
             case Simple::Byte::ExtendedOpCode::CheckedConvF32ToI32: {
@@ -895,7 +899,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               break;
             }
             case Simple::Byte::ExtendedOpCode::CheckedConvF32ToF64: {
-              Push(stack, PackF64Bits(F64ToBits(static_cast<double>(BitsToF32(static_cast<uint32_t>(Pop(stack)))))));
+              Push(stack, PackF64(static_cast<double>(BitsToF32(static_cast<uint32_t>(Pop(stack))))));
               break;
             }
             case Simple::Byte::ExtendedOpCode::CheckedConvF64ToF32: {
@@ -904,7 +908,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
                   in > static_cast<double>(std::numeric_limits<float>::max()))) {
                 return Trap("CHECKED_CONV_F64_F32 overflow");
               }
-              Push(stack, PackF32Bits(F32ToBits(static_cast<float>(in))));
+              Push(stack, PackF32(static_cast<float>(in)));
               break;
             }
             case Simple::Byte::ExtendedOpCode::InitObject: {
@@ -2782,33 +2786,33 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           case kIntrinsicMinF32:
           case kIntrinsicMaxF32: {
             if (stack.size() < 2) return Trap("INTRINSIC min/max f32 stack underflow");
-            float b = BitsToF32(UnpackU32Bits(Pop(stack)));
-            float a = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float b = UnpackF32(Pop(stack));
+            float a = UnpackF32(Pop(stack));
             float out = (id == kIntrinsicMinF32) ? (a < b ? a : b) : (a > b ? a : b);
-            Push(stack, PackF32Bits(F32ToBits(out)));
+            Push(stack, PackF32(out));
             break;
           }
           case kIntrinsicMinF64:
           case kIntrinsicMaxF64: {
             if (stack.size() < 2) return Trap("INTRINSIC min/max f64 stack underflow");
-            double b = BitsToF64(UnpackU64Bits(Pop(stack)));
-            double a = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double b = UnpackF64(Pop(stack));
+            double a = UnpackF64(Pop(stack));
             double out = (id == kIntrinsicMinF64) ? (a < b ? a : b) : (a > b ? a : b);
-            Push(stack, PackF64Bits(F64ToBits(out)));
+            Push(stack, PackF64(out));
             break;
           }
           case kIntrinsicSqrtF32: {
             if (stack.empty()) return Trap("INTRINSIC sqrt f32 stack underflow");
-            float v = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float v = UnpackF32(Pop(stack));
             float out = static_cast<float>(std::sqrt(v));
-            Push(stack, PackF32Bits(F32ToBits(out)));
+            Push(stack, PackF32(out));
             break;
           }
           case kIntrinsicSqrtF64: {
             if (stack.empty()) return Trap("INTRINSIC sqrt f64 stack underflow");
-            double v = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double v = UnpackF64(Pop(stack));
             double out = std::sqrt(v);
-            Push(stack, PackF64Bits(F64ToBits(out)));
+            Push(stack, PackF64(out));
             break;
           }
           case kIntrinsicMonoNs:
@@ -2874,7 +2878,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           case kIntrinsicStrF32: {
             if (stack.empty()) return Trap("INTRINSIC str_f32 stack underflow");
-            float value = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float value = UnpackF32(Pop(stack));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
             if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_f32 allocation failed");
             Push(stack, PackRef(handle));
@@ -2882,7 +2886,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           case kIntrinsicStrF64: {
             if (stack.empty()) return Trap("INTRINSIC str_f64 stack underflow");
-            double value = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double value = UnpackF64(Pop(stack));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
             if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_f64 allocation failed");
             Push(stack, PackRef(handle));
@@ -2986,26 +2990,26 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           case kIntrinsicDlCallF32: {
             if (stack.size() < 3) return Trap("INTRINSIC dl_call_f32 stack underflow");
-            float b = BitsToF32(UnpackU32Bits(Pop(stack)));
-            float a = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float b = UnpackF32(Pop(stack));
+            float a = UnpackF32(Pop(stack));
             int64_t ptr_bits = UnpackI64(Pop(stack));
             if (ptr_bits == 0) return Trap("System.FFI.call_f32 null ptr");
             using Fn = float (*)(float, float);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             float out = fn(a, b);
-            Push(stack, PackF32Bits(F32ToBits(out)));
+            Push(stack, PackF32(out));
             break;
           }
           case kIntrinsicDlCallF64: {
             if (stack.size() < 3) return Trap("INTRINSIC dl_call_f64 stack underflow");
-            double b = BitsToF64(UnpackU64Bits(Pop(stack)));
-            double a = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double b = UnpackF64(Pop(stack));
+            double a = UnpackF64(Pop(stack));
             int64_t ptr_bits = UnpackI64(Pop(stack));
             if (ptr_bits == 0) return Trap("System.FFI.call_f64 null ptr");
             using Fn = double (*)(double, double);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             double out = fn(a, b);
-            Push(stack, PackF64Bits(F64ToBits(out)));
+            Push(stack, PackF64(out));
             break;
           }
           case kIntrinsicDlCallBool: {
@@ -3325,13 +3329,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (opcode == static_cast<uint8_t>(OpCode::SubF32)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulF32)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivF32)) out = rhs == 0.0f ? 0.0f : (lhs / rhs);
-        Push(stack, PackF32Bits(F32ToBits(out)));
+        Push(stack, PackF32(out));
         break;
       }
       case OpCode::NegF32: {
         Slot a = Pop(stack);
         float out = -BitsToF32(static_cast<uint32_t>(a));
-        Push(stack, PackF32Bits(F32ToBits(out)));
+        Push(stack, PackF32(out));
         break;
       }
       case OpCode::IncF32:
@@ -3343,7 +3347,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         } else {
           out -= 1.0f;
         }
-        Push(stack, PackF32Bits(F32ToBits(out)));
+        Push(stack, PackF32(out));
         break;
       }
       case OpCode::AddF64:
@@ -3359,13 +3363,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (opcode == static_cast<uint8_t>(OpCode::SubF64)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulF64)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivF64)) out = rhs == 0.0 ? 0.0 : (lhs / rhs);
-        Push(stack, PackF64Bits(F64ToBits(out)));
+        Push(stack, PackF64(out));
         break;
       }
       case OpCode::NegF64: {
         Slot a = Pop(stack);
         double out = -BitsToF64(static_cast<uint64_t>(a));
-        Push(stack, PackF64Bits(F64ToBits(out)));
+        Push(stack, PackF64(out));
         break;
       }
       case OpCode::IncF64:
@@ -3377,7 +3381,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         } else {
           out -= 1.0;
         }
-        Push(stack, PackF64Bits(F64ToBits(out)));
+        Push(stack, PackF64(out));
         break;
       }
       case OpCode::CmpEqI32:
@@ -3816,13 +3820,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::ConvI32ToF32: {
         Slot v = Pop(stack);
         float out = static_cast<float>(UnpackI32(v));
-        Push(stack, PackF32Bits(F32ToBits(out)));
+        Push(stack, PackF32(out));
         break;
       }
       case OpCode::ConvI32ToF64: {
         Slot v = Pop(stack);
         double out = static_cast<double>(UnpackI32(v));
-        Push(stack, PackF64Bits(F64ToBits(out)));
+        Push(stack, PackF64(out));
         break;
       }
       case OpCode::ConvF32ToI32: {
@@ -3840,13 +3844,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::ConvF32ToF64: {
         Slot v = Pop(stack);
         double out = static_cast<double>(BitsToF32(static_cast<uint32_t>(v)));
-        Push(stack, PackF64Bits(F64ToBits(out)));
+        Push(stack, PackF64(out));
         break;
       }
       case OpCode::ConvF64ToF32: {
         Slot v = Pop(stack);
         float out = static_cast<float>(BitsToF64(static_cast<uint64_t>(v)));
-        Push(stack, PackF32Bits(F32ToBits(out)));
+        Push(stack, PackF32(out));
         break;
       }
       case OpCode::Ret: {
