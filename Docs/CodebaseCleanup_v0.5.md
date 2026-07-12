@@ -368,6 +368,7 @@ Deliverables:
   - [x] Add typed `LibraryModuleId` native spec builder and migrate current System native registrations.
   - [x] Move native spec construction helpers into `native/spec_builder` for upcoming domain-specific registry files.
 - [x] Replace copied LSP signature-help response snippets with small JSON builder helpers.
+- [x] Collapse repeated LSP pipe/temp-file execution into `RunLspSession`.
 - [x] Replace copied command execution helpers in CLI tests with one shared test utility.
 - [ ] Add comments only where the shared abstraction encodes a non-obvious rule.
 

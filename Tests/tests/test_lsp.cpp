@@ -187,20 +187,31 @@ bool SemanticDataContainsTokenType(const std::vector<int>& data, int token_type)
   return false;
 }
 
+bool RunLspSession(const std::string& name,
+                   const std::string& input,
+                   std::string* out_contents,
+                   std::string* err_contents) {
+  if (!out_contents || !err_contents) return false;
+  const std::string in_path = TempPath(name + "_in.txt");
+  const std::string out_path = TempPath(name + "_out.txt");
+  const std::string err_path = TempPath(name + "_err.txt");
+  if (!WriteBinaryFile(in_path, input)) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  *out_contents = ReadFileText(out_path);
+  *err_contents = ReadFileText(err_path);
+  return true;
+}
+
 bool LspInitializeHandshake() {
-  const std::string in_path = TempPath("simple_lsp_init_in.txt");
-  const std::string out_path = TempPath("simple_lsp_init_out.txt");
-  const std::string err_path = TempPath("simple_lsp_init_err.txt");
+  const std::string session_name = "simple_lsp_init";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
       BuildLspFrame(init_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("Content-Length:") != std::string::npos &&
          out_contents.find("\"id\":1") != std::string::npos &&
@@ -212,9 +223,7 @@ bool LspInitializeHandshake() {
 }
 
 bool LspDidOpenPublishesDiagnostics() {
-  const std::string in_path = TempPath("simple_lsp_diag_in.txt");
-  const std::string out_path = TempPath("simple_lsp_diag_out.txt");
-  const std::string err_path = TempPath("simple_lsp_diag_err.txt");
+  const std::string session_name = "simple_lsp_diag";
   const std::string uri = "file:///workspace/bad.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -228,11 +237,9 @@ bool LspDidOpenPublishesDiagnostics() {
       BuildLspFrame(open_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"method\":\"textDocument/publishDiagnostics\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -241,9 +248,7 @@ bool LspDidOpenPublishesDiagnostics() {
 }
 
 bool LspDidOpenEmptyDocumentClearsDiagnostics() {
-  const std::string in_path = TempPath("simple_lsp_empty_diag_in.txt");
-  const std::string out_path = TempPath("simple_lsp_empty_diag_out.txt");
-  const std::string err_path = TempPath("simple_lsp_empty_diag_err.txt");
+  const std::string session_name = "simple_lsp_empty_diag";
   const std::string uri = "file:///workspace/empty.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -257,11 +262,9 @@ bool LspDidOpenEmptyDocumentClearsDiagnostics() {
       BuildLspFrame(open_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"method\":\"textDocument/publishDiagnostics\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -279,9 +282,7 @@ bool LspDidOpenResolvesLocalFileImport() {
   const std::string main_path = (base_dir / "main.simple").string();
   if (!WriteBinaryFile(dep_path, "Vec :: artifact { x : i32 }\n")) return false;
 
-  const std::string in_path = TempPath("simple_lsp_local_import_in.txt");
-  const std::string out_path = TempPath("simple_lsp_local_import_out.txt");
-  const std::string err_path = TempPath("simple_lsp_local_import_err.txt");
+  const std::string session_name = "simple_lsp_local_import";
   const std::string uri = "file://" + main_path;
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -295,11 +296,9 @@ bool LspDidOpenResolvesLocalFileImport() {
       BuildLspFrame(open_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"method\":\"textDocument/publishDiagnostics\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -309,9 +308,7 @@ bool LspDidOpenResolvesLocalFileImport() {
 }
 
 bool LspDiagnosticsStripWrappedContextAndUseInnerRange() {
-  const std::string in_path = TempPath("simple_lsp_diag_wrapped_in.txt");
-  const std::string out_path = TempPath("simple_lsp_diag_wrapped_out.txt");
-  const std::string err_path = TempPath("simple_lsp_diag_wrapped_err.txt");
+  const std::string session_name = "simple_lsp_diag_wrapped";
   const std::string uri = "file:///workspace/wrapped_diag.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -325,11 +322,9 @@ bool LspDiagnosticsStripWrappedContextAndUseInnerRange() {
       BuildLspFrame(open_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"code\":\"E0001\"") != std::string::npos &&
          out_contents.find("\"message\":\"undeclared identifier: System\"") != std::string::npos &&
@@ -339,9 +334,7 @@ bool LspDiagnosticsStripWrappedContextAndUseInnerRange() {
 }
 
 bool LspDiagnosticsSpanUndeclaredIdentifierLength() {
-  const std::string in_path = TempPath("simple_lsp_diag_span_in.txt");
-  const std::string out_path = TempPath("simple_lsp_diag_span_out.txt");
-  const std::string err_path = TempPath("simple_lsp_diag_span_err.txt");
+  const std::string session_name = "simple_lsp_diag_span";
   const std::string uri = "file:///workspace/bad_span.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -355,11 +348,9 @@ bool LspDiagnosticsSpanUndeclaredIdentifierLength() {
       BuildLspFrame(open_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":1") != std::string::npos &&
          out_contents.find("\"code\":\"E0001\"") != std::string::npos &&
@@ -368,9 +359,7 @@ bool LspDiagnosticsSpanUndeclaredIdentifierLength() {
 }
 
 bool LspDidChangeRefreshesDiagnostics() {
-  const std::string in_path = TempPath("simple_lsp_change_in.txt");
-  const std::string out_path = TempPath("simple_lsp_change_out.txt");
-  const std::string err_path = TempPath("simple_lsp_change_err.txt");
+  const std::string session_name = "simple_lsp_change";
   const std::string uri = "file:///workspace/change.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -389,11 +378,9 @@ bool LspDidChangeRefreshesDiagnostics() {
       BuildLspFrame(change_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   const size_t first_diag = out_contents.find("\"method\":\"textDocument/publishDiagnostics\"");
   if (first_diag == std::string::npos) return false;
   const size_t second_diag = out_contents.find("\"method\":\"textDocument/publishDiagnostics\"", first_diag + 1);
@@ -405,9 +392,7 @@ bool LspDidChangeRefreshesDiagnostics() {
 }
 
 bool LspDidChangeIgnoresStaleVersion() {
-  const std::string in_path = TempPath("simple_lsp_stale_change_in.txt");
-  const std::string out_path = TempPath("simple_lsp_stale_change_out.txt");
-  const std::string err_path = TempPath("simple_lsp_stale_change_err.txt");
+  const std::string session_name = "simple_lsp_stale_change";
   const std::string uri = "file:///workspace/stale.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -426,11 +411,9 @@ bool LspDidChangeIgnoresStaleVersion() {
       BuildLspFrame(stale_change_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
 
   size_t diag_count = 0;
   size_t search_pos = 0;
@@ -449,9 +432,7 @@ bool LspDidChangeIgnoresStaleVersion() {
 }
 
 bool LspDidChangeIgnoresUnknownDocument() {
-  const std::string in_path = TempPath("simple_lsp_unknown_change_in.txt");
-  const std::string out_path = TempPath("simple_lsp_unknown_change_out.txt");
-  const std::string err_path = TempPath("simple_lsp_unknown_change_err.txt");
+  const std::string session_name = "simple_lsp_unknown_change";
   const std::string uri = "file:///workspace/unknown.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string change_req =
@@ -465,11 +446,9 @@ bool LspDidChangeIgnoresUnknownDocument() {
       BuildLspFrame(change_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":1") != std::string::npos &&
          out_contents.find("\"id\":2") != std::string::npos &&
@@ -478,9 +457,7 @@ bool LspDidChangeIgnoresUnknownDocument() {
 }
 
 bool LspDidChangeIgnoresDuplicateVersion() {
-  const std::string in_path = TempPath("simple_lsp_dup_change_in.txt");
-  const std::string out_path = TempPath("simple_lsp_dup_change_out.txt");
-  const std::string err_path = TempPath("simple_lsp_dup_change_err.txt");
+  const std::string session_name = "simple_lsp_dup_change";
   const std::string uri = "file:///workspace/dup.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -504,11 +481,9 @@ bool LspDidChangeIgnoresDuplicateVersion() {
       BuildLspFrame(change_bad_v2_dup) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
 
   size_t diag_count = 0;
   size_t search_pos = 0;
@@ -590,9 +565,7 @@ bool LspDidCloseClearsIncrementalDocumentState() {
 }
 
 bool LspHoverReturnsIdentifier() {
-  const std::string in_path = TempPath("simple_lsp_hover_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_err.txt");
+  const std::string session_name = "simple_lsp_hover";
   const std::string uri = "file:///workspace/hover.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -610,11 +583,9 @@ bool LspHoverReturnsIdentifier() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":3") != std::string::npos &&
          out_contents.find("\"contents\"") != std::string::npos &&
@@ -622,9 +593,7 @@ bool LspHoverReturnsIdentifier() {
 }
 
 bool LspHoverIncludesDeclaredType() {
-  const std::string in_path = TempPath("simple_lsp_hover_type_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_type_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_type_err.txt");
+  const std::string session_name = "simple_lsp_hover_type";
   const std::string uri = "file:///workspace/hover_type.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -642,11 +611,9 @@ bool LspHoverIncludesDeclaredType() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":19") != std::string::npos &&
          out_contents.find("```simple\\nfoo : i32\\n```") != std::string::npos;
@@ -971,9 +938,7 @@ bool LspNamespaceMemberBasicsUseQualifiedNames() {
 }
 
 bool LspHoverResolvesTypeAcrossOpenDocuments() {
-  const std::string in_path = TempPath("simple_lsp_hover_xdoc_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_xdoc_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_xdoc_err.txt");
+  const std::string session_name = "simple_lsp_hover_xdoc";
   const std::string lib_uri = "file:///workspace/hover_lib.simple";
   const std::string main_uri = "file:///workspace/hover_main.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -997,20 +962,16 @@ bool LspHoverResolvesTypeAcrossOpenDocuments() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":30") != std::string::npos &&
          out_contents.find("foo : i32") != std::string::npos;
 }
 
 bool LspHoverShowsReservedAliasSignature() {
-  const std::string in_path = TempPath("simple_lsp_hover_reserved_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_reserved_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_reserved_alias_err.txt");
+  const std::string session_name = "simple_lsp_hover_reserved_alias";
   const std::string uri = "file:///workspace/hover_reserved_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1028,20 +989,16 @@ bool LspHoverShowsReservedAliasSignature() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":35") != std::string::npos &&
          out_contents.find("```simple\\nOS.sleepMs : void (milliseconds)\\n```") != std::string::npos;
 }
 
 bool LspHoverShowsIoAliasSignature() {
-  const std::string in_path = TempPath("simple_lsp_hover_io_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_io_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_io_alias_err.txt");
+  const std::string session_name = "simple_lsp_hover_io_alias";
   const std::string uri = "file:///workspace/hover_io_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1059,20 +1016,16 @@ bool LspHoverShowsIoAliasSignature() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":45") != std::string::npos &&
          out_contents.find("```simple\\nOut.println : void (value)\\n```") != std::string::npos;
 }
 
 bool LspHoverShowsFunctionSignature() {
-  const std::string in_path = TempPath("simple_lsp_hover_fn_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_fn_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_fn_err.txt");
+  const std::string session_name = "simple_lsp_hover_fn";
   const std::string uri = "file:///workspace/hover_fn.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1091,20 +1044,16 @@ bool LspHoverShowsFunctionSignature() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":46") != std::string::npos &&
          out_contents.find("```simple\\nsum : i32 (lhs : i32, rhs : i32)\\n```") != std::string::npos;
 }
 
 bool LspCompletionReturnsItems() {
-  const std::string in_path = TempPath("simple_lsp_completion_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_err.txt");
+  const std::string session_name = "simple_lsp_completion";
   const std::string uri = "file:///workspace/complete.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1122,11 +1071,9 @@ bool LspCompletionReturnsItems() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":4") != std::string::npos &&
          out_contents.find("\"items\"") != std::string::npos &&
@@ -1136,9 +1083,7 @@ bool LspCompletionReturnsItems() {
 }
 
 bool LspCompletionReturnsEnumMembers() {
-  const std::string in_path = TempPath("simple_lsp_completion_enum_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_enum_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_enum_err.txt");
+  const std::string session_name = "simple_lsp_completion_enum";
   const std::string uri = "file:///workspace/completion_enum.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1156,11 +1101,9 @@ bool LspCompletionReturnsEnumMembers() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":48") != std::string::npos &&
          out_contents.find("\"label\":\"Red\"") != std::string::npos &&
@@ -1169,9 +1112,7 @@ bool LspCompletionReturnsEnumMembers() {
 }
 
 bool LspCompletionReturnsArtifactMembers() {
-  const std::string in_path = TempPath("simple_lsp_completion_artifact_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_artifact_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_artifact_err.txt");
+  const std::string session_name = "simple_lsp_completion_artifact";
   const std::string uri = "file:///workspace/completion_artifact.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1189,11 +1130,9 @@ bool LspCompletionReturnsArtifactMembers() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":49") != std::string::npos &&
          out_contents.find("\"label\":\"x\"") != std::string::npos &&
@@ -1201,9 +1140,7 @@ bool LspCompletionReturnsArtifactMembers() {
 }
 
 bool LspCompletionIncludesLocalDeclarations() {
-  const std::string in_path = TempPath("simple_lsp_completion_local_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_local_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_local_err.txt");
+  const std::string session_name = "simple_lsp_completion_local";
   const std::string uri = "file:///workspace/complete_local.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1221,11 +1158,9 @@ bool LspCompletionIncludesLocalDeclarations() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":15") != std::string::npos &&
          out_contents.find("\"label\":\"alpha\"") != std::string::npos &&
@@ -1233,9 +1168,7 @@ bool LspCompletionIncludesLocalDeclarations() {
 }
 
 bool LspCompletionIncludesOpenDocumentDeclarations() {
-  const std::string in_path = TempPath("simple_lsp_completion_xdoc_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_xdoc_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_xdoc_err.txt");
+  const std::string session_name = "simple_lsp_completion_xdoc";
   const std::string lib_uri = "file:///workspace/complete_lib.simple";
   const std::string main_uri = "file:///workspace/complete_main.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -1259,11 +1192,9 @@ bool LspCompletionIncludesOpenDocumentDeclarations() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":32") != std::string::npos &&
          out_contents.find("\"label\":\"shared_name\"") != std::string::npos &&
@@ -1271,9 +1202,7 @@ bool LspCompletionIncludesOpenDocumentDeclarations() {
 }
 
 bool LspCompletionFiltersByTypedPrefix() {
-  const std::string in_path = TempPath("simple_lsp_completion_prefix_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_prefix_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_prefix_err.txt");
+  const std::string session_name = "simple_lsp_completion_prefix";
   const std::string uri = "file:///workspace/complete_prefix.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1291,11 +1220,9 @@ bool LspCompletionFiltersByTypedPrefix() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":16") != std::string::npos &&
          out_contents.find("\"label\":\"alpha\"") != std::string::npos &&
@@ -1303,9 +1230,7 @@ bool LspCompletionFiltersByTypedPrefix() {
 }
 
 bool LspCompletionFiltersMemberSuffixByReceiver() {
-  const std::string in_path = TempPath("simple_lsp_completion_member_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_member_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_member_err.txt");
+  const std::string session_name = "simple_lsp_completion_member";
   const std::string uri = "file:///workspace/complete_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1323,11 +1248,9 @@ bool LspCompletionFiltersMemberSuffixByReceiver() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":17") != std::string::npos &&
          out_contents.find("\"label\":\"print\"") != std::string::npos &&
@@ -1336,9 +1259,7 @@ bool LspCompletionFiltersMemberSuffixByReceiver() {
 }
 
 bool LspCompletionSuggestsReservedImportModules() {
-  const std::string in_path = TempPath("simple_lsp_completion_import_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_import_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_import_err.txt");
+  const std::string session_name = "simple_lsp_completion_import";
   const std::string uri = "file:///workspace/import_complete.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1356,11 +1277,9 @@ bool LspCompletionSuggestsReservedImportModules() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":30") != std::string::npos &&
          out_contents.find("\"label\":\"System.FFI\"") != std::string::npos &&
@@ -1371,9 +1290,7 @@ bool LspCompletionSuggestsReservedImportModules() {
 }
 
 bool LspCompletionSuggestsReservedImportModulesUnquoted() {
-  const std::string in_path = TempPath("simple_lsp_completion_import_unquoted_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_import_unquoted_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_import_unquoted_err.txt");
+  const std::string session_name = "simple_lsp_completion_import_unquoted";
   const std::string uri = "file:///workspace/import_complete_unquoted.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1391,20 +1308,16 @@ bool LspCompletionSuggestsReservedImportModulesUnquoted() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":46") != std::string::npos &&
          out_contents.find("\"label\":\"System.FFI\"") != std::string::npos;
 }
 
 bool LspCompletionIncludesReservedModuleAliasMembers() {
-  const std::string in_path = TempPath("simple_lsp_completion_alias_member_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_alias_member_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_alias_member_err.txt");
+  const std::string session_name = "simple_lsp_completion_alias_member";
   const std::string uri = "file:///workspace/complete_alias_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1422,11 +1335,9 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":33") != std::string::npos &&
          out_contents.find("\"label\":\"call_i32\"") != std::string::npos &&
@@ -1437,9 +1348,7 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
 }
 
 bool LspCompletionIncludesSystemImplicitAliasMembers() {
-  const std::string in_path = TempPath("simple_lsp_completion_system_implicit_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_completion_system_implicit_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_completion_system_implicit_alias_err.txt");
+  const std::string session_name = "simple_lsp_completion_system_implicit_alias";
   const std::string uri = "file:///workspace/complete_system_implicit_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1457,11 +1366,9 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
       BuildLspFrame(completion_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
          out_contents.find("\"label\":\"new\"") != std::string::npos &&
@@ -1469,9 +1376,7 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
 }
 
 bool LspSignatureHelpReturnsSignature() {
-  const std::string in_path = TempPath("simple_lsp_signature_help_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_help_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_help_err.txt");
+  const std::string session_name = "simple_lsp_signature_help";
   const std::string uri = "file:///workspace/signature.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1489,11 +1394,9 @@ bool LspSignatureHelpReturnsSignature() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"signatureHelpProvider\"") != std::string::npos &&
          out_contents.find("\"id\":10") != std::string::npos &&
@@ -1504,9 +1407,7 @@ bool LspSignatureHelpReturnsSignature() {
 }
 
 bool LspSignatureHelpTracksActiveParameter() {
-  const std::string in_path = TempPath("simple_lsp_signature_param_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_param_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_param_err.txt");
+  const std::string session_name = "simple_lsp_signature_param";
   const std::string uri = "file:///workspace/signature_param.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1524,11 +1425,9 @@ bool LspSignatureHelpTracksActiveParameter() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":18") != std::string::npos &&
          out_contents.find("\"activeSignature\":1") != std::string::npos &&
@@ -1536,9 +1435,7 @@ bool LspSignatureHelpTracksActiveParameter() {
 }
 
 bool LspSignatureHelpReturnsFormatSignature() {
-  const std::string in_path = TempPath("simple_lsp_signature_format_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_format_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_format_err.txt");
+  const std::string session_name = "simple_lsp_signature_format";
   const std::string uri = "file:///workspace/signature_format.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1556,11 +1453,9 @@ bool LspSignatureHelpReturnsFormatSignature() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":28") != std::string::npos &&
          out_contents.find("Standard.IO.println : void (format, values...)") != std::string::npos &&
@@ -1569,9 +1464,7 @@ bool LspSignatureHelpReturnsFormatSignature() {
 }
 
 bool LspSignatureHelpSupportsAtCastCalls() {
-  const std::string in_path = TempPath("simple_lsp_signature_cast_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_cast_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_cast_err.txt");
+  const std::string session_name = "simple_lsp_signature_cast";
   const std::string uri = "file:///workspace/signature_cast.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1589,11 +1482,9 @@ bool LspSignatureHelpSupportsAtCastCalls() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":29") != std::string::npos &&
          out_contents.find("@i32(value)") != std::string::npos &&
@@ -1602,9 +1493,7 @@ bool LspSignatureHelpSupportsAtCastCalls() {
 }
 
 bool LspSignatureHelpForLocalFunctionDeclaration() {
-  const std::string in_path = TempPath("simple_lsp_signature_local_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_local_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_local_err.txt");
+  const std::string session_name = "simple_lsp_signature_local";
   const std::string uri = "file:///workspace/signature_local.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1622,11 +1511,9 @@ bool LspSignatureHelpForLocalFunctionDeclaration() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":27") != std::string::npos &&
          out_contents.find("add : i32 (a : i32, b : i32)") != std::string::npos &&
@@ -1637,9 +1524,7 @@ bool LspSignatureHelpForLocalFunctionDeclaration() {
 }
 
 bool LspSignatureHelpForReservedAliasMember() {
-  const std::string in_path = TempPath("simple_lsp_signature_reserved_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_reserved_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_reserved_alias_err.txt");
+  const std::string session_name = "simple_lsp_signature_reserved_alias";
   const std::string uri = "file:///workspace/signature_reserved_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1657,11 +1542,9 @@ bool LspSignatureHelpForReservedAliasMember() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":34") != std::string::npos &&
          out_contents.find("OS.sleepMs : void (milliseconds)") != std::string::npos &&
@@ -1671,9 +1554,7 @@ bool LspSignatureHelpForReservedAliasMember() {
 }
 
 bool LspSignatureHelpForIoAliasFormatCall() {
-  const std::string in_path = TempPath("simple_lsp_signature_io_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_io_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_io_alias_err.txt");
+  const std::string session_name = "simple_lsp_signature_io_alias";
   const std::string uri = "file:///workspace/signature_io_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1691,11 +1572,9 @@ bool LspSignatureHelpForIoAliasFormatCall() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":36") != std::string::npos &&
          out_contents.find("Out.println : void (format, values...)") != std::string::npos &&
@@ -1704,9 +1583,7 @@ bool LspSignatureHelpForIoAliasFormatCall() {
 }
 
 bool LspSignatureHelpForCoreDlOpenOverloads() {
-  const std::string in_path = TempPath("simple_lsp_signature_System_dl_open_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_System_dl_open_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_System_dl_open_err.txt");
+  const std::string session_name = "simple_lsp_signature_System_dl_open";
   const std::string uri = "file:///workspace/signature_System_dl_open.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1724,11 +1601,9 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":37") != std::string::npos &&
          out_contents.find("FFI.open : i64 (path)") != std::string::npos &&
@@ -1738,9 +1613,7 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
 }
 
 bool LspSignatureHelpForUserFunction() {
-  const std::string in_path = TempPath("simple_lsp_signature_user_fn_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_user_fn_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_user_fn_err.txt");
+  const std::string session_name = "simple_lsp_signature_user_fn";
   const std::string uri = "file:///workspace/signature_user_fn.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1759,11 +1632,9 @@ bool LspSignatureHelpForUserFunction() {
       BuildLspFrame(signature_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
          out_contents.find("sum : i32 (lhs : i32, rhs : i32)") != std::string::npos &&
@@ -1772,9 +1643,7 @@ bool LspSignatureHelpForUserFunction() {
 }
 
 bool LspSemanticTokensReturnsData() {
-  const std::string in_path = TempPath("simple_lsp_tokens_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_err.txt");
+  const std::string session_name = "simple_lsp_tokens";
   const std::string uri = "file:///workspace/tokens.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1792,11 +1661,9 @@ bool LspSemanticTokensReturnsData() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":5") != std::string::npos &&
          out_contents.find("\"data\"") != std::string::npos &&
@@ -1805,9 +1672,7 @@ bool LspSemanticTokensReturnsData() {
 }
 
 bool LspSemanticTokensClassifyModuleKeyword() {
-  const std::string in_path = TempPath("simple_lsp_tokens_package_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_package_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_package_err.txt");
+  const std::string session_name = "simple_lsp_tokens_package";
   const std::string uri = "file:///workspace/tokens_package.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1825,11 +1690,9 @@ bool LspSemanticTokensClassifyModuleKeyword() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty() || out_contents.find("\"id\":69") == std::string::npos) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
@@ -1840,9 +1703,7 @@ bool LspSemanticTokensClassifyModuleKeyword() {
 }
 
 bool LspSemanticTokensClassifyNamespaceExternDeclarationParts() {
-  const std::string in_path = TempPath("simple_lsp_tokens_ns_extern_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_ns_extern_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_ns_extern_err.txt");
+  const std::string session_name = "simple_lsp_tokens_ns_extern";
   const std::string uri = "file:///workspace/tokens_ns_extern.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -1860,11 +1721,9 @@ bool LspSemanticTokensClassifyNamespaceExternDeclarationParts() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty() || out_contents.find("\"id\":70") == std::string::npos) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
@@ -1997,9 +1856,7 @@ bool LspSemanticTokensClassifyImmutableVariablesAndParameters() {
 }
 
 bool LspSemanticTokensMarkFunctionDeclarations() {
-  const std::string in_path = TempPath("simple_lsp_tokens_decl_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_decl_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_decl_err.txt");
+  const std::string session_name = "simple_lsp_tokens_decl";
   const std::string uri = "file:///workspace/tokens_decl.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2017,11 +1874,9 @@ bool LspSemanticTokensMarkFunctionDeclarations() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2059,9 +1914,7 @@ bool LspSemanticTokensDebugEnvDoesNotBreakResponse() {
 }
 
 bool LspSemanticTokensClassifyFunctionsAndParameters() {
-  const std::string in_path = TempPath("simple_lsp_tokens_classify_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_classify_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_classify_err.txt");
+  const std::string session_name = "simple_lsp_tokens_classify";
   const std::string uri = "file:///workspace/tokens_classify.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2079,11 +1932,9 @@ bool LspSemanticTokensClassifyFunctionsAndParameters() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2093,9 +1944,7 @@ bool LspSemanticTokensClassifyFunctionsAndParameters() {
 }
 
 bool LspSemanticTokensMemberCallIsFunction() {
-  const std::string in_path = TempPath("simple_lsp_tokens_member_call_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_member_call_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_member_call_err.txt");
+  const std::string session_name = "simple_lsp_tokens_member_call";
   const std::string uri = "file:///workspace/tokens_member_call.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2113,11 +1962,9 @@ bool LspSemanticTokensMemberCallIsFunction() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
@@ -2140,9 +1987,7 @@ bool LspSemanticTokensMemberCallIsFunction() {
 }
 
 bool LspSemanticTokensFallbackOnMalformedSource() {
-  const std::string in_path = TempPath("simple_lsp_tokens_fallback_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_fallback_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_fallback_err.txt");
+  const std::string session_name = "simple_lsp_tokens_fallback";
   const std::string uri = "file:///workspace/tokens_fallback.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2160,11 +2005,9 @@ bool LspSemanticTokensFallbackOnMalformedSource() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2173,9 +2016,7 @@ bool LspSemanticTokensFallbackOnMalformedSource() {
 }
 
 bool LspSemanticTokensClassifyImportAliasAsNamespace() {
-  const std::string in_path = TempPath("simple_lsp_tokens_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_alias_err.txt");
+  const std::string session_name = "simple_lsp_tokens_alias";
   const std::string uri = "file:///workspace/tokens_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2193,11 +2034,9 @@ bool LspSemanticTokensClassifyImportAliasAsNamespace() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2206,9 +2045,7 @@ bool LspSemanticTokensClassifyImportAliasAsNamespace() {
 }
 
 bool LspSemanticTokensClassifyEnumMembers() {
-  const std::string in_path = TempPath("simple_lsp_tokens_enum_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_enum_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_enum_err.txt");
+  const std::string session_name = "simple_lsp_tokens_enum";
   const std::string uri = "file:///workspace/tokens_enum.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
@@ -2228,11 +2065,9 @@ bool LspSemanticTokensClassifyEnumMembers() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2241,9 +2076,7 @@ bool LspSemanticTokensClassifyEnumMembers() {
 }
 
 bool LspSemanticTokensClassifyEnumMemberAccess() {
-  const std::string in_path = TempPath("simple_lsp_tokens_enum_access_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_enum_access_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_enum_access_err.txt");
+  const std::string session_name = "simple_lsp_tokens_enum_access";
   const std::string uri = "file:///workspace/tokens_enum_access.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
@@ -2263,11 +2096,9 @@ bool LspSemanticTokensClassifyEnumMemberAccess() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
@@ -2291,9 +2122,7 @@ bool LspSemanticTokensClassifyEnumMemberAccess() {
 }
 
 bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
-  const std::string in_path = TempPath("simple_lsp_tokens_module_access_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_module_access_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_module_access_err.txt");
+  const std::string session_name = "simple_lsp_tokens_module_access";
   const std::string uri = "file:///workspace/tokens_module_access.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
@@ -2313,11 +2142,9 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2326,9 +2153,7 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
 }
 
 bool LspSemanticTokensClassifyArtifactMembers() {
-  const std::string in_path = TempPath("simple_lsp_tokens_artifact_member_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_artifact_member_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_artifact_member_err.txt");
+  const std::string session_name = "simple_lsp_tokens_artifact_member";
   const std::string uri = "file:///workspace/tokens_artifact_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
@@ -2348,11 +2173,9 @@ bool LspSemanticTokensClassifyArtifactMembers() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2361,9 +2184,7 @@ bool LspSemanticTokensClassifyArtifactMembers() {
 }
 
 bool LspSemanticTokensClassifyEnumNameAsType() {
-  const std::string in_path = TempPath("simple_lsp_tokens_enum_name_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_enum_name_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_enum_name_err.txt");
+  const std::string session_name = "simple_lsp_tokens_enum_name";
   const std::string uri = "file:///workspace/tokens_enum_name.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
@@ -2384,11 +2205,9 @@ bool LspSemanticTokensClassifyEnumNameAsType() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2397,9 +2216,7 @@ bool LspSemanticTokensClassifyEnumNameAsType() {
 }
 
 bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
-  const std::string in_path = TempPath("simple_lsp_tokens_enum_decl_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_enum_decl_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_enum_decl_err.txt");
+  const std::string session_name = "simple_lsp_tokens_enum_decl";
   const std::string uri = "file:///workspace/tokens_enum_decl.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "Color :: enum { Red, Green = 2, Blue }";
@@ -2418,11 +2235,9 @@ bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2431,9 +2246,7 @@ bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
 }
 
 bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
-  const std::string in_path = TempPath("simple_lsp_tokens_artifact_fields_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_artifact_fields_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_artifact_fields_err.txt");
+  const std::string session_name = "simple_lsp_tokens_artifact_fields";
   const std::string uri = "file:///workspace/tokens_artifact_fields.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "Point :: artifact { x : i32, y : i32 }";
@@ -2452,11 +2265,9 @@ bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2465,9 +2276,7 @@ bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
 }
 
 bool LspSemanticTokensCycleMemberAccessDepth() {
-  const std::string in_path = TempPath("simple_lsp_tokens_member_cycle_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_member_cycle_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_member_cycle_err.txt");
+  const std::string session_name = "simple_lsp_tokens_member_cycle";
   const std::string uri = "file:///workspace/tokens_member_cycle.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "obj.alpha.beta.gamma;";
@@ -2486,11 +2295,9 @@ bool LspSemanticTokensCycleMemberAccessDepth() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
@@ -2522,9 +2329,7 @@ bool LspSemanticTokensCycleMemberAccessDepth() {
 }
 
 bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
-  const std::string in_path = TempPath("simple_lsp_tokens_reserved_alias_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_reserved_alias_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_reserved_alias_err.txt");
+  const std::string session_name = "simple_lsp_tokens_reserved_alias";
   const std::string uri = "file:///workspace/tokens_reserved_alias.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "Standard.IO.println(\"hi\");";
@@ -2543,11 +2348,9 @@ bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2556,9 +2359,7 @@ bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
 }
 
 bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
-  const std::string in_path = TempPath("simple_lsp_tokens_reserved_mod_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_reserved_mod_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_reserved_mod_err.txt");
+  const std::string session_name = "simple_lsp_tokens_reserved_mod";
   const std::string uri = "file:///workspace/tokens_reserved_mod.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "Standard.IO.println(\"hi\");";
@@ -2577,11 +2378,9 @@ bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2590,9 +2389,7 @@ bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
 }
 
 bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
-  const std::string in_path = TempPath("simple_lsp_tokens_reserved_member_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_reserved_member_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_reserved_member_err.txt");
+  const std::string session_name = "simple_lsp_tokens_reserved_member";
   const std::string uri = "file:///workspace/tokens_reserved_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "import Standard.IO\\nStandard.IO.println(\\\"hi\\\");";
@@ -2611,11 +2408,9 @@ bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
@@ -2638,9 +2433,7 @@ bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
 }
 
 bool LspSemanticTokensArtifactDeclNameIsVariable() {
-  const std::string in_path = TempPath("simple_lsp_tokens_artifact_decl_in.txt");
-  const std::string out_path = TempPath("simple_lsp_tokens_artifact_decl_out.txt");
-  const std::string err_path = TempPath("simple_lsp_tokens_artifact_decl_err.txt");
+  const std::string session_name = "simple_lsp_tokens_artifact_decl";
   const std::string uri = "file:///workspace/tokens_artifact_decl.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text = "Player :: artifact { position : Vector2 }";
@@ -2659,11 +2452,9 @@ bool LspSemanticTokensArtifactDeclNameIsVariable() {
       BuildLspFrame(tokens_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
@@ -2672,9 +2463,7 @@ bool LspSemanticTokensArtifactDeclNameIsVariable() {
 }
 
 bool LspWorkspaceSymbolsFilterBySubstring() {
-  const std::string in_path = TempPath("simple_lsp_workspace_symbols_filter_in.txt");
-  const std::string out_path = TempPath("simple_lsp_workspace_symbols_filter_out.txt");
-  const std::string err_path = TempPath("simple_lsp_workspace_symbols_filter_err.txt");
+  const std::string session_name = "simple_lsp_workspace_symbols_filter";
   const std::string uri = "file:///workspace/workspace_symbols.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2691,11 +2480,9 @@ bool LspWorkspaceSymbolsFilterBySubstring() {
       BuildLspFrame(symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":70") != std::string::npos &&
          out_contents.find("\"name\":\"Alpha\"") != std::string::npos &&
@@ -2703,9 +2490,7 @@ bool LspWorkspaceSymbolsFilterBySubstring() {
          out_contents.find("\"name\":\"Gamma\"") == std::string::npos;
 }
 bool LspDefinitionReturnsLocation() {
-  const std::string in_path = TempPath("simple_lsp_definition_in.txt");
-  const std::string out_path = TempPath("simple_lsp_definition_out.txt");
-  const std::string err_path = TempPath("simple_lsp_definition_err.txt");
+  const std::string session_name = "simple_lsp_definition";
   const std::string uri = "file:///workspace/def.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2723,11 +2508,9 @@ bool LspDefinitionReturnsLocation() {
       BuildLspFrame(def_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":6") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -2735,9 +2518,7 @@ bool LspDefinitionReturnsLocation() {
 }
 
 bool LspDefinitionResolvesAcrossOpenDocuments() {
-  const std::string in_path = TempPath("simple_lsp_definition_xdoc_in.txt");
-  const std::string out_path = TempPath("simple_lsp_definition_xdoc_out.txt");
-  const std::string err_path = TempPath("simple_lsp_definition_xdoc_err.txt");
+  const std::string session_name = "simple_lsp_definition_xdoc";
   const std::string lib_uri = "file:///workspace/lib.simple";
   const std::string main_uri = "file:///workspace/main.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -2761,11 +2542,9 @@ bool LspDefinitionResolvesAcrossOpenDocuments() {
       BuildLspFrame(def_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":28") != std::string::npos &&
          out_contents.find("\"uri\":\"" + lib_uri + "\"") != std::string::npos &&
@@ -2774,9 +2553,7 @@ bool LspDefinitionResolvesAcrossOpenDocuments() {
 }
 
 bool LspDeclarationReturnsLocation() {
-  const std::string in_path = TempPath("simple_lsp_declaration_in.txt");
-  const std::string out_path = TempPath("simple_lsp_declaration_out.txt");
-  const std::string err_path = TempPath("simple_lsp_declaration_err.txt");
+  const std::string session_name = "simple_lsp_declaration";
   const std::string uri = "file:///workspace/decl.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2794,11 +2571,9 @@ bool LspDeclarationReturnsLocation() {
       BuildLspFrame(decl_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":31") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -2807,9 +2582,7 @@ bool LspDeclarationReturnsLocation() {
 }
 
 bool LspReferencesReturnsLocations() {
-  const std::string in_path = TempPath("simple_lsp_references_in.txt");
-  const std::string out_path = TempPath("simple_lsp_references_out.txt");
-  const std::string err_path = TempPath("simple_lsp_references_err.txt");
+  const std::string session_name = "simple_lsp_references";
   const std::string uri = "file:///workspace/refs.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2827,11 +2600,9 @@ bool LspReferencesReturnsLocations() {
       BuildLspFrame(refs_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":7") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -2842,9 +2613,7 @@ bool LspReferencesReturnsLocations() {
 }
 
 bool LspReferencesSpanOpenDocuments() {
-  const std::string in_path = TempPath("simple_lsp_references_xdoc_in.txt");
-  const std::string out_path = TempPath("simple_lsp_references_xdoc_out.txt");
-  const std::string err_path = TempPath("simple_lsp_references_xdoc_err.txt");
+  const std::string session_name = "simple_lsp_references_xdoc";
   const std::string lib_uri = "file:///workspace/lib_refs.simple";
   const std::string main_uri = "file:///workspace/main_refs.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -2868,11 +2637,9 @@ bool LspReferencesSpanOpenDocuments() {
       BuildLspFrame(refs_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":29") != std::string::npos &&
          out_contents.find("\"uri\":\"" + lib_uri + "\"") != std::string::npos &&
@@ -2880,9 +2647,7 @@ bool LspReferencesSpanOpenDocuments() {
 }
 
 bool LspReferencesCanExcludeDeclaration() {
-  const std::string in_path = TempPath("simple_lsp_references_nodecl_in.txt");
-  const std::string out_path = TempPath("simple_lsp_references_nodecl_out.txt");
-  const std::string err_path = TempPath("simple_lsp_references_nodecl_err.txt");
+  const std::string session_name = "simple_lsp_references_nodecl";
   const std::string uri = "file:///workspace/refs_nodecl.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2901,11 +2666,9 @@ bool LspReferencesCanExcludeDeclaration() {
       BuildLspFrame(refs_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":20") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
@@ -2916,9 +2679,7 @@ bool LspReferencesCanExcludeDeclaration() {
 }
 
 bool LspDocumentHighlightReturnsLocalHighlights() {
-  const std::string in_path = TempPath("simple_lsp_doc_highlight_in.txt");
-  const std::string out_path = TempPath("simple_lsp_doc_highlight_out.txt");
-  const std::string err_path = TempPath("simple_lsp_doc_highlight_err.txt");
+  const std::string session_name = "simple_lsp_doc_highlight";
   const std::string uri = "file:///workspace/highlight.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2936,11 +2697,9 @@ bool LspDocumentHighlightReturnsLocalHighlights() {
       BuildLspFrame(highlight_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   const size_t first_write = out_contents.find("\"kind\":3");
   const size_t second_write =
       first_write == std::string::npos ? std::string::npos : out_contents.find("\"kind\":3", first_write + 1);
@@ -2955,9 +2714,7 @@ bool LspDocumentHighlightReturnsLocalHighlights() {
 }
 
 bool LspDocumentSymbolReturnsTopLevel() {
-  const std::string in_path = TempPath("simple_lsp_symbols_in.txt");
-  const std::string out_path = TempPath("simple_lsp_symbols_out.txt");
-  const std::string err_path = TempPath("simple_lsp_symbols_err.txt");
+  const std::string session_name = "simple_lsp_symbols";
   const std::string uri = "file:///workspace/symbols.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -2975,11 +2732,9 @@ bool LspDocumentSymbolReturnsTopLevel() {
       BuildLspFrame(symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":8") != std::string::npos &&
          out_contents.find("\"name\":\"foo\"") != std::string::npos &&
@@ -2987,9 +2742,7 @@ bool LspDocumentSymbolReturnsTopLevel() {
 }
 
 bool LspDocumentSymbolMarksFunctionKind() {
-  const std::string in_path = TempPath("simple_lsp_symbols_kind_in.txt");
-  const std::string out_path = TempPath("simple_lsp_symbols_kind_out.txt");
-  const std::string err_path = TempPath("simple_lsp_symbols_kind_err.txt");
+  const std::string session_name = "simple_lsp_symbols_kind";
   const std::string uri = "file:///workspace/symbols_kind.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3007,11 +2760,9 @@ bool LspDocumentSymbolMarksFunctionKind() {
       BuildLspFrame(symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":23") != std::string::npos &&
          out_contents.find("\"name\":\"main\"") != std::string::npos &&
@@ -3019,9 +2770,7 @@ bool LspDocumentSymbolMarksFunctionKind() {
 }
 
 bool LspDocumentSymbolIncludesArtifactFields() {
-  const std::string in_path = TempPath("simple_lsp_symbols_artifact_in.txt");
-  const std::string out_path = TempPath("simple_lsp_symbols_artifact_out.txt");
-  const std::string err_path = TempPath("simple_lsp_symbols_artifact_err.txt");
+  const std::string session_name = "simple_lsp_symbols_artifact";
   const std::string uri = "file:///workspace/symbols_artifact.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3039,11 +2788,9 @@ bool LspDocumentSymbolIncludesArtifactFields() {
       BuildLspFrame(symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":71") != std::string::npos &&
          out_contents.find("\"name\":\"Point\"") != std::string::npos &&
@@ -3053,9 +2800,7 @@ bool LspDocumentSymbolIncludesArtifactFields() {
 }
 
 bool LspDocumentSymbolIncludesEnumMembers() {
-  const std::string in_path = TempPath("simple_lsp_symbols_enum_in.txt");
-  const std::string out_path = TempPath("simple_lsp_symbols_enum_out.txt");
-  const std::string err_path = TempPath("simple_lsp_symbols_enum_err.txt");
+  const std::string session_name = "simple_lsp_symbols_enum";
   const std::string uri = "file:///workspace/symbols_enum.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3073,11 +2818,9 @@ bool LspDocumentSymbolIncludesEnumMembers() {
       BuildLspFrame(symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":72") != std::string::npos &&
          out_contents.find("\"name\":\"Color\"") != std::string::npos &&
@@ -3088,9 +2831,7 @@ bool LspDocumentSymbolIncludesEnumMembers() {
 }
 
 bool LspWorkspaceSymbolReturnsSymbols() {
-  const std::string in_path = TempPath("simple_lsp_workspace_symbols_in.txt");
-  const std::string out_path = TempPath("simple_lsp_workspace_symbols_out.txt");
-  const std::string err_path = TempPath("simple_lsp_workspace_symbols_err.txt");
+  const std::string session_name = "simple_lsp_workspace_symbols";
   const std::string uri_a = "file:///workspace/a.simple";
   const std::string uri_b = "file:///workspace/b.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -3113,11 +2854,9 @@ bool LspWorkspaceSymbolReturnsSymbols() {
       BuildLspFrame(ws_symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"workspaceSymbolProvider\":true") != std::string::npos &&
          out_contents.find("\"id\":9") != std::string::npos &&
@@ -3129,9 +2868,7 @@ bool LspWorkspaceSymbolReturnsSymbols() {
 }
 
 bool LspWorkspaceSymbolMarksFunctionKind() {
-  const std::string in_path = TempPath("simple_lsp_workspace_symbols_kind_in.txt");
-  const std::string out_path = TempPath("simple_lsp_workspace_symbols_kind_out.txt");
-  const std::string err_path = TempPath("simple_lsp_workspace_symbols_kind_err.txt");
+  const std::string session_name = "simple_lsp_workspace_symbols_kind";
   const std::string uri = "file:///workspace/ws_symbol_kind.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3148,11 +2885,9 @@ bool LspWorkspaceSymbolMarksFunctionKind() {
       BuildLspFrame(ws_symbols_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":24") != std::string::npos &&
          out_contents.find("\"name\":\"main\"") != std::string::npos &&
@@ -3160,9 +2895,7 @@ bool LspWorkspaceSymbolMarksFunctionKind() {
 }
 
 bool LspRenameReturnsWorkspaceEdit() {
-  const std::string in_path = TempPath("simple_lsp_rename_in.txt");
-  const std::string out_path = TempPath("simple_lsp_rename_out.txt");
-  const std::string err_path = TempPath("simple_lsp_rename_err.txt");
+  const std::string session_name = "simple_lsp_rename";
   const std::string uri = "file:///workspace/rename.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3181,11 +2914,9 @@ bool LspRenameReturnsWorkspaceEdit() {
       BuildLspFrame(rename_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"renameProvider\"") != std::string::npos &&
          out_contents.find("\"id\":11") != std::string::npos &&
@@ -3197,9 +2928,7 @@ bool LspRenameReturnsWorkspaceEdit() {
 }
 
 bool LspRenameRejectsReservedKeyword() {
-  const std::string in_path = TempPath("simple_lsp_rename_keyword_in.txt");
-  const std::string out_path = TempPath("simple_lsp_rename_keyword_out.txt");
-  const std::string err_path = TempPath("simple_lsp_rename_keyword_err.txt");
+  const std::string session_name = "simple_lsp_rename_keyword";
   const std::string uri = "file:///workspace/rename_keyword.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3218,20 +2947,16 @@ bool LspRenameRejectsReservedKeyword() {
       BuildLspFrame(rename_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":25") != std::string::npos &&
          out_contents.find("\"id\":25,\"result\":null") != std::string::npos;
 }
 
 bool LspRenameRejectsReservedAliasMember() {
-  const std::string in_path = TempPath("simple_lsp_rename_reserved_member_in.txt");
-  const std::string out_path = TempPath("simple_lsp_rename_reserved_member_out.txt");
-  const std::string err_path = TempPath("simple_lsp_rename_reserved_member_err.txt");
+  const std::string session_name = "simple_lsp_rename_reserved_member";
   const std::string uri = "file:///workspace/rename_reserved_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3250,20 +2975,16 @@ bool LspRenameRejectsReservedAliasMember() {
       BuildLspFrame(rename_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":39") != std::string::npos &&
          out_contents.find("\"id\":39,\"result\":null") != std::string::npos;
 }
 
 bool LspRenameSpansOpenDocuments() {
-  const std::string in_path = TempPath("simple_lsp_rename_xdoc_in.txt");
-  const std::string out_path = TempPath("simple_lsp_rename_xdoc_out.txt");
-  const std::string err_path = TempPath("simple_lsp_rename_xdoc_err.txt");
+  const std::string session_name = "simple_lsp_rename_xdoc";
   const std::string lib_uri = "file:///workspace/rename_lib.simple";
   const std::string main_uri = "file:///workspace/rename_main.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -3288,11 +3009,9 @@ bool LspRenameSpansOpenDocuments() {
       BuildLspFrame(rename_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":31") != std::string::npos &&
          out_contents.find("\"newText\":\"baz\"") != std::string::npos &&
@@ -3301,9 +3020,7 @@ bool LspRenameSpansOpenDocuments() {
 }
 
 bool LspPrepareRenameReturnsRangeAndPlaceholder() {
-  const std::string in_path = TempPath("simple_lsp_prepare_rename_in.txt");
-  const std::string out_path = TempPath("simple_lsp_prepare_rename_out.txt");
-  const std::string err_path = TempPath("simple_lsp_prepare_rename_err.txt");
+  const std::string session_name = "simple_lsp_prepare_rename";
   const std::string uri = "file:///workspace/prepare_rename.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3321,11 +3038,9 @@ bool LspPrepareRenameReturnsRangeAndPlaceholder() {
       BuildLspFrame(prepare_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"prepareProvider\":true") != std::string::npos &&
          out_contents.find("\"id\":14") != std::string::npos &&
@@ -3336,9 +3051,7 @@ bool LspPrepareRenameReturnsRangeAndPlaceholder() {
 }
 
 bool LspPrepareRenameRejectsReservedAliasMember() {
-  const std::string in_path = TempPath("simple_lsp_prepare_reserved_member_in.txt");
-  const std::string out_path = TempPath("simple_lsp_prepare_reserved_member_out.txt");
-  const std::string err_path = TempPath("simple_lsp_prepare_reserved_member_err.txt");
+  const std::string session_name = "simple_lsp_prepare_reserved_member";
   const std::string uri = "file:///workspace/prepare_reserved_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3356,20 +3069,16 @@ bool LspPrepareRenameRejectsReservedAliasMember() {
       BuildLspFrame(prepare_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":40") != std::string::npos &&
          out_contents.find("\"id\":40,\"result\":null") != std::string::npos;
 }
 
 bool LspCodeActionReturnsQuickFix() {
-  const std::string in_path = TempPath("simple_lsp_code_action_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_err.txt");
+  const std::string session_name = "simple_lsp_code_action";
   const std::string uri = "file:///workspace/code_action.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3389,11 +3098,9 @@ bool LspCodeActionReturnsQuickFix() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"codeActionProvider\":true") != std::string::npos &&
          out_contents.find("\"id\":12") != std::string::npos &&
@@ -3404,9 +3111,7 @@ bool LspCodeActionReturnsQuickFix() {
 }
 
 bool LspCodeActionInsertsAfterImports() {
-  const std::string in_path = TempPath("simple_lsp_code_action_imports_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_imports_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_imports_err.txt");
+  const std::string session_name = "simple_lsp_code_action_imports";
   const std::string uri = "file:///workspace/code_action_imports.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3426,11 +3131,9 @@ bool LspCodeActionInsertsAfterImports() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":32") != std::string::npos &&
          out_contents.find("\"kind\":\"quickfix\"") != std::string::npos &&
@@ -3439,9 +3142,7 @@ bool LspCodeActionInsertsAfterImports() {
 }
 
 bool LspCodeActionInfersFloatDeclarationType() {
-  const std::string in_path = TempPath("simple_lsp_code_action_float_infer_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_float_infer_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_float_infer_err.txt");
+  const std::string session_name = "simple_lsp_code_action_float_infer";
   const std::string uri = "file:///workspace/code_action_float_infer.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3461,11 +3162,9 @@ bool LspCodeActionInfersFloatDeclarationType() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":38") != std::string::npos &&
          out_contents.find("Declare 'rate' as f64") != std::string::npos &&
@@ -3473,9 +3172,7 @@ bool LspCodeActionInfersFloatDeclarationType() {
 }
 
 bool LspCodeActionInfersBoolDeclarationType() {
-  const std::string in_path = TempPath("simple_lsp_code_action_bool_infer_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_bool_infer_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_bool_infer_err.txt");
+  const std::string session_name = "simple_lsp_code_action_bool_infer";
   const std::string uri = "file:///workspace/code_action_bool_infer.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3495,11 +3192,9 @@ bool LspCodeActionInfersBoolDeclarationType() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":42") != std::string::npos &&
          out_contents.find("Declare 'enabled' as bool") != std::string::npos &&
@@ -3507,9 +3202,7 @@ bool LspCodeActionInfersBoolDeclarationType() {
 }
 
 bool LspCodeActionInfersStringDeclarationType() {
-  const std::string in_path = TempPath("simple_lsp_code_action_string_infer_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_string_infer_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_string_infer_err.txt");
+  const std::string session_name = "simple_lsp_code_action_string_infer";
   const std::string uri = "file:///workspace/code_action_string_infer.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3529,11 +3222,9 @@ bool LspCodeActionInfersStringDeclarationType() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":43") != std::string::npos &&
          out_contents.find("Declare 'name' as string") != std::string::npos &&
@@ -3541,9 +3232,7 @@ bool LspCodeActionInfersStringDeclarationType() {
 }
 
 bool LspCodeActionInfersCharDeclarationType() {
-  const std::string in_path = TempPath("simple_lsp_code_action_char_infer_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_char_infer_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_char_infer_err.txt");
+  const std::string session_name = "simple_lsp_code_action_char_infer";
   const std::string uri = "file:///workspace/code_action_char_infer.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3563,11 +3252,9 @@ bool LspCodeActionInfersCharDeclarationType() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":44") != std::string::npos &&
          out_contents.find("Declare 'ch' as char") != std::string::npos &&
@@ -3575,9 +3262,7 @@ bool LspCodeActionInfersCharDeclarationType() {
 }
 
 bool LspCodeActionRespectsOnlyFilter() {
-  const std::string in_path = TempPath("simple_lsp_code_action_only_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_only_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_only_err.txt");
+  const std::string session_name = "simple_lsp_code_action_only";
   const std::string uri = "file:///workspace/code_action_only.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3597,20 +3282,16 @@ bool LspCodeActionRespectsOnlyFilter() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":21") != std::string::npos &&
          out_contents.find("\"id\":21,\"result\":[]") != std::string::npos;
 }
 
 bool LspCodeActionRespectsDiagnosticCodeFilter() {
-  const std::string in_path = TempPath("simple_lsp_code_action_code_in.txt");
-  const std::string out_path = TempPath("simple_lsp_code_action_code_out.txt");
-  const std::string err_path = TempPath("simple_lsp_code_action_code_err.txt");
+  const std::string session_name = "simple_lsp_code_action_code";
   const std::string uri = "file:///workspace/code_action_code.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -3630,11 +3311,9 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
       BuildLspFrame(action_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":22") != std::string::npos &&
          out_contents.find("\"id\":22,\"result\":[]") != std::string::npos &&
@@ -4341,9 +4020,7 @@ bool LspCodeLensReturnsTestAndExampleCommands() {
 }
 
 bool LspCancelRequestSuppressesResponse() {
-  const std::string in_path = TempPath("simple_lsp_cancel_in.txt");
-  const std::string out_path = TempPath("simple_lsp_cancel_out.txt");
-  const std::string err_path = TempPath("simple_lsp_cancel_err.txt");
+  const std::string session_name = "simple_lsp_cancel";
   const std::string uri = "file:///workspace/cancel.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -4364,11 +4041,9 @@ bool LspCancelRequestSuppressesResponse() {
       BuildLspFrame(hover_req) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"method\":\"textDocument/publishDiagnostics\"") != std::string::npos &&
          out_contents.find("\"id\":13") == std::string::npos &&
@@ -4376,9 +4051,7 @@ bool LspCancelRequestSuppressesResponse() {
 }
 
 bool LspResponsesFollowRequestOrder() {
-  const std::string in_path = TempPath("simple_lsp_order_in.txt");
-  const std::string out_path = TempPath("simple_lsp_order_out.txt");
-  const std::string err_path = TempPath("simple_lsp_order_err.txt");
+  const std::string session_name = "simple_lsp_order";
   const std::string uri = "file:///workspace/order.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
@@ -4400,11 +4073,9 @@ bool LspResponsesFollowRequestOrder() {
       BuildLspFrame(hover_req_2) +
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
-  if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
-  if (!RunCommand(cmd)) return false;
-  const std::string out_contents = ReadFileText(out_path);
-  const std::string err_contents = ReadFileText(err_path);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   const size_t pos_31 = out_contents.find("\"id\":31");
   const size_t pos_30 = out_contents.find("\"id\":30");
   return err_contents.empty() &&
