@@ -358,6 +358,7 @@ Deliverables:
 - [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
 - [x] Merge repeated test-section registration logic into one shared append helper.
 - [x] Collapse repeated JIT and core module load/verify setup into shared `LoadAndVerifyModule` test utility.
+- [x] Route uniform invalid-bytecode verifier cases through shared `RunExpectVerifyFail`.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
 - [x] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
   - [x] Add typed `LibraryModuleId` native spec builder and migrate current System native registrations.

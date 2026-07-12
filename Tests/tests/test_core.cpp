@@ -18102,48 +18102,15 @@ bool RunFieldTest() {
 }
 
 bool RunBadFieldVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadFieldModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadFieldModule(), "RunBadFieldVerifyTest");
 }
 
 bool RunBadConstStringVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadConstStringModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadConstStringModule(), "RunBadConstStringVerifyTest");
 }
 
 bool RunBadTypeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadTypeModule(), "RunBadTypeVerifyTest");
 }
 
 bool RunOpcodeAllBytesAssignedTest() {
@@ -18186,918 +18153,247 @@ bool RunBadCodeAlignmentLoadTest() {
 }
 
 bool RunBadMergeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMergeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadMergeModule(), "RunBadMergeVerifyTest");
 }
 
 bool RunBadMergeHeightVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMergeHeightModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadMergeHeightModule(), "RunBadMergeHeightVerifyTest");
 }
 
 bool RunBadMergeRefI32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMergeRefI32Module();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadMergeRefI32Module(), "RunBadMergeRefI32VerifyTest");
 }
 
 bool RunBadStackUnderflowVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStackUnderflowVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStackUnderflowVerifyModule(), "RunBadStackUnderflowVerifyTest");
 }
 
 bool RunBadStringConcatVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringConcatVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringConcatVerifyModule(), "RunBadStringConcatVerifyTest");
 }
 
 bool RunBadStringGetCharVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringGetCharVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringGetCharVerifyModule(), "RunBadStringGetCharVerifyTest");
 }
 
 bool RunBadStringGetCharIdxVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringGetCharIdxVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringGetCharIdxVerifyModule(), "RunBadStringGetCharIdxVerifyTest");
 }
 
 bool RunBadStringSliceVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringSliceVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringSliceVerifyModule(), "RunBadStringSliceVerifyTest");
 }
 
 bool RunBadNewClosureVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadNewClosureVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadNewClosureVerifyModule(), "RunBadNewClosureVerifyTest");
 }
 
 bool RunBadUpvalueTypeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadUpvalueTypeVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadUpvalueTypeVerifyModule(), "RunBadUpvalueTypeVerifyTest");
 }
 
 bool RunBadStringSliceStartVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringSliceStartVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringSliceStartVerifyModule(), "RunBadStringSliceStartVerifyTest");
 }
 
 bool RunBadStringSliceEndVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringSliceEndVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringSliceEndVerifyModule(), "RunBadStringSliceEndVerifyTest");
 }
 
 bool RunBadIsNullVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadIsNullVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadIsNullVerifyModule(), "RunBadIsNullVerifyTest");
 }
 
 bool RunBadRefEqVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadRefEqVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadRefEqVerifyModule(), "RunBadRefEqVerifyTest");
 }
 
 bool RunBadRefEqMixedVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadRefEqMixedVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadRefEqMixedVerifyModule(), "RunBadRefEqMixedVerifyTest");
 }
 
 bool RunBadRefNeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadRefNeVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadRefNeVerifyModule(), "RunBadRefNeVerifyTest");
 }
 
 bool RunBadRefNeMixedVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadRefNeMixedVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadRefNeMixedVerifyModule(), "RunBadRefNeMixedVerifyTest");
 }
 
 bool RunBadTypeOfVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTypeOfVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadTypeOfVerifyModule(), "RunBadTypeOfVerifyTest");
 }
 
 bool RunBadLoadFieldTypeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadLoadFieldTypeVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadLoadFieldTypeVerifyModule(), "RunBadLoadFieldTypeVerifyTest");
 }
 
 bool RunBadStoreFieldObjectVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStoreFieldObjectVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStoreFieldObjectVerifyModule(), "RunBadStoreFieldObjectVerifyTest");
 }
 
 bool RunBadStoreFieldValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStoreFieldValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStoreFieldValueVerifyModule(), "RunBadStoreFieldValueVerifyTest");
 }
 
 bool RunBadArrayLenVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArrayLenVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArrayLenVerifyModule(), "RunBadArrayLenVerifyTest");
 }
 
 bool RunBadArrayGetIdxVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArrayGetIdxVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArrayGetIdxVerifyModule(), "RunBadArrayGetIdxVerifyTest");
 }
 
 bool RunBadArraySetIdxVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetIdxVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetIdxVerifyModule(), "RunBadArraySetIdxVerifyTest");
 }
 
 bool RunBadArraySetValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetValueVerifyModule(), "RunBadArraySetValueVerifyTest");
 }
 
 bool RunBadArraySetI64ValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetI64ValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetI64ValueVerifyModule(), "RunBadArraySetI64ValueVerifyTest");
 }
 
 bool RunBadArraySetF32ValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetF32ValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetF32ValueVerifyModule(), "RunBadArraySetF32ValueVerifyTest");
 }
 
 bool RunBadArraySetF64ValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetF64ValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetF64ValueVerifyModule(), "RunBadArraySetF64ValueVerifyTest");
 }
 
 bool RunBadArraySetRefValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetRefValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetRefValueVerifyModule(), "RunBadArraySetRefValueVerifyTest");
 }
 
 bool RunBadListLenVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListLenVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListLenVerifyModule(), "RunBadListLenVerifyTest");
 }
 
 bool RunBadListGetIdxVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListGetIdxVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListGetIdxVerifyModule(), "RunBadListGetIdxVerifyTest");
 }
 
 bool RunBadListSetValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListSetValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListSetValueVerifyModule(), "RunBadListSetValueVerifyTest");
 }
 
 bool RunBadListSetI64ValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListSetI64ValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListSetI64ValueVerifyModule(), "RunBadListSetI64ValueVerifyTest");
 }
 
 bool RunBadListSetF32ValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListSetF32ValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListSetF32ValueVerifyModule(), "RunBadListSetF32ValueVerifyTest");
 }
 
 bool RunBadListSetF64ValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListSetF64ValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListSetF64ValueVerifyModule(), "RunBadListSetF64ValueVerifyTest");
 }
 
 bool RunBadListSetRefValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListSetRefValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListSetRefValueVerifyModule(), "RunBadListSetRefValueVerifyTest");
 }
 
 bool RunBadListPushValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListPushValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListPushValueVerifyModule(), "RunBadListPushValueVerifyTest");
 }
 
 bool RunBadListPopVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListPopVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListPopVerifyModule(), "RunBadListPopVerifyTest");
 }
 
 bool RunBadListInsertValueVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListInsertValueVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListInsertValueVerifyModule(), "RunBadListInsertValueVerifyTest");
 }
 
 bool RunBadListRemoveIdxVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListRemoveIdxVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListRemoveIdxVerifyModule(), "RunBadListRemoveIdxVerifyTest");
 }
 
 bool RunBadListClearVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListClearVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListClearVerifyModule(), "RunBadListClearVerifyTest");
 }
 
 bool RunBadStringLenVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStringLenVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStringLenVerifyModule(), "RunBadStringLenVerifyTest");
 }
 
 bool RunBadBoolNotVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadBoolNotVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadBoolNotVerifyModule(), "RunBadBoolNotVerifyTest");
 }
 
 bool RunBadBoolAndVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadBoolAndVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadBoolAndVerifyModule(), "RunBadBoolAndVerifyTest");
 }
 
 bool RunBadBoolAndMixedVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadBoolAndMixedVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadBoolAndMixedVerifyModule(), "RunBadBoolAndMixedVerifyTest");
 }
 
 bool RunBadBoolOrVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadBoolOrVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadBoolOrVerifyModule(), "RunBadBoolOrVerifyTest");
 }
 
 bool RunBadBoolOrMixedVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadBoolOrMixedVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadBoolOrMixedVerifyModule(), "RunBadBoolOrMixedVerifyTest");
 }
 
 bool RunBadJmpCondVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadJmpCondVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadJmpCondVerifyModule(), "RunBadJmpCondVerifyTest");
 }
 
 bool RunBadJmpFalseCondVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadJmpFalseCondVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadJmpFalseCondVerifyModule(), "RunBadJmpFalseCondVerifyTest");
 }
 
 bool RunBadArrayGetArrVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArrayGetArrVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArrayGetArrVerifyModule(), "RunBadArrayGetArrVerifyTest");
 }
 
 bool RunBadArraySetArrVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadArraySetArrVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadArraySetArrVerifyModule(), "RunBadArraySetArrVerifyTest");
 }
 
 bool RunBadListGetListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListGetListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListGetListVerifyModule(), "RunBadListGetListVerifyTest");
 }
 
 bool RunBadListSetListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListSetListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListSetListVerifyModule(), "RunBadListSetListVerifyTest");
 }
 
 bool RunBadListPushListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListPushListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListPushListVerifyModule(), "RunBadListPushListVerifyTest");
 }
 
 bool RunBadListPopListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListPopListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListPopListVerifyModule(), "RunBadListPopListVerifyTest");
 }
 
 bool RunBadListInsertListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListInsertListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListInsertListVerifyModule(), "RunBadListInsertListVerifyTest");
 }
 
 bool RunBadListRemoveListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListRemoveListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListRemoveListVerifyModule(), "RunBadListRemoveListVerifyTest");
 }
 
 bool RunBadListClearListVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadListClearListVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadListClearListVerifyModule(), "RunBadListClearListVerifyTest");
 }
 
 bool RunBadLocalUninitVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadLocalUninitModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadLocalUninitModule(), "RunBadLocalUninitVerifyTest");
 }
 
 bool RunBadJumpBoundaryVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadJumpBoundaryModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadJumpBoundaryModule(), "RunBadJumpBoundaryVerifyTest");
 }
 
 bool RunBadJumpOobVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadJumpOobModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadJumpOobModule(), "RunBadJumpOobVerifyTest");
 }
 
 bool RunBadJmpRuntimeTrapTest() {
@@ -19149,18 +18445,7 @@ bool RunBadJmpFalseRuntimeTrapTest() {
 }
 
 bool RunBadGlobalUninitVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadGlobalUninitModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadGlobalUninitModule(), "RunBadGlobalUninitVerifyTest");
 }
 
 bool RunGlobalInitStringTest() {
@@ -19323,18 +18608,7 @@ bool RunGoodI128BlobLenLoadTest() {
 }
 
 bool RunBadParamLocalsVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadParamLocalsModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadParamLocalsModule(), "RunBadParamLocalsVerifyTest");
 }
 
 bool RunBadSigCallConvLoadTest() {
@@ -20895,18 +20169,7 @@ bool RunJumpToEndTest() {
 }
 
 bool RunBadStackMaxVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadStackMaxModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadStackMaxModule(), "RunBadStackMaxVerifyTest");
 }
 
 bool RunBadStackMaxZeroLoadTest() {
@@ -21009,78 +20272,23 @@ bool RunCallIndirectTest() {
 }
 
 bool RunBadCallIndirectVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadCallIndirectVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadCallIndirectVerifyModule(), "RunBadCallIndirectVerifyTest");
 }
 
 bool RunBadCallVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadCallVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadCallVerifyModule(), "RunBadCallVerifyTest");
 }
 
 bool RunBadCallParamTypeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadCallParamTypeVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadCallParamTypeVerifyModule(), "RunBadCallParamTypeVerifyTest");
 }
 
 bool RunBadCallIndirectParamTypeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadCallIndirectParamTypeVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadCallIndirectParamTypeVerifyModule(), "RunBadCallIndirectParamTypeVerifyTest");
 }
 
 bool RunBadTailCallParamTypeVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTailCallParamTypeVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadTailCallParamTypeVerifyModule(), "RunBadTailCallParamTypeVerifyTest");
 }
 
 bool RunBadCallParamI8ToI32VerifyTest() {
@@ -21112,48 +20320,15 @@ bool RunBadArraySetI32BoolValueVerifyTest() {
 }
 
 bool RunBadTailCallVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadTailCallVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadTailCallVerifyModule(), "RunBadTailCallVerifyTest");
 }
 
 bool RunBadReturnVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadReturnVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadReturnVerifyModule(), "RunBadReturnVerifyTest");
 }
 
 bool RunBadConvVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadConvVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadConvVerifyModule(), "RunBadConvVerifyTest");
 }
 
 bool RunCallIndirectParamTypeTest() {
@@ -21692,153 +20867,43 @@ bool RunBadConstU128BlobTrapTest() {
 }
 
 bool RunBadBitwiseVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadBitwiseVerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadBitwiseVerifyModule(), "RunBadBitwiseVerifyTest");
 }
 
 bool RunBadU32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadU32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadU32VerifyModule(), "RunBadU32VerifyTest");
 }
 
 bool RunBadNegI32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadNegI32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadNegI32VerifyModule(), "RunBadNegI32VerifyTest");
 }
 
 bool RunBadNegF32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadNegF32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadNegF32VerifyModule(), "RunBadNegF32VerifyTest");
 }
 
 bool RunBadIncI32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadIncI32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadIncI32VerifyModule(), "RunBadIncI32VerifyTest");
 }
 
 bool RunBadIncF32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadIncF32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadIncF32VerifyModule(), "RunBadIncF32VerifyTest");
 }
 
 bool RunBadIncU32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadIncU32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadIncU32VerifyModule(), "RunBadIncU32VerifyTest");
 }
 
 bool RunBadIncI8VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadIncI8VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadIncI8VerifyModule(), "RunBadIncI8VerifyTest");
 }
 
 bool RunBadNegI8VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadNegI8VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadNegI8VerifyModule(), "RunBadNegI8VerifyTest");
 }
 
 bool RunBadNegU32VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadNegU32VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadNegU32VerifyModule(), "RunBadNegU32VerifyTest");
 }
 
 bool RunBadJmpTableKindLoadTest() {
@@ -21855,18 +20920,7 @@ bool RunBadJmpTableKindLoadTest() {
   return true;
 }
 bool RunBadU64VerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadU64VerifyModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
-    return false;
-  }
-  return true;
+  return RunExpectVerifyFail(BuildBadU64VerifyModule(), "RunBadU64VerifyTest");
 }
 
 bool RunBadJmpTableBlobLoadTest() {
