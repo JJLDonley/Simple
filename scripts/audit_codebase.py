@@ -44,6 +44,80 @@ def report_largest_files(root: pathlib.Path, limit: int) -> None:
         print(f"  {count:6d} {path.as_posix()}")
 
 
+def _mask_cpp_non_code(text: str) -> str:
+    """Preserve newlines/columns while masking C++ comments and quoted literals."""
+    chars = list(text)
+    i = 0
+    while i < len(chars):
+        if text.startswith("//", i):
+            end = text.find("\n", i + 2)
+            end = len(text) if end < 0 else end
+        elif text.startswith("/*", i):
+            close = text.find("*/", i + 2)
+            end = len(text) if close < 0 else close + 2
+        elif chars[i] in {'"', "'"}:
+            quote = chars[i]
+            end = i + 1
+            while end < len(chars):
+                if chars[end] == "\\":
+                    end += 2
+                    continue
+                end += 1
+                if chars[end - 1] == quote:
+                    break
+        else:
+            i += 1
+            continue
+        for index in range(i, end):
+            if chars[index] != "\n":
+                chars[index] = " "
+        i = end
+    return "".join(chars)
+
+
+def report_largest_functions(root: pathlib.Path, limit: int) -> None:
+    rows: list[tuple[int, pathlib.Path, int, str]] = []
+    control_names = {"if", "for", "while", "switch", "catch"}
+    name_re = re.compile(r"((?:[A-Za-z_]\w*::)*(?:operator\s*[^\s(]+|~?[A-Za-z_]\w*))\s*\(")
+    for path in iter_files(root, {".cpp", ".cc", ".cxx"}):
+        masked = _mask_cpp_non_code(read_text(path))
+        lines = masked.splitlines(keepends=True)
+        offset = 0
+        covered_until = 0
+        for line_no, line in enumerate(lines, 1):
+            brace_column = line.find("{")
+            if offset < covered_until or brace_column < 0 or ";" in line[:brace_column]:
+                offset += len(line)
+                continue
+            signature = "".join(lines[max(0, line_no - 6):line_no])
+            matches = list(name_re.finditer(signature))
+            if not matches:
+                offset += len(line)
+                continue
+            name = matches[-1].group(1).split("::")[-1]
+            if name in control_names:
+                offset += len(line)
+                continue
+            brace = offset + brace_column
+            depth = 0
+            end = brace
+            for end in range(brace, len(masked)):
+                if masked[end] == "{":
+                    depth += 1
+                elif masked[end] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            if depth == 0:
+                line_count = masked.count("\n", brace, end) + 1
+                rows.append((line_count, path, line_no, name))
+                covered_until = end + 1
+            offset += len(line)
+    print("\nlargest functions")
+    for count, path, line, name in sorted(rows, key=lambda row: row[0], reverse=True)[:limit]:
+        print(f"  {count:6d} {path.as_posix()}:{line} {name}")
+
+
 def report_repeated_strings(root: pathlib.Path, limit: int) -> None:
     counts: collections.Counter[str] = collections.Counter()
     locations: dict[str, pathlib.Path] = {}
@@ -165,6 +239,7 @@ def main() -> int:
 
     root = pathlib.Path(args.root).resolve()
     report_largest_files(root, args.limit)
+    report_largest_functions(root, args.limit)
     report_repeated_strings(root, args.limit)
     report_repeated_numbers(root, args.limit)
     ok = True

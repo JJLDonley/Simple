@@ -143,7 +143,7 @@ perf report
 Create `scripts/audit_codebase.py` to report:
 
 - [x] largest files;
-- [ ] largest functions;
+- [x] largest functions;
 - [x] duplicate test names;
 - [x] unreferenced fixtures;
 - [x] public alias imports outside migration tests;
