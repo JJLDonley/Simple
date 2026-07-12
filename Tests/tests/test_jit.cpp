@@ -3939,6 +3939,35 @@ std::vector<uint8_t> BuildJitOpcodeHotI32ArithmeticTailCallModule() {
   return BuildModuleWithFunctions({entry, helper, callee}, {0, 0, 0});
 }
 
+bool ExpectTier1CompiledCallee(const std::vector<uint8_t>& module_bytes,
+                               int32_t expected_exit,
+                               const char* name) {
+  Simple::Byte::LoadResult load;
+  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
+  const Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << name << ": execution failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2 || exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
+    std::cerr << name << ": callee did not reach the tier1 call threshold\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2 || exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << name << ": callee did not reach tier1\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2 || exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << name << ": callee did not execute compiled code\n";
+    return false;
+  }
+  if (exec.exit_code != expected_exit) {
+    std::cerr << name << ": expected exit code " << expected_exit << ", got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitTierTest() {
   std::vector<uint8_t> module_bytes = BuildJitTierModule();
   Simple::Byte::LoadResult load;
@@ -4433,331 +4462,35 @@ bool RunJitCompiledLocalsTest() {
 }
 
 bool RunJitCompiledI32ArithmeticTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledI32ArithmeticModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled arithmetic callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled arithmetic callee\n";
-    return false;
-  }
-  if (exec.exit_code != 4) {
-    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledI32ArithmeticModule(), 4, "RunJitCompiledI32ArithmeticTest");
 }
 
 bool RunJitCompiledScalarI32Test() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledScalarI32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for scalar i32 callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for scalar i32 callee\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected exit code 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledScalarI32Module(), 3, "RunJitCompiledScalarI32Test");
 }
 
 bool RunJitCompiledI64U64Test() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledI64U64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for i64/u64 callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for i64/u64 callee\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected exit code 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledI64U64Module(), 1, "RunJitCompiledI64U64Test");
 }
 
 bool RunJitCompiledFloatOpsTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledFloatOpsModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for float callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for float callee\n";
-    return false;
-  }
-  if (exec.exit_code != 4) {
-    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledFloatOpsModule(), 4, "RunJitCompiledFloatOpsTest");
 }
 
 bool RunJitCompiledConversionsTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledConversionsModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for conversion callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for conversion callee\n";
-    return false;
-  }
-  if (exec.exit_code != 12) {
-    std::cerr << "expected exit code 12, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledConversionsModule(), 12, "RunJitCompiledConversionsTest");
 }
 
 bool RunJitCompiledCompareScalarTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledCompareScalarModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compare callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compare callee\n";
-    return false;
-  }
-  if (exec.exit_code != 0) {
-    std::cerr << "expected exit code 0, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledCompareScalarModule(), 0, "RunJitCompiledCompareScalarTest");
 }
 
 bool RunJitCompiledI32LocalsArithmeticTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledI32LocalsArithmeticModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled locals arithmetic callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled locals arithmetic callee\n";
-    return false;
-  }
-  if (exec.exit_code != 4) {
-    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledI32LocalsArithmeticModule(), 4, "RunJitCompiledI32LocalsArithmeticTest");
 }
 
 bool RunJitCompiledI32CompareTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledI32CompareModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled compare callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled compare callee\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected exit code 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledI32CompareModule(), 1, "RunJitCompiledI32CompareTest");
 }
 
 bool RunJitCompiledCompareBoolIndirectTest() {
@@ -6533,167 +6266,19 @@ bool RunJitOpcodeHotCompareBoolTailCallTest() {
 }
 
 bool RunJitCompiledBoolOpsTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledBoolOpsModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled bool ops callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled bool ops callee\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected exit code 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledBoolOpsModule(), 1, "RunJitCompiledBoolOpsTest");
 }
 
 bool RunJitCompiledLocalsBoolChainTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledLocalsBoolChainModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled locals bool chain callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled locals bool chain callee\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected exit code 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledLocalsBoolChainModule(), 1, "RunJitCompiledLocalsBoolChainTest");
 }
 
 bool RunJitCompiledLocalBoolStoreTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledLocalBoolStoreModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled local-bool callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled local-bool callee\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected exit code 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledLocalBoolStoreModule(), 1, "RunJitCompiledLocalBoolStoreTest");
 }
 
 bool RunJitCompiledLocalBoolAndOrTest() {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledLocalBoolAndOrModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.call_counts.size() < 2) {
-    std::cerr << "expected call counts for functions\n";
-    return false;
-  }
-  if (exec.call_counts[1] != Simple::VM::kJitTier1Threshold) {
-    std::cerr << "expected callee call count " << Simple::VM::kJitTier1Threshold
-              << ", got " << exec.call_counts[1] << "\n";
-    return false;
-  }
-  if (exec.jit_tiers.size() < 2) {
-    std::cerr << "expected jit tiers for functions\n";
-    return false;
-  }
-  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
-    std::cerr << "expected Tier1 for compiled local-bool and/or callee\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts.size() < 2) {
-    std::cerr << "expected compiled exec counts for functions\n";
-    return false;
-  }
-  if (exec.jit_compiled_exec_counts[1] == 0) {
-    std::cerr << "expected compiled exec count for compiled local-bool and/or callee\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected exit code 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return ExpectTier1CompiledCallee(BuildJitCompiledLocalBoolAndOrModule(), 1, "RunJitCompiledLocalBoolAndOrTest");
 }
 
 bool RunJitOpcodeHotLocalBoolAndOrTest() {

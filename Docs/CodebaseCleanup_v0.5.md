@@ -358,6 +358,7 @@ Deliverables:
 - [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
 - [x] Merge repeated test-section registration logic into one shared append helper.
 - [x] Collapse repeated JIT and core module load/verify setup into shared `LoadAndVerifyModule` test utility.
+- [x] Collapse uniform tier1-compiled callee assertions into `ExpectTier1CompiledCallee`.
 - [x] Route uniform invalid-bytecode verifier cases through shared `RunExpectVerifyFail`.
 - [x] Route uniform malformed-module loader cases through shared `RunExpectLoadFail`.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
