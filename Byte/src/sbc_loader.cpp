@@ -22,8 +22,6 @@ std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
 
 namespace {
 
-constexpr size_t kHeaderSize = 32;
-
 bool ReadU8At(const std::vector<uint8_t>& bytes, size_t offset, uint8_t* out) {
   if (offset + 1 > bytes.size()) return false;
   *out = bytes[offset];
@@ -100,21 +98,21 @@ LoadResult LoadModuleFromFile(const std::string& path) {
 }
 
 LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
-  if (bytes.size() < kHeaderSize) return Fail("file too small for header");
+  if (bytes.size() < kSbcHeaderSize) return Fail("file too small for header");
 
   SbcModule module;
   SbcHeader& header = module.header;
 
-  if (!ReadU32At(bytes, 0x00, &header.magic)) return Fail("header read failed");
-  if (!ReadU16At(bytes, 0x04, &header.version)) return Fail("header read failed");
-  if (!ReadU8At(bytes, 0x06, &header.endian)) return Fail("header read failed");
-  if (!ReadU8At(bytes, 0x07, &header.flags)) return Fail("header read failed");
-  if (!ReadU32At(bytes, 0x08, &header.section_count)) return Fail("header read failed");
-  if (!ReadU32At(bytes, 0x0C, &header.section_table_offset)) return Fail("header read failed");
-  if (!ReadU32At(bytes, 0x10, &header.entry_method_id)) return Fail("header read failed");
-  if (!ReadU32At(bytes, 0x14, &header.reserved0)) return Fail("header read failed");
-  if (!ReadU32At(bytes, 0x18, &header.reserved1)) return Fail("header read failed");
-  if (!ReadU32At(bytes, 0x1C, &header.reserved2)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderMagicOffset, &header.magic)) return Fail("header read failed");
+  if (!ReadU16At(bytes, kSbcHeaderVersionOffset, &header.version)) return Fail("header read failed");
+  if (!ReadU8At(bytes, kSbcHeaderEndianOffset, &header.endian)) return Fail("header read failed");
+  if (!ReadU8At(bytes, kSbcHeaderFlagsOffset, &header.flags)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderSectionCountOffset, &header.section_count)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderSectionTableOffset, &header.section_table_offset)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderEntryMethodOffset, &header.entry_method_id)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderReserved0Offset, &header.reserved0)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderReserved1Offset, &header.reserved1)) return Fail("header read failed");
+  if (!ReadU32At(bytes, kSbcHeaderReserved2Offset, &header.reserved2)) return Fail("header read failed");
 
   if (header.magic != kSbcMagic) return Fail("bad magic");
   if (header.version != kSbcVersion) return Fail("unsupported version");
@@ -126,7 +124,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   if (header.section_count == 0) return Fail("section_count must be > 0");
   if (header.section_table_offset % 4 != 0) return Fail("section table offset must be 4-byte aligned");
 
-  size_t table_size = static_cast<size_t>(header.section_count) * 16u;
+  size_t table_size = static_cast<size_t>(header.section_count) * kSbcSectionRowSize;
   if (header.section_table_offset + table_size > bytes.size()) {
     return Fail("section table out of bounds");
   }
@@ -134,7 +132,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   module.sections.resize(header.section_count);
   std::unordered_set<uint32_t> seen_ids;
   for (uint32_t i = 0; i < header.section_count; ++i) {
-    size_t off = header.section_table_offset + static_cast<size_t>(i) * 16u;
+    size_t off = header.section_table_offset + static_cast<size_t>(i) * kSbcSectionRowSize;
     SectionEntry entry;
     if (!ReadU32At(bytes, off + 0, &entry.id)) return Fail("section read failed");
     if (!ReadU32At(bytes, off + 4, &entry.offset)) return Fail("section read failed");

@@ -1,6 +1,7 @@
 #ifndef SIMPLE_SBC_TYPES_H
 #define SIMPLE_SBC_TYPES_H
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -9,6 +10,18 @@ namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
 constexpr uint16_t kSbcVersion = 0x0001u;
+constexpr size_t kSbcHeaderSize = 32u;
+constexpr size_t kSbcSectionRowSize = 16u;
+constexpr size_t kSbcHeaderMagicOffset = 0x00u;
+constexpr size_t kSbcHeaderVersionOffset = 0x04u;
+constexpr size_t kSbcHeaderEndianOffset = 0x06u;
+constexpr size_t kSbcHeaderFlagsOffset = 0x07u;
+constexpr size_t kSbcHeaderSectionCountOffset = 0x08u;
+constexpr size_t kSbcHeaderSectionTableOffset = 0x0cu;
+constexpr size_t kSbcHeaderEntryMethodOffset = 0x10u;
+constexpr size_t kSbcHeaderReserved0Offset = 0x14u;
+constexpr size_t kSbcHeaderReserved1Offset = 0x18u;
+constexpr size_t kSbcHeaderReserved2Offset = 0x1cu;
 
 struct SbcHeader {
   uint32_t magic = 0;

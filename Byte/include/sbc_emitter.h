@@ -257,7 +257,7 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
   sections.push_back({8, code, 0, 0});
 
   const uint32_t section_count = static_cast<uint32_t>(sections.size());
-  const size_t header_size = 32;
+  const size_t header_size = kSbcHeaderSize;
   const size_t table_size = section_count * 16u;
   size_t cursor = Align4(header_size + table_size);
   for (auto& sec : sections) {
@@ -272,8 +272,8 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
   module[0x05] = 0x00;                 // version (high byte)
   module[0x06] = 1;                    // endian
   module[0x07] = 0;                    // flags
-  WriteU32(module, 0x08, section_count);
-  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
+  WriteU32(module, kSbcHeaderSectionTableOffset, static_cast<uint32_t>(header_size));
   WriteU32(module, 0x10, 0);           // entry_method_id
   WriteU32(module, 0x14, 0);           // reserved0
   WriteU32(module, 0x18, 0);           // reserved1
@@ -299,7 +299,7 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
 inline std::vector<uint8_t> BuildModuleFromSections(const std::vector<SectionData>& sections,
                                                     uint32_t entry_method_id = 0) {
   const uint32_t section_count = static_cast<uint32_t>(sections.size());
-  const size_t header_size = 32;
+  const size_t header_size = kSbcHeaderSize;
   const size_t table_size = section_count * 16u;
   size_t cursor = Align4(header_size + table_size);
   std::vector<SectionData> local_sections = sections;
@@ -313,8 +313,8 @@ inline std::vector<uint8_t> BuildModuleFromSections(const std::vector<SectionDat
   WriteU16(module, 0x04, 0x0001u);     // version
   WriteU8(module, 0x06, 1);            // endian
   WriteU8(module, 0x07, 0);            // flags
-  WriteU32(module, 0x08, section_count);
-  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
+  WriteU32(module, kSbcHeaderSectionTableOffset, static_cast<uint32_t>(header_size));
   WriteU32(module, 0x10, entry_method_id);
   WriteU32(module, 0x14, 0);
   WriteU32(module, 0x18, 0);
@@ -432,7 +432,7 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSigAndDebug(const std::vecto
   sections.push_back({9, debug_bytes, 0, 0});
 
   const uint32_t section_count = static_cast<uint32_t>(sections.size());
-  const size_t header_size = 32;
+  const size_t header_size = kSbcHeaderSize;
   const size_t table_size = section_count * 16u;
   size_t cursor = Align4(header_size + table_size);
   for (auto& sec : sections) {
@@ -446,8 +446,8 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSigAndDebug(const std::vecto
   module[0x05] = 0x00;
   module[0x06] = 1;
   module[0x07] = 0;
-  WriteU32(module, 0x08, section_count);
-  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
+  WriteU32(module, kSbcHeaderSectionTableOffset, static_cast<uint32_t>(header_size));
   WriteU32(module, 0x10, 0);
   WriteU32(module, 0x14, 0);
   WriteU32(module, 0x18, 0);
@@ -542,7 +542,7 @@ inline std::vector<uint8_t> BuildModuleWithFunctionsAndSigs(const std::vector<st
   sections.push_back({8, code, 0, 0});
 
   const uint32_t section_count = static_cast<uint32_t>(sections.size());
-  const size_t header_size = 32;
+  const size_t header_size = kSbcHeaderSize;
   const size_t table_size = section_count * 16u;
   size_t cursor = Align4(header_size + table_size);
   for (auto& sec : sections) {
@@ -556,8 +556,8 @@ inline std::vector<uint8_t> BuildModuleWithFunctionsAndSigs(const std::vector<st
   module[0x05] = 0x00;
   module[0x06] = 1;
   module[0x07] = 0;
-  WriteU32(module, 0x08, section_count);
-  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
+  WriteU32(module, kSbcHeaderSectionTableOffset, static_cast<uint32_t>(header_size));
   WriteU32(module, 0x10, 0);
   WriteU32(module, 0x14, 0);
   WriteU32(module, 0x18, 0);
