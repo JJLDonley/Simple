@@ -2425,83 +2425,46 @@ void RegisterSystemBuffer(NativeRegistry& registry) {
 void RegisterSystemChannel(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   const auto module = Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::Channel);
-  registry.Register(MakeSpec(module, "newI32", {}, TypeKind::I64, ChannelNewI32));
-  registry.Register(MakeSpec(module, "sendI32", {TypeKind::I64, TypeKind::I32},
-                             TypeKind::I32, ChannelSendI32));
-  registry.Register(MakeSpec(module, "trySendI32", {TypeKind::I64, TypeKind::I32},
-                             TypeKind::I32, ChannelSendI32));
-  registry.Register(MakeSpec(module, "recvI32", {TypeKind::I64}, TypeKind::I32,
-                             ChannelRecvI32));
-  registry.Register(MakeSpec(module, "tryRecvI32", {TypeKind::I64}, TypeKind::I32,
-                             ChannelTryRecvI32));
-  registry.Register(MakeSpec(module, "pendingI32", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingI32));
-  registry.Register(MakeSpec(module, "newI64", {}, TypeKind::I64, ChannelNewI64));
-  registry.Register(MakeSpec(module, "sendI64", {TypeKind::I64, TypeKind::I64},
-                             TypeKind::I32, ChannelSendI64));
-  registry.Register(MakeSpec(module, "trySendI64", {TypeKind::I64, TypeKind::I64},
-                             TypeKind::I32, ChannelSendI64));
-  registry.Register(MakeSpec(module, "recvI64", {TypeKind::I64}, TypeKind::I64,
-                             ChannelRecvI64));
-  registry.Register(MakeSpec(module, "tryRecvI64", {TypeKind::I64}, TypeKind::I64,
-                             ChannelTryRecvI64));
-  registry.Register(MakeSpec(module, "pendingI64", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingI64));
-  registry.Register(MakeSpec(module, "newF32", {}, TypeKind::I64, ChannelNewF32));
-  registry.Register(MakeSpec(module, "sendF32", {TypeKind::I64, TypeKind::F32},
-                             TypeKind::I32, ChannelSendF32));
-  registry.Register(MakeSpec(module, "trySendF32", {TypeKind::I64, TypeKind::F32},
-                             TypeKind::I32, ChannelSendF32));
-  registry.Register(MakeSpec(module, "recvF32", {TypeKind::I64}, TypeKind::F32,
-                             ChannelRecvF32));
-  registry.Register(MakeSpec(module, "tryRecvF32", {TypeKind::I64}, TypeKind::F32,
-                             ChannelTryRecvF32));
-  registry.Register(MakeSpec(module, "pendingF32", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingF32));
-  registry.Register(MakeSpec(module, "newF64", {}, TypeKind::I64, ChannelNewF64));
-  registry.Register(MakeSpec(module, "sendF64", {TypeKind::I64, TypeKind::F64},
-                             TypeKind::I32, ChannelSendF64));
-  registry.Register(MakeSpec(module, "trySendF64", {TypeKind::I64, TypeKind::F64},
-                             TypeKind::I32, ChannelSendF64));
-  registry.Register(MakeSpec(module, "recvF64", {TypeKind::I64}, TypeKind::F64,
-                             ChannelRecvF64));
-  registry.Register(MakeSpec(module, "tryRecvF64", {TypeKind::I64}, TypeKind::F64,
-                             ChannelTryRecvF64));
-  registry.Register(MakeSpec(module, "pendingF64", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingF64));
-  registry.Register(MakeSpec(module, "newBool", {}, TypeKind::I64, ChannelNewBool));
-  registry.Register(MakeSpec(module, "sendBool", {TypeKind::I64, TypeKind::Bool},
-                             TypeKind::I32, ChannelSendBool));
-  registry.Register(MakeSpec(module, "trySendBool", {TypeKind::I64, TypeKind::Bool},
-                             TypeKind::I32, ChannelSendBool));
-  registry.Register(MakeSpec(module, "recvBool", {TypeKind::I64}, TypeKind::Bool,
-                             ChannelRecvBool));
-  registry.Register(MakeSpec(module, "tryRecvBool", {TypeKind::I64}, TypeKind::Bool,
-                             ChannelTryRecvBool));
-  registry.Register(MakeSpec(module, "pendingBool", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingBool));
-  registry.Register(MakeSpec(module, "newString", {}, TypeKind::I64, ChannelNewString));
-  registry.Register(MakeSpec(module, "sendString", {TypeKind::I64, TypeKind::String},
-                             TypeKind::I32, ChannelSendString));
-  registry.Register(MakeSpec(module, "trySendString", {TypeKind::I64, TypeKind::String},
-                             TypeKind::I32, ChannelTrySendString));
-  registry.Register(MakeSpec(module, "recvString", {TypeKind::I64}, TypeKind::String,
-                             ChannelRecvString));
-  registry.Register(MakeSpec(module, "tryRecvString", {TypeKind::I64}, TypeKind::String,
-                             ChannelTryRecvString));
-  registry.Register(MakeSpec(module, "pendingString", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingString));
-  registry.Register(MakeSpec(module, "newBytes", {}, TypeKind::I64, ChannelNewBytes));
-  registry.Register(MakeSpec(module, "sendBytes", {TypeKind::I64, TypeKind::Ref},
-                             TypeKind::I32, ChannelSendBytes));
-  registry.Register(MakeSpec(module, "trySendBytes", {TypeKind::I64, TypeKind::Ref},
-                             TypeKind::I32, ChannelTrySendBytes));
-  registry.Register(MakeSpec(module, "recvBytes", {TypeKind::I64}, TypeKind::Ref,
-                             ChannelRecvBytes));
-  registry.Register(MakeSpec(module, "tryRecvBytes", {TypeKind::I64}, TypeKind::Ref,
-                             ChannelTryRecvBytes));
-  registry.Register(MakeSpec(module, "pendingBytes", {TypeKind::I64}, TypeKind::I32,
-                             ChannelPendingBytes));
+
+  auto register_family = [&](const char* suffix,
+                             TypeKind value_type,
+                             NativeFunctionHandler new_handler,
+                             NativeFunctionHandler send_handler,
+                             NativeFunctionHandler try_send_handler,
+                             NativeFunctionHandler recv_handler,
+                             NativeFunctionHandler try_recv_handler,
+                             NativeFunctionHandler pending_handler) {
+    const std::string suffix_text(suffix);
+    registry.Register(MakeSpec(module, ("new" + suffix_text).c_str(), {}, TypeKind::I64,
+                               std::move(new_handler)));
+    registry.Register(MakeSpec(module, ("send" + suffix_text).c_str(), {TypeKind::I64, value_type},
+                               TypeKind::I32, std::move(send_handler)));
+    registry.Register(MakeSpec(module, ("trySend" + suffix_text).c_str(), {TypeKind::I64, value_type},
+                               TypeKind::I32, std::move(try_send_handler)));
+    registry.Register(MakeSpec(module, ("recv" + suffix_text).c_str(), {TypeKind::I64}, value_type,
+                               std::move(recv_handler)));
+    registry.Register(MakeSpec(module, ("tryRecv" + suffix_text).c_str(), {TypeKind::I64}, value_type,
+                               std::move(try_recv_handler)));
+    registry.Register(MakeSpec(module, ("pending" + suffix_text).c_str(), {TypeKind::I64}, TypeKind::I32,
+                               std::move(pending_handler)));
+  };
+
+  register_family("I32", TypeKind::I32, ChannelNewI32, ChannelSendI32, ChannelSendI32,
+                  ChannelRecvI32, ChannelTryRecvI32, ChannelPendingI32);
+  register_family("I64", TypeKind::I64, ChannelNewI64, ChannelSendI64, ChannelSendI64,
+                  ChannelRecvI64, ChannelTryRecvI64, ChannelPendingI64);
+  register_family("F32", TypeKind::F32, ChannelNewF32, ChannelSendF32, ChannelSendF32,
+                  ChannelRecvF32, ChannelTryRecvF32, ChannelPendingF32);
+  register_family("F64", TypeKind::F64, ChannelNewF64, ChannelSendF64, ChannelSendF64,
+                  ChannelRecvF64, ChannelTryRecvF64, ChannelPendingF64);
+  register_family("Bool", TypeKind::Bool, ChannelNewBool, ChannelSendBool, ChannelSendBool,
+                  ChannelRecvBool, ChannelTryRecvBool, ChannelPendingBool);
+  register_family("String", TypeKind::String, ChannelNewString, ChannelSendString,
+                  ChannelTrySendString, ChannelRecvString, ChannelTryRecvString,
+                  ChannelPendingString);
+  register_family("Bytes", TypeKind::Ref, ChannelNewBytes, ChannelSendBytes, ChannelTrySendBytes,
+                  ChannelRecvBytes, ChannelTryRecvBytes, ChannelPendingBytes);
+
   registry.Register(MakeSpec(module, "close", {TypeKind::I64}, TypeKind::Unspecified,
                              ChannelClose));
 }

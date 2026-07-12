@@ -345,6 +345,7 @@ Deliverables:
 - [ ] Audit duplicate helpers/functions across `Lang`, `VM`, `Byte`, `LSP`, `CLI`, and `Tests`.
 - [ ] Create shared domain utility files only where reuse is real, not speculative.
 - [ ] Prefer one table-driven implementation over multiple switch/string chains.
+  - [x] Collapse `System.Channel` scalar/string/bytes registration into one family registration helper.
 - [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
 - [x] Merge repeated test-section registration logic into one shared append helper.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
