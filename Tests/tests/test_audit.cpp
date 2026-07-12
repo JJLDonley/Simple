@@ -149,16 +149,23 @@ bool AuditNoStaleLibraryDiagnosticNames() {
 bool AuditNativeRegistryUsesCatalogMemberNames() {
   const std::regex string_member_spec(R"(MakeSpec\(module,\s*\")");
   bool ok = true;
-  std::ifstream in("VM/src/native/registry.cpp");
-  if (!in) return false;
-  std::string line;
-  size_t line_no = 0;
-  while (std::getline(in, line)) {
-    ++line_no;
-    if (std::regex_search(line, string_member_spec)) {
-      std::cerr << "native registry MakeSpec should use catalog ToMember(...) or generated family names at VM/src/native/registry.cpp:"
-                << line_no << "\n";
-      ok = false;
+  for (const auto& path : CollectFiles("VM/src/native", ".cpp")) {
+    const std::string normalized = NormalizePath(path);
+    if (normalized.find("/system_") == std::string::npos &&
+        normalized.find("/default_registry.cpp") == std::string::npos) {
+      continue;
+    }
+    std::ifstream in(path);
+    if (!in) return false;
+    std::string line;
+    size_t line_no = 0;
+    while (std::getline(in, line)) {
+      ++line_no;
+      if (std::regex_search(line, string_member_spec)) {
+        std::cerr << "native registry MakeSpec should use catalog ToMember(...) or generated family names at "
+                  << normalized << ":" << line_no << "\n";
+        ok = false;
+      }
     }
   }
   return ok;

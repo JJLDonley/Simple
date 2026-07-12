@@ -206,12 +206,13 @@ bool VmImportDispatcherLivesInRuntimeModule() {
 }
 
 bool VmRuntimeSplitModulesExist() {
-  const std::array<const char*, 19> paths = {
+  const std::array<const char*, 20> paths = {
       "VM/src/interpreter/interpreter.cpp",
       "VM/src/interpreter/dispatch.cpp",
       "VM/src/interpreter/frames.cpp",
       "VM/src/interpreter/stack.cpp",
-      "VM/src/native/registry.cpp",
+      "VM/src/native/default_registry.cpp",
+      "VM/src/native/registry_core.cpp",
       "VM/src/native/os.cpp",
       "VM/src/native/fs.cpp",
       "VM/src/native/path.cpp",

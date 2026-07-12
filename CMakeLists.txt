@@ -102,13 +102,15 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/os.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/path.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/random.cpp
-  ${SIMPLEVM_VM_ROOT}/src/native/registry.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/registry_core.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/resource_registry.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/spec_builder.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_buffer.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_channel.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/system_ffi.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_fs.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/system_json.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/system_log.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_os.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_random.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/thread.cpp

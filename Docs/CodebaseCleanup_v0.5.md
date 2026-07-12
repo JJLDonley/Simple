@@ -257,7 +257,7 @@ Exit criteria:
 
 Problem:
 
-`VM/src/native/registry.cpp` is already large and will grow significantly in v0.5.1-v0.6.
+The old mixed-purpose native registry file was large and would have grown significantly in v0.5.1-v0.6 without domain boundaries.
 
 Deliverables:
 
@@ -266,22 +266,16 @@ Deliverables:
 - [x] Move native registry/result core methods into `native/registry_core.cpp`.
 - [x] Move shared native argument/string/byte-list helpers into `native/arg_utils`.
 - [x] Move `NativeCallContext` argument accessors into `native/call_context.cpp`.
-- [ ] Split registration specs by domain without changing behavior:
+- [x] Split registration specs by domain without changing behavior:
   - [x] Move `System.Random` handlers and registration into `native/system_random.cpp`.
   - [x] Move process/environment/platform/time/thread handlers and `System.Env`/`System.OS`/`System.Thread` registration into `native/system_os.cpp`.
   - [x] Move scalar/string/bytes channel handlers and `System.Channel` registration into `native/system_channel.cpp`.
   - [x] Move path/file handlers, file resource cleanup, and `System.Path`/`System.FS` registration into `native/system_fs.cpp`.
   - [x] Move buffer handlers and `System.Buffer`/`System.IO` buffer registration into `native/system_buffer.cpp`.
-  - `VM/src/native/specs/io_specs.cpp`
-  - `VM/src/native/specs/fs_specs.cpp`
-  - `VM/src/native/specs/path_specs.cpp`
-  - `VM/src/native/specs/env_specs.cpp`
-  - `VM/src/native/specs/ffi_specs.cpp`
-  - `VM/src/native/specs/buffer_specs.cpp`
-  - `VM/src/native/specs/bytes_specs.cpp`
-  - `VM/src/native/specs/channel_specs.cpp`
-  - `VM/src/native/specs/thread_specs.cpp`
-- [ ] Keep `registry.cpp` as orchestration only.
+  - [x] Move JSON handlers and `System.Json` registration into `native/system_json.cpp`.
+  - [x] Move FFI handlers and `System.FFI` registration into `native/system_ffi.cpp`.
+  - [x] Move log handlers and `System.Log` registration into `native/system_log.cpp`.
+- [x] Remove the mixed-purpose `registry.cpp`; default assembly lives in `native/default_registry.cpp`, registry core in `native/registry_core.cpp`, and domains in `native/system_*.cpp`.
 - [ ] Introduce `NativeFunctionSpec` builders/helpers if current registration uses repeated positional arguments.
 - [ ] Replace boolean clusters with named enum fields:
   - blocking behavior;
