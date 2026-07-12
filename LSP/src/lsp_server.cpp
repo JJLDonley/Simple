@@ -2042,6 +2042,72 @@ void ReplyCompletion(std::ostream& out,
           ",\"result\":{\"isIncomplete\":false,\"items\":[" + items + "]}}");
 }
 
+void WriteSignatureHelpResult(std::ostream& out,
+                              const std::string& id_raw,
+                              const std::string& signatures_json,
+                              uint32_t active_parameter) {
+  const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
+  const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
+  WriteLspMessage(out,
+                  "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+                      ",\"result\":{\"signatures\":[" + signatures_json +
+                      "],\"activeSignature\":" + std::to_string(active_signature) +
+                      ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
+}
+
+void WriteStandardIoPrintSignatureHelp(std::ostream& out,
+                                       const std::string& id_raw,
+                                       const std::string& call_name,
+                                       uint32_t active_parameter) {
+  WriteSignatureHelpResult(
+      out, id_raw,
+      "{\"label\":\"" + call_name +
+          " : void (value)\",\"parameters\":[{\"label\":\"value\"}]},"
+          "{\"label\":\"" + call_name +
+          " : void (format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}",
+      active_parameter);
+}
+
+void WriteSystemFfiOpenSignatureHelp(std::ostream& out,
+                                     const std::string& id_raw,
+                                     const std::string& call_name,
+                                     uint32_t active_parameter) {
+  WriteSignatureHelpResult(
+      out, id_raw,
+      "{\"label\":\"" + call_name +
+          " : i64 (path)\",\"parameters\":[{\"label\":\"path\"}]},"
+          "{\"label\":\"" + call_name +
+          " : i64 (path, manifest)\",\"parameters\":[{\"label\":\"path\"},{\"label\":\"manifest\"}]}",
+      active_parameter);
+}
+
+bool IsStandardIoPrintMember(const std::string& member) {
+  const auto parsed = Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, member);
+  if (!parsed) return false;
+  const auto io_member = std::get<Simple::Lang::StandardIOMember>(*parsed);
+  return io_member == Simple::Lang::StandardIOMember::Print ||
+         io_member == Simple::Lang::StandardIOMember::Println;
+}
+
+bool IsSystemFfiOpenMember(const std::string& member) {
+  return Simple::Lang::ParseMember(Simple::Lang::SystemModule::FFI, member) ==
+         Simple::Lang::SystemMember(Simple::Lang::SystemFFIMember::Open);
+}
+
+bool ResolveImportedLibraryMember(const std::string& call_name,
+                                  const std::string& text,
+                                  Simple::Lang::LibraryModuleId* out_module_id,
+                                  std::string* out_member) {
+  std::string imported_module;
+  std::string imported_member;
+  if (!ResolveImportedModuleAndMember(call_name, text, &imported_module, &imported_member)) return false;
+  const auto module_id = Simple::Lang::ParseCanonicalLibraryModule(imported_module);
+  if (!module_id) return false;
+  if (out_module_id) *out_module_id = *module_id;
+  if (out_member) *out_member = std::move(imported_member);
+  return true;
+}
+
 void ReplySignatureHelp(std::ostream& out,
                         const std::string& id_raw,
                         const std::string& uri,
@@ -2056,64 +2122,25 @@ void ReplySignatureHelp(std::ostream& out,
   const std::string call_name = CallNameAtPosition(it->second, line, character);
   const uint32_t active_parameter = ActiveParameterAtPosition(it->second, line, character);
   if (call_name == "Standard.IO.println" || call_name == "Standard.IO.print") {
-    const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
-    const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
-    WriteLspMessage(
-        out,
-        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-            ",\"result\":{\"signatures\":["
-            "{\"label\":\"" + call_name +
-            " : void (value)\",\"parameters\":[{\"label\":\"value\"}]},"
-            "{\"label\":\"" + call_name +
-            " : void (format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
-            "],\"activeSignature\":" + std::to_string(active_signature) +
-            ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
+    WriteStandardIoPrintSignatureHelp(out, id_raw, call_name, active_parameter);
     return;
   }
 
-  std::string imported_module;
+  Simple::Lang::LibraryModuleId imported_module_id{};
   std::string imported_member;
-  auto imported_module_id = [&]() -> std::optional<Simple::Lang::LibraryModuleId> {
-    return Simple::Lang::ParseCanonicalLibraryModule(imported_module);
-  };
-  if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module_id() && imported_module_id()->root == Simple::Lang::LibraryRoot::Standard &&
-      static_cast<Simple::Lang::StandardModule>(imported_module_id()->module_index) == Simple::Lang::StandardModule::IO &&
-      Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, imported_member) &&
-      (std::get<Simple::Lang::StandardIOMember>(*Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, imported_member)) == Simple::Lang::StandardIOMember::Print ||
-       std::get<Simple::Lang::StandardIOMember>(*Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, imported_member)) == Simple::Lang::StandardIOMember::Println)) {
-    const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
-    const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
-    WriteLspMessage(
-        out,
-        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-            ",\"result\":{\"signatures\":["
-            "{\"label\":\"" + call_name +
-            " : void (value)\",\"parameters\":[{\"label\":\"value\"}]},"
-            "{\"label\":\"" + call_name +
-            " : void (format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
-            "],\"activeSignature\":" + std::to_string(active_signature) +
-            ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
-    return;
-  }
-
-  if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module_id() && imported_module_id()->root == Simple::Lang::LibraryRoot::System &&
-      static_cast<Simple::Lang::SystemModule>(imported_module_id()->module_index) == Simple::Lang::SystemModule::FFI &&
-      Simple::Lang::ParseMember(Simple::Lang::SystemModule::FFI, imported_member) == Simple::Lang::SystemMember(Simple::Lang::SystemFFIMember::Open)) {
-    const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
-    const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
-    WriteLspMessage(
-        out,
-        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
-            ",\"result\":{\"signatures\":["
-            "{\"label\":\"" + call_name +
-            " : i64 (path)\",\"parameters\":[{\"label\":\"path\"}]},"
-            "{\"label\":\"" + call_name +
-            " : i64 (path, manifest)\",\"parameters\":[{\"label\":\"path\"},{\"label\":\"manifest\"}]}"
-            "],\"activeSignature\":" + std::to_string(active_signature) +
-            ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
-    return;
+  if (ResolveImportedLibraryMember(call_name, it->second, &imported_module_id, &imported_member)) {
+    if (imported_module_id.root == Simple::Lang::LibraryRoot::Standard &&
+        static_cast<Simple::Lang::StandardModule>(imported_module_id.module_index) == Simple::Lang::StandardModule::IO &&
+        IsStandardIoPrintMember(imported_member)) {
+      WriteStandardIoPrintSignatureHelp(out, id_raw, call_name, active_parameter);
+      return;
+    }
+    if (imported_module_id.root == Simple::Lang::LibraryRoot::System &&
+        static_cast<Simple::Lang::SystemModule>(imported_module_id.module_index) == Simple::Lang::SystemModule::FFI &&
+        IsSystemFfiOpenMember(imported_member)) {
+      WriteSystemFfiOpenSignatureHelp(out, id_raw, call_name, active_parameter);
+      return;
+    }
   }
 
   if (IsAtCastCallName(call_name)) {

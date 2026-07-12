@@ -349,7 +349,7 @@ Deliverables:
 - [x] Merge repeated test-section registration logic into one shared append helper.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
 - [ ] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
-- [ ] Replace copied LSP response snippets with small JSON builder helpers.
+- [x] Replace copied LSP signature-help response snippets with small JSON builder helpers.
 - [ ] Replace copied command execution helpers in CLI tests with one shared test utility.
 - [ ] Add comments only where the shared abstraction encodes a non-obvious rule.
 
