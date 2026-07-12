@@ -1,11 +1,8 @@
 #include "native/arg_utils.h"
+#include "native/slot_codec.h"
 
 namespace Simple::VM::Native {
 namespace {
-
-Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
 
 std::string ReadStringAscii(const HeapObject* obj) {
   if (!obj || obj->header.kind != ObjectKind::String || obj->payload.size() < 4) return {};

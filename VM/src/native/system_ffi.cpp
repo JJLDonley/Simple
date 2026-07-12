@@ -1,4 +1,5 @@
 #include "native/registry.h"
+#include "native/slot_codec.h"
 
 #include "native/arg_utils.h"
 #include "native/spec_builder.h"
@@ -9,26 +10,6 @@
 
 namespace Simple::VM::Native {
 namespace {
-
-Slot PackI32(int32_t value) {
-  return static_cast<uint32_t>(value);
-}
-
-int64_t UnpackI64(Slot value) {
-  return static_cast<int64_t>(value);
-}
-
-uint32_t UnpackRef(Slot value) {
-  return static_cast<uint32_t>(value & 0xFFFFFFFFu);
-}
-
-Slot PackI64(int64_t value) {
-  return static_cast<uint64_t>(value);
-}
-
-Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
 
 void SetDlError(NativeCallContext& context, const std::string& text) {
   if (context.dl_last_error) *context.dl_last_error = text;

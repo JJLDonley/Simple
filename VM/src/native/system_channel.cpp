@@ -1,68 +1,16 @@
 #include "native/registry.h"
+#include "native/slot_codec.h"
 
 #include "native/arg_utils.h"
 #include "native/channel.h"
 #include "native/spec_builder.h"
 
-#include <cstring>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace Simple::VM::Native {
 namespace {
-
-Slot PackI32(int32_t value) {
-  return static_cast<uint32_t>(value);
-}
-
-int32_t UnpackI32(Slot value) {
-  return static_cast<int32_t>(static_cast<uint32_t>(value));
-}
-
-int64_t UnpackI64(Slot value) {
-  return static_cast<int64_t>(value);
-}
-
-Slot PackI64(int64_t value) {
-  return static_cast<uint64_t>(value);
-}
-
-Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
-
-uint32_t UnpackU32Bits(Slot value) {
-  return static_cast<uint32_t>(value);
-}
-
-uint64_t UnpackU64Bits(Slot value) {
-  return static_cast<uint64_t>(value);
-}
-
-float BitsToF32(uint32_t bits) {
-  float value = 0.0f;
-  std::memcpy(&value, &bits, sizeof(value));
-  return value;
-}
-
-double BitsToF64(uint64_t bits) {
-  double value = 0.0;
-  std::memcpy(&value, &bits, sizeof(value));
-  return value;
-}
-
-Slot PackF32(float value) {
-  uint32_t bits = 0;
-  std::memcpy(&bits, &value, sizeof(bits));
-  return bits;
-}
-
-Slot PackF64(double value) {
-  uint64_t bits = 0;
-  std::memcpy(&bits, &value, sizeof(bits));
-  return bits;
-}
 
 NativeCallResult ChannelNewI32(NativeCallContext&) {
   NativeCallResult result;
@@ -202,7 +150,7 @@ NativeCallResult ChannelNewF32(NativeCallContext&) {
 NativeCallResult ChannelSendF32(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Channel::Send(Channel::g_f32, UnpackI64(context.args[0]),
-                                       BitsToF32(UnpackU32Bits(context.args[1])))
+                                       UnpackF32(UnpackU32Bits(context.args[1])))
                               ? 1
                               : 0);
   return result;
@@ -245,7 +193,7 @@ NativeCallResult ChannelNewF64(NativeCallContext&) {
 NativeCallResult ChannelSendF64(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Channel::Send(Channel::g_f64, UnpackI64(context.args[0]),
-                                       BitsToF64(UnpackU64Bits(context.args[1])))
+                                       UnpackF64(UnpackU64Bits(context.args[1])))
                               ? 1
                               : 0);
   return result;

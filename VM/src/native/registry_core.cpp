@@ -1,36 +1,9 @@
 #include "native/registry.h"
+#include "native/slot_codec.h"
 
-#include <cstring>
 #include <utility>
 
 namespace Simple::VM::Native {
-namespace {
-
-Slot PackI32(int32_t value) {
-  return static_cast<uint32_t>(value);
-}
-
-Slot PackI64(int64_t value) {
-  return static_cast<uint64_t>(value);
-}
-
-Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
-
-Slot PackF32(float value) {
-  uint32_t bits = 0;
-  std::memcpy(&bits, &value, sizeof(bits));
-  return bits;
-}
-
-Slot PackF64(double value) {
-  uint64_t bits = 0;
-  std::memcpy(&bits, &value, sizeof(bits));
-  return bits;
-}
-
-} // namespace
 
 NativeCallResult NativeCallResult::Void() {
   NativeCallResult result;

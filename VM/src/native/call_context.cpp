@@ -1,48 +1,13 @@
 #include "native/registry.h"
+#include "native/slot_codec.h"
 
 #include "native/arg_utils.h"
 #include "runtime/abi.h"
 
-#include <cstring>
 #include <string>
 #include <utility>
 
 namespace Simple::VM::Native {
-namespace {
-
-int32_t UnpackI32(Slot value) {
-  return static_cast<int32_t>(static_cast<uint32_t>(value));
-}
-
-int64_t UnpackI64(Slot value) {
-  return static_cast<int64_t>(value);
-}
-
-uint32_t UnpackRef(Slot value) {
-  return static_cast<uint32_t>(value & 0xffffffffu);
-}
-
-uint32_t UnpackU32Bits(Slot value) {
-  return static_cast<uint32_t>(value);
-}
-
-uint64_t UnpackU64Bits(Slot value) {
-  return static_cast<uint64_t>(value);
-}
-
-float BitsToF32(uint32_t bits) {
-  float value = 0.0f;
-  std::memcpy(&value, &bits, sizeof(value));
-  return value;
-}
-
-double BitsToF64(uint64_t bits) {
-  double value = 0.0;
-  std::memcpy(&value, &bits, sizeof(value));
-  return value;
-}
-
-} // namespace
 
 bool NativeCallContext::ArgBool(size_t index, bool* out) const {
   if (!out || index >= args.size()) return false;
@@ -78,13 +43,13 @@ bool NativeCallContext::ArgI64(size_t index, int64_t* out) const {
 
 bool NativeCallContext::ArgF32(size_t index, float* out) const {
   if (!out || index >= args.size()) return false;
-  *out = BitsToF32(UnpackU32Bits(args[index]));
+  *out = UnpackF32(UnpackU32Bits(args[index]));
   return true;
 }
 
 bool NativeCallContext::ArgF64(size_t index, double* out) const {
   if (!out || index >= args.size()) return false;
-  *out = BitsToF64(UnpackU64Bits(args[index]));
+  *out = UnpackF64(UnpackU64Bits(args[index]));
   return true;
 }
 

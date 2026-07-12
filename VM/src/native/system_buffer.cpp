@@ -1,4 +1,5 @@
 #include "native/registry.h"
+#include "native/slot_codec.h"
 
 #include "native/arg_utils.h"
 #include "native/buffer.h"
@@ -8,18 +9,6 @@
 
 namespace Simple::VM::Native {
 namespace {
-
-Slot PackI32(int32_t value) {
-  return static_cast<uint32_t>(value);
-}
-
-int32_t UnpackI32(Slot value) {
-  return static_cast<int32_t>(static_cast<uint32_t>(value));
-}
-
-Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
 
 bool IsBufferObject(const HeapObject* obj) {
   return obj && (obj->header.kind == ObjectKind::List || obj->header.kind == ObjectKind::Array) &&
