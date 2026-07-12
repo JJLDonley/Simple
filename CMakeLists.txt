@@ -328,6 +328,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/vm/test_jit.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_channel.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_fs.cpp
+  ${SIMPLEVM_TEST_ROOT}/vm/test_native_registry.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_abi.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_limits.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/cli_test_utils.cpp

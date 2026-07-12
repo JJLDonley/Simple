@@ -393,6 +393,7 @@ Deliverables:
 
 - [ ] Move pure helpers into domain helper files first.
 - [ ] Split tests by domain before splitting runtime behavior.
+  - [x] Move the native registry integration/metadata test out of `test_core.cpp` into `vm/test_native_registry.cpp`.
 - [ ] Avoid behavior changes in file-split commits.
 - [ ] Require full suite green after each split.
 
