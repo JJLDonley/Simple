@@ -184,6 +184,10 @@ bool IsFloatTypeName(const std::string& name) {
   return IsFloatScalarTypeName(name);
 }
 
+bool IsNumericScalarTypeName(const std::string& name) {
+  return IsIntegerScalarTypeName(name) || IsFloatScalarTypeName(name);
+}
+
 bool IsBoolTypeName(const std::string& name) {
   return name == "bool";
 }

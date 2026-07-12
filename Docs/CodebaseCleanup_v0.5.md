@@ -297,6 +297,7 @@ Several repeated expressions and numeric constants encode rules without names.
 Deliverables:
 
 - [ ] Add common type predicates where repeated:
+  - [x] Reuse TAST integer/float/primitive-cast predicates from SIR and add `IsNumericScalarTypeName` for the shared scalar rule.
   - `IsScalarType`
   - `IsNumericType`
   - `IsIntegerType`

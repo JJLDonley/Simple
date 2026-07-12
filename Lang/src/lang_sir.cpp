@@ -15,6 +15,7 @@
 #include "lang_reserved.h"
 #include "RAST/reserved_resolution.h"
 #include "TAST/type_checker.h"
+#include "TAST/types.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
 #include "intrinsic_ids.h"
@@ -136,11 +137,6 @@ bool EmitExpr(EmitState& st,
               const TypeRef* expected,
               std::string* error);
 
-bool IsIntegralType(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64";
-}
-
 bool IsIntegerLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
 }
@@ -149,26 +145,11 @@ bool IsFloatLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Float;
 }
 
-bool IsFloatType(const std::string& name) {
-  return name == "f32" || name == "f64";
-}
-
-bool IsNumericType(const std::string& name) {
-  return IsIntegralType(name) || IsFloatType(name);
-}
-
-bool IsPrimitiveCastName(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
-         name == "f32" || name == "f64" || name == "bool" || name == "char" ||
-         name == "string";
-}
-
 bool IsAbiScalarType(const TypeRef& type, const EmitState& st) {
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
   if (type.pointer_depth > 0) return true;
   if (type.name == "string") return true;
-  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return true;
+  if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return true;
   if (st.enum_values.find(type.name) != st.enum_values.end()) return true;
   return false;
 }
@@ -284,7 +265,7 @@ bool EnsureAbiTypeForArtifact(EmitState& st,
 bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
   if (name.size() < 2 || name[0] != '@') return false;
   const std::string target = name.substr(1);
-  if (!IsPrimitiveCastName(target)) return false;
+  if (!TAST::IsPrimitiveCastName(target)) return false;
   if (out_target) *out_target = target;
   return true;
 }
@@ -701,7 +682,7 @@ bool IsSupportedType(const TypeRef& type) {
     return true;
   }
   if (type.name == "void") return true;
-  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char" || type.name == "string") return true;
+  if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char" || type.name == "string") return true;
   return true;
 }
 
@@ -1208,7 +1189,7 @@ std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "string";
-  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
+  if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.artifacts.find(type.name) != st.artifacts.end()) return "ref";
   if (st.abi_types.find(type.name) != st.abi_types.end()) return "ref";
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
@@ -1221,7 +1202,7 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
   if (!type.dims.empty()) return "ref";
   if (type.name == "void") return "void";
   if (type.name == "string") return "string";
-  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
+  if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.artifacts.find(type.name) != st.artifacts.end()) return type.name;
   if (st.abi_types.find(type.name) != st.abi_types.end()) return type.name;
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
@@ -1538,13 +1519,13 @@ bool InferExprType(const Expr& expr,
       TypeRef matched;
       if (left.name == right.name) {
         if (!CloneTypeRef(left, &matched)) return false;
-      } else if (IsIntegerLiteralExpr(expr.children[0]) && IsIntegralType(right.name)) {
+      } else if (IsIntegerLiteralExpr(expr.children[0]) && TAST::IsIntegerScalarTypeName(right.name)) {
         if (!CloneTypeRef(right, &matched)) return false;
-      } else if (IsIntegerLiteralExpr(expr.children[1]) && IsIntegralType(left.name)) {
+      } else if (IsIntegerLiteralExpr(expr.children[1]) && TAST::IsIntegerScalarTypeName(left.name)) {
         if (!CloneTypeRef(left, &matched)) return false;
-      } else if (IsFloatLiteralExpr(expr.children[0]) && IsFloatType(right.name)) {
+      } else if (IsFloatLiteralExpr(expr.children[0]) && TAST::IsFloatTypeName(right.name)) {
         if (!CloneTypeRef(right, &matched)) return false;
-      } else if (IsFloatLiteralExpr(expr.children[1]) && IsFloatType(left.name)) {
+      } else if (IsFloatLiteralExpr(expr.children[1]) && TAST::IsFloatTypeName(left.name)) {
         if (!CloneTypeRef(left, &matched)) return false;
       } else {
         if (error) *error = "operand type mismatch for '" + expr.op + "'";
@@ -1889,7 +1870,7 @@ bool EmitConstForType(EmitState& st,
     return PushStack(st, 1);
   }
 
-  if (!IsNumericType(type.name)) {
+  if (!TAST::IsNumericScalarTypeName(type.name)) {
     if (error) *error = "literal type not supported for SIR emission";
     return false;
   }
@@ -1999,7 +1980,7 @@ bool EmitLocalAssignment(EmitState& st,
     (*st.out) << "  mul " << op_type << "\n";
   } else if (std::string(bin_op) == "/") {
     (*st.out) << "  div " << op_type << "\n";
-  } else if (std::string(bin_op) == "%" && IsIntegralType(type.name)) {
+  } else if (std::string(bin_op) == "%" && TAST::IsIntegerScalarTypeName(type.name)) {
     (*st.out) << "  mod " << op_type << "\n";
   } else if (std::string(bin_op) == "&") {
     (*st.out) << "  and " << op_type << "\n";
@@ -2075,7 +2056,7 @@ bool EmitGlobalAssignment(EmitState& st,
     (*st.out) << "  mul " << op_type << "\n";
   } else if (std::string(bin_op) == "/") {
     (*st.out) << "  div " << op_type << "\n";
-  } else if (std::string(bin_op) == "%" && IsIntegralType(type.name)) {
+  } else if (std::string(bin_op) == "%" && TAST::IsIntegerScalarTypeName(type.name)) {
     (*st.out) << "  mod " << op_type << "\n";
   } else if (std::string(bin_op) == "&") {
     (*st.out) << "  and " << op_type << "\n";
@@ -2172,7 +2153,7 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
         (*st.out) << "  mul " << op_type << "\n";
       } else if (std::string(bin_op) == "/") {
         (*st.out) << "  div " << op_type << "\n";
-      } else if (std::string(bin_op) == "%" && IsIntegralType(element_type.name)) {
+      } else if (std::string(bin_op) == "%" && TAST::IsIntegerScalarTypeName(element_type.name)) {
         (*st.out) << "  mod " << op_type << "\n";
       } else if (std::string(bin_op) == "&") {
         (*st.out) << "  and " << op_type << "\n";
@@ -2261,7 +2242,7 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
         (*st.out) << "  mul " << op_type << "\n";
       } else if (std::string(bin_op) == "/") {
         (*st.out) << "  div " << op_type << "\n";
-      } else if (std::string(bin_op) == "%" && IsIntegralType(field_type.name)) {
+      } else if (std::string(bin_op) == "%" && TAST::IsIntegerScalarTypeName(field_type.name)) {
         (*st.out) << "  mod " << op_type << "\n";
       } else if (std::string(bin_op) == "&") {
         (*st.out) << "  and " << op_type << "\n";
@@ -2482,7 +2463,7 @@ bool EmitUnary(EmitState& st,
     return false;
   }
   if (!EmitExpr(st, expr.children[0], use_type, error)) return false;
-  if (expr.op == "-" && IsNumericType(use_type->name)) {
+  if (expr.op == "-" && TAST::IsNumericScalarTypeName(use_type->name)) {
     (*st.out) << "  neg " << use_type->name << "\n";
     return true;
   }
@@ -2512,15 +2493,15 @@ bool EmitBinary(EmitState& st,
   if (left_type.name != right_type.name && (!expected || is_cmp)) {
     const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
     const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
-    const bool lhs_int = IsIntegralType(left_type.name);
-    const bool rhs_int = IsIntegralType(right_type.name);
+    const bool lhs_int = TAST::IsIntegerScalarTypeName(left_type.name);
+    const bool rhs_int = TAST::IsIntegerScalarTypeName(right_type.name);
     if (lhs_lit && rhs_int) {
       if (!CloneTypeRef(right_type, &left_type)) return false;
     } else if (rhs_lit && lhs_int) {
       if (!CloneTypeRef(left_type, &right_type)) return false;
-    } else if (IsFloatLiteralExpr(expr.children[0]) && IsFloatType(right_type.name)) {
+    } else if (IsFloatLiteralExpr(expr.children[0]) && TAST::IsFloatTypeName(right_type.name)) {
       if (!CloneTypeRef(right_type, &left_type)) return false;
-    } else if (IsFloatLiteralExpr(expr.children[1]) && IsFloatType(left_type.name)) {
+    } else if (IsFloatLiteralExpr(expr.children[1]) && TAST::IsFloatTypeName(left_type.name)) {
       if (!CloneTypeRef(left_type, &right_type)) return false;
     } else {
       if (error) *error = "operand type mismatch for '" + expr.op + "'";
@@ -2634,7 +2615,7 @@ bool EmitBinary(EmitState& st,
       (*st.out) << "  div " << op_type << "\n";
       return true;
     }
-    if (expr.op == "%" && IsIntegralType(type.name)) {
+    if (expr.op == "%" && TAST::IsIntegerScalarTypeName(type.name)) {
       (*st.out) << "  mod " << op_type << "\n";
       return true;
     }
@@ -3614,7 +3595,7 @@ bool EmitExpr(EmitState& st,
         if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
         if (cast_target == "string") {
           if (!arg_type.dims.empty() ||
-              (!IsNumericType(arg_type.name) && arg_type.name != "bool")) {
+              (!TAST::IsNumericScalarTypeName(arg_type.name) && arg_type.name != "bool")) {
             if (error) *error = "string cast expects numeric or bool argument";
             return false;
           }
@@ -3854,7 +3835,7 @@ bool EmitExpr(EmitState& st,
           return EmitExpr(st, value, &string_type, error);
         }
         if (!arg_type.dims.empty() ||
-            (!IsNumericType(arg_type.name) && arg_type.name != "bool")) {
+            (!TAST::IsNumericScalarTypeName(arg_type.name) && arg_type.name != "bool")) {
           if (error) *error = "format supports numeric, bool, or string";
           return false;
         }
@@ -4454,7 +4435,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
             (*st.out) << "  mul " << op_type << "\n";
           } else if (std::string(bin_op) == "/") {
             (*st.out) << "  div " << op_type << "\n";
-          } else if (std::string(bin_op) == "%" && IsIntegralType(element_type.name)) {
+          } else if (std::string(bin_op) == "%" && TAST::IsIntegerScalarTypeName(element_type.name)) {
             (*st.out) << "  mod " << op_type << "\n";
           } else if (std::string(bin_op) == "&") {
             (*st.out) << "  and " << op_type << "\n";
@@ -4551,7 +4532,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
             (*st.out) << "  mul " << op_type << "\n";
           } else if (std::string(bin_op) == "/") {
             (*st.out) << "  div " << op_type << "\n";
-          } else if (std::string(bin_op) == "%" && IsIntegralType(field_type.name)) {
+          } else if (std::string(bin_op) == "%" && TAST::IsIntegerScalarTypeName(field_type.name)) {
             (*st.out) << "  mod " << op_type << "\n";
           } else if (std::string(bin_op) == "&") {
             (*st.out) << "  and " << op_type << "\n";

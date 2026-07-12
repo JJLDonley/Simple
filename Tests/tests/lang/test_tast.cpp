@@ -108,6 +108,9 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsScalarType(proc_type) &&
          Simple::Lang::TAST::IsIntegerScalarTypeName("u64") &&
          Simple::Lang::TAST::IsFloatTypeName("f32") &&
+         Simple::Lang::TAST::IsNumericScalarTypeName("i64") &&
+         Simple::Lang::TAST::IsNumericScalarTypeName("f64") &&
+         !Simple::Lang::TAST::IsNumericScalarTypeName("char") &&
          Simple::Lang::TAST::IsNumericTypeName("char") &&
          Simple::Lang::TAST::IsBoolTypeName("bool") &&
          Simple::Lang::TAST::IsStringTypeName("string") &&

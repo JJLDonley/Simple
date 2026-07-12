@@ -33,6 +33,7 @@ bool IsIntegerScalarTypeName(const std::string& name);
 bool IsIntegerTypeName(const std::string& name);
 bool IsFloatScalarTypeName(const std::string& name);
 bool IsFloatTypeName(const std::string& name);
+bool IsNumericScalarTypeName(const std::string& name);
 bool IsBoolTypeName(const std::string& name);
 bool IsStringTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
