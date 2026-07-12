@@ -81,27 +81,28 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
                             std::string* out_error) {
   const NativeFunctionSpec* spec = registry.Find(module_name, symbol_name);
   if (!spec) return false;
+  const std::string function_name = NativeFunctionName(module_name, symbol_name);
   if (!out_ret || !out_has_ret || !runtime.heap) {
-    if (out_error) *out_error = module_name + "." + symbol_name + " native dispatch context invalid";
+    if (out_error) *out_error = function_name + " native dispatch context invalid";
     return true;
   }
   if (spec->result_type == Simple::Byte::TypeKind::Unspecified) {
     *out_has_ret = false;
   } else if (!IsCompatibleNativeReturnType(spec->result_type, return_kind)) {
-    if (out_error) *out_error = module_name + "." + symbol_name + " return type mismatch";
+    if (out_error) *out_error = function_name + " return type mismatch";
     return true;
   } else {
     *out_has_ret = true;
   }
   if (args.size() != spec->parameter_types.size()) {
-    if (out_error) *out_error = module_name + "." + symbol_name + " arg count mismatch";
+    if (out_error) *out_error = function_name + " arg count mismatch";
     return true;
   }
   if (runtime.capability_policy) {
     std::string denied_tag;
     if (!AllowsCapabilities(*runtime.capability_policy, spec->capability_tags, &denied_tag)) {
       if (out_error) {
-        *out_error = module_name + "." + symbol_name + " denied capability: " + denied_tag;
+        *out_error = function_name + " denied capability: " + denied_tag;
       }
       return true;
     }
@@ -110,7 +111,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
     for (const NativeResourceUse& resource : spec->resources) {
       if (resource.access == NativeResourceAccess::Output) continue;
       if (resource.parameter_index >= args.size()) {
-        if (out_error) *out_error = module_name + "." + symbol_name + " resource parameter index out of range";
+        if (out_error) *out_error = function_name + " resource parameter index out of range";
         return true;
       }
       if (Simple::Lang::IsCanonicalLibraryModule(module_name, Simple::Lang::SystemModule::FFI) ||
@@ -122,7 +123,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
       const NativeResourceStatus status = runtime.resource_registry->Get(handle, resource.kind, nullptr);
       if (status != NativeResourceStatus::Ok) {
         if (out_error) {
-          *out_error = module_name + "." + symbol_name + " invalid resource handle: " +
+          *out_error = function_name + " invalid resource handle: " +
                        NativeResourceStatusName(status);
         }
         return true;

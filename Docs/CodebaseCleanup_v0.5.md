@@ -214,9 +214,9 @@ Known stale diagnostic names:
 
 Deliverables:
 
-- [ ] Add a reusable diagnostic-name helper:
-  - input: module/member ID or canonical strings;
-  - output: canonical display name.
+- [x] Add reusable diagnostic-name helpers:
+  - typed catalog predicates provide canonical module identity;
+  - `NativeFunctionName` formats canonical native module/member names consistently across metadata, dispatch, specs, and JIT diagnostics.
 - [x] Update TAST call diagnostics to canonical names.
 - [x] Update SIR lowering diagnostics to canonical names.
 - [x] Update language validation diagnostics to canonical names.

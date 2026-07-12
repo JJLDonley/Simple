@@ -1252,7 +1252,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     std::string symbol_name;
     if (import_like_call && import_name(func_id, &module_name, &symbol_name) &&
         !module_name.empty() && !symbol_name.empty()) {
-      return module_name + "." + symbol_name;
+      return Simple::VM::Native::NativeFunctionName(module_name, symbol_name);
     }
     std::string name = function_name(func_id);
     if (!name.empty()) return name;

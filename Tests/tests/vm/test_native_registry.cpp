@@ -18,6 +18,10 @@ namespace {
 
 bool NativeRegistryMatchesCatalogAvailability() {
   using namespace Simple::Lang;
+  if (Simple::VM::Native::NativeFunctionName("System.FS", "readText") !=
+      "System.FS.readText") {
+    return false;
+  }
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   const std::unordered_set<std::string> internal_native_backing = {
       "System.OS.args_count", "System.OS.args_get", "System.OS.env_get",

@@ -18,7 +18,7 @@ NativeFunctionSpec MakeSpec(Simple::Lang::LibraryModuleId module,
   spec.result_type = result_type;
   spec.layer = NativeLayer::System;
   spec.stability = NativeStability::Experimental;
-  spec.doc_summary = spec.module_name + "." + std::string(symbol_name);
+  spec.doc_summary = NativeFunctionName(spec.module_name, symbol_name);
   if (result_type == Simple::Byte::TypeKind::String || result_type == Simple::Byte::TypeKind::Ref) {
     spec.allocation = NativeAllocationBehavior::MayAllocateVm;
     spec.gc_behavior = NativeGcBehavior::MaySafepoint;

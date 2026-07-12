@@ -54,7 +54,7 @@ bool NativeTypeMatchesLibraryType(Simple::Byte::TypeKind native_type,
 bool ValidateNativeSpecAgainstLibrarySignature(const NativeFunctionSpec& spec,
                                                const Simple::Lang::LibrarySignatureSpec& signature,
                                                std::string* error) {
-  const std::string name = spec.module_name + "." + spec.symbol_name;
+  const std::string name = NativeFunctionName(spec.module_name, spec.symbol_name);
   if (spec.parameter_types.size() != signature.params.size()) {
     if (error) *error = name + " catalog signature arity mismatch";
     return false;
@@ -132,7 +132,7 @@ NativeJitCallValidation AnalyzeNativeJitCall(const NativeFunctionSpec& spec,
 }
 
 bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string* error) {
-  const std::string name = spec.module_name + "." + spec.symbol_name;
+  const std::string name = NativeFunctionName(spec.module_name, spec.symbol_name);
   if (spec.module_name.empty() || spec.symbol_name.empty()) {
     if (error) *error = "native metadata has empty module or symbol";
     return false;

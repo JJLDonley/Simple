@@ -6,6 +6,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "heap.h"
@@ -65,6 +66,8 @@ struct NativeCallResult {
 };
 
 using NativeFunctionHandler = std::function<NativeCallResult(NativeCallContext&)>;
+
+std::string NativeFunctionName(std::string_view module_name, std::string_view symbol_name);
 
 enum class NativeLayer {
   Core,

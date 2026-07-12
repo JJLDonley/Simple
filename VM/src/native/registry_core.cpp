@@ -10,6 +10,14 @@ using Simple::VM::Runtime::PackRef;
 using Simple::VM::Runtime::PackF32;
 using Simple::VM::Runtime::PackF64;
 
+std::string NativeFunctionName(std::string_view module_name, std::string_view symbol_name) {
+  std::string name;
+  name.reserve(module_name.size() + 1u + symbol_name.size());
+  name.append(module_name);
+  name.push_back('.');
+  name.append(symbol_name);
+  return name;
+}
 
 NativeCallResult NativeCallResult::Void() {
   NativeCallResult result;
