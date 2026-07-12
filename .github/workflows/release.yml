@@ -47,12 +47,23 @@ jobs:
           - os: ubuntu-latest
             script: ./build_linux
             pkg_ext: tar.gz
+            flavor: int
+          - os: ubuntu-latest
+            script: ./build_linux
+            pkg_ext: tar.gz
+            flavor: llvm
           - os: macos-latest
             script: ./build_macos
             pkg_ext: tar.gz
+            flavor: int
+          - os: macos-latest
+            script: ./build_macos
+            pkg_ext: tar.gz
+            flavor: llvm
           - os: windows-latest
             script: ./build_windows
             pkg_ext: zip
+            flavor: int
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -64,6 +75,10 @@ jobs:
         run: |
           brew update
           brew install libffi pkg-config
+          if [[ "${{ matrix.flavor }}" == "llvm" ]]; then
+            brew install llvm
+            echo "LLVM_DIR=$(brew --prefix llvm)/lib/cmake/llvm" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup Linux deps
         if: runner.os == 'Linux'
@@ -71,6 +86,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libffi-dev pkg-config
+          if [[ "${{ matrix.flavor }}" == "llvm" ]]; then
+            sudo apt-get install -y llvm-dev
+          fi
 
       - name: Setup Windows vcpkg + libffi
         if: runner.os == 'Windows'
@@ -92,14 +110,27 @@ jobs:
           }
           "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Build + package (Linux/macOS)
+      - name: Build + test + package (Linux/macOS)
         if: runner.os != 'Windows'
         shell: bash
         env:
           VERSION: ${{ needs.compute-version.outputs.version }}
         run: |
           chmod +x ./build_linux ./build_macos ./build_windows
-          ${{ matrix.script }} --version "${VERSION}" --no-tests --skip-install
+          cmake_args=()
+          if [[ "${{ matrix.flavor }}" == "llvm" ]]; then
+            cmake_args+=(--cmake-arg "-DSIMPLEVM_ENABLE_LLVM_JIT=ON")
+            if [[ -n "${LLVM_DIR:-}" ]]; then
+              cmake_args+=(--cmake-arg "-DLLVM_DIR=${LLVM_DIR}")
+            fi
+          fi
+          ${{ matrix.script }} --version "${VERSION}" --tests --skip-install "${cmake_args[@]}"
+          if [[ "${{ matrix.flavor }}" == "llvm" ]]; then
+            grep -q '^SIMPLEVM_ENABLE_LLVM_JIT:BOOL=ON$' build/CMakeCache.txt
+          fi
+          pkg="$(find dist -maxdepth 1 -type f -name "simple-${VERSION}-*.${{ matrix.pkg_ext }}" -print -quit)"
+          test -n "$pkg"
+          mv "$pkg" "${pkg%.${{ matrix.pkg_ext }}}-${{ matrix.flavor }}.${{ matrix.pkg_ext }}"
 
       - name: Build + package (Windows)
         if: runner.os == 'Windows'
@@ -111,15 +142,18 @@ jobs:
           chmod +x ./build_linux ./build_macos ./build_windows
           ./build_windows \
             --version "${VERSION}" \
-            --no-tests \
+            --tests \
             --skip-install \
             --cmake-arg "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" \
             --cmake-arg "-DVCPKG_TARGET_TRIPLET=x64-windows"
+          pkg="$(find dist -maxdepth 1 -type f -name "simple-${VERSION}-*.zip" -print -quit)"
+          test -n "$pkg"
+          mv "$pkg" "${pkg%.zip}-int.zip"
 
       - name: Upload platform package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ runner.os }}
+          name: release-${{ runner.os }}-${{ matrix.flavor }}
           path: dist/simple-${{ needs.compute-version.outputs.version }}-*.${{ matrix.pkg_ext }}
           if-no-files-found: error
 

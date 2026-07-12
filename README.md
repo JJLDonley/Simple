@@ -57,15 +57,125 @@ Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as
 
 ## Install / build
 
+### Release build matrix
+
+Simple publishes one release version with explicit runtime flavors. The flavor is an artifact
+classifier, not a separate SemVer version.
+
+| Operating system | Architecture | `int` | `llvm` | Package |
+|---|---|:---:|:---:|---|
+| Linux | x86_64 | ✅ | ✅ | `.tar.gz` |
+| macOS | runner architecture (`arm64` or `x86_64`) | ✅ | ✅ | `.tar.gz` |
+| Windows | x86_64 | ✅ | ☐ | `.zip` |
+
+- `int` is the dependency-light interpreter build.
+- `llvm` includes the LLVM ORC JIT and falls back to the interpreter for unsupported functions.
+- Windows LLVM packaging is deferred until its LLVM runtime and toolchain distribution are stable.
+- Both published flavors run the full test suite during release CI.
+
+Artifact names follow this form:
+
+```txt
+simple-v0.5.0-linux-x86_64-int.tar.gz
+simple-v0.5.0-linux-x86_64-llvm.tar.gz
+simple-v0.5.0-darwin-arm64-int.tar.gz
+simple-v0.5.0-darwin-arm64-llvm.tar.gz
+simple-v0.5.0-windows-x86_64-int.zip
+```
+
+`simple-latest-<platform>-<architecture>-<flavor>` aliases are also published.
+
+### Download a release
+
+Download a package from the
+[latest GitHub release](https://github.com/JJLDonley/Simple/releases/latest) before considering a
+source build. Replace `int` with `llvm` on Linux or macOS when JIT support is wanted.
+
+#### Linux x86_64
+
+```bash
+curl -LO https://github.com/JJLDonley/Simple/releases/latest/download/simple-latest-linux-x86_64-int.tar.gz
+tar -xzf simple-latest-linux-x86_64-int.tar.gz
+cd simple-*-linux-x86_64
+./bin/svm version
+```
+
+#### macOS
+
+Apple Silicon:
+
+```bash
+curl -LO https://github.com/JJLDonley/Simple/releases/latest/download/simple-latest-darwin-arm64-int.tar.gz
+tar -xzf simple-latest-darwin-arm64-int.tar.gz
+cd simple-*-darwin-arm64
+./bin/svm version
+```
+
+Intel macOS uses `darwin-x86_64` in the file name instead.
+
+#### Windows x86_64
+
+PowerShell:
+
+```powershell
+Invoke-WebRequest `
+  https://github.com/JJLDonley/Simple/releases/latest/download/simple-latest-windows-x86_64-int.zip `
+  -OutFile simple-int.zip
+Expand-Archive simple-int.zip -DestinationPath simple-int
+& .\simple-int\bin\svm.exe version
+```
+
+The extracted directory can be moved anywhere. Add its `bin` directory to `PATH` to invoke `svm`
+without a full path.
+
+### Source-build prerequisites
+
+| Requirement | Linux | macOS | Windows |
+|---|---|---|---|
+| C++ toolchain | GCC or Clang | Xcode Command Line Tools | Visual Studio 2022 C++ tools |
+| Build system | CMake | CMake | CMake |
+| FFI | `libffi-dev`, `pkg-config` | Homebrew `libffi`, `pkg-config` | vcpkg `libffi:x64-windows` |
+| LLVM flavor | `llvm-dev` | Homebrew `llvm` | Not currently packaged |
+| Shell | Bash | Bash | Git Bash/MSYS2 for release scripts |
+
+Typical dependency installation:
+
+```bash
+# Ubuntu/Debian, interpreter build
+sudo apt-get install cmake build-essential libffi-dev pkg-config
+
+# Ubuntu/Debian, LLVM build
+sudo apt-get install cmake build-essential libffi-dev pkg-config llvm-dev
+
+# macOS
+xcode-select --install
+brew install cmake libffi pkg-config        # interpreter
+brew install llvm                           # additionally for LLVM JIT
+```
+
 ### Build from source
 
-Linux/macOS:
+Interpreter build on Linux/macOS:
 
 ```bash
 ./build.sh
 ```
 
-Windows:
+LLVM JIT build:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSIMPLEVM_ENABLE_LLVM_JIT=ON
+cmake --build build --target simplevm simple_stub --parallel 2
+```
+
+On Homebrew systems, CMake may need the LLVM package location:
+
+```bash
+cmake -S . -B build -DSIMPLEVM_ENABLE_LLVM_JIT=ON \
+  -DLLVM_DIR="$(brew --prefix llvm)/lib/cmake/llvm"
+```
+
+Windows interpreter build:
 
 ```bat
 build.bat
@@ -457,6 +567,6 @@ cmake --build build --target simplevm_tests -j2
 
 ## Version
 
-Current tool version: `v0.4.42`.
+Current tool version: `v0.5.0`.
 
 The canonical tool/package version lives in `VERSION`. Build scripts and release CI read that file, and CMake embeds the same value into `svm version`.

@@ -31,6 +31,9 @@ These decisions are treated as compatibility anchors unless explicitly revised b
 - The interpreter is the semantic baseline.
 - LLVM ORC JIT may only accelerate validated SBC and must fallback/trap safely when unsupported.
 - SBC remains the portable artifact. JIT output is platform-local machine code, not a distribution format.
+- Releases use one SemVer tag with explicit `int` and `llvm` artifact flavors; flavor names are not
+  separate versions. Linux and macOS publish both tested flavors, while Windows publishes `int`
+  until LLVM packaging is stable.
 - Native calls are metadata-driven. Interpreter, JIT, future AOT, docs, LSP, and reserved signatures consume the same catalog/native metadata.
 - Host resources are generational opaque handles. Raw platform handles and VM heap internals are not exposed directly to Simple code.
 - `System.*` is explicit, low-level, capability-aware, and native/runtime-facing.
@@ -45,6 +48,7 @@ These decisions are treated as compatibility anchors unless explicitly revised b
 Every non-doc release slice should satisfy:
 
 - [ ] Build succeeds locally.
+- [ ] Every published `int`/`llvm` release flavor builds and runs the full suite.
 - [ ] `git diff --check` passes.
 - [ ] Full test suite is green.
 - [ ] JIT section is green where applicable.
