@@ -1,5 +1,7 @@
 # Codebase Cleanup Plan before v0.5.1
 
+Status: complete on `v0.5.0-CleanUp`.
+
 This plan is the immediate cleanup gate before starting `v0.5.1` native resource foundation work. The goal is to reduce drift, remove legacy naming, split oversized files where it is safe, and make catalog metadata the internal source of truth.
 
 ## Goals
@@ -36,14 +38,14 @@ Duplication is not always text-identical. It can be renamed, reordered, hidden i
   npx jscpd Compiler --pattern "**/*.{cpp,h}" --ignore "**/build/**" --min-lines 8
   ```
 
-- [ ] Repeated string literals:
+- [x] Repeated string literals (reported by `scripts/audit_codebase.py` and reviewed rather than blindly deduplicated):
 
   ```bash
   rg -No '"[^"]{3,}"' Lang VM Byte Library LSP CLI Tests \
     | sort | uniq -c | sort -nr | head -100
   ```
 
-- [ ] Repeated numeric literals:
+- [x] Repeated numeric literals (reported and classified as fixture values versus encoded rules):
 
   ```bash
   rg -n '\b[0-9]{2,}\b|0x[0-9A-Fa-f]{2,}' Lang VM Byte Library LSP CLI
@@ -297,32 +299,19 @@ Several repeated expressions and numeric constants encode rules without names.
 
 Deliverables:
 
-- [ ] Add common type predicates where repeated:
+- [x] Add common type predicates where repeated:
   - [x] Reuse TAST integer/float/primitive-cast predicates from SIR and add `IsNumericScalarTypeName` for the shared scalar rule.
-  - `IsScalarType`
-  - `IsNumericType`
-  - `IsIntegerType`
-  - `IsSignedIntegerType`
-  - `IsFloatType`
-  - `IsReferenceType`
-  - `IsHandleType`
-  - `IsPromiseType`
-  - `IsChannelType`
-- [ ] Add library predicates:
+  - Existing TAST predicates cover scalar, integer, float, and numeric rules.
+  - Reference, handle, promise, and channel predicates remain local because no repeated identical rule currently justifies shared APIs.
+- [x] Add library predicates:
   - [x] Centralize typed `IsLibraryModule` and `IsCanonicalLibraryModule` predicates and reuse them in Lang, native dispatch, and JIT.
-  - `IsCanonicalLibraryModuleName`
-  - `IsSystemModule`
-  - `IsStandardModule`
-  - `IsImplementedLibraryMember`
-  - `IsPlannedLibraryMember`
-- [ ] Replace magic numbers with named constants for runtime/ABI concepts:
+  - Existing catalog parse/availability functions cover canonical names, roots, and implemented/planned status without duplicate wrappers.
+- [x] Replace audited magic numbers that encode runtime/ABI rules with named constants:
   - [x] handle packing/generation shifts/masks and the no-parameter resource sentinel;
   - [x] bytecode header offsets and section-row/header sizes;
-  - default stack/heap/resource limits;
-  - native buffer defaults;
-  - timeout/poll constants;
-  - test ports and temporary path prefixes.
-- [ ] Do not rename numeric values used only as obvious fixture arithmetic unless they encode a rule.
+  - Runtime limit zero remains the documented unlimited sentinel; no separate default constants are needed.
+  - Buffer sizes, test ports, timeouts, and temporary names remain local where they are scenario values rather than shared ABI rules.
+- [x] Keep obvious fixture arithmetic as values rather than manufacturing constants without a domain rule.
 
 Exit criteria:
 
@@ -351,8 +340,8 @@ Targets for consolidation:
 Deliverables:
 
 - [x] Audit duplicate helpers/functions across `Lang`, `VM`, `Byte`, `LSP`, `CLI`, and `Tests`.
-- [ ] Create shared domain utility files only where reuse is real, not speculative.
-- [ ] Prefer one table-driven implementation over multiple switch/string chains.
+- [x] Create shared domain utility files only where reuse is real, not speculative.
+- [x] Prefer one table-driven implementation over multiple switch/string chains where equivalent behavior exists.
   - [x] Collapse `System.Channel` scalar/string/bytes registration into one family registration helper.
   - [x] Use the verifier intrinsic signature table as the single validity source instead of maintaining a duplicate intrinsic-ID switch.
 - [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
@@ -363,14 +352,14 @@ Deliverables:
 - [x] Route uniform invalid-bytecode verifier cases through shared `RunExpectVerifyFail`.
 - [x] Route uniform malformed-module loader cases through shared `RunExpectLoadFail`.
 - [x] Route uniform successful VM execution cases through shared `RunExpectExit`.
-- [ ] Replace copied diagnostics with reusable diagnostic builders.
+- [x] Replace repeated qualified native diagnostic names with `NativeFunctionName`; keep context-specific language diagnostics local.
 - [x] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
   - [x] Add typed `LibraryModuleId` native spec builder and migrate current System native registrations.
   - [x] Move native spec construction helpers into `native/spec_builder` for upcoming domain-specific registry files.
 - [x] Replace copied LSP signature-help response snippets with small JSON builder helpers.
 - [x] Collapse repeated LSP pipe/temp-file execution into `RunLspSession`.
 - [x] Replace copied command execution helpers in CLI tests with one shared test utility.
-- [ ] Add comments only where the shared abstraction encodes a non-obvious rule.
+- [x] Add comments only where a shared abstraction encodes a non-obvious rule.
 
 Exit criteria:
 
@@ -398,11 +387,11 @@ Targets:
 
 Deliverables:
 
-- [ ] Move pure helpers into domain helper files first.
-- [ ] Split tests by domain before splitting runtime behavior.
+- [x] Move pure helpers into domain helper files first.
+- [x] Split tests by domain before splitting runtime behavior; retain broad legacy files only where further ownership boundaries are not yet clear.
   - [x] Move the native registry integration/metadata test and its section registration out of `test_core.cpp` into `vm/test_native_registry.cpp`.
-- [ ] Avoid behavior changes in file-split commits.
-- [ ] Require full suite green after each split.
+- [x] Avoid behavior changes in file-split commits.
+- [x] Require full suite green after each split.
 
 Suggested first seams:
 
@@ -444,6 +433,6 @@ Before starting `v0.5.1`, complete at minimum:
 - [x] named enums for native blocking/allocation/safepoint behavior if not already complete;
 - [x] full suite green;
 - [x] JIT suite green;
-- [ ] docs/timeline updated if scope changes.
+- [x] timeline reviewed; cleanup did not change release scope, so no release-slice change was required.
 
 The native registry split can happen before or during early `v0.5.1`, but `Process`/`Net`/`HTTP`/`Terminal` should not be added until registry/spec organization is ready.
