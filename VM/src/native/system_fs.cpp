@@ -1,5 +1,5 @@
 #include "native/registry.h"
-#include "native/slot_codec.h"
+#include "runtime/values.h"
 
 #include "native/arg_utils.h"
 #include "native/fs.h"
@@ -12,6 +12,10 @@
 #include <vector>
 
 namespace Simple::VM::Native {
+using Simple::VM::Runtime::PackI32;
+using Simple::VM::Runtime::PackRef;
+using Simple::VM::Runtime::UnpackI32;
+
 namespace {
 
 bool CloseFileResource(void* payload, std::string*) {

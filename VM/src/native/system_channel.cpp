@@ -1,5 +1,5 @@
 #include "native/registry.h"
-#include "native/slot_codec.h"
+#include "runtime/values.h"
 
 #include "native/arg_utils.h"
 #include "native/channel.h"
@@ -10,6 +10,16 @@
 #include <vector>
 
 namespace Simple::VM::Native {
+using Simple::VM::Runtime::PackI32;
+using Simple::VM::Runtime::PackI64;
+using Simple::VM::Runtime::PackRef;
+using Simple::VM::Runtime::PackF32;
+using Simple::VM::Runtime::PackF64;
+using Simple::VM::Runtime::UnpackI32;
+using Simple::VM::Runtime::UnpackI64;
+using Simple::VM::Runtime::UnpackF32;
+using Simple::VM::Runtime::UnpackF64;
+
 namespace {
 
 NativeCallResult ChannelNewI32(NativeCallContext&) {
@@ -150,7 +160,7 @@ NativeCallResult ChannelNewF32(NativeCallContext&) {
 NativeCallResult ChannelSendF32(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Channel::Send(Channel::g_f32, UnpackI64(context.args[0]),
-                                       UnpackF32(UnpackU32Bits(context.args[1])))
+                                       UnpackF32(context.args[1]))
                               ? 1
                               : 0);
   return result;
@@ -193,7 +203,7 @@ NativeCallResult ChannelNewF64(NativeCallContext&) {
 NativeCallResult ChannelSendF64(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Channel::Send(Channel::g_f64, UnpackI64(context.args[0]),
-                                       UnpackF64(UnpackU64Bits(context.args[1])))
+                                       UnpackF64(context.args[1]))
                               ? 1
                               : 0);
   return result;

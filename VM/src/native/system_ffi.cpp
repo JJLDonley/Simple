@@ -1,5 +1,5 @@
 #include "native/registry.h"
-#include "native/slot_codec.h"
+#include "runtime/values.h"
 
 #include "native/arg_utils.h"
 #include "native/spec_builder.h"
@@ -9,6 +9,12 @@
 #include <string>
 
 namespace Simple::VM::Native {
+using Simple::VM::Runtime::PackI32;
+using Simple::VM::Runtime::PackI64;
+using Simple::VM::Runtime::PackRef;
+using Simple::VM::Runtime::UnpackI64;
+using Simple::VM::Runtime::UnpackRef;
+
 namespace {
 
 void SetDlError(NativeCallContext& context, const std::string& text) {

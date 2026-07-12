@@ -67,6 +67,22 @@ inline Slot PackF64Bits(uint64_t bits) {
   return bits;
 }
 
+inline Slot PackF32(float value) {
+  return PackF32Bits(F32ToBits(value));
+}
+
+inline Slot PackF64(double value) {
+  return PackF64Bits(F64ToBits(value));
+}
+
+inline float UnpackF32(Slot value) {
+  return BitsToF32(UnpackU32Bits(value));
+}
+
+inline double UnpackF64(Slot value) {
+  return BitsToF64(UnpackU64Bits(value));
+}
+
 inline Slot PackRef(uint32_t handle) {
   return static_cast<uint64_t>(handle);
 }

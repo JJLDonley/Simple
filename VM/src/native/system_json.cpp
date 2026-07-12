@@ -1,5 +1,5 @@
 #include "native/registry.h"
-#include "native/slot_codec.h"
+#include "runtime/values.h"
 
 #include "native/arg_utils.h"
 #include "native/spec_builder.h"
@@ -7,6 +7,11 @@
 #include "native/json.h"
 
 namespace Simple::VM::Native {
+using Simple::VM::Runtime::PackI32;
+using Simple::VM::Runtime::PackI64;
+using Simple::VM::Runtime::PackRef;
+using Simple::VM::Runtime::UnpackI64;
+
 namespace {
 
 NativeCallResult JsonParse(NativeCallContext& context) {

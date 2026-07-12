@@ -3,15 +3,14 @@
 #include <cstring>
 
 #include "native/capability_policy.h"
+#include "runtime/values.h"
 
 namespace Simple::VM::Native {
 namespace {
 
-constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
+using Simple::VM::Runtime::PackRef;
 
-inline Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
+constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
 
 bool IsI32LikeImportType(Simple::Byte::TypeKind kind) {
   using Simple::Byte::TypeKind;

@@ -265,7 +265,7 @@ Deliverables:
 - [x] Move native metadata validation/JIT analysis/docs generation into `native/metadata.cpp`.
 - [x] Move native registry/result core methods into `native/registry_core.cpp`.
 - [x] Move shared native argument/string/byte-list helpers into `native/arg_utils`.
-- [x] Consolidate native slot packing/unpacking and float bit conversion in `native/slot_codec.h`.
+- [x] Consolidate native slot packing/unpacking and float bit conversion in the existing `runtime/values.h` ABI boundary.
 - [x] Move `NativeCallContext` argument accessors into `native/call_context.cpp`.
 - [x] Split registration specs by domain without changing behavior:
   - [x] Move `System.Random` handlers and registration into `native/system_random.cpp`.

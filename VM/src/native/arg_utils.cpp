@@ -1,7 +1,9 @@
 #include "native/arg_utils.h"
-#include "native/slot_codec.h"
+#include "runtime/values.h"
 
 namespace Simple::VM::Native {
+using Simple::VM::Runtime::PackRef;
+
 namespace {
 
 std::string ReadStringAscii(const HeapObject* obj) {
