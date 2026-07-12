@@ -11,60 +11,6 @@ namespace Simple::Byte {
 namespace {
 using namespace Simple::VM;
 
-bool IsKnownIntrinsic(uint32_t id) {
-  switch (id) {
-    case kIntrinsicTrap:
-    case kIntrinsicBreakpoint:
-    case kIntrinsicLogI32:
-    case kIntrinsicLogI64:
-    case kIntrinsicLogF32:
-    case kIntrinsicLogF64:
-    case kIntrinsicLogRef:
-    case kIntrinsicAbsI32:
-    case kIntrinsicAbsI64:
-    case kIntrinsicMinI32:
-    case kIntrinsicMaxI32:
-    case kIntrinsicMinI64:
-    case kIntrinsicMaxI64:
-    case kIntrinsicMinF32:
-    case kIntrinsicMaxF32:
-    case kIntrinsicMinF64:
-    case kIntrinsicMaxF64:
-    case kIntrinsicSqrtF32:
-    case kIntrinsicSqrtF64:
-    case kIntrinsicMonoNs:
-    case kIntrinsicWallNs:
-    case kIntrinsicRandU32:
-    case kIntrinsicRandU64:
-    case kIntrinsicWriteStdout:
-    case kIntrinsicWriteStderr:
-    case kIntrinsicPrintAny:
-    case kIntrinsicStrI32:
-    case kIntrinsicStrI64:
-    case kIntrinsicStrU32:
-    case kIntrinsicStrU64:
-    case kIntrinsicStrF32:
-    case kIntrinsicStrF64:
-    case kIntrinsicStrBool:
-    case kIntrinsicDlCallI8:
-    case kIntrinsicDlCallI16:
-    case kIntrinsicDlCallI32:
-    case kIntrinsicDlCallI64:
-    case kIntrinsicDlCallU8:
-    case kIntrinsicDlCallU16:
-    case kIntrinsicDlCallU32:
-    case kIntrinsicDlCallU64:
-    case kIntrinsicDlCallF32:
-    case kIntrinsicDlCallF64:
-    case kIntrinsicDlCallBool:
-    case kIntrinsicDlCallChar:
-    case kIntrinsicDlCallStr0:
-      return true;
-    default:
-      return false;
-  }
-}
-
 struct IntrinsicSig {
   uint8_t ret = 0;
   uint8_t param_count = 0;
@@ -2755,9 +2701,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::Intrinsic: {
           uint32_t id = 0;
           if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);
-          if (!IsKnownIntrinsic(id)) return fail_at("INTRINSIC id invalid", pc, opcode);
           IntrinsicSig intrinsic_sig{};
-          if (!GetIntrinsicSig(id, &intrinsic_sig)) return fail_at("INTRINSIC signature missing", pc, opcode);
+          if (!GetIntrinsicSig(id, &intrinsic_sig)) return fail_at("INTRINSIC id invalid", pc, opcode);
           if (stack_types.size() < intrinsic_sig.param_count) return fail_at("INTRINSIC stack underflow", pc, opcode);
           for (int i = static_cast<int>(intrinsic_sig.param_count) - 1; i >= 0; --i) {
             ValType arg = pop_type();
