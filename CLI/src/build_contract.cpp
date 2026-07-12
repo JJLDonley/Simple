@@ -162,8 +162,18 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
   fs::path vm_include(layout.vm_include);
   fs::path byte_include(layout.byte_include);
   fs::path lib_dir(layout.lib_dir);
-  fs::path runtime_lib = is_static ? (lib_dir / "libsimplevm_runtime.a")
-                                   : (lib_dir / "libsimplevm_runtime.so");
+  fs::path runtime_lib;
+  if (is_static) {
+    runtime_lib = lib_dir / "libsimplevm_runtime.a";
+  } else {
+#if defined(__APPLE__)
+    runtime_lib = lib_dir / "libsimplevm_runtime.dylib";
+#elif defined(_WIN32)
+    runtime_lib = lib_dir / "simplevm_runtime.lib";
+#else
+    runtime_lib = lib_dir / "libsimplevm_runtime.so";
+#endif
+  }
   if (!fs::exists(runtime_lib)) {
     if (error) {
       *error = std::string("missing runtime library: ") + runtime_lib.string() +

@@ -36,10 +36,17 @@ if (SIMPLEVM_NEEDS_FFI)
   endif()
   if (TARGET PkgConfig::FFI)
     set(SIMPLEVM_FFI_TARGET PkgConfig::FFI)
+    set(SIMPLEVM_FFI_INCLUDE_DIRS ${FFI_INCLUDE_DIRS})
   else()
     find_library(SIMPLEVM_FFI_LIB NAMES ffi REQUIRED)
+    find_path(SIMPLEVM_FFI_INCLUDE_DIR NAMES ffi.h REQUIRED)
+    set(SIMPLEVM_FFI_INCLUDE_DIRS ${SIMPLEVM_FFI_INCLUDE_DIR})
   endif()
 endif()
+
+# dl_call.cpp is compiled into several object/static/shared targets. Supply the
+# libffi headers at compilation time even when only a raw vcpkg library was found.
+include_directories(${SIMPLEVM_FFI_INCLUDE_DIRS})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -162,6 +169,21 @@ set(SIMPLEVM_FRONTEND_SRC
 set(SIMPLEVM_CORE_SRC
   ${SIMPLEVM_RUNTIME_SRC}
   ${SIMPLEVM_FRONTEND_SRC}
+)
+
+# Cross-platform dynamic-library fixture used by language and FFI tests. Keep
+# the historical .so spelling because Simple fixtures load this exact path.
+add_library(simpleffi_test SHARED ${SIMPLEVM_ROOT}/Tests/ffi/simple_ffi.c)
+set_target_properties(simpleffi_test PROPERTIES
+  OUTPUT_NAME simpleffi
+  PREFIX "lib"
+  SUFFIX ".so"
+  WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
+add_custom_command(TARGET simpleffi_test POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          $<TARGET_FILE:simpleffi_test>
+          ${SIMPLEVM_ROOT}/Tests/ffi/libsimpleffi.so
 )
 
 add_library(simplevm_core_obj OBJECT
@@ -362,6 +384,7 @@ target_include_directories(simplevm_tests PRIVATE
   ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)
+add_dependencies(simplevm_tests simpleffi_test)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm_tests PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
 endif()

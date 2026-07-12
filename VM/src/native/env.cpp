@@ -7,6 +7,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <unistd.h>
 #else
 #include <unistd.h>
 #endif
@@ -73,6 +76,14 @@ std::string ExePath() {
   char buf[MAX_PATH];
   DWORD n = GetModuleFileNameA(nullptr, buf, MAX_PATH);
   return n > 0 ? std::string(buf, buf + n) : std::string{};
+#elif defined(__APPLE__)
+  uint32_t size = 0;
+  _NSGetExecutablePath(nullptr, &size);
+  if (size == 0) return {};
+  std::string path(size, '\0');
+  if (_NSGetExecutablePath(path.data(), &size) != 0) return {};
+  if (!path.empty() && path.back() == '\0') path.pop_back();
+  return path;
 #elif defined(__linux__)
   char buf[4096];
   ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
