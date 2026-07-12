@@ -176,6 +176,28 @@ bool AuditCanonicalLibraryComparisonsStayAtBoundaries() {
   return ok;
 }
 
+bool AuditNativeSpecsUseBuilderBoundary() {
+  const std::regex direct_spec(R"(NativeFunctionSpec\s+[A-Za-z_]\w*\s*(;|=|\{))");
+  bool ok = true;
+  for (const auto& path : CollectFiles("VM/src/native", ".cpp")) {
+    const std::string normalized = NormalizePath(path);
+    if (normalized.find("/spec_builder.cpp") != std::string::npos) continue;
+    std::ifstream in(path);
+    if (!in) return false;
+    std::string line;
+    size_t line_no = 0;
+    while (std::getline(in, line)) {
+      ++line_no;
+      if (std::regex_search(line, direct_spec)) {
+        std::cerr << "native function specs must use the spec-builder boundary at "
+                  << normalized << ":" << line_no << "\n";
+        ok = false;
+      }
+    }
+  }
+  return ok;
+}
+
 bool AuditNativeRegistryUsesCatalogMemberNames() {
   const std::regex string_member_spec(R"(MakeSpec\(module,\s*\")");
   bool ok = true;
@@ -207,6 +229,7 @@ const TestCase kAuditTests[] = {
   {"audit_no_public_alias_imports", AuditNoPublicAliasImportsInFixtures},
   {"audit_no_stale_library_diagnostic_names", AuditNoStaleLibraryDiagnosticNames},
   {"audit_canonical_library_comparisons_stay_at_boundaries", AuditCanonicalLibraryComparisonsStayAtBoundaries},
+  {"audit_native_specs_use_builder_boundary", AuditNativeSpecsUseBuilderBoundary},
   {"audit_native_registry_uses_catalog_member_names", AuditNativeRegistryUsesCatalogMemberNames},
 };
 

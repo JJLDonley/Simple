@@ -151,7 +151,7 @@ Create `scripts/audit_codebase.py` to report:
 - [x] top repeated numeric literals;
 - [x] stale diagnostic substrings;
 - [x] direct `"System."` / `"Standard."` string checks outside allowed boundary files;
-- [ ] repeated native registration patterns where detectable.
+- [x] repeated native registration patterns and direct spec construction outside the builder boundary.
 
 ## Refactor rule
 
@@ -277,8 +277,8 @@ Deliverables:
   - [x] Move FFI handlers and `System.FFI` registration into `native/system_ffi.cpp`.
   - [x] Move log handlers and `System.Log` registration into `native/system_log.cpp`.
 - [x] Remove the mixed-purpose `registry.cpp`; default assembly lives in `native/default_registry.cpp`, registry core in `native/registry_core.cpp`, and domains in `native/system_*.cpp`.
-- [ ] Introduce `NativeFunctionSpec` builders/helpers if current registration uses repeated positional arguments.
-- [ ] Replace boolean clusters with named enum fields:
+- [x] Introduce `NativeFunctionSpec` builders/helpers instead of repeated positional construction.
+- [x] Replace boolean clusters with named enum fields:
   - blocking behavior;
   - allocation behavior;
   - safepoint behavior;

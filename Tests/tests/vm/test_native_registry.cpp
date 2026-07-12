@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -15,6 +16,16 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+using NativeSpec = Simple::VM::Native::NativeFunctionSpec;
+static_assert(std::is_same_v<decltype(NativeSpec::blocking),
+                             Simple::VM::Native::NativeBlockingBehavior>);
+static_assert(std::is_same_v<decltype(NativeSpec::allocation),
+                             Simple::VM::Native::NativeAllocationBehavior>);
+static_assert(std::is_same_v<decltype(NativeSpec::gc_behavior),
+                             Simple::VM::Native::NativeGcBehavior>);
+static_assert(std::is_same_v<decltype(NativeSpec::stability),
+                             Simple::VM::Native::NativeStability>);
 
 bool NativeRegistryMatchesCatalogAvailability() {
   using namespace Simple::Lang;
