@@ -1397,6 +1397,28 @@ NativeCallResult IoBufferCopy(NativeCallContext& context) {
   return result;
 }
 
+NativeFunctionSpec MakeSpec(Simple::Lang::LibraryModuleId module,
+                            const char* symbol_name,
+                            std::vector<Simple::Byte::TypeKind> params,
+                            Simple::Byte::TypeKind result_type,
+                            NativeFunctionHandler handler) {
+  NativeFunctionSpec spec;
+  spec.module_name = std::string(Simple::Lang::ToCanonicalName(module));
+  spec.library_module = module;
+  spec.symbol_name = symbol_name;
+  spec.parameter_types = std::move(params);
+  spec.result_type = result_type;
+  spec.layer = NativeLayer::System;
+  spec.stability = NativeStability::Experimental;
+  spec.doc_summary = spec.module_name + "." + symbol_name;
+  if (result_type == Simple::Byte::TypeKind::String || result_type == Simple::Byte::TypeKind::Ref) {
+    spec.allocation = NativeAllocationBehavior::MayAllocateVm;
+    spec.gc_behavior = NativeGcBehavior::MaySafepoint;
+  }
+  spec.handler = std::move(handler);
+  return spec;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -2139,69 +2161,68 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
 
 void RegisterSystemRandom(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MakeSpec("System.Random", "seed", {TypeKind::I64},
+  const auto module = Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::Random);
+  registry.Register(WithCapability(MakeSpec(module, "seed", {TypeKind::I64},
                                             TypeKind::Unspecified, RandomSeed),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.Random", "i32", {}, TypeKind::I32,
-                                            RandomI32),
+  registry.Register(WithCapability(MakeSpec(module, "i32", {}, TypeKind::I32, RandomI32),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.Random", "i64", {}, TypeKind::I64,
-                                            RandomI64),
+  registry.Register(WithCapability(MakeSpec(module, "i64", {}, TypeKind::I64, RandomI64),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.Random", "fillBytes", {TypeKind::Ref},
+  registry.Register(WithCapability(MakeSpec(module, "fillBytes", {TypeKind::Ref},
                                             TypeKind::I32, RandomFillBytes),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.Random", "range",
-                                            {TypeKind::I32, TypeKind::I32}, TypeKind::I32,
-                                            RandomRange),
+  registry.Register(WithCapability(MakeSpec(module, "range", {TypeKind::I32, TypeKind::I32},
+                                            TypeKind::I32, RandomRange),
                                    "randomness"));
-  registry.Register(WithCapability(MakeSpec("System.Random", "f64", {}, TypeKind::F64,
-                                            RandomF64),
+  registry.Register(WithCapability(MakeSpec(module, "f64", {}, TypeKind::F64, RandomF64),
                                    "randomness"));
 }
 
 void RegisterSystemOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MakeSpec("System.OS", "args_count", {}, TypeKind::I32, EnvArgsCount),
+  const auto module = Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::OS);
+  registry.Register(WithCapability(MakeSpec(module, "args_count", {}, TypeKind::I32, EnvArgsCount),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.OS", "args_get", {TypeKind::I32}, TypeKind::String, EnvArg),
+  registry.Register(WithCapability(MakeSpec(module, "args_get", {TypeKind::I32}, TypeKind::String, EnvArg),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.OS", "env_get", {TypeKind::String}, TypeKind::String, EnvGet),
+  registry.Register(WithCapability(MakeSpec(module, "env_get", {TypeKind::String}, TypeKind::String, EnvGet),
                                    "environment.read"));
-  registry.Register(WithCapability(MakeSpec("System.OS", "cwd_get", {}, TypeKind::String, OsCwdGet),
+  registry.Register(WithCapability(MakeSpec(module, "cwd_get", {}, TypeKind::String, OsCwdGet),
                                    "filesystem.read"));
-  registry.Register(WithCapability(MakeSpec("System.OS", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs),
+  registry.Register(WithCapability(MakeSpec(module, "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs),
                                    "clock.time"));
-  registry.Register(WithCapability(MakeSpec("System.OS", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs),
+  registry.Register(WithCapability(MakeSpec(module, "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs),
                                    "clock.time"));
-  registry.Register(WithStability(MakeSpec("System.OS", "platform", {}, TypeKind::String, OsPlatform),
+  registry.Register(WithStability(MakeSpec(module, "platform", {}, TypeKind::String, OsPlatform),
                                   NativeStability::Stable));
-  registry.Register(WithStability(MakeSpec("System.OS", "arch", {}, TypeKind::String, OsArch),
+  registry.Register(WithStability(MakeSpec(module, "arch", {}, TypeKind::String, OsArch),
                                   NativeStability::Stable));
-  registry.Register(MakeSpec("System.OS", "isLinux", {}, TypeKind::Bool, OsIsLinux));
-  registry.Register(MakeSpec("System.OS", "isMacos", {}, TypeKind::Bool, OsIsMacos));
-  registry.Register(MakeSpec("System.OS", "isWindows", {}, TypeKind::Bool, OsIsWindows));
-  registry.Register(MakeSpec("System.OS", "pid", {}, TypeKind::I32, OsPid));
-  registry.Register(MakeSpec("System.OS", "cpuCount", {}, TypeKind::I32, OsCpuCount));
-  registry.Register(MakeSpec("System.OS", "pageSize", {}, TypeKind::I32, OsPageSize));
-  registry.Register(MakeSpec("System.OS", "exit", {TypeKind::I32}, TypeKind::Unspecified, OsExit));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.OS", "sleepMs", {TypeKind::I32},
+  registry.Register(MakeSpec(module, "isLinux", {}, TypeKind::Bool, OsIsLinux));
+  registry.Register(MakeSpec(module, "isMacos", {}, TypeKind::Bool, OsIsMacos));
+  registry.Register(MakeSpec(module, "isWindows", {}, TypeKind::Bool, OsIsWindows));
+  registry.Register(MakeSpec(module, "pid", {}, TypeKind::I32, OsPid));
+  registry.Register(MakeSpec(module, "cpuCount", {}, TypeKind::I32, OsCpuCount));
+  registry.Register(MakeSpec(module, "pageSize", {}, TypeKind::I32, OsPageSize));
+  registry.Register(MakeSpec(module, "exit", {TypeKind::I32}, TypeKind::Unspecified, OsExit));
+  registry.Register(WithCapability(MayBlock(MakeSpec(module, "sleepMs", {TypeKind::I32},
                                                      TypeKind::Unspecified, OsSleepMs)),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.OS", "formatWallNs", {TypeKind::I64},
+  registry.Register(WithCapability(MakeSpec(module, "formatWallNs", {TypeKind::I64},
                                             TypeKind::String, OsFormatWallNs),
                                    "clock.time"));
 }
 
 void RegisterSystemThread(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.Thread", "sleep", {TypeKind::I32},
+  const auto module = Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::Thread);
+  registry.Register(WithCapability(MayBlock(MakeSpec(module, "sleep", {TypeKind::I32},
                                                      TypeKind::Unspecified, ThreadSleep)),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.Thread", "yield", {}, TypeKind::Unspecified,
+  registry.Register(WithCapability(MakeSpec(module, "yield", {}, TypeKind::Unspecified,
                                             ThreadYield),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.Thread", "hardwareConcurrency", {},
+  registry.Register(WithCapability(MakeSpec(module, "hardwareConcurrency", {},
                                             TypeKind::I32, ThreadHardwareConcurrency),
                                    "threading"));
 }
