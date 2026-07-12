@@ -59,7 +59,9 @@ Docs-only compiler commits may use `[skip ci]`. Runtime/compiler/library changes
 
 ---
 
-# `v0.5` — Canonical baseline
+# `v0.5` — Canonical baseline and cleanup gate
+
+Before starting `v0.5.1`, complete the immediate cleanup gate in [`CodebaseCleanup_v0.5.md`](CodebaseCleanup_v0.5.md). The cleanup gate prevents test drift, stale diagnostics, catalog/string duplication, and native registry bloat before the native resource foundation work begins.
 
 ## `v0.5.0` — Canonical library architecture and JIT baseline ✅
 
