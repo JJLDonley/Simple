@@ -265,6 +265,7 @@ Deliverables:
 - [x] Move native metadata validation/JIT analysis/docs generation into `native/metadata.cpp`.
 - [x] Move native registry/result core methods into `native/registry_core.cpp`.
 - [x] Move shared native argument/string/byte-list helpers into `native/arg_utils`.
+- [x] Move `NativeCallContext` argument accessors into `native/call_context.cpp`.
 - [ ] Split registration specs by domain without changing behavior:
   - `VM/src/native/specs/io_specs.cpp`
   - `VM/src/native/specs/fs_specs.cpp`

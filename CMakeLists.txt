@@ -89,6 +89,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/arg_utils.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/buffer.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/call_context.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/capability_policy.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/channel.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/default_registry.cpp
