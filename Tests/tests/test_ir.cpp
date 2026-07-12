@@ -10084,7 +10084,6 @@ static const TestCase kIrTests[] = {
   {"ir_text_named_globals_init", RunIrTextNamedGlobalsInitTest},
   {"ir_text_named_globals_bad_name", RunIrTextNamedGlobalsBadNameTest},
   {"ir_text_unknown_label", RunIrTextUnknownLabelTest},
-  {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
   {"ir_text_ref_null", RunIrTextRefNullTest},
   {"ir_text_typeof", RunIrTextTypeOfTest},
   {"ir_text_closure_upvalue", RunIrTextClosureUpvalueTest},

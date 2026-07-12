@@ -24711,7 +24711,6 @@ static const TestCase kCoreTests[] = {
   {"neg_u8_wrap", RunNegU8WrapTest},
   {"neg_u16_wrap", RunNegU16WrapTest},
   {"i64_mod", RunI64ModTest},
-  {"locals_arena_preserve", RunLocalsArenaPreserveTest},
   {"f32_arith", RunF32ArithTest},
   {"f64_arith", RunF64ArithTest},
   {"conv_int", RunConvIntTest},

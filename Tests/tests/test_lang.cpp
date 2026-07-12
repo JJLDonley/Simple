@@ -553,6 +553,22 @@ bool LangSimpleFixtureStringEscapeHex() {
   return RunSimpleFileExpectExit("Tests/simple/string_escape_hex.simple", 0);
 }
 
+bool LangSimpleFixtureStringEscape() {
+  return RunSimpleFileExpectExit("Tests/simple/string_escape.simple", 0);
+}
+
+bool LangSimpleFixtureStringEquality() {
+  return RunSimpleFileExpectExit("Tests/simple/string_equality.simple", 0);
+}
+
+bool LangSimpleFixtureSemicolonsSameLine() {
+  return RunSimpleFileExpectExit("Tests/simple/semicolons_same_line.simple", 3);
+}
+
+bool LangSimpleFixtureMainImplicitReturn() {
+  return RunSimpleFileExpectExit("Tests/simple/main_implicit_return.simple", 0);
+}
+
 bool LangSimpleFixtureCastI8ToI32() {
   return RunSimpleFileExpectExit("Tests/simple/cast_i8_to_i32.simple", 42);
 }
@@ -3654,6 +3670,10 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_char_compare", LangSimpleFixtureCharCompare},
   {"lang_simple_fixture_char_escape_hex", LangSimpleFixtureCharEscapeHex},
   {"lang_simple_fixture_string_escape_hex", LangSimpleFixtureStringEscapeHex},
+  {"lang_simple_fixture_string_escape", LangSimpleFixtureStringEscape},
+  {"lang_simple_fixture_string_equality", LangSimpleFixtureStringEquality},
+  {"lang_simple_fixture_semicolons_same_line", LangSimpleFixtureSemicolonsSameLine},
+  {"lang_simple_fixture_main_implicit_return", LangSimpleFixtureMainImplicitReturn},
   {"lang_simple_fixture_cast_i8_to_i32", LangSimpleFixtureCastI8ToI32},
   {"lang_simple_fixture_stress_lang_features", LangSimpleFixtureStressLangFeatures},
   {"lang_simple_fixture_stress_raylib_like", LangSimpleFixtureStressRaylibLike},
