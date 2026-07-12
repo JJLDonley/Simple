@@ -1,16 +1,13 @@
 #include "test_utils.h"
 
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
 #include <unordered_set>
-#ifndef _WIN32
-#include <sys/wait.h>
-#endif
 
 #include "RAST/import_index.h"
+#include "cli/cli_test_utils.h"
 #include "RAST/import_loader.h"
 #include "RAST/import_paths.h"
 #include "import_contract.h"
@@ -18,70 +15,46 @@
 namespace Simple::VM::Tests {
 namespace {
 
-std::filesystem::path CliTempPath(const std::string& name) {
-  return std::filesystem::temp_directory_path() / name;
-}
-
-bool RunCliCommand(const std::string& command) {
-  return std::system((command + " >/dev/null 2>/dev/null").c_str()) == 0;
-}
-
-int CliSystemExitCode(int result) {
-#ifdef _WIN32
-  return result;
-#else
-  if (WIFEXITED(result)) return WEXITSTATUS(result);
-  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
-  return result;
-#endif
-}
-
-std::string RunCliCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
-  const auto err_path = CliTempPath("simple_cli_import_stderr.txt");
-  const int result = std::system((command + " 1>/dev/null 2> " + err_path.string()).c_str());
-  if (out_exit_code) *out_exit_code = CliSystemExitCode(result);
-  std::ifstream in(err_path);
-  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  std::filesystem::remove(err_path);
-  return text;
+std::string RunCliImportCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
+  return RunCliCaptureStderr(command, "simple_cli_import_stderr.txt", out_exit_code);
 }
 
 bool CliStressImportChainRun() {
-  return RunCliCommand("bin/svm run Tests/simple_modules/stress_import_main.simple");
+  return RunCliCommandQuiet("bin/svm run Tests/simple_modules/stress_import_main.simple");
 }
 
 bool CliStressImportMissingCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_import_missing_main.simple", &exit_code);
+      RunCliImportCaptureStderr("bin/svm check Tests/simple_modules/stress_import_missing_main.simple", &exit_code);
   return exit_code != 0 && stderr_text.find("import file not found") != std::string::npos;
 }
 
 bool CliStressImportAmbiguousCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_import_ambiguous_main.simple", &exit_code);
+      RunCliImportCaptureStderr("bin/svm check Tests/simple_modules/stress_import_ambiguous_main.simple", &exit_code);
   return exit_code != 0 && stderr_text.find("ambiguous import path") != std::string::npos;
 }
 
 bool CliStressImportDeepChainCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_deep_main.simple", &exit_code);
+      RunCliImportCaptureStderr("bin/svm check Tests/simple_modules/stress_deep_main.simple", &exit_code);
   return exit_code == 0 && stderr_text.empty();
 }
 
 bool CliStressImportRelativeSubdirCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_rel/main.simple", &exit_code);
+      RunCliImportCaptureStderr("bin/svm check Tests/simple_modules/stress_rel/main.simple", &exit_code);
   return exit_code == 0 && stderr_text.empty();
 }
 
 bool CliStressImportCycleCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_cycle_main.simple", &exit_code);
+      RunCliImportCaptureStderr("bin/svm check Tests/simple_modules/stress_cycle_main.simple", &exit_code);
   return exit_code != 0 && stderr_text.find("cyclic import detected") != std::string::npos;
 }
 
@@ -91,7 +64,7 @@ bool CliAcceptsModuleHeaderInCheckCommand() {
     std::ofstream out(path);
     out << "module main\n\nmain : i32 () { return 0 }\n";
   }
-  const bool ok = RunCliCommand("bin/svm check " + path.string());
+  const bool ok = RunCliCommandQuiet("bin/svm check " + path.string());
   std::filesystem::remove(path);
   return ok;
 }
@@ -111,7 +84,7 @@ bool CliLocalUsingImportDoesNotReachValidator() {
     std::ofstream main(dir / "main.simple");
     main << "module Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
   }
-  const bool ok = RunCliCommand("bin/svm check " + (dir / "main.simple").string());
+  const bool ok = RunCliCommandQuiet("bin/svm check " + (dir / "main.simple").string());
   fs::remove_all(dir, ec);
   return ok;
 }

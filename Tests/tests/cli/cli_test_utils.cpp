@@ -1,0 +1,67 @@
+#include "cli/cli_test_utils.h"
+
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
+
+namespace Simple::VM::Tests {
+
+std::filesystem::path CliTempPath(const std::string& name) {
+  return std::filesystem::temp_directory_path() / name;
+}
+
+std::string CliToolPath(const std::string& name) {
+  const auto build_path = std::filesystem::path("build") / "bin" / name;
+  if (std::filesystem::exists(build_path)) return build_path.string();
+  return (std::filesystem::path("bin") / name).string();
+}
+
+int CliExitCodeFromSystemResult(int result) {
+#ifdef _WIN32
+  return result;
+#else
+  if (result == -1) return -1;
+  if (WIFEXITED(result)) return WEXITSTATUS(result);
+  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
+  return result;
+#endif
+}
+
+bool RunCliCommandQuiet(const std::string& command) {
+  return std::system((command + " >/dev/null 2>/dev/null").c_str()) == 0;
+}
+
+bool RunCliCommandRaw(const std::string& command) {
+  return std::system(command.c_str()) == 0;
+}
+
+std::string RunCliCaptureStdout(const std::string& command,
+                                const std::string& temp_name,
+                                int* out_exit_code) {
+  const auto path = CliTempPath(temp_name);
+  const int result = std::system((command + " > " + path.string()).c_str());
+  if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
+  std::ifstream in(path);
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::filesystem::remove(path);
+  return text;
+}
+
+std::string RunCliCaptureStderr(const std::string& command,
+                                const std::string& temp_name,
+                                int* out_exit_code) {
+  const auto path = CliTempPath(temp_name);
+  const int result = std::system((command + " 1>/dev/null 2> " + path.string()).c_str());
+  if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
+  std::ifstream in(path);
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::filesystem::remove(path);
+  return text;
+}
+
+} // namespace Simple::VM::Tests

@@ -317,6 +317,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_fs.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_abi.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_limits.cpp
+  ${SIMPLEVM_TEST_ROOT}/cli/cli_test_utils.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_build.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_contract.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_diagnostics.cpp

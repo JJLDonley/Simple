@@ -1,35 +1,15 @@
 #include "test_utils.h"
 
-#include <cstdlib>
-#include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <string>
-#include <sys/wait.h>
 
+#include "cli/cli_test_utils.h"
 #include "diagnostic_render.h"
 
 namespace Simple::VM::Tests {
 namespace {
 
-std::filesystem::path CliDiagnosticsTempPath(const std::string& name) {
-  return std::filesystem::temp_directory_path() / name;
-}
-
-int CliDiagnosticsExitCode(int result) {
-  if (WIFEXITED(result)) return WEXITSTATUS(result);
-  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
-  return result;
-}
-
 std::string RunCliDiagnosticsCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
-  const auto err_path = CliDiagnosticsTempPath("simple_cli_diagnostic_stderr.txt");
-  const int result = std::system((command + " 1>/dev/null 2> " + err_path.string()).c_str());
-  if (out_exit_code) *out_exit_code = CliDiagnosticsExitCode(result);
-  std::ifstream in(err_path);
-  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  std::filesystem::remove(err_path);
-  return text;
+  return RunCliCaptureStderr(command, "simple_cli_diagnostic_stderr.txt", out_exit_code);
 }
 
 bool CliCheckSimpleErrorFormat() {

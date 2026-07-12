@@ -345,7 +345,7 @@ Deliverables:
 - [ ] Audit duplicate helpers/functions across `Lang`, `VM`, `Byte`, `LSP`, `CLI`, and `Tests`.
 - [ ] Create shared domain utility files only where reuse is real, not speculative.
 - [ ] Prefer one table-driven implementation over multiple switch/string chains.
-- [ ] Merge equivalent test helpers and remove duplicate local copies.
+- [x] Merge equivalent CLI test command/temp/capture helpers and remove duplicate local copies.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
 - [ ] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
 - [ ] Replace copied LSP response snippets with small JSON builder helpers.

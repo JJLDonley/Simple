@@ -1,49 +1,30 @@
 #include "test_utils.h"
 
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
-#include <sys/wait.h>
 
 #include "build_contract.h"
+#include "cli/cli_test_utils.h"
 #include "command_contract.h"
 
 namespace Simple::VM::Tests {
 namespace {
 
-std::filesystem::path CliBuildTempPath(const std::string& name) {
-  return std::filesystem::temp_directory_path() / name;
-}
-
-bool RunCliBuildCommand(const std::string& command) {
-  return std::system(command.c_str()) == 0;
-}
-
-std::string RunCliBuildCaptureStdout(const std::string& command) {
-  const auto path = CliBuildTempPath("simple_cli_build_stdout.txt");
-  const int rc = std::system((command + " > " + path.string()).c_str());
-  if (rc == -1 || WEXITSTATUS(rc) != 0) return "";
-  std::ifstream in(path);
-  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  std::filesystem::remove(path);
-  return text;
-}
-
 bool CliCompileSvmDefaultsToExeAndInfersSimpleExt() {
-  const auto out_path = CliBuildTempPath("svm_compile_hello_exec");
+  const auto out_path = CliTempPath("svm_compile_hello_exec");
   const std::string cmd = "bin/svm compile Tests/simple/hello --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
-  const bool ok = RunCliBuildCommand(out_path.string());
+  if (!RunCliCommandRaw(cmd)) return false;
+  const bool ok = RunCliCommandRaw(out_path.string());
   std::filesystem::remove(out_path);
   return ok;
 }
 
 bool CliCompileSvmOutSbcStaysBytecode() {
-  const auto out_path = CliBuildTempPath("svm_compile_hello.sbc");
+  const auto out_path = CliTempPath("svm_compile_hello.sbc");
   const std::string cmd = "bin/svm compile Tests/simple/hello.simple --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
+  if (!RunCliCommandRaw(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
   std::filesystem::remove(out_path);
@@ -51,12 +32,12 @@ bool CliCompileSvmOutSbcStaysBytecode() {
 }
 
 bool CliBuildDynamicExe() {
-  const auto out_path = CliBuildTempPath("simple_build_hello_exec");
+  const auto out_path = CliTempPath("simple_build_hello_exec");
   const std::string cmd = "bin/svm build -d Tests/simple/hello.simple --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
-  if (!RunCliBuildCommand(out_path.string())) return false;
+  if (!RunCliCommandRaw(cmd)) return false;
+  if (!RunCliCommandRaw(out_path.string())) return false;
 #if defined(__linux__)
-  const std::string deps = RunCliBuildCaptureStdout("ldd " + out_path.string());
+  const std::string deps = RunCliCaptureStdout("ldd " + out_path.string(), "simple_cli_build_stdout.txt");
   if (deps.empty()) return false;
   if (deps.find("libsimplevm_runtime.so") == std::string::npos) return false;
 #endif
@@ -65,12 +46,12 @@ bool CliBuildDynamicExe() {
 }
 
 bool CliBuildStaticExe() {
-  const auto out_path = CliBuildTempPath("simple_build_hello_exec_static");
+  const auto out_path = CliTempPath("simple_build_hello_exec_static");
   const std::string cmd = "bin/svm build -s Tests/simple/hello.simple --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
-  if (!RunCliBuildCommand(out_path.string())) return false;
+  if (!RunCliCommandRaw(cmd)) return false;
+  if (!RunCliCommandRaw(out_path.string())) return false;
 #if defined(__linux__)
-  const std::string deps = RunCliBuildCaptureStdout("ldd " + out_path.string());
+  const std::string deps = RunCliCaptureStdout("ldd " + out_path.string(), "simple_cli_build_stdout.txt");
   if (deps.empty()) return false;
   if (deps.find("libsimplevm_runtime.so") != std::string::npos) return false;
 #endif
@@ -79,9 +60,9 @@ bool CliBuildStaticExe() {
 }
 
 bool CliBuildEmitIr() {
-  const auto out_path = CliBuildTempPath("simple_cli_emit_ir.sir");
+  const auto out_path = CliTempPath("simple_cli_emit_ir.sir");
   const std::string cmd = "bin/svm emit -ir Tests/simple/hello.simple --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
+  if (!RunCliCommandRaw(cmd)) return false;
   std::ifstream in(out_path);
   if (!in) return false;
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -90,9 +71,9 @@ bool CliBuildEmitIr() {
 }
 
 bool CliBuildEmitSbc() {
-  const auto out_path = CliBuildTempPath("simple_cli_emit_sbc.sbc");
+  const auto out_path = CliTempPath("simple_cli_emit_sbc.sbc");
   const std::string cmd = "bin/svm emit -sbc Tests/simple/hello.simple --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
+  if (!RunCliCommandRaw(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
   std::filesystem::remove(out_path);
@@ -100,21 +81,21 @@ bool CliBuildEmitSbc() {
 }
 
 bool CliBuildCheckSimple() {
-  return RunCliBuildCommand("bin/svm check Tests/simple/hello.simple");
+  return RunCliCommandRaw("bin/svm check Tests/simple/hello.simple");
 }
 
 bool CliBuildCheckSir() {
-  return RunCliBuildCommand("bin/svm check Tests/sir/fib_iter.sir");
+  return RunCliCommandRaw("bin/svm check Tests/sir/fib_iter.sir");
 }
 
 bool CliBuildCheckSbc() {
-  return RunCliBuildCommand("bin/svm check Tests/tests/fixtures/add_i32.sbc");
+  return RunCliCommandRaw("bin/svm check Tests/tests/fixtures/add_i32.sbc");
 }
 
 bool CliBuildSimpleToSbc() {
-  const auto out_path = CliBuildTempPath("simple_cli_build_hello.sbc");
+  const auto out_path = CliTempPath("simple_cli_build_hello.sbc");
   const std::string cmd = "bin/svm build Tests/simple/hello.simple --out " + out_path.string();
-  if (!RunCliBuildCommand(cmd)) return false;
+  if (!RunCliCommandRaw(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
   std::filesystem::remove(out_path);
