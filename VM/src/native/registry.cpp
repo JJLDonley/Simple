@@ -1,6 +1,7 @@
 #include "native/registry.h"
 
 #include "runtime/abi.h"
+#include "native/arg_utils.h"
 #include "native/spec_builder.h"
 
 #include <cstdlib>
@@ -77,10 +78,6 @@ Slot PackRef(uint32_t handle) {
   return static_cast<uint64_t>(handle);
 }
 
-bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value);
-bool ReadByteSequence(NativeCallContext& context, size_t index, std::vector<int32_t>* out);
-Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values);
-void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value);
 
 uint32_t UnpackU32Bits(Slot value) {
   return static_cast<uint32_t>(value);
@@ -775,35 +772,6 @@ NativeCallResult EnvExePath(NativeCallContext&) {
   return result;
 }
 
-HeapObject* GetHeapObject(NativeCallContext& context, size_t index) {
-  if (!context.heap || index >= context.args.size()) return nullptr;
-  return context.heap->Get(UnpackRef(context.args[index]));
-}
-
-std::string ReadStringAscii(const HeapObject* obj) {
-  if (!obj || obj->header.kind != ObjectKind::String || obj->payload.size() < 4) return {};
-  const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
-                          (static_cast<uint32_t>(obj->payload[2]) << 16u) |
-                          (static_cast<uint32_t>(obj->payload[3]) << 24u);
-  if (4u + length * 2u > obj->payload.size()) return {};
-  std::string out;
-  out.reserve(length);
-  for (uint32_t i = 0; i < length; ++i) {
-    const size_t offset = 4u + i * 2u;
-    const uint16_t ch = obj->payload[offset] | (static_cast<uint16_t>(obj->payload[offset + 1]) << 8u);
-    out.push_back(ch <= 0x7fu ? static_cast<char>(ch) : '?');
-  }
-  return out;
-}
-
-bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value) {
-  if (!out_value) return false;
-  HeapObject* obj = GetHeapObject(context, index);
-  if (!obj || obj->header.kind != ObjectKind::String) return false;
-  *out_value = ReadStringAscii(obj);
-  return true;
-}
-
 NativeCallResult PathSeparator(NativeCallContext&) {
   return NativeCallResult::String(Path::Separator());
 }
@@ -1000,7 +968,7 @@ NativeCallResult FsRead(NativeCallContext& context) {
   NativeCallResult result;
   const int32_t fd = UnpackI32(context.args[0]);
   const int32_t count = UnpackI32(context.args[2]);
-  HeapObject* obj = GetHeapObject(context, 1);
+  HeapObject* obj = NativeArgHeapObject(context, 1);
   std::FILE* file = GetFileFromRegistry(context, fd);
   if (!file || count < 0 || !obj || obj->header.kind != ObjectKind::Array || obj->payload.size() < 4) {
     result.value = PackI32(-1);
@@ -1026,7 +994,7 @@ NativeCallResult FsWrite(NativeCallContext& context) {
   NativeCallResult result;
   const int32_t fd = UnpackI32(context.args[0]);
   const int32_t count = UnpackI32(context.args[2]);
-  HeapObject* obj = GetHeapObject(context, 1);
+  HeapObject* obj = NativeArgHeapObject(context, 1);
   std::FILE* file = GetFileFromRegistry(context, fd);
   if (!file || count < 0 || !obj || obj->header.kind != ObjectKind::Array || obj->payload.size() < 4) {
     result.value = PackI32(-1);
@@ -1072,28 +1040,30 @@ NativeCallResult FsSetCwd(NativeCallContext& context) {
   return result;
 }
 
-void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
-  if (offset + 4 > payload.size()) return;
-  payload[offset] = static_cast<uint8_t>(value & 0xffu);
-  payload[offset + 1] = static_cast<uint8_t>((value >> 8u) & 0xffu);
-  payload[offset + 2] = static_cast<uint8_t>((value >> 16u) & 0xffu);
-  payload[offset + 3] = static_cast<uint8_t>((value >> 24u) & 0xffu);
+NativeCallResult FsReadBytes(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  std::vector<int32_t> values;
+  if (!context.heap || !ReadStringArg(context, 0, &path) || !Fs::ReadBytes(path, &values)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  std::vector<uint32_t> bytes;
+  bytes.reserve(values.size());
+  for (int32_t value : values) bytes.push_back(static_cast<uint32_t>(value));
+  result.value = CreateByteList(*context.heap, bytes);
+  return result;
 }
 
-uint32_t ReadU32(const std::vector<uint8_t>& payload, size_t offset) {
-  if (offset + 4 > payload.size()) return 0;
-  return payload[offset] | (static_cast<uint32_t>(payload[offset + 1]) << 8u) |
-         (static_cast<uint32_t>(payload[offset + 2]) << 16u) |
-         (static_cast<uint32_t>(payload[offset + 3]) << 24u);
-}
-
-bool IsBufferObject(const HeapObject* obj) {
-  return obj && (obj->header.kind == ObjectKind::List || obj->header.kind == ObjectKind::Array) &&
-         obj->payload.size() >= 4;
-}
-
-size_t BufferElementBase(const HeapObject* obj) {
-  return obj && obj->header.kind == ObjectKind::List ? 8u : 4u;
+NativeCallResult FsWriteBytes(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  std::vector<int32_t> values;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && ReadByteSequence(context, 1, &values) &&
+                                 Fs::WriteBytes(path, values)
+                             ? 1
+                             : 0);
+  return result;
 }
 
 Slot CreateStringAscii(Heap& heap, const std::string& value) {
@@ -1121,74 +1091,13 @@ Slot CreateRefList(Heap& heap, const std::vector<uint32_t>& refs) {
   return PackRef(handle);
 }
 
-bool ReadByteSequence(NativeCallContext& context, size_t index, std::vector<int32_t>* out) {
-  if (!out) return false;
-  HeapObject* obj = GetHeapObject(context, index);
-  if (!obj || obj->payload.size() < 4) return false;
-  const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
-                          (static_cast<uint32_t>(obj->payload[2]) << 16u) |
-                          (static_cast<uint32_t>(obj->payload[3]) << 24u);
-  out->clear();
-  out->reserve(length);
-  if (obj->header.kind == ObjectKind::Bytes) {
-    if (HeapLayout::kBytesDataOffset + static_cast<size_t>(length) > obj->payload.size()) return false;
-    for (uint32_t i = 0; i < length; ++i) {
-      out->push_back(static_cast<int32_t>(obj->payload[HeapLayout::BytesElementOffset(i)]));
-    }
-    return true;
-  }
-  if (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array) return false;
-  const size_t elem_base = obj->header.kind == ObjectKind::List ? 8u : 4u;
-  if (elem_base + static_cast<size_t>(length) * 4u > obj->payload.size()) return false;
-  for (uint32_t i = 0; i < length; ++i) {
-    const size_t offset = elem_base + i * 4u;
-    const uint32_t value = obj->payload[offset] |
-                           (static_cast<uint32_t>(obj->payload[offset + 1]) << 8u) |
-                           (static_cast<uint32_t>(obj->payload[offset + 2]) << 16u) |
-                           (static_cast<uint32_t>(obj->payload[offset + 3]) << 24u);
-    out->push_back(static_cast<int32_t>(value));
-  }
-  return true;
+bool IsBufferObject(const HeapObject* obj) {
+  return obj && (obj->header.kind == ObjectKind::List || obj->header.kind == ObjectKind::Array) &&
+         obj->payload.size() >= 4;
 }
 
-Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values) {
-  const uint32_t length = static_cast<uint32_t>(values.size());
-  const uint32_t size = 8u + length * 4u;
-  const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
-  HeapObject* obj = heap.Get(handle);
-  if (!obj) return PackRef(HeapLayout::kNullRef);
-  WriteU32(obj->payload, 0, length);
-  WriteU32(obj->payload, 4, length);
-  for (uint32_t i = 0; i < length; ++i) {
-    WriteU32(obj->payload, 8u + i * 4u, values[i] & 0xffu);
-  }
-  return PackRef(handle);
-}
-
-NativeCallResult FsReadBytes(NativeCallContext& context) {
-  NativeCallResult result;
-  std::string path;
-  std::vector<int32_t> values;
-  if (!context.heap || !ReadStringArg(context, 0, &path) || !Fs::ReadBytes(path, &values)) {
-    result.value = PackRef(HeapLayout::kNullRef);
-    return result;
-  }
-  std::vector<uint32_t> bytes;
-  bytes.reserve(values.size());
-  for (int32_t value : values) bytes.push_back(static_cast<uint32_t>(value));
-  result.value = CreateByteList(*context.heap, bytes);
-  return result;
-}
-
-NativeCallResult FsWriteBytes(NativeCallContext& context) {
-  NativeCallResult result;
-  std::string path;
-  std::vector<int32_t> values;
-  result.value = PackI32(ReadStringArg(context, 0, &path) && ReadByteSequence(context, 1, &values) &&
-                                 Fs::WriteBytes(path, values)
-                             ? 1
-                             : 0);
-  return result;
+size_t BufferElementBase(const HeapObject* obj) {
+  return obj && obj->header.kind == ObjectKind::List ? 8u : 4u;
 }
 
 NativeCallResult FsListDir(NativeCallContext& context) {
@@ -1235,14 +1144,14 @@ NativeCallResult BufferNew(NativeCallContext& context) {
 
 NativeCallResult BufferLen(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   result.value = PackI32(static_cast<int32_t>(Buffer::Len(obj)));
   return result;
 }
 
 NativeCallResult BufferReadU16LE(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   const int32_t offset = UnpackI32(context.args[1]);
   result.value = PackI32(offset < 0 ? 0 : static_cast<int32_t>(
       Buffer::ReadLE(obj, static_cast<uint32_t>(offset), 2u)));
@@ -1251,7 +1160,7 @@ NativeCallResult BufferReadU16LE(NativeCallContext& context) {
 
 NativeCallResult BufferReadU32LE(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   const int32_t offset = UnpackI32(context.args[1]);
   result.value = PackI32(offset < 0 ? 0 : static_cast<int32_t>(
       Buffer::ReadLE(obj, static_cast<uint32_t>(offset), 4u)));
@@ -1260,7 +1169,7 @@ NativeCallResult BufferReadU32LE(NativeCallContext& context) {
 
 NativeCallResult BufferWriteU16LE(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   const int32_t offset = UnpackI32(context.args[1]);
   const uint32_t value = static_cast<uint32_t>(UnpackI32(context.args[2]));
   result.value = PackI32(offset >= 0 && Buffer::WriteLE(obj, static_cast<uint32_t>(offset), 2u,
@@ -1272,7 +1181,7 @@ NativeCallResult BufferWriteU16LE(NativeCallContext& context) {
 
 NativeCallResult BufferWriteU32LE(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   const int32_t offset = UnpackI32(context.args[1]);
   const uint32_t value = static_cast<uint32_t>(UnpackI32(context.args[2]));
   result.value = PackI32(offset >= 0 && Buffer::WriteLE(obj, static_cast<uint32_t>(offset), 4u,
@@ -1284,7 +1193,7 @@ NativeCallResult BufferWriteU32LE(NativeCallContext& context) {
 
 NativeCallResult BufferSlice(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   const int32_t offset = UnpackI32(context.args[1]);
   const int32_t count = UnpackI32(context.args[2]);
   if (!context.heap || !obj || offset < 0 || count < 0 ||
@@ -1299,9 +1208,9 @@ NativeCallResult BufferSlice(NativeCallContext& context) {
 
 NativeCallResult BufferCopy(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* dst = GetHeapObject(context, 0);
+  HeapObject* dst = NativeArgHeapObject(context, 0);
   const int32_t dst_offset = UnpackI32(context.args[1]);
-  HeapObject* src = GetHeapObject(context, 2);
+  HeapObject* src = NativeArgHeapObject(context, 2);
   const int32_t src_offset = UnpackI32(context.args[3]);
   const int32_t count = UnpackI32(context.args[4]);
   if (dst_offset < 0 || src_offset < 0 || count < 0) {
@@ -1340,14 +1249,14 @@ NativeCallResult IoBufferNew(NativeCallContext& context) {
 
 NativeCallResult IoBufferLen(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   result.value = PackI32(IsBufferObject(obj) ? static_cast<int32_t>(ReadU32(obj->payload, 0)) : -1);
   return result;
 }
 
 NativeCallResult IoBufferFill(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = GetHeapObject(context, 0);
+  HeapObject* obj = NativeArgHeapObject(context, 0);
   const int32_t value = UnpackI32(context.args[1]);
   const int32_t count = UnpackI32(context.args[2]);
   if (!IsBufferObject(obj) || count < 0) {
@@ -1369,8 +1278,8 @@ NativeCallResult IoBufferFill(NativeCallContext& context) {
 
 NativeCallResult IoBufferCopy(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* dst = GetHeapObject(context, 0);
-  HeapObject* src = GetHeapObject(context, 1);
+  HeapObject* dst = NativeArgHeapObject(context, 0);
+  HeapObject* src = NativeArgHeapObject(context, 1);
   const int32_t count = UnpackI32(context.args[2]);
   if (!IsBufferObject(dst) || !IsBufferObject(src) || count < 0) {
     result.value = PackI32(-1);
