@@ -30,7 +30,7 @@ Duplication is not always text-identical. It can be renamed, reordered, hidden i
 
 ## Mechanical scans
 
-- [ ] Exact duplicate blocks with a clone detector, for example:
+- [x] Exact duplicate blocks with a conservative normalized eight-line clone detector, covering:
 
   ```bash
   npx jscpd Compiler --pattern "**/*.{cpp,h}" --ignore "**/build/**" --min-lines 8

@@ -118,6 +118,50 @@ def report_largest_functions(root: pathlib.Path, limit: int) -> None:
         print(f"  {count:6d} {path.as_posix()}:{line} {name}")
 
 
+def report_duplicate_blocks(root: pathlib.Path, limit: int, block_lines: int = 8) -> None:
+    occurrences: dict[tuple[str, ...], list[tuple[pathlib.Path, int]]] = collections.defaultdict(list)
+    for path in iter_files(root, SOURCE_SUFFIXES):
+        masked_lines = _mask_cpp_non_code(read_text(path)).splitlines()
+        normalized = [re.sub(r"\s+", " ", line).strip() for line in masked_lines]
+        for index in range(0, len(normalized) - block_lines + 1):
+            block = tuple(normalized[index:index + block_lines])
+            meaningful = [line for line in block if line not in {"", "{", "}", "};"}]
+            if len(meaningful) < block_lines // 2:
+                continue
+            occurrences[block].append((path, index + 1))
+
+    rows: list[tuple[int, tuple[str, ...], list[tuple[pathlib.Path, int]]]] = []
+    for block, locations in occurrences.items():
+        distinct: list[tuple[pathlib.Path, int]] = []
+        for location in locations:
+            if all(location[0] != prior[0] or abs(location[1] - prior[1]) >= block_lines
+                   for prior in distinct):
+                distinct.append(location)
+        if len(distinct) > 1:
+            rows.append((len(distinct), block, distinct))
+
+    print(f"\nduplicate {block_lines}-line blocks")
+    if not rows:
+        print("  none")
+        return
+    displayed = 0
+    seen_families: set[tuple[tuple[str, int], ...]] = set()
+    for count, block, locations in sorted(rows, key=lambda row: row[0], reverse=True):
+        first_line = locations[0][1]
+        family = tuple((path.as_posix(), line - first_line) for path, line in locations[:4])
+        if family in seen_families:
+            continue
+        seen_families.add(family)
+        first_path = locations[0][0]
+        sample = next((line for line in block if line not in {"", "{", "}", "};"}), "")
+        print(f"  {count:5d} first={first_path.as_posix()}:{first_line} sample={sample[:100]}")
+        for path, line in locations[1:4]:
+            print(f"        also={path.as_posix()}:{line}")
+        displayed += 1
+        if displayed == limit:
+            break
+
+
 def report_repeated_strings(root: pathlib.Path, limit: int) -> None:
     counts: collections.Counter[str] = collections.Counter()
     locations: dict[str, pathlib.Path] = {}
@@ -240,6 +284,7 @@ def main() -> int:
     root = pathlib.Path(args.root).resolve()
     report_largest_files(root, args.limit)
     report_largest_functions(root, args.limit)
+    report_duplicate_blocks(root, args.limit)
     report_repeated_strings(root, args.limit)
     report_repeated_numbers(root, args.limit)
     ok = True
