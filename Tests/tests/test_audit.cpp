@@ -146,6 +146,36 @@ bool AuditNoStaleLibraryDiagnosticNames() {
   return ok;
 }
 
+bool AuditCanonicalLibraryComparisonsStayAtBoundaries() {
+  const std::regex direct_comparison(
+      R"(((==|!=)\s*"(System|Standard)\.[^"]+"|"(System|Standard)\.[^"]+"\s*(==|!=)))");
+  const std::vector<std::string> roots = {"Lang", "VM", "Byte", "Library", "LSP", "CLI"};
+  bool ok = true;
+  for (const std::string& root : roots) {
+    for (const auto& path : CollectFiles(root, ".cpp")) {
+      const std::string normalized = NormalizePath(path);
+      const bool allowed_boundary =
+          normalized.find("LSP/") == 0 || normalized.find("CLI/") == 0 ||
+          normalized.find("Lang/src/CAST/") == 0 || normalized.find("Lang/src/Lexer/") == 0 ||
+          normalized == "VM/src/runtime/import_dispatch.cpp" || normalized.find("Library/") == 0;
+      if (allowed_boundary) continue;
+      std::ifstream in(path);
+      if (!in) return false;
+      std::string line;
+      size_t line_no = 0;
+      while (std::getline(in, line)) {
+        ++line_no;
+        if (std::regex_search(line, direct_comparison)) {
+          std::cerr << "direct canonical library string comparison outside boundary at "
+                    << normalized << ":" << line_no << "\n";
+          ok = false;
+        }
+      }
+    }
+  }
+  return ok;
+}
+
 bool AuditNativeRegistryUsesCatalogMemberNames() {
   const std::regex string_member_spec(R"(MakeSpec\(module,\s*\")");
   bool ok = true;
@@ -176,6 +206,7 @@ const TestCase kAuditTests[] = {
   {"audit_simple_fixtures_registered", AuditSimpleFixturesAreRegistered},
   {"audit_no_public_alias_imports", AuditNoPublicAliasImportsInFixtures},
   {"audit_no_stale_library_diagnostic_names", AuditNoStaleLibraryDiagnosticNames},
+  {"audit_canonical_library_comparisons_stay_at_boundaries", AuditCanonicalLibraryComparisonsStayAtBoundaries},
   {"audit_native_registry_uses_catalog_member_names", AuditNativeRegistryUsesCatalogMemberNames},
 };
 

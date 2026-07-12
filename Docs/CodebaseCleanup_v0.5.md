@@ -150,7 +150,7 @@ Create `scripts/audit_codebase.py` to report:
 - [x] top repeated string literals;
 - [x] top repeated numeric literals;
 - [x] stale diagnostic substrings;
-- [ ] direct `"System."` / `"Standard."` string checks outside allowed boundary files;
+- [x] direct `"System."` / `"Standard."` string checks outside allowed boundary files;
 - [ ] repeated native registration patterns where detectable.
 
 ## Refactor rule
@@ -221,7 +221,7 @@ Deliverables:
 - [x] Update SIR lowering diagnostics to canonical names.
 - [x] Update language validation diagnostics to canonical names.
 - [x] Update tests to expect canonical diagnostics.
-- [ ] Add a test rejecting stale diagnostic substrings where appropriate.
+- [x] Add a test rejecting stale diagnostic substrings where appropriate.
 
 Exit criteria:
 
@@ -235,19 +235,19 @@ Library facts still leak into several places: catalog, TAST calls, validation, S
 
 Deliverables:
 
-- [ ] Define/standardize typed IDs for catalog lookup:
+- [x] Define/standardize typed IDs for catalog lookup:
   - `LibraryRoot`
   - `LibraryModuleId`
   - per-module member enums or a stable unified member ID
-- [ ] Add helpers for canonical display/input conversion:
+- [x] Add helpers for canonical display/input conversion:
   - `ToString(SystemModule)`
   - `ToString(StandardModule)`
   - `ParseLibraryModuleName(std::string_view)`
   - `CanonicalLibraryModuleName(LibraryModuleId)`
   - `CanonicalLibraryMemberName(...)`
 - [x] Replace ad hoc native registry member strings with catalog `ToMember(...)` helpers for current System registrations.
-- [ ] Keep string comparisons only at parser/LSP/docs/CLI/serialization boundaries.
-- [ ] Add tests that catalog module/member string round-trips are complete.
+- [x] Keep string comparisons only at parser/LSP/docs/CLI/serialization boundaries.
+- [x] Add tests that catalog module/member string round-trips are complete.
 
 Exit criteria:
 
@@ -362,7 +362,7 @@ Deliverables:
   - [x] Add typed `LibraryModuleId` native spec builder and migrate current System native registrations.
   - [x] Move native spec construction helpers into `native/spec_builder` for upcoming domain-specific registry files.
 - [x] Replace copied LSP signature-help response snippets with small JSON builder helpers.
-- [ ] Replace copied command execution helpers in CLI tests with one shared test utility.
+- [x] Replace copied command execution helpers in CLI tests with one shared test utility.
 - [ ] Add comments only where the shared abstraction encodes a non-obvious rule.
 
 Exit criteria:
@@ -428,14 +428,14 @@ This order front-loads safety and drift prevention before larger refactors. It a
 
 Before starting `v0.5.1`, complete at minimum:
 
-- [ ] duplicate-test-name guard;
-- [ ] unreferenced-fixture guard;
-- [ ] no-public-alias fixture guard;
-- [ ] canonical diagnostic-name cleanup for obvious legacy names;
-- [ ] typed catalog display/parse helpers;
-- [ ] named enums for native blocking/allocation/safepoint behavior if not already complete;
-- [ ] full suite green;
-- [ ] JIT suite green;
+- [x] duplicate-test-name guard;
+- [x] unreferenced-fixture guard;
+- [x] no-public-alias fixture guard;
+- [x] canonical diagnostic-name cleanup for obvious legacy names;
+- [x] typed catalog display/parse helpers;
+- [x] named enums for native blocking/allocation/safepoint behavior if not already complete;
+- [x] full suite green;
+- [x] JIT suite green;
 - [ ] docs/timeline updated if scope changes.
 
 The native registry split can happen before or during early `v0.5.1`, but `Process`/`Net`/`HTTP`/`Terminal` should not be added until registry/spec organization is ready.
