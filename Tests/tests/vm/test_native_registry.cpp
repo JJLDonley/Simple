@@ -12,6 +12,7 @@
 #include "native/registry.h"
 
 namespace Simple::VM::Tests {
+namespace {
 
 bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeRegistry registry;
@@ -710,5 +711,20 @@ bool RunNativeRegistryModuleTest() {
          env_exe->result_type == Simple::Byte::TypeKind::String;
 }
 
+const TestCase kVmNativeRegistryTests[] = {
+    {"vm_native_registry_module", RunNativeRegistryModuleTest},
+};
+
+const TestSection kVmNativeRegistrySections[] = {
+    {"vm_native_registry", kVmNativeRegistryTests,
+     sizeof(kVmNativeRegistryTests) / sizeof(kVmNativeRegistryTests[0])},
+};
+
+} // namespace
+
+const TestSection* GetVmNativeRegistrySections(size_t* count) {
+  if (count) *count = sizeof(kVmNativeRegistrySections) / sizeof(kVmNativeRegistrySections[0]);
+  return kVmNativeRegistrySections;
+}
 
 } // namespace Simple::VM::Tests

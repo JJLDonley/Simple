@@ -47,8 +47,6 @@
 
 namespace Simple::VM::Tests {
 
-bool RunNativeRegistryModuleTest();
-
 using Simple::Byte::sbc::AppendU8;
 using Simple::Byte::sbc::AppendU16;
 using Simple::Byte::sbc::AppendU32;
@@ -23883,7 +23881,6 @@ static const TestCase kCoreTests[] = {
   {"native_os_module", RunNativeOsModuleTest},
   {"native_path_module", RunNativePathModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
-  {"native_registry_module", RunNativeRegistryModuleTest},
   {"native_thread_module", RunNativeThreadModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
