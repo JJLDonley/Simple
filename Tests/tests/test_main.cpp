@@ -74,6 +74,14 @@ const TestSection* GetLspSections(size_t* count);
 #endif
 const TestSection* GetAuditSections(size_t* count);
 
+using TestSectionGetter = const TestSection* (*)(size_t*);
+
+void AppendSections(std::vector<TestSection>& sections, TestSectionGetter getter) {
+  size_t count = 0;
+  const TestSection* next = getter(&count);
+  sections.insert(sections.end(), next, next + count);
+}
+
 } // namespace Simple::VM::Tests
 
 int main(int argc, char** argv) {
@@ -195,10 +203,7 @@ int main(int argc, char** argv) {
   if (argc > 1 && std::string(argv[1]) == "--smoke") {
     std::vector<Simple::VM::Tests::TestSection> sections;
 #if SIMPLEVM_TEST_INCLUDE_CORE
-    size_t smoke_count = 0;
-    const Simple::VM::Tests::TestSection* smoke_sections =
-        Simple::VM::Tests::GetRuntimeSmokeSections(&smoke_count);
-    sections.insert(sections.end(), smoke_sections, smoke_sections + smoke_count);
+    Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetRuntimeSmokeSections);
 #endif
     Simple::VM::Tests::TestResult result = Simple::VM::Tests::RunAllSections(sections.data(),
                                                                             sections.size());
@@ -206,120 +211,41 @@ int main(int argc, char** argv) {
   }
 
   std::vector<Simple::VM::Tests::TestSection> sections;
-  size_t audit_count = 0;
-  const Simple::VM::Tests::TestSection* audit_sections =
-      Simple::VM::Tests::GetAuditSections(&audit_count);
-  sections.insert(sections.end(), audit_sections, audit_sections + audit_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetAuditSections);
 #if SIMPLEVM_TEST_INCLUDE_CORE
-  size_t System_count = 0;
-  const Simple::VM::Tests::TestSection* System_sections = Simple::VM::Tests::GetCoreSections(&System_count);
-  sections.insert(sections.end(), System_sections, System_sections + System_count);
-  size_t vm_gc_count = 0;
-  const Simple::VM::Tests::TestSection* vm_gc_sections =
-      Simple::VM::Tests::GetVmGcSections(&vm_gc_count);
-  sections.insert(sections.end(), vm_gc_sections, vm_gc_sections + vm_gc_count);
-  size_t vm_heap_count = 0;
-  const Simple::VM::Tests::TestSection* vm_heap_sections =
-      Simple::VM::Tests::GetVmHeapSections(&vm_heap_count);
-  sections.insert(sections.end(), vm_heap_sections, vm_heap_sections + vm_heap_count);
-  size_t vm_interpreter_count = 0;
-  const Simple::VM::Tests::TestSection* vm_interpreter_sections =
-      Simple::VM::Tests::GetVmInterpreterSections(&vm_interpreter_count);
-  sections.insert(sections.end(), vm_interpreter_sections,
-                  vm_interpreter_sections + vm_interpreter_count);
-  size_t vm_jit_count = 0;
-  const Simple::VM::Tests::TestSection* vm_jit_sections =
-      Simple::VM::Tests::GetVmJitSections(&vm_jit_count);
-  sections.insert(sections.end(), vm_jit_sections, vm_jit_sections + vm_jit_count);
-  size_t vm_native_channel_count = 0;
-  const Simple::VM::Tests::TestSection* vm_native_channel_sections =
-      Simple::VM::Tests::GetVmNativeChannelSections(&vm_native_channel_count);
-  sections.insert(sections.end(), vm_native_channel_sections,
-                  vm_native_channel_sections + vm_native_channel_count);
-  size_t vm_native_fs_count = 0;
-  const Simple::VM::Tests::TestSection* vm_native_fs_sections =
-      Simple::VM::Tests::GetVmNativeFsSections(&vm_native_fs_count);
-  sections.insert(sections.end(), vm_native_fs_sections,
-                  vm_native_fs_sections + vm_native_fs_count);
-  size_t vm_runtime_abi_count = 0;
-  const Simple::VM::Tests::TestSection* vm_runtime_abi_sections =
-      Simple::VM::Tests::GetVmRuntimeAbiSections(&vm_runtime_abi_count);
-  sections.insert(sections.end(), vm_runtime_abi_sections,
-                  vm_runtime_abi_sections + vm_runtime_abi_count);
-  size_t vm_runtime_limits_count = 0;
-  const Simple::VM::Tests::TestSection* vm_runtime_limits_sections =
-      Simple::VM::Tests::GetVmRuntimeLimitsSections(&vm_runtime_limits_count);
-  sections.insert(sections.end(), vm_runtime_limits_sections,
-                  vm_runtime_limits_sections + vm_runtime_limits_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetCoreSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmGcSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmHeapSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmInterpreterSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmJitSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmNativeChannelSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmNativeFsSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmRuntimeAbiSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmRuntimeLimitsSections);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_IR
-  size_t ir_count = 0;
-  const Simple::VM::Tests::TestSection* ir_sections = Simple::VM::Tests::GetIrSections(&ir_count);
-  sections.insert(sections.end(), ir_sections, ir_sections + ir_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetIrSections);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_JIT
-  size_t jit_count = 0;
-  const Simple::VM::Tests::TestSection* jit_sections = Simple::VM::Tests::GetJitSections(&jit_count);
-  sections.insert(sections.end(), jit_sections, jit_sections + jit_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetJitSections);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_LANG
-  size_t lang_count = 0;
-  const Simple::VM::Tests::TestSection* lang_sections = Simple::VM::Tests::GetLangSections(&lang_count);
-  sections.insert(sections.end(), lang_sections, lang_sections + lang_count);
-  size_t lang_ast_count = 0;
-  const Simple::VM::Tests::TestSection* lang_ast_sections =
-      Simple::VM::Tests::GetLangAstSections(&lang_ast_count);
-  sections.insert(sections.end(), lang_ast_sections, lang_ast_sections + lang_ast_count);
-  size_t lang_cast_count = 0;
-  const Simple::VM::Tests::TestSection* lang_cast_sections =
-      Simple::VM::Tests::GetLangCastSections(&lang_cast_count);
-  sections.insert(sections.end(), lang_cast_sections, lang_cast_sections + lang_cast_count);
-  size_t lang_integration_count = 0;
-  const Simple::VM::Tests::TestSection* lang_integration_sections =
-      Simple::VM::Tests::GetLangIntegrationSections(&lang_integration_count);
-  sections.insert(sections.end(), lang_integration_sections, lang_integration_sections + lang_integration_count);
-  size_t lang_irb_count = 0;
-  const Simple::VM::Tests::TestSection* lang_irb_sections =
-      Simple::VM::Tests::GetLangIrbSections(&lang_irb_count);
-  sections.insert(sections.end(), lang_irb_sections, lang_irb_sections + lang_irb_count);
-  size_t lang_ire_count = 0;
-  const Simple::VM::Tests::TestSection* lang_ire_sections =
-      Simple::VM::Tests::GetLangIreSections(&lang_ire_count);
-  sections.insert(sections.end(), lang_ire_sections, lang_ire_sections + lang_ire_count);
-  size_t lang_lexer_count = 0;
-  const Simple::VM::Tests::TestSection* lang_lexer_sections =
-      Simple::VM::Tests::GetLangLexerSections(&lang_lexer_count);
-  sections.insert(sections.end(), lang_lexer_sections, lang_lexer_sections + lang_lexer_count);
-  size_t lang_rast_count = 0;
-  const Simple::VM::Tests::TestSection* lang_rast_sections =
-      Simple::VM::Tests::GetLangRastSections(&lang_rast_count);
-  sections.insert(sections.end(), lang_rast_sections, lang_rast_sections + lang_rast_count);
-  size_t lang_tast_count = 0;
-  const Simple::VM::Tests::TestSection* lang_tast_sections =
-      Simple::VM::Tests::GetLangTastSections(&lang_tast_count);
-  sections.insert(sections.end(), lang_tast_sections, lang_tast_sections + lang_tast_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangAstSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangCastSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangIntegrationSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangIrbSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangIreSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangLexerSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangRastSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLangTastSections);
 #endif
-  size_t cli_build_count = 0;
-  const Simple::VM::Tests::TestSection* cli_build_sections =
-      Simple::VM::Tests::GetCliBuildSections(&cli_build_count);
-  sections.insert(sections.end(), cli_build_sections, cli_build_sections + cli_build_count);
-  size_t cli_contract_count = 0;
-  const Simple::VM::Tests::TestSection* cli_contract_sections =
-      Simple::VM::Tests::GetCliContractSections(&cli_contract_count);
-  sections.insert(sections.end(), cli_contract_sections, cli_contract_sections + cli_contract_count);
-  size_t cli_diagnostics_count = 0;
-  const Simple::VM::Tests::TestSection* cli_diagnostics_sections =
-      Simple::VM::Tests::GetCliDiagnosticsSections(&cli_diagnostics_count);
-  sections.insert(sections.end(), cli_diagnostics_sections,
-                  cli_diagnostics_sections + cli_diagnostics_count);
-  size_t cli_imports_count = 0;
-  const Simple::VM::Tests::TestSection* cli_imports_sections =
-      Simple::VM::Tests::GetCliImportsSections(&cli_imports_count);
-  sections.insert(sections.end(), cli_imports_sections, cli_imports_sections + cli_imports_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetCliBuildSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetCliContractSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetCliDiagnosticsSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetCliImportsSections);
 #if SIMPLEVM_TEST_INCLUDE_LSP
-  size_t lsp_count = 0;
-  const Simple::VM::Tests::TestSection* lsp_sections = Simple::VM::Tests::GetLspSections(&lsp_count);
-  sections.insert(sections.end(), lsp_sections, lsp_sections + lsp_count);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetLspSections);
 #endif
 
   Simple::VM::Tests::TestResult result = Simple::VM::Tests::RunAllSections(sections.data(), sections.size());
