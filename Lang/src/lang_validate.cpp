@@ -2654,7 +2654,7 @@ bool CheckExpr(const Expr& expr,
         if (expr.args.size() == 1) {
           TypeRef arg_type;
           if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-            if (error && error->empty()) *error = "IO.print expects scalar argument";
+            if (error && error->empty()) *error = "Standard.IO.print expects scalar argument";
             return false;
           }
           std::vector<TypeRef> arg_types = {arg_type};
@@ -2662,7 +2662,7 @@ bool CheckExpr(const Expr& expr,
         } else {
           if (!CheckIoPrintFormatTemplateArg(expr.args[0], error)) return false;
           const size_t value_count = expr.args.size() - 1;
-          if (!CheckFormatPlaceholderCount(expr.args[0].text, value_count, "IO.print format", error)) {
+          if (!CheckFormatPlaceholderCount(expr.args[0].text, value_count, "Standard.IO.print format", error)) {
             return false;
           }
           std::vector<TypeRef> arg_types;
@@ -2670,7 +2670,7 @@ bool CheckExpr(const Expr& expr,
           for (size_t i = 1; i < expr.args.size(); ++i) {
             TypeRef arg_type;
             if (!InferExprType(expr.args[i], ctx, scopes, current_artifact, &arg_type)) {
-              if (error && error->empty()) *error = "IO.print format expects scalar arguments";
+              if (error && error->empty()) *error = "Standard.IO.print format expects scalar arguments";
               return false;
             }
             arg_types.push_back(std::move(arg_type));

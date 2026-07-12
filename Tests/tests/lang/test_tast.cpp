@@ -167,7 +167,7 @@ bool LangTastCallsCheckIoPrintFormatTemplateArg() {
   Simple::Lang::AST::Expr identifier;
   identifier.kind = Simple::Lang::AST::ExprKind::Identifier;
   if (Simple::Lang::TAST::CheckIoPrintFormatTemplateArg(identifier, &error)) return false;
-  return error.find("IO.print format call expects string literal as first argument") != std::string::npos;
+  return error.find("Standard.IO.print format call expects string literal as first argument") != std::string::npos;
 }
 
 bool LangTastCallsCheckUniqueParamName() {
@@ -199,12 +199,12 @@ bool LangTastCallsCheckFormatAndPrintArgTypes() {
   if (error.find("format supports numeric, bool, or string") == std::string::npos) return false;
   args = {list_i32};
   if (Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
-  if (error.find("IO.print expects scalar argument") == std::string::npos) return false;
+  if (error.find("Standard.IO.print expects scalar argument") == std::string::npos) return false;
   args = {char_type};
   if (!Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
   args = {artifact};
   if (Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
-  return error.find("IO.print supports numeric, bool, char, or string") != std::string::npos;
+  return error.find("Standard.IO.print supports numeric, bool, char, or string") != std::string::npos;
 }
 
 bool LangTastCallsCheckScalarArgTypes() {
@@ -227,10 +227,10 @@ bool LangTastCallsCheckReservedDlOpenArgTypes() {
   if (!Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
   args.clear();
   if (Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
-  if (error.find("DL.open expects (string) or (string, manifest)") == std::string::npos) return false;
+  if (error.find("System.FFI.open expects (string) or (string, manifest)") == std::string::npos) return false;
   args = {Simple::Lang::TAST::MakeSimpleType("i32")};
   if (Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
-  return error.find("DL.open expects first argument string path") != std::string::npos;
+  return error.find("System.FFI.open expects first argument string path") != std::string::npos;
 }
 
 bool LangTastCallsCheckReservedFileArgTypes() {
@@ -243,15 +243,15 @@ bool LangTastCallsCheckReservedFileArgTypes() {
   if (!Simple::Lang::TAST::CheckReservedFileCallArgTypes("open", args, &error)) return false;
   args = {i32, i32};
   if (Simple::Lang::TAST::CheckReservedFileCallArgTypes("open", args, &error)) return false;
-  if (error.find("File.open expects (string, i32)") == std::string::npos) return false;
+  if (error.find("System.FS.open expects (string, i32)") == std::string::npos) return false;
   args = {i32_buffer};
   if (Simple::Lang::TAST::CheckReservedFileCallArgTypes("close", args, &error)) return false;
-  if (error.find("File.close expects (i32)") == std::string::npos) return false;
+  if (error.find("System.FS.close expects (i32)") == std::string::npos) return false;
   args = {i32, i32_buffer, i32};
   if (!Simple::Lang::TAST::CheckReservedFileCallArgTypes("read", args, &error)) return false;
   args = {i32, i32, i32};
   if (Simple::Lang::TAST::CheckReservedFileCallArgTypes("write", args, &error)) return false;
-  return error.find("File.write expects (i32, i32[], i32)") != std::string::npos;
+  return error.find("System.FS.write expects (i32, i32[], i32)") != std::string::npos;
 }
 
 bool LangTastCallsCheckReservedIoBufferArgTypes() {
@@ -263,17 +263,17 @@ bool LangTastCallsCheckReservedIoBufferArgTypes() {
   if (!Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_new", args, &error)) return false;
   args[0] = Simple::Lang::TAST::MakeSimpleType("string");
   if (Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_new", args, &error)) return false;
-  if (error.find("IO.buffer_new expects (i32)") == std::string::npos) return false;
+  if (error.find("System.IO.buffer_new expects (i32)") == std::string::npos) return false;
   args = {i32_buffer, i32, i32};
   if (!Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_fill", args, &error)) return false;
   args = {i32_buffer, Simple::Lang::TAST::MakeSimpleType("string"), i32};
   if (Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_fill", args, &error)) return false;
-  if (error.find("IO.buffer_fill expects (i32[], i32, i32)") == std::string::npos) return false;
+  if (error.find("System.IO.buffer_fill expects (i32[], i32, i32)") == std::string::npos) return false;
   args = {i32_buffer, i32_buffer, i32};
   if (!Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_copy", args, &error)) return false;
   args = {i32_buffer, i32, i32};
   if (Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_copy", args, &error)) return false;
-  return error.find("IO.buffer_copy expects (i32[], i32[], i32)") != std::string::npos;
+  return error.find("System.IO.buffer_copy expects (i32[], i32[], i32)") != std::string::npos;
 }
 
 bool LangTastCallsCheckReservedMathArgTypes() {
@@ -967,8 +967,8 @@ bool LangTastFormatStringCountsPlaceholders() {
   if (Simple::Lang::TAST::CountFormatPlaceholders("a } b", &count, &error)) return false;
   if (error.find("unmatched '}'") == std::string::npos) return false;
   if (!Simple::Lang::TAST::CheckFormatPlaceholderCount("{} {}", 2, "format", &error)) return false;
-  if (Simple::Lang::TAST::CheckFormatPlaceholderCount("{} {}", 1, "IO.print format", &error)) return false;
-  return error.find("IO.print format placeholder count mismatch: expected 2, got 1") != std::string::npos;
+  if (Simple::Lang::TAST::CheckFormatPlaceholderCount("{} {}", 1, "Standard.IO.print format", &error)) return false;
+  return error.find("Standard.IO.print format placeholder count mismatch: expected 2, got 1") != std::string::npos;
 }
 
 bool LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals() {

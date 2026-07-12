@@ -126,6 +126,22 @@ def report_fixture_drift(root: pathlib.Path) -> bool:
     return ok
 
 
+def report_stale_diagnostics(root: pathlib.Path) -> bool:
+    stale_re = re.compile(r"(?<!\.)\bIO\.print|(?<!\.)\bIO\.buffer|(?<!\.)\bDL\.open|(?<!\.)\bFile\.(open|close|write)")
+    ok = True
+    print("\nstale diagnostic/library substrings")
+    for path in iter_files(root, SOURCE_SUFFIXES):
+        if "Tests/tests/test_audit.cpp" in path.as_posix():
+            continue
+        for line_no, line in enumerate(read_text(path).splitlines(), 1):
+            if stale_re.search(line):
+                print(f"  {path.relative_to(root).as_posix()}:{line_no}: {line.strip()[:160]}")
+                ok = False
+    if ok:
+        print("  none")
+    return ok
+
+
 def report_legacy_imports(root: pathlib.Path) -> bool:
     legacy_re = re.compile(r"^\s*import\s+(IO|FS|DL|Time|Buffer|Channel)\b")
     ok = True
@@ -155,6 +171,7 @@ def main() -> int:
     ok &= report_duplicate_test_names(root)
     ok &= report_fixture_drift(root)
     ok &= report_legacy_imports(root)
+    ok &= report_stale_diagnostics(root)
     return 1 if args.fail_on_drift and not ok else 0
 
 

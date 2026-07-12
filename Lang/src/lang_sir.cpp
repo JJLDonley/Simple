@@ -644,7 +644,7 @@ bool IsSupportedDlAbiType(const TypeRef& type, const EmitState& st, bool allow_v
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
   if (!out) return false;
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
-    if (error) *error = "IO.print expects scalar value";
+    if (error) *error = "Standard.IO.print expects scalar value";
     return false;
   }
   const std::string& name = type.name;
@@ -661,7 +661,7 @@ bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* erro
   if (name == "bool") { *out = Simple::VM::kPrintAnyTagBool; return true; }
   if (name == "char") { *out = Simple::VM::kPrintAnyTagChar; return true; }
   if (name == "string") { *out = Simple::VM::kPrintAnyTagString; return true; }
-  if (error) *error = "IO.print supports numeric, bool, char, or string";
+  if (error) *error = "Standard.IO.print supports numeric, bool, char, or string";
   return false;
 }
 
@@ -2787,14 +2787,14 @@ bool EmitExpr(EmitState& st,
             } else {
               const Expr& fmt_expr = expr.args[0];
               if (!(fmt_expr.kind == ExprKind::Literal && fmt_expr.literal_kind == LiteralKind::String)) {
-                if (error) *error = "IO.print format call expects string literal as first argument";
+                if (error) *error = "Standard.IO.print format call expects string literal as first argument";
                 return false;
               }
               size_t placeholder_count = 0;
               std::vector<std::string> segments;
               if (!CountFormatPlaceholders(fmt_expr.text, &placeholder_count, &segments, error)) return false;
               if (placeholder_count != expr.args.size() - 1) {
-                if (error) *error = "IO.print format placeholder count mismatch";
+                if (error) *error = "Standard.IO.print format placeholder count mismatch";
                 return false;
               }
               for (size_t i = 0; i < placeholder_count; ++i) {
@@ -2970,7 +2970,7 @@ bool EmitExpr(EmitState& st,
             const Expr& fmt_expr = expr.args[0];
             if (!(fmt_expr.kind == ExprKind::Literal &&
                   fmt_expr.literal_kind == LiteralKind::String)) {
-              if (error) *error = "IO.print format call expects string literal as first argument";
+              if (error) *error = "Standard.IO.print format call expects string literal as first argument";
               return false;
             }
             size_t placeholder_count = 0;
@@ -2980,7 +2980,7 @@ bool EmitExpr(EmitState& st,
             }
             if (placeholder_count != expr.args.size() - 1) {
               if (error) {
-                *error = "IO.print format placeholder count mismatch: expected " +
+                *error = "Standard.IO.print format placeholder count mismatch: expected " +
                          std::to_string(placeholder_count) + ", got " +
                          std::to_string(expr.args.size() - 1);
               }
@@ -3257,29 +3257,29 @@ bool EmitExpr(EmitState& st,
             if (reserved_is_ffi) {
               if (member_name == "open") {
                 if (expr.args.size() != 1 && expr.args.size() != 2) {
-                  if (error) *error = "call argument count mismatch for 'DL.open'";
+                  if (error) *error = "call argument count mismatch for 'System.FFI.open'";
                   return false;
                 }
                 auto ext_mod_it = st.extern_ids_by_module.find(reserved_module);
                 if (ext_mod_it == st.extern_ids_by_module.end()) {
-                  if (error) *error = "missing extern module for 'DL.open'";
+                  if (error) *error = "missing extern module for 'System.FFI.open'";
                   return false;
                 }
                 auto id_it = ext_mod_it->second.find(member_name);
                 if (id_it == ext_mod_it->second.end()) {
-                  if (error) *error = "missing extern id for 'DL.open'";
+                  if (error) *error = "missing extern id for 'System.FFI.open'";
                   return false;
                 }
                 auto params_it = st.extern_params_by_module[reserved_module].find(member_name);
                 auto ret_it = st.extern_returns_by_module[reserved_module].find(member_name);
                 if (params_it == st.extern_params_by_module[reserved_module].end() ||
                     ret_it == st.extern_returns_by_module[reserved_module].end()) {
-                  if (error) *error = "missing signature for extern 'DL.open'";
+                  if (error) *error = "missing signature for extern 'System.FFI.open'";
                   return false;
                 }
                 const auto& params = params_it->second;
                 if (params.size() != 1) {
-                  if (error) *error = "invalid extern signature for 'DL.open'";
+                  if (error) *error = "invalid extern signature for 'System.FFI.open'";
                   return false;
                 }
                 if (!EmitExpr(st, expr.args[0], &params[0], error)) return false;

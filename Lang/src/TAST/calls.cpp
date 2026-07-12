@@ -198,14 +198,14 @@ bool CheckFormatCallArgTypes(const std::vector<TypeRef>& args, std::string* erro
 
 bool CheckIoPrintCallArgTypes(const std::vector<TypeRef>& args, std::string* error) {
   if (!CheckScalarCallArgTypes(args,
-                               args.size() == 1 ? "IO.print expects scalar argument"
-                                                : "IO.print format expects scalar arguments",
+                               args.size() == 1 ? "Standard.IO.print expects scalar argument"
+                                                : "Standard.IO.print format expects scalar arguments",
                                error)) {
     return false;
   }
   for (const auto& arg : args) {
     if (!IsIoPrintArgTypeName(arg.name)) {
-      if (error) *error = "IO.print supports numeric, bool, char, or string";
+      if (error) *error = "Standard.IO.print supports numeric, bool, char, or string";
       return false;
     }
   }
@@ -214,7 +214,7 @@ bool CheckIoPrintCallArgTypes(const std::vector<TypeRef>& args, std::string* err
 
 bool CheckIoPrintFormatTemplateArg(const Expr& expr, std::string* error) {
   if (expr.kind != ExprKind::Literal || expr.literal_kind != LiteralKind::String) {
-    if (error) *error = "IO.print format call expects string literal as first argument";
+    if (error) *error = "Standard.IO.print format call expects string literal as first argument";
     return false;
   }
   return true;
@@ -234,12 +234,12 @@ bool CheckSingleArgCallCount(const std::string& name, size_t arg_count, std::str
 bool CheckReservedDlOpenArgTypes(const std::vector<TypeRef>& args,
                                  std::string* error) {
   if (args.size() != 1 && args.size() != 2) {
-    if (error) *error = "DL.open expects (string) or (string, manifest)";
+    if (error) *error = "System.FFI.open expects (string) or (string, manifest)";
     return false;
   }
   const TypeRef& path = args[0];
   if (path.name != "string" || !path.dims.empty()) {
-    if (error) *error = "DL.open expects first argument string path";
+    if (error) *error = "System.FFI.open expects first argument string path";
     return false;
   }
   return true;
@@ -254,7 +254,7 @@ bool CheckReservedFileCallArgTypes(SystemFSMember member,
       const TypeRef& path = args[0];
       const TypeRef& flags = args[1];
       if (path.name != "string" || !path.dims.empty() || flags.name != "i32" || !flags.dims.empty()) {
-        if (error) *error = "File.open expects (string, i32)";
+        if (error) *error = "System.FS.open expects (string, i32)";
         return false;
       }
       return true;
@@ -263,7 +263,7 @@ bool CheckReservedFileCallArgTypes(SystemFSMember member,
       if (args.size() != 1) return true;
       const TypeRef& fd = args[0];
       if (fd.name != "i32" || !fd.dims.empty()) {
-        if (error) *error = "File.close expects (i32)";
+        if (error) *error = "System.FS.close expects (i32)";
         return false;
       }
       return true;
@@ -276,7 +276,7 @@ bool CheckReservedFileCallArgTypes(SystemFSMember member,
       const TypeRef& len = args[2];
       if (fd.name != "i32" || !fd.dims.empty() || len.name != "i32" || !len.dims.empty() ||
           !IsI32BufferType(buf)) {
-        if (error) *error = "File." + std::string(ToMember(member)) + " expects (i32, i32[], i32)";
+        if (error) *error = "System.FS." + std::string(ToMember(member)) + " expects (i32, i32[], i32)";
         return false;
       }
       return true;
@@ -323,7 +323,7 @@ bool CheckReservedIoBufferCallArgTypes(SystemIOMember member,
       if (args.size() != 1) return true;
       const TypeRef& len = args[0];
       if (len.name != "i32" || !len.dims.empty()) {
-        if (error) *error = "IO.buffer_new expects (i32)";
+        if (error) *error = "System.IO.buffer_new expects (i32)";
         return false;
       }
       return true;
@@ -331,7 +331,7 @@ bool CheckReservedIoBufferCallArgTypes(SystemIOMember member,
     case SystemIOMember::BufferLen: {
       if (args.size() != 1) return true;
       if (!IsI32BufferType(args[0])) {
-        if (error) *error = "IO.buffer_len expects (i32[])";
+        if (error) *error = "System.IO.buffer_len expects (i32[])";
         return false;
       }
       return true;
@@ -343,7 +343,7 @@ bool CheckReservedIoBufferCallArgTypes(SystemIOMember member,
       const TypeRef& count = args[2];
       if (!IsI32BufferType(buf) || value.name != "i32" || !value.dims.empty() ||
           count.name != "i32" || !count.dims.empty()) {
-        if (error) *error = "IO.buffer_fill expects (i32[], i32, i32)";
+        if (error) *error = "System.IO.buffer_fill expects (i32[], i32, i32)";
         return false;
       }
       return true;
@@ -354,7 +354,7 @@ bool CheckReservedIoBufferCallArgTypes(SystemIOMember member,
       const TypeRef& src = args[1];
       const TypeRef& count = args[2];
       if (!IsI32BufferType(dst) || !IsI32BufferType(src) || count.name != "i32" || !count.dims.empty()) {
-        if (error) *error = "IO.buffer_copy expects (i32[], i32[], i32)";
+        if (error) *error = "System.IO.buffer_copy expects (i32[], i32[], i32)";
         return false;
       }
       return true;

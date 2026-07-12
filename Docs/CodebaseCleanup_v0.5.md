@@ -149,7 +149,7 @@ Create `scripts/audit_codebase.py` to report:
 - [x] public alias imports outside migration tests;
 - [x] top repeated string literals;
 - [x] top repeated numeric literals;
-- [ ] stale diagnostic substrings;
+- [x] stale diagnostic substrings;
 - [ ] direct `"System."` / `"Standard."` string checks outside allowed boundary files;
 - [ ] repeated native registration patterns where detectable.
 
@@ -216,10 +216,10 @@ Deliverables:
 - [ ] Add a reusable diagnostic-name helper:
   - input: module/member ID or canonical strings;
   - output: canonical display name.
-- [ ] Update TAST call diagnostics to canonical names.
-- [ ] Update SIR lowering diagnostics to canonical names.
-- [ ] Update language validation diagnostics to canonical names.
-- [ ] Update tests to expect canonical diagnostics.
+- [x] Update TAST call diagnostics to canonical names.
+- [x] Update SIR lowering diagnostics to canonical names.
+- [x] Update language validation diagnostics to canonical names.
+- [x] Update tests to expect canonical diagnostics.
 - [ ] Add a test rejecting stale diagnostic substrings where appropriate.
 
 Exit criteria:
