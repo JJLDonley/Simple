@@ -16545,67 +16545,19 @@ bool RunRotTest() {
 }
 
 bool RunPopTest() {
-  std::vector<uint8_t> module_bytes = BuildPopModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildPopModule(), 1);
 }
 
 bool RunDup2Test() {
-  std::vector<uint8_t> module_bytes = BuildDup2Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 6) {
-    std::cerr << "expected 6, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildDup2Module(), 6);
 }
 
 bool RunLocalTest() {
-  std::vector<uint8_t> module_bytes = BuildLocalModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 9) {
-    std::cerr << "expected 9, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildLocalModule(), 9);
 }
 
 bool RunLoopTest() {
-  std::vector<uint8_t> module_bytes = BuildLoopModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildLoopModule(), 3);
 }
 
 bool RunFixtureTest(const char* path, int32_t expected_exit) {
@@ -16652,19 +16604,7 @@ bool RunFixtureUuidLenTest() {
 }
 
 bool RunRecursiveCallTest() {
-  std::vector<uint8_t> module_bytes = BuildRecursiveCallModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 5) {
-    std::cerr << "expected 5, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildRecursiveCallModule(), 5);
 }
 
 bool RunRecursiveCallJitTest() {
@@ -16692,163 +16632,43 @@ bool RunRecursiveCallJitTest() {
 }
 
 bool RunRefTest() {
-  std::vector<uint8_t> module_bytes = BuildRefModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildRefModule(), 1);
 }
 
 bool RunUpvalueTest() {
-  std::vector<uint8_t> module_bytes = BuildUpvalueModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildUpvalueModule(), 1);
 }
 
 bool RunUpvalueObjectTest() {
-  std::vector<uint8_t> module_bytes = BuildUpvalueObjectModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildUpvalueObjectModule(), 1);
 }
 
 bool RunUpvalueOrderTest() {
-  std::vector<uint8_t> module_bytes = BuildUpvalueOrderModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildUpvalueOrderModule(), 1);
 }
 
 bool RunNewClosureTest() {
-  std::vector<uint8_t> module_bytes = BuildNewClosureModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNewClosureModule(), 1);
 }
 
 bool RunArrayTest() {
-  std::vector<uint8_t> module_bytes = BuildArrayModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildArrayModule(), 7);
 }
 
 bool RunArrayI64Test() {
-  std::vector<uint8_t> module_bytes = BuildArrayI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 42) {
-    std::cerr << "expected 42, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildArrayI64Module(), 42);
 }
 
 bool RunArrayF32Test() {
-  std::vector<uint8_t> module_bytes = BuildArrayF32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildArrayF32Module(), 3);
 }
 
 bool RunArrayF64Test() {
-  std::vector<uint8_t> module_bytes = BuildArrayF64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 6) {
-    std::cerr << "expected 6, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildArrayF64Module(), 6);
 }
 
 bool RunArrayRefTest() {
-  std::vector<uint8_t> module_bytes = BuildArrayRefModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildArrayRefModule(), 1);
 }
 
 bool RunArrayLenTest() {
@@ -16869,83 +16689,23 @@ bool RunArrayLenTest() {
 }
 
 bool RunListTest() {
-  std::vector<uint8_t> module_bytes = BuildListModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 11) {
-    std::cerr << "expected 11, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListModule(), 11);
 }
 
 bool RunListI64Test() {
-  std::vector<uint8_t> module_bytes = BuildListI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 30) {
-    std::cerr << "expected 30, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListI64Module(), 30);
 }
 
 bool RunListF32Test() {
-  std::vector<uint8_t> module_bytes = BuildListF32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListF32Module(), 3);
 }
 
 bool RunListF64Test() {
-  std::vector<uint8_t> module_bytes = BuildListF64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListF64Module(), 3);
 }
 
 bool RunListRefTest() {
-  std::vector<uint8_t> module_bytes = BuildListRefModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListRefModule(), 1);
 }
 
 bool RunListLenTest() {
@@ -16966,611 +16726,155 @@ bool RunListLenTest() {
 }
 
 bool RunListInsertTest() {
-  std::vector<uint8_t> module_bytes = BuildListInsertModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 5) {
-    std::cerr << "expected 5, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListInsertModule(), 5);
 }
 
 bool RunListRemoveTest() {
-  std::vector<uint8_t> module_bytes = BuildListRemoveModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 10) {
-    std::cerr << "expected 10, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListRemoveModule(), 10);
 }
 
 bool RunListClearTest() {
-  std::vector<uint8_t> module_bytes = BuildListClearModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 0) {
-    std::cerr << "expected 0, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildListClearModule(), 0);
 }
 
 bool RunStringTest() {
-  std::vector<uint8_t> module_bytes = BuildStringModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildStringModule(), 7);
 }
 
 bool RunStringGetCharTest() {
-  std::vector<uint8_t> module_bytes = BuildStringGetCharModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 66) {
-    std::cerr << "expected 66, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildStringGetCharModule(), 66);
 }
 
 bool RunStringSliceTest() {
-  std::vector<uint8_t> module_bytes = BuildStringSliceModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildStringSliceModule(), 3);
 }
 
 bool RunConstU32Test() {
-  std::vector<uint8_t> module_bytes = BuildConstU32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1234) {
-    std::cerr << "expected 1234, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstU32Module(), 1234);
 }
 
 bool RunConstCharTest() {
-  std::vector<uint8_t> module_bytes = BuildConstCharModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 65) {
-    std::cerr << "expected 65, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstCharModule(), 65);
 }
 
 bool RunConstI64Test() {
-  std::vector<uint8_t> module_bytes = BuildConstI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstI64Module(), 1);
 }
 
 bool RunConstU64Test() {
-  std::vector<uint8_t> module_bytes = BuildConstU64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstU64Module(), 1);
 }
 
 bool RunConstF32Test() {
-  std::vector<uint8_t> module_bytes = BuildConstF32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstF32Module(), 1);
 }
 
 bool RunConstF64Test() {
-  std::vector<uint8_t> module_bytes = BuildConstF64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstF64Module(), 1);
 }
 
 bool RunConstI128Test() {
-  std::vector<uint8_t> module_bytes = BuildConstI128Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstI128Module(), 1);
 }
 
 bool RunConstU128Test() {
-  std::vector<uint8_t> module_bytes = BuildConstU128Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConstU128Module(), 1);
 }
 
 bool RunI64ArithTest() {
-  std::vector<uint8_t> module_bytes = BuildI64ArithModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildI64ArithModule(), 1);
 }
 
 bool RunI64ModTest() {
-  std::vector<uint8_t> module_bytes = BuildI64ModModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildI64ModModule(), 1);
 }
 
 bool RunNegI32Test() {
-  std::vector<uint8_t> module_bytes = BuildNegI32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegI32Module(), 1);
 }
 
 bool RunNegI64Test() {
-  std::vector<uint8_t> module_bytes = BuildNegI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegI64Module(), 1);
 }
 
 bool RunNegF32Test() {
-  std::vector<uint8_t> module_bytes = BuildNegF32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegF32Module(), 1);
 }
 
 bool RunNegF64Test() {
-  std::vector<uint8_t> module_bytes = BuildNegF64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegF64Module(), 1);
 }
 
 bool RunIncDecI32Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecI32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecI32Module(), 1);
 }
 
 bool RunIncDecI64Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecI64Module(), 1);
 }
 
 bool RunIncDecF32Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecF32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecF32Module(), 1);
 }
 
 bool RunIncDecF64Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecF64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecF64Module(), 1);
 }
 
 bool RunIncDecU32Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU32Module(), 1);
 }
 
 bool RunIncDecU64Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU64Module(), 1);
 }
 
 bool RunIncDecU32WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU32WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU32WrapModule(), 1);
 }
 
 bool RunIncDecU64WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU64WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU64WrapModule(), 1);
 }
 
 bool RunIncDecI8Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecI8Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecI8Module(), 1);
 }
 
 bool RunIncDecI16Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecI16Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecI16Module(), 1);
 }
 
 bool RunIncDecU8Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU8Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU8Module(), 1);
 }
 
 bool RunIncDecU16Test() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU16Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU16Module(), 1);
 }
 
 bool RunIncDecU8WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU8WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU8WrapModule(), 1);
 }
 
 bool RunIncDecU16WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildIncDecU16WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildIncDecU16WrapModule(), 1);
 }
 
 bool RunNegI8Test() {
-  std::vector<uint8_t> module_bytes = BuildNegI8Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegI8Module(), 1);
 }
 
 bool RunNegI16Test() {
-  std::vector<uint8_t> module_bytes = BuildNegI16Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegI16Module(), 1);
 }
 
 bool RunNegU8Test() {
-  std::vector<uint8_t> module_bytes = BuildNegU8Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegU8Module(), 1);
 }
 
 bool RunNegU16Test() {
-  std::vector<uint8_t> module_bytes = BuildNegU16Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegU16Module(), 1);
 }
 
 bool RunNegU8WrapTest() {
@@ -17621,385 +16925,97 @@ bool RunNegU16WrapTest() {
   return true;
 }
 bool RunNegI8WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildNegI8WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegI8WrapModule(), 1);
 }
 
 bool RunNegI16WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildNegI16WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegI16WrapModule(), 1);
 }
 bool RunF32ArithTest() {
-  std::vector<uint8_t> module_bytes = BuildF32ArithModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildF32ArithModule(), 1);
 }
 
 bool RunNegU32Test() {
-  std::vector<uint8_t> module_bytes = BuildNegU32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegU32Module(), 1);
 }
 
 bool RunNegU64Test() {
-  std::vector<uint8_t> module_bytes = BuildNegU64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegU64Module(), 1);
 }
 
 bool RunNegU32WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildNegU32WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegU32WrapModule(), 1);
 }
 
 bool RunNegU64WrapTest() {
-  std::vector<uint8_t> module_bytes = BuildNegU64WrapModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildNegU64WrapModule(), 1);
 }
 bool RunF64ArithTest() {
-  std::vector<uint8_t> module_bytes = BuildF64ArithModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildF64ArithModule(), 1);
 }
 
 bool RunConvIntTest() {
-  std::vector<uint8_t> module_bytes = BuildConvIntModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConvIntModule(), 1);
 }
 
 bool RunConvFloatTest() {
-  std::vector<uint8_t> module_bytes = BuildConvFloatModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildConvFloatModule(), 1);
 }
 
 bool RunU32ArithTest() {
-  std::vector<uint8_t> module_bytes = BuildU32ArithModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU32ArithModule(), 1);
 }
 
 bool RunU64CmpTest() {
-  std::vector<uint8_t> module_bytes = BuildU64CmpModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU64CmpModule(), 1);
 }
 
 bool RunU32CmpBoundsTest() {
-  std::vector<uint8_t> module_bytes = BuildU32CmpBoundsModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU32CmpBoundsModule(), 1);
 }
 
 bool RunU64CmpBoundsTest() {
-  std::vector<uint8_t> module_bytes = BuildU64CmpBoundsModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU64CmpBoundsModule(), 1);
 }
 
 bool RunU32CmpMinMaxTest() {
-  std::vector<uint8_t> module_bytes = BuildU32CmpMinMaxModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU32CmpMinMaxModule(), 1);
 }
 
 bool RunU64CmpMinMaxTest() {
-  std::vector<uint8_t> module_bytes = BuildU64CmpMinMaxModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU64CmpMinMaxModule(), 1);
 }
 
 bool RunU32DivZeroTest() {
-  std::vector<uint8_t> module_bytes = BuildU32DivZeroModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU32DivZeroModule(), 1);
 }
 
 bool RunU32OverflowTest() {
-  std::vector<uint8_t> module_bytes = BuildU32OverflowModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU32OverflowModule(), 1);
 }
 
 bool RunU64DivZeroTest() {
-  std::vector<uint8_t> module_bytes = BuildU64DivZeroModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU64DivZeroModule(), 1);
 }
 
 bool RunU64OverflowTest() {
-  std::vector<uint8_t> module_bytes = BuildU64OverflowModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildU64OverflowModule(), 1);
 }
 
 bool RunBitwiseI32Test() {
-  std::vector<uint8_t> module_bytes = BuildBitwiseI32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildBitwiseI32Module(), 1);
 }
 
 bool RunShiftMaskI32Test() {
-  std::vector<uint8_t> module_bytes = BuildShiftMaskI32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildShiftMaskI32Module(), 1);
 }
 
 bool RunBitwiseI64Test() {
-  std::vector<uint8_t> module_bytes = BuildBitwiseI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildBitwiseI64Module(), 1);
 }
 
 bool RunShiftMaskI64Test() {
-  std::vector<uint8_t> module_bytes = BuildShiftMaskI64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildShiftMaskI64Module(), 1);
 }
 
 bool RunReturnRefTest() {
@@ -18010,19 +17026,7 @@ bool RunReturnRefTest() {
 }
 
 bool RunDebugNoopTest() {
-  std::vector<uint8_t> module_bytes = BuildDebugNoopModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildDebugNoopModule(), 7);
 }
 
 bool RunVerifyMetadataTest() {
@@ -18449,51 +17453,15 @@ bool RunBadGlobalUninitVerifyTest() {
 }
 
 bool RunGlobalInitStringTest() {
-  std::vector<uint8_t> module_bytes = BuildGlobalInitStringModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 2) {
-    std::cerr << "expected 2, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildGlobalInitStringModule(), 2);
 }
 
 bool RunGlobalInitF32Test() {
-  std::vector<uint8_t> module_bytes = BuildGlobalInitF32Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildGlobalInitF32Module(), 1);
 }
 
 bool RunGlobalInitF64Test() {
-  std::vector<uint8_t> module_bytes = BuildGlobalInitF64Module();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildGlobalInitF64Module(), 1);
 }
 
 bool RunBadGlobalInitConstLoadTest() {
@@ -19775,19 +18743,7 @@ bool RunBadMethodFlagsLoadTest() {
 }
 
 bool RunJumpToEndTest() {
-  std::vector<uint8_t> module_bytes = BuildJumpToEndModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildJumpToEndModule(), 7);
 }
 
 bool RunBadStackMaxVerifyTest() {
@@ -19832,35 +18788,11 @@ bool RunCallCheckTest() {
 }
 
 bool RunCallParamTypeTest() {
-  std::vector<uint8_t> module_bytes = BuildCallParamTypeModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildCallParamTypeModule(), 7);
 }
 
 bool RunCallIndirectTest() {
-  std::vector<uint8_t> module_bytes = BuildCallIndirectModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 9) {
-    std::cerr << "expected 9, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildCallIndirectModule(), 9);
 }
 
 bool RunBadCallIndirectVerifyTest() {
@@ -19924,35 +18856,11 @@ bool RunBadConvVerifyTest() {
 }
 
 bool RunCallIndirectParamTypeTest() {
-  std::vector<uint8_t> module_bytes = BuildCallIndirectParamTypeModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildCallIndirectParamTypeModule(), 7);
 }
 
 bool RunTailCallTest() {
-  std::vector<uint8_t> module_bytes = BuildTailCallModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 42) {
-    std::cerr << "expected 42, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildTailCallModule(), 42);
 }
 
 bool RunIntrinsicTrapTest() {
@@ -20968,35 +19876,11 @@ bool RunGcStressTest() {
 }
 
 bool RunGcVmStressTest() {
-  std::vector<uint8_t> module_bytes = BuildGcVmStressModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildGcVmStressModule(), 1);
 }
 
 bool RunGcTest() {
-  std::vector<uint8_t> module_bytes = BuildGcModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildGcModule(), 1);
 }
 
 
@@ -21096,51 +19980,15 @@ bool RunBadNamedMethodSigLoadTest() {
 }
 
 bool RunBoolTest() {
-  std::vector<uint8_t> module_bytes = BuildBoolModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildBoolModule(), 1);
 }
 
 bool RunCmpTest() {
-  std::vector<uint8_t> module_bytes = BuildCmpModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildCmpModule(), 1);
 }
 
 bool RunBranchTest() {
-  std::vector<uint8_t> module_bytes = BuildBranchModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 3) {
-    std::cerr << "expected 3, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildBranchModule(), 3);
 }
 
 bool RunJmpTableCase0Test() {
@@ -21192,51 +20040,15 @@ bool RunJmpTableDefaultTest() {
 }
 
 bool RunJmpTableDefaultEndTest() {
-  std::vector<uint8_t> module_bytes = BuildJmpTableDefaultEndModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 0) {
-    std::cerr << "expected 0, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildJmpTableDefaultEndModule(), 0);
 }
 
 bool RunJmpTableDefaultStartTest() {
-  std::vector<uint8_t> module_bytes = BuildJmpTableDefaultStartModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 2) {
-    std::cerr << "expected 2, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildJmpTableDefaultStartModule(), 2);
 }
 
 bool RunJmpTableEmptyTest() {
-  std::vector<uint8_t> module_bytes = BuildJmpTableEmptyModule();
-  Simple::Byte::LoadResult load;
-  if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
-  if (exec.status != Simple::VM::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildJmpTableEmptyModule(), 7);
 }
 
 bool RunRuntimeValuePackingHelpersTest() {

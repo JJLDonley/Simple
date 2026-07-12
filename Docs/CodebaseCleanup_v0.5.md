@@ -361,6 +361,7 @@ Deliverables:
 - [x] Collapse uniform tier1-compiled callee assertions into `ExpectTier1CompiledCallee`.
 - [x] Route uniform invalid-bytecode verifier cases through shared `RunExpectVerifyFail`.
 - [x] Route uniform malformed-module loader cases through shared `RunExpectLoadFail`.
+- [x] Route uniform successful VM execution cases through shared `RunExpectExit`.
 - [ ] Replace copied diagnostics with reusable diagnostic builders.
 - [x] Replace copied native metadata construction with `NativeFunctionSpec` helpers/builders.
   - [x] Add typed `LibraryModuleId` native spec builder and migrate current System native registrations.
