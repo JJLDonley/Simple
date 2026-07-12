@@ -23,7 +23,7 @@ NativeCleanupBehavior DefaultCleanupForAccess(NativeResourceAccess access);
 NativeFunctionSpec WithResource(NativeFunctionSpec spec,
                                 NativeResourceKind kind,
                                 NativeResourceAccess access,
-                                uint32_t parameter_index = 0xffffffffu);
+                                uint32_t parameter_index = kNativeResourceNoParameter);
 NativeFunctionSpec MayBlock(NativeFunctionSpec spec);
 NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capability);
 NativeFunctionSpec WithStability(NativeFunctionSpec spec, NativeStability stability);

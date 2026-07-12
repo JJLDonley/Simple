@@ -8,6 +8,11 @@
 
 namespace Simple::VM::Native {
 
+inline constexpr uint32_t kNativeHandleGenerationShift = 32u;
+inline constexpr uint64_t kNativeHandleIndexMask = 0xffffffffu;
+inline constexpr uint32_t kFirstNativeHandleGeneration = 1u;
+inline constexpr uint32_t kNativeResourceNoParameter = 0xffffffffu;
+
 enum class NativeResourceKind : uint16_t {
   Unknown = 0,
   File,

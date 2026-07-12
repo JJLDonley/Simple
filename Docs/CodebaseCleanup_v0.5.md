@@ -316,7 +316,7 @@ Deliverables:
   - `IsImplementedLibraryMember`
   - `IsPlannedLibraryMember`
 - [ ] Replace magic numbers with named constants for runtime/ABI concepts:
-  - handle packing/generation shifts/masks;
+  - [x] handle packing/generation shifts/masks and the no-parameter resource sentinel;
   - bytecode header/section sizes;
   - default stack/heap/resource limits;
   - native buffer defaults;

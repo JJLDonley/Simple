@@ -414,7 +414,7 @@ std::string ResourcesMarkdown(const std::vector<NativeResourceUse>& resources) {
     if (i > 0) out << ", ";
     const NativeResourceUse& resource = resources[i];
     out << ResourceAccessMarkdown(resource.access) << ":" << ResourceKindMarkdown(resource.kind);
-    if (resource.parameter_index != 0xffffffffu) out << "@" << resource.parameter_index;
+    if (resource.parameter_index != kNativeResourceNoParameter) out << "@" << resource.parameter_index;
     out << ":" << OwnershipMarkdown(resource.ownership) << ":" << CleanupMarkdown(resource.cleanup);
   }
   return out.str();

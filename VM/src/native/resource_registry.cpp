@@ -3,11 +3,6 @@
 #include <utility>
 
 namespace Simple::VM::Native {
-namespace {
-
-constexpr uint32_t kFirstGeneration = 1;
-
-} // namespace
 
 uint16_t NativeResourceKindId(NativeResourceKind kind) {
   return static_cast<uint16_t>(kind);
@@ -61,13 +56,14 @@ bool NativeResourceKindFromOpaqueTypeRow(const Simple::Byte::TypeRow& row,
 }
 
 uint64_t PackNativeHandleId(NativeHandleId handle) {
-  return (static_cast<uint64_t>(handle.generation) << 32u) | handle.index;
+  return (static_cast<uint64_t>(handle.generation) << kNativeHandleGenerationShift) |
+         handle.index;
 }
 
 NativeHandleId UnpackNativeHandleId(uint64_t value) {
   NativeHandleId handle;
-  handle.index = static_cast<uint32_t>(value & 0xffffffffu);
-  handle.generation = static_cast<uint32_t>(value >> 32u);
+  handle.index = static_cast<uint32_t>(value & kNativeHandleIndexMask);
+  handle.generation = static_cast<uint32_t>(value >> kNativeHandleGenerationShift);
   return handle;
 }
 
@@ -100,8 +96,8 @@ NativeHandleId NativeResourceRegistry::Insert(NativeResourceRecord record) {
     if (slot.record.finalize && slot.record.payload) {
       slot.record.finalize(slot.record.payload);
     }
-    slot.generation = slot.generation == 0 ? kFirstGeneration : slot.generation + 1;
-    if (slot.generation == 0) slot.generation = kFirstGeneration;
+    slot.generation = slot.generation == 0 ? kFirstNativeHandleGeneration : slot.generation + 1;
+    if (slot.generation == 0) slot.generation = kFirstNativeHandleGeneration;
     record.generation = slot.generation;
     record.closed = false;
     slot.record = std::move(record);
@@ -110,13 +106,14 @@ NativeHandleId NativeResourceRegistry::Insert(NativeResourceRecord record) {
   }
 
   Slot slot;
-  slot.generation = kFirstGeneration;
+  slot.generation = kFirstNativeHandleGeneration;
   record.generation = slot.generation;
   record.closed = false;
   slot.record = std::move(record);
   slot.occupied = true;
   records_.push_back(std::move(slot));
-  return NativeHandleId{static_cast<uint32_t>(records_.size() - 1u), kFirstGeneration};
+  return NativeHandleId{static_cast<uint32_t>(records_.size() - 1u),
+                        kFirstNativeHandleGeneration};
 }
 
 NativeResourceStatus NativeResourceRegistry::Get(NativeHandleId handle,

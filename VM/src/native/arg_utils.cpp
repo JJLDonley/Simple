@@ -3,6 +3,7 @@
 
 namespace Simple::VM::Native {
 using Simple::VM::Runtime::PackRef;
+using Simple::VM::Runtime::UnpackRef;
 
 namespace {
 
@@ -26,7 +27,7 @@ std::string ReadStringAscii(const HeapObject* obj) {
 
 HeapObject* NativeArgHeapObject(NativeCallContext& context, size_t index) {
   if (!context.heap || index >= context.args.size()) return nullptr;
-  return context.heap->Get(static_cast<uint32_t>(context.args[index] & 0xffffffffu));
+  return context.heap->Get(UnpackRef(context.args[index]));
 }
 
 bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value) {

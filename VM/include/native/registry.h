@@ -119,7 +119,7 @@ struct NativeResourceUse {
   NativeResourceAccess access = NativeResourceAccess::Input;
   NativeOwnershipRule ownership = NativeOwnershipRule::None;
   NativeCleanupBehavior cleanup = NativeCleanupBehavior::None;
-  uint32_t parameter_index = 0xffffffffu;
+  uint32_t parameter_index = kNativeResourceNoParameter;
 };
 
 struct NativeFunctionSpec {
