@@ -267,6 +267,7 @@ Deliverables:
 - [x] Move shared native argument/string/byte-list helpers into `native/arg_utils`.
 - [x] Move `NativeCallContext` argument accessors into `native/call_context.cpp`.
 - [ ] Split registration specs by domain without changing behavior:
+  - [x] Move `System.Random` handlers and registration into `native/system_random.cpp`.
   - `VM/src/native/specs/io_specs.cpp`
   - `VM/src/native/specs/fs_specs.cpp`
   - `VM/src/native/specs/path_specs.cpp`
