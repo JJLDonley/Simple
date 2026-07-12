@@ -244,7 +244,7 @@ Deliverables:
   - `ParseLibraryModuleName(std::string_view)`
   - `CanonicalLibraryModuleName(LibraryModuleId)`
   - `CanonicalLibraryMemberName(...)`
-- [ ] Replace ad hoc internal string comparisons with typed helpers in low-risk files first.
+- [x] Replace ad hoc native registry member strings with catalog `ToMember(...)` helpers for current System registrations.
 - [ ] Keep string comparisons only at parser/LSP/docs/CLI/serialization boundaries.
 - [ ] Add tests that catalog module/member string round-trips are complete.
 
