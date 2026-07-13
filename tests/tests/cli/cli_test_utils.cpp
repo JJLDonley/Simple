@@ -1,5 +1,7 @@
 #include "cli/cli_test_utils.h"
 
+#include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -29,10 +31,38 @@ std::string WrapSystemCommand(const std::string& command) {
 #endif
 }
 
+struct TempDirectory {
+  std::filesystem::path path;
+
+  TempDirectory() {
+    const auto seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto base = std::filesystem::temp_directory_path();
+    for (uint32_t attempt = 0; attempt < 100; ++attempt) {
+      path = base / ("simplevm_tests_" + std::to_string(seed) + "_" +
+                     std::to_string(attempt));
+      std::error_code error;
+      if (std::filesystem::create_directory(path, error)) return;
+    }
+    path = base;
+  }
+
+  ~TempDirectory() {
+    std::error_code error;
+    if (path != std::filesystem::temp_directory_path()) {
+      std::filesystem::remove_all(path, error);
+    }
+  }
+};
+
+const std::filesystem::path& TestTempDirectory() {
+  static const TempDirectory directory;
+  return directory.path;
+}
+
 } // namespace
 
 std::filesystem::path CliTempPath(const std::string& name) {
-  return std::filesystem::temp_directory_path() / name;
+  return TestTempDirectory() / name;
 }
 
 std::filesystem::path CliTempExecutablePath(const std::string& name) {

@@ -69,7 +69,18 @@ bool IsKeywordToken(TokenKind kind) {
 
 } // namespace
 
-Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
+Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {
+  constexpr size_t kExpressionAttemptsPerToken = 64;
+  constexpr size_t kMinimumExpressionBudget = 1024;
+  if (tokens_.size() >
+      (std::numeric_limits<size_t>::max() - kMinimumExpressionBudget) /
+          kExpressionAttemptsPerToken) {
+    expression_budget_ = std::numeric_limits<size_t>::max();
+  } else {
+    expression_budget_ = tokens_.size() * kExpressionAttemptsPerToken +
+                         kMinimumExpressionBudget;
+  }
+}
 
 std::string Parser::ErrorWithLocation() const {
   if (error_.empty()) return error_;
@@ -1332,6 +1343,23 @@ bool Parser::ParseWhile(Stmt* out) {
 }
 
 bool Parser::ParseExpr(Expr* out) {
+  constexpr uint32_t kMaxExpressionDepth = 64;
+  if (expression_budget_ == 0) {
+    error_ = "expression parsing complexity limit exceeded";
+    had_error_ = true;
+    return false;
+  }
+  --expression_budget_;
+  if (expression_depth_ >= kMaxExpressionDepth) {
+    error_ = "expression nesting limit exceeded";
+    had_error_ = true;
+    return false;
+  }
+  struct DepthGuard {
+    uint32_t* depth;
+    explicit DepthGuard(uint32_t* value) : depth(value) { ++*depth; }
+    ~DepthGuard() { --*depth; }
+  } guard(&expression_depth_);
   return ParseAssignmentExpr(out);
 }
 

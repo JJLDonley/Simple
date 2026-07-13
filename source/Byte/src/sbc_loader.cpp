@@ -139,7 +139,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (!ReadU32At(bytes, off + 8, &entry.size)) return Fail("section read failed");
     if (!ReadU32At(bytes, off + 12, &entry.count)) return Fail("section read failed");
     if (entry.offset % 4 != 0) return Fail("section offset must be 4-byte aligned");
-    if (entry.offset + entry.size > bytes.size()) return Fail("section out of bounds");
+    const size_t section_offset = static_cast<size_t>(entry.offset);
+    const size_t section_size = static_cast<size_t>(entry.size);
+    if (section_offset > bytes.size() || section_size > bytes.size() - section_offset) {
+      return Fail("section out of bounds");
+    }
     if (!seen_ids.insert(entry.id).second) return Fail("duplicate section id");
     if (entry.id < static_cast<uint32_t>(SectionId::Types) ||
         entry.id > static_cast<uint32_t>(SectionId::Capabilities)) {
@@ -153,7 +157,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     return a.offset < b.offset;
   });
   for (size_t i = 1; i < sorted.size(); ++i) {
-    if (sorted[i - 1].offset + sorted[i - 1].size > sorted[i].offset) {
+    const uint64_t previous_end = static_cast<uint64_t>(sorted[i - 1].offset) +
+                                  static_cast<uint64_t>(sorted[i - 1].size);
+    if (previous_end > static_cast<uint64_t>(sorted[i].offset)) {
       return Fail("section overlap detected");
     }
   }

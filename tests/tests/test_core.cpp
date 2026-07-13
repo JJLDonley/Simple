@@ -5847,6 +5847,23 @@ std::vector<uint8_t> BuildBadSectionOverlapLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadSectionRangeOverflowLoadModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  const uint32_t section_count = ReadU32At(module, 0x08);
+  const uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  if (section_count > 0) {
+    const size_t row = static_cast<size_t>(section_table_offset);
+    WriteU32(module, row + 4, 0xFFFFFFF0u);
+    WriteU32(module, row + 8, 0x100u);
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildBadUnknownSectionIdLoadModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> code;
@@ -17580,6 +17597,11 @@ bool RunBadSectionOverlapLoadTest() {
   return RunExpectLoadFail(BuildBadSectionOverlapLoadModule(), "RunBadSectionOverlapLoadTest");
 }
 
+bool RunBadSectionRangeOverflowLoadTest() {
+  return RunExpectLoadFail(BuildBadSectionRangeOverflowLoadModule(),
+                           "RunBadSectionRangeOverflowLoadTest");
+}
+
 bool RunBadUnknownSectionIdLoadTest() {
   return RunExpectLoadFail(BuildBadUnknownSectionIdLoadModule(), "RunBadUnknownSectionIdLoadTest");
 }
@@ -20356,6 +20378,7 @@ static const TestCase kCoreTests[] = {
   {"bad_sig_table_truncated_load", RunBadSigTableTruncatedLoadTest},
   {"bad_section_alignment_load", RunBadSectionAlignmentLoadTest},
   {"bad_section_overlap_load", RunBadSectionOverlapLoadTest},
+  {"bad_section_range_overflow_load", RunBadSectionRangeOverflowLoadTest},
   {"bad_unknown_section_id_load", RunBadUnknownSectionIdLoadTest},
   {"bad_duplicate_section_id_load", RunBadDuplicateSectionIdLoadTest},
   {"bad_section_table_oob_load", RunBadSectionTableOobLoadTest},

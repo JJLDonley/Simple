@@ -73,6 +73,8 @@ private:
   std::string error_;
   bool had_error_ = false;
   bool allow_format_expr_ = true;
+  uint32_t expression_depth_ = 0;
+  size_t expression_budget_ = 0;
 };
 
 bool ParseTypeFromString(const std::string& text, TypeRef* out, std::string* error);

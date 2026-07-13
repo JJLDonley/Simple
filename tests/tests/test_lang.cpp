@@ -881,6 +881,19 @@ bool LangStressParseFnLiteralCallInCallArg() {
   return true;
 }
 
+bool LangRejectExcessiveExpressionNesting() {
+  std::string source = "main : i32 () { return ";
+  source.append(300, '(');
+  source += "1";
+  source.append(300, ')');
+  source += "; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::CAST::ParseProgramFromString(source, &program, &error)) return false;
+  return error.find("expression nesting limit exceeded") != std::string::npos ||
+         error.find("expression parsing complexity limit exceeded") != std::string::npos;
+}
+
 bool LangStressParseForLoopComplexStep() {
   const char* src =
       "main : i32 () {"
@@ -3688,6 +3701,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_type_explicit_artifact_field_fail", LangStressTypeExplicitArtifactFieldFail},
   {"lang_stress_parse_call_member_index_precedence", LangStressParseCallMemberIndexPrecedence},
   {"lang_stress_parse_fn_literal_call_in_call_arg", LangStressParseFnLiteralCallInCallArg},
+  {"lang_reject_excessive_expression_nesting", LangRejectExcessiveExpressionNesting},
   {"lang_stress_parse_for_loop_complex_step", LangStressParseForLoopComplexStep},
   {"lang_stress_parse_nested_if_else_in_else_branch", LangStressParseNestedIfElseInElseBranch},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
