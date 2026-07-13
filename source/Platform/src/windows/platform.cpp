@@ -104,6 +104,13 @@ bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error
   for (const auto& library : request.libraries) arguments.push_back(library.string());
   arguments.push_back((request.runtime_library_dir / "ffi.lib").string());
   auto extra = SplitArguments(request.extra_link_flags);
+  for (auto& argument : extra) {
+    if (argument.rfind("-L", 0) == 0) {
+      argument = "/LIBPATH:" + argument.substr(2);
+    } else if (argument.rfind("-l", 0) == 0) {
+      argument = argument.substr(2) + ".lib";
+    }
+  }
   arguments.insert(arguments.end(), extra.begin(), extra.end());
   arguments.push_back("/Fe:" + request.output.string());
 
@@ -111,7 +118,20 @@ bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error
   argv.reserve(arguments.size() + 1);
   for (const auto& argument : arguments) argv.push_back(argument.c_str());
   argv.push_back(nullptr);
-  if (_spawnvp(_P_WAIT, compiler.c_str(), argv.data()) == 0) return true;
+  if (_spawnvp(_P_WAIT, compiler.c_str(), argv.data()) == 0) {
+    if (request.dynamic_runtime) {
+      std::error_code copy_error;
+      const auto runtime_dll = request.runtime_library_dir / "simplevm_runtime.dll";
+      std::filesystem::copy_file(
+          runtime_dll, request.output.parent_path() / runtime_dll.filename(),
+          std::filesystem::copy_options::overwrite_existing, copy_error);
+      if (copy_error) {
+        SetError(error, "failed to copy the Simple runtime DLL beside the executable");
+        return false;
+      }
+    }
+    return true;
+  }
   SetError(error, "failed to compile embedded executable with the MSVC C++ toolchain");
   return false;
 }

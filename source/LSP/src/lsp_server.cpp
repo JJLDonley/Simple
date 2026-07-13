@@ -3385,6 +3385,7 @@ std::string TextEditJsonForRange(uint32_t start_line,
 std::string PathToFileUri(const std::filesystem::path& path) {
   std::string value = std::filesystem::absolute(path).lexically_normal().generic_string();
   std::string out = "file://";
+  if (!value.empty() && value.front() != '/') out.push_back('/');
   for (char c : value) {
     const unsigned char uc = static_cast<unsigned char>(c);
     if (std::isalnum(uc) || c == '/' || c == '-' || c == '_' || c == '.' || c == '~' || c == ':') {
