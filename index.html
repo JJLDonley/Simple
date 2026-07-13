@@ -67,7 +67,9 @@
           <option value="asyncFlow">Async result flow</option>
         </select>
       </div>
-      <pre class="example-code"><code id="hero-example" class="language-simple">import Standard.IO
+      <pre class="example-code"><code id="hero-example" class="language-simple">module examples.tool
+
+import Standard.IO
 import Standard.FS
 import System.OS
 
@@ -79,7 +81,7 @@ if (Standard.FS.exists(path)) {
   Standard.IO.println("{} missing", path)
 }
 
-main : i32 () {
+main :: i32 () {
   return 0
 }</code></pre>
 
@@ -176,9 +178,11 @@ main : i32 () {
           <p class="subtitle tagline">Identity-first, strictly typed — scripted in minutes, portable everywhere.</p>
           <p>Simple compiles <code>.simple</code> source into SIR, then portable SBC bytecode for the Simple VM. CLI runs use JIT by default when LLVM ORC support is available. The language is designed for explicit types, direct control flow, readable compiler output, canonical libraries, and native-backed programs.</p>
 
-          <pre><code class="language-simple">import Standard.IO
+          <pre><code class="language-simple">module examples.hello
 
-main : i32 () {
+import Standard.IO
+
+main :: i32 () {
   Standard.IO.println("hello from Simple")
   return 0
 }</code></pre>
@@ -244,9 +248,11 @@ PREFIX="$HOME/.local" ./install.sh</code></pre>
           <p class="section-status">Status: Implemented</p>
           <p>Create <code>hello.simple</code>:</p>
 
-          <pre><code class="language-simple">import Standard.IO
+          <pre><code class="language-simple">module hello
 
-main : i32 () {
+import Standard.IO
+
+main :: i32 () {
   Standard.IO.println("hello from Simple")
   return 0
 }</code></pre>
@@ -257,13 +263,15 @@ main : i32 () {
 svm check hello.simple
 svm emit -sbc hello.simple --out hello.sbc</code></pre>
 
-          <p>Top-level statements are also valid for script-style files:</p>
+          <p>Top-level statements are also valid for named script-style files:</p>
 
-          <pre><code class="language-simple">import Standard.IO
+          <pre><code class="language-simple">module hello.script
+
+import Standard.IO
 
 Standard.IO.println("script start")
 
-add : i32 (a : i32, b : i32) {
+add :: i32 (a : i32, b : i32) {
   return a + b
 }
 
@@ -273,7 +281,7 @@ Standard.IO.println("sum={}", add(2, 3))</code></pre>
         <section id="program-structure" class="doc-section" data-title="Program structure">
           <h2>Program structure</h2>
           <p class="section-status">Status: Implemented</p>
-          <p>A Simple file contains imports, declarations, and optionally top-level statements. Top-level statements execute in source order through an implicit script entry.</p>
+          <p>A Simple source file can begin with a qualified <code>module</code> name, followed by imports, declarations, and optional top-level statements. Named script files still execute top-level statements in source order through an implicit script entry.</p>
 
           <pre><code class="language-simple">module app.main
 
@@ -282,7 +290,7 @@ import Standard.Math
 
 version :: string = "0.5"
 
-main : i32 () {
+main :: i32 () {
   Standard.IO.println(version)
   return 0
 }</code></pre>
@@ -290,10 +298,10 @@ main : i32 () {
           <table>
             <thead><tr><th>Construct</th><th>Meaning</th></tr></thead>
             <tbody>
-              <tr><td><code>module name</code></td><td>Optional file/module header used by import indexing.</td></tr>
+              <tr><td><code>module app.main</code></td><td>Names the source unit for module indexing and named imports.</td></tr>
               <tr><td><code>import Standard.IO</code></td><td>Canonical high-level library import.</td></tr>
               <tr><td><code>import Standard.Math</code></td><td>Canonical standard math module import.</td></tr>
-              <tr><td><code>main : i32 ()</code></td><td>Explicit entry point when no top-level script body is used.</td></tr>
+              <tr><td><code>main :: i32 ()</code></td><td>Immutable entry-point function when no top-level script body is used.</td></tr>
             </tbody>
           </table>
         </section>
@@ -301,7 +309,7 @@ main : i32 () {
         <section id="declarations" class="doc-section" data-title="Declarations">
           <h2>Declarations</h2>
           <p class="section-status">Status: Implemented</p>
-          <p>Simple separates mutability from type. <code>:</code> declares mutable bindings. <code>::</code> declares immutable bindings and named top-level constructs.</p>
+          <p>Simple separates mutability from type. <code>:</code> declares mutable bindings. <code>::</code> declares immutable bindings, functions, methods, and named constructs.</p>
 
           <pre><code class="language-simple">count : i32 = 1
 name :: string = "Simple"
@@ -310,11 +318,11 @@ count = count + 1
 // name = "Other" // rejected: immutable</code></pre>
 
           <h3>Functions</h3>
-          <pre><code class="language-simple">add : i32 (a : i32, b : i32) {
+          <pre><code class="language-simple">add :: i32 (a : i32, b : i32) {
   return a + b
 }
 
-log : void (message : string) {
+log :: void (message : string) {
   Standard.IO.println(message)
 }</code></pre>
         </section>
@@ -442,14 +450,14 @@ if (score >= 70) {
 }</code></pre>
 
           <h3>Condition chains</h3>
-          <pre><code class="language-simple">scoreLabel : string (score : i32) {
+          <pre><code class="language-simple">scoreLabel :: string (score : i32) {
   |> (score >= 90) { return "great" }
   |> (score >= 70) { return "solid" }
   |> default { return "needs work" }
 }</code></pre>
 
           <h3>Switch expressions</h3>
-          <pre><code class="language-simple">dayName : string (day : i32) {
+          <pre><code class="language-simple">dayName :: string (day : i32) {
   return switch (day) {
     day == 1 => "mon"
     day == 2 => "tue"
@@ -474,7 +482,7 @@ for n : i32 = 1 .. 4 {
 }</code></pre>
 
           <h3>While loops, break, and return</h3>
-          <pre><code class="language-simple">main : i32 () {
+          <pre><code class="language-simple">main :: i32 () {
   total : i32 = 30
 
   while (total > 20) {
@@ -507,11 +515,11 @@ count : i32 = len(items)</code></pre>
           <pre><code class="language-simple">Counter :: artifact {
   value : i32
 
-  inc : void () {
+  inc :: void () {
     self.value = self.value + 1
   }
 
-  get : i32 () {
+  get :: i32 () {
     return self.value
   }
 }
@@ -545,7 +553,7 @@ favorite : Color = Color.Green</code></pre>
           <pre><code class="language-simple">Maths :: namespace {
   PI :: f64 = 3.14159
 
-  add : i32 (a : i32, b : i32) {
+  add :: i32 (a : i32, b : i32) {
     return a + b
   }
 }
@@ -558,12 +566,13 @@ value : i32 = Maths.add(2, 3)</code></pre>
         <section id="modules-imports" class="doc-section" data-title="Modules and imports">
           <h2>Modules and imports</h2>
           <p class="section-status">Status: Partial</p>
-          <p>Simple supports reserved runtime modules and named module imports resolved by the project/module index. Imports should not depend on quoted relative source-file paths. Import resolution handles project-root modules, module-map entries, missing imports, ambiguity, and cycles.</p>
+          <p>Simple supports reserved runtime modules, named module imports resolved by the project/module index, and quoted source paths for explicit local imports. Import resolution handles project-root modules, module-map entries, relative paths, missing imports, ambiguity, and cycles.</p>
 
           <pre><code class="language-simple">import Standard.IO
-import Standard.FS
 import System.IO
-import Standard.Math</code></pre>
+import app.config
+import "./local_helpers"
+import "./legacy_helpers.simple"</code></pre>
 
           <table>
             <thead><tr><th>Import form</th><th>Purpose</th></tr></thead>
@@ -571,6 +580,7 @@ import Standard.Math</code></pre>
               <tr><td><code>import Standard.IO</code></td><td>Canonical high-level library module import.</td></tr>
               <tr><td><code>import System.IO</code></td><td>Canonical low-level system module import.</td></tr>
               <tr><td><code>import app.config</code></td><td>Named project module import resolved by module indexing.</td></tr>
+              <tr><td><code>import "./local_helpers"</code></td><td>Explicit relative source import; the <code>.simple</code> extension is optional.</td></tr>
             </tbody>
           </table>
         </section>

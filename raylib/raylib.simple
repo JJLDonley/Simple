@@ -1,3 +1,7 @@
+module raylib
+
+import System.FFI
+
 // Core Types
 Color :: artifact {
     r: u8
@@ -253,7 +257,7 @@ extern ffi.IsAudioDeviceReady: bool ()
 extern ffi.SetMasterVolume: void (volume: f32)
 extern ffi.GetMasterVolume: f32 ()
 
-lib:: i64 = dl.open("./blobs/libraylib.so", ffi) 
+lib :: i64 = System.FFI.open("./blobs/libraylib.so", ffi)
 
 // Common Colors
 LIGHTGRAY :: Color = { 200, 200, 200, 255 }
@@ -400,667 +404,667 @@ KeyboardKey :: enum {
     VOLUME_DOWN     = 25        // Key: Android volume down button
 }
 
-InitWindow: void (width: i32, height: i32, title: string) {
+InitWindow :: void (width: i32, height: i32, title: string) {
     lib.InitWindow(width, height, title)
 }
 
-WindowShouldClose: bool () {
+WindowShouldClose :: bool () {
     return lib.WindowShouldClose()
 }
 
-CloseWindow: void () {
+CloseWindow :: void () {
     lib.CloseWindow()
 }
 
-IsWindowReady: bool () {
+IsWindowReady :: bool () {
     return lib.IsWindowReady()
 }
 
-IsWindowFullscreen: bool () {
+IsWindowFullscreen :: bool () {
     return lib.IsWindowFullscreen()
 }
 
-IsWindowHidden: bool () {
+IsWindowHidden :: bool () {
     return lib.IsWindowHidden()
 }
 
-IsWindowMinimized: bool () {
+IsWindowMinimized :: bool () {
     return lib.IsWindowMinimized()
 }
 
-IsWindowMaximized: bool () {
+IsWindowMaximized :: bool () {
     return lib.IsWindowMaximized()
 }
 
-IsWindowFocused: bool () {
+IsWindowFocused :: bool () {
     return lib.IsWindowFocused()
 }
 
-IsWindowResized: bool () {
+IsWindowResized :: bool () {
     return lib.IsWindowResized()
 }
 
-IsWindowState: bool (flag: u32) {
+IsWindowState :: bool (flag: u32) {
     return lib.IsWindowState(flag)
 }
 
-SetWindowState: void (flags: u32) {
+SetWindowState :: void (flags: u32) {
     lib.SetWindowState(flags)
 }
 
-ClearWindowState: void (flags: u32) {
+ClearWindowState :: void (flags: u32) {
     lib.ClearWindowState(flags)
 }
 
-ToggleFullscreen: void () {
+ToggleFullscreen :: void () {
     lib.ToggleFullscreen()
 }
 
-ToggleBorderlessWindowed: void () {
+ToggleBorderlessWindowed :: void () {
     lib.ToggleBorderlessWindowed()
 }
 
-MaximizeWindow: void () {
+MaximizeWindow :: void () {
     lib.MaximizeWindow()
 }
 
-MinimizeWindow: void () {
+MinimizeWindow :: void () {
     lib.MinimizeWindow()
 }
 
-RestoreWindow: void () {
+RestoreWindow :: void () {
     lib.RestoreWindow()
 }
 
-SetWindowIcon: void (image: i64) {
+SetWindowIcon :: void (image: i64) {
     lib.SetWindowIcon(image)
 }
 
-SetWindowTitle: void (title: string) {
+SetWindowTitle :: void (title: string) {
     lib.SetWindowTitle(title)
 }
 
-SetWindowPosition: void (x: i32, y: i32) {
+SetWindowPosition :: void (x: i32, y: i32) {
     lib.SetWindowPosition(x, y)
 }
 
-SetWindowMonitor: void (monitor: i32) {
+SetWindowMonitor :: void (monitor: i32) {
     lib.SetWindowMonitor(monitor)
 }
 
-SetWindowMinSize: void (width: i32, height: i32) {
+SetWindowMinSize :: void (width: i32, height: i32) {
     lib.SetWindowMinSize(width, height)
 }
 
-SetWindowMaxSize: void (width: i32, height: i32) {
+SetWindowMaxSize :: void (width: i32, height: i32) {
     lib.SetWindowMaxSize(width, height)
 }
 
-SetWindowSize: void (width: i32, height: i32) {
+SetWindowSize :: void (width: i32, height: i32) {
     lib.SetWindowSize(width, height)
 }
 
-SetWindowOpacity: void (opacity: f32) {
+SetWindowOpacity :: void (opacity: f32) {
     lib.SetWindowOpacity(opacity)
 }
 
-SetWindowFocused: void () {
+SetWindowFocused :: void () {
     lib.SetWindowFocused()
 }
 
-GetWindowHandle: i64 () {
+GetWindowHandle :: i64 () {
     return lib.GetWindowHandle()
 }
 
-GetScreenWidth: i32 () {
+GetScreenWidth :: i32 () {
     return lib.GetScreenWidth()
 }
 
-GetScreenHeight: i32 () {
+GetScreenHeight :: i32 () {
     return lib.GetScreenHeight()
 }
 
-GetRenderWidth: i32 () {
+GetRenderWidth :: i32 () {
     return lib.GetRenderWidth()
 }
 
-GetRenderHeight: i32 () {
+GetRenderHeight :: i32 () {
     return lib.GetRenderHeight()
 }
 
-GetMonitorCount: i32 () {
+GetMonitorCount :: i32 () {
     return lib.GetMonitorCount()
 }
 
-GetCurrentMonitor: i32 () {
+GetCurrentMonitor :: i32 () {
     return lib.GetCurrentMonitor()
 }
 
-GetMonitorWidth: i32 (monitor: i32) {
+GetMonitorWidth :: i32 (monitor: i32) {
     return lib.GetMonitorWidth(monitor)
 }
 
-GetMonitorHeight: i32 (monitor: i32) {
+GetMonitorHeight :: i32 (monitor: i32) {
     return lib.GetMonitorHeight(monitor)
 }
 
-GetMonitorPhysicalWidth: i32 (monitor: i32) {
+GetMonitorPhysicalWidth :: i32 (monitor: i32) {
     return lib.GetMonitorPhysicalWidth(monitor)
 }
 
-GetMonitorPhysicalHeight: i32 (monitor: i32) {
+GetMonitorPhysicalHeight :: i32 (monitor: i32) {
     return lib.GetMonitorPhysicalHeight(monitor)
 }
 
-GetMonitorRefreshRate: i32 (monitor: i32) {
+GetMonitorRefreshRate :: i32 (monitor: i32) {
     return lib.GetMonitorRefreshRate(monitor)
 }
 
-GetWindowPosition: Vector2 () {
+GetWindowPosition :: Vector2 () {
     return lib.GetWindowPosition()
 }
 
-GetWindowScaleDPI: Vector2 () {
+GetWindowScaleDPI :: Vector2 () {
     return lib.GetWindowScaleDPI()
 }
 
-GetMonitorName: string (monitor: i32) {
+GetMonitorName :: string (monitor: i32) {
     return lib.GetMonitorName(monitor)
 }
 
-SetClipboardText: void (text: string) {
+SetClipboardText :: void (text: string) {
     lib.SetClipboardText(text)
 }
 
-GetClipboardText: string () {
+GetClipboardText :: string () {
     return lib.GetClipboardText()
 }
 
-EnableEventWaiting: void () {
+EnableEventWaiting :: void () {
     lib.EnableEventWaiting()
 }
 
-DisableEventWaiting: void () {
+DisableEventWaiting :: void () {
     lib.DisableEventWaiting()
 }
 
-ShowCursor: void () {
+ShowCursor :: void () {
     lib.ShowCursor()
 }
 
-HideCursor: void () {
+HideCursor :: void () {
     lib.HideCursor()
 }
 
-IsCursorHidden: bool () {
+IsCursorHidden :: bool () {
     return lib.IsCursorHidden()
 }
 
-EnableCursor: void () {
+EnableCursor :: void () {
     lib.EnableCursor()
 }
 
-DisableCursor: void () {
+DisableCursor :: void () {
     lib.DisableCursor()
 }
 
-IsCursorOnScreen: bool () {
+IsCursorOnScreen :: bool () {
     return lib.IsCursorOnScreen()
 }
 
-SetTargetFPS: void (fps: i32) {
+SetTargetFPS :: void (fps: i32) {
     lib.SetTargetFPS(fps)
 }
 
-GetFrameTime: f32 () {
+GetFrameTime :: f32 () {
     return lib.GetFrameTime()
 }
 
-GetTime: f64 () {
+GetTime :: f64 () {
     return lib.GetTime()
 }
 
-GetFPS: i32 () {
+GetFPS :: i32 () {
     return lib.GetFPS()
 }
 
-SwapScreenBuffer: void () {
+SwapScreenBuffer :: void () {
     lib.SwapScreenBuffer()
 }
 
-PollInputEvents: void () {
+PollInputEvents :: void () {
     lib.PollInputEvents()
 }
 
-WaitTime: void (seconds: f64) {
+WaitTime :: void (seconds: f64) {
     lib.WaitTime(seconds)
 }
 
-SetRandomSeed: void (seed: u32) {
+SetRandomSeed :: void (seed: u32) {
     lib.SetRandomSeed(seed)
 }
 
-GetRandomValue: i32 (min: i32, max: i32) {
+GetRandomValue :: i32 (min: i32, max: i32) {
     return lib.GetRandomValue(min, max)
 }
 
-TakeScreenshot: void (fileName: string) {
+TakeScreenshot :: void (fileName: string) {
     lib.TakeScreenshot(fileName)
 }
 
-SetConfigFlags: void (flags: u32) {
+SetConfigFlags :: void (flags: u32) {
     lib.SetConfigFlags(flags)
 }
 
-OpenURL: void (url: string) {
+OpenURL :: void (url: string) {
     lib.OpenURL(url)
 }
 
-BeginDrawing: void () {
+BeginDrawing :: void () {
     lib.BeginDrawing()
 }
 
-EndDrawing: void () {
+EndDrawing :: void () {
     lib.EndDrawing()
 }
 
-ClearBackground: void (color: Color) {
+ClearBackground :: void (color: Color) {
     lib.ClearBackground(color)
 }
 
-BeginMode2D: void (camera: Camera2D) {
+BeginMode2D :: void (camera: Camera2D) {
     lib.BeginMode2D(camera)
 }
 
-EndMode2D: void () {
+EndMode2D :: void () {
     lib.EndMode2D()
 }
 
-BeginTextureMode: void (target: RenderTexture) {
+BeginTextureMode :: void (target: RenderTexture) {
     lib.BeginTextureMode(target)
 }
 
-EndTextureMode: void () {
+EndTextureMode :: void () {
     lib.EndTextureMode()
 }
 
-BeginScissorMode: void (x: i32, y: i32, width: i32, height: i32) {
+BeginScissorMode :: void (x: i32, y: i32, width: i32, height: i32) {
     lib.BeginScissorMode(x, y, width, height)
 }
 
-EndScissorMode: void () {
+EndScissorMode :: void () {
     lib.EndScissorMode()
 }
 
-DrawText: void (text: string, posX: i32, posY: i32, fontSize: i32, color: Color) {
+DrawText :: void (text: string, posX: i32, posY: i32, fontSize: i32, color: Color) {
     lib.DrawText(text, posX, posY, fontSize, color)
 }
 
-DrawTextEx: void (font: Font, text: string, position: Vector2, fontSize: f32, spacing: f32, tint: Color) {
+DrawTextEx :: void (font: Font, text: string, position: Vector2, fontSize: f32, spacing: f32, tint: Color) {
     lib.DrawTextEx(font, text, position, fontSize, spacing, tint)
 }
 
-MeasureText: i32 (text: string, fontSize: i32) {
+MeasureText :: i32 (text: string, fontSize: i32) {
     return lib.MeasureText(text, fontSize)
 }
 
-MeasureTextEx: Vector2 (font: Font, text: string, fontSize: f32, spacing: f32) {
+MeasureTextEx :: Vector2 (font: Font, text: string, fontSize: f32, spacing: f32) {
     return lib.MeasureTextEx(font, text, fontSize, spacing)
 }
 
-LoadFont: Font (fileName: string) {
+LoadFont :: Font (fileName: string) {
     return lib.LoadFont(fileName)
 }
 
-LoadFontEx: Font (fileName: string, fontSize: i32, codepoints: i64, codepointCount: i32) {
+LoadFontEx :: Font (fileName: string, fontSize: i32, codepoints: i64, codepointCount: i32) {
     return lib.LoadFontEx(fileName, fontSize, codepoints, codepointCount)
 }
 
-LoadFontDefault: Font () {
+LoadFontDefault :: Font () {
     return lib.LoadFontDefault()
 }
 
-UnloadFont: void (font: Font) {
+UnloadFont :: void (font: Font) {
     lib.UnloadFont(font)
 }
 
-GetFontDefault: Font () {
+GetFontDefault :: Font () {
     return lib.GetFontDefault()
 }
 
-DrawFPS: void (posX: i32, posY: i32) {
+DrawFPS :: void (posX: i32, posY: i32) {
     lib.DrawFPS(posX, posY)
 }
 
-DrawPixel: void (posX: i32, posY: i32, color: Color) {
+DrawPixel :: void (posX: i32, posY: i32, color: Color) {
     lib.DrawPixel(posX, posY, color)
 }
 
-DrawLine: void (startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, color: Color) {
+DrawLine :: void (startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, color: Color) {
     lib.DrawLine(startPosX, startPosY, endPosX, endPosY, color)
 }
 
-DrawLineV: void (startPos: Vector2, endPos: Vector2, color: Color) {
+DrawLineV :: void (startPos: Vector2, endPos: Vector2, color: Color) {
     lib.DrawLineV(startPos, endPos, color)
 }
 
-DrawLineEx: void (startPos: Vector2, endPos: Vector2, thick: f32, color: Color) {
+DrawLineEx :: void (startPos: Vector2, endPos: Vector2, thick: f32, color: Color) {
     lib.DrawLineEx(startPos, endPos, thick, color)
 }
 
-DrawCircle: void (centerX: i32, centerY: i32, radius: f32, color: Color) {
+DrawCircle :: void (centerX: i32, centerY: i32, radius: f32, color: Color) {
     lib.DrawCircle(centerX, centerY, radius, color)
 }
 
-DrawCircleV: void (center: Vector2, radius: f32, color: Color) {
+DrawCircleV :: void (center: Vector2, radius: f32, color: Color) {
     lib.DrawCircleV(center, radius, color)
 }
 
-DrawCircleLines: void (centerX: i32, centerY: i32, radius: f32, color: Color) {
+DrawCircleLines :: void (centerX: i32, centerY: i32, radius: f32, color: Color) {
     lib.DrawCircleLines(centerX, centerY, radius, color)
 }
 
-DrawRectangle: void (posX: i32, posY: i32, width: i32, height: i32, color: Color) {
+DrawRectangle :: void (posX: i32, posY: i32, width: i32, height: i32, color: Color) {
     lib.DrawRectangle(posX, posY, width, height, color)
 }
 
-DrawRectangleV: void (position: Vector2, size: Vector2, color: Color) {
+DrawRectangleV :: void (position: Vector2, size: Vector2, color: Color) {
     lib.DrawRectangleV(position, size, color)
 }
 
-DrawRectangleRec: void (rec: Rectangle, color: Color) {
+DrawRectangleRec :: void (rec: Rectangle, color: Color) {
     lib.DrawRectangleRec(rec, color)
 }
 
-DrawRectangleLines: void (posX: i32, posY: i32, width: i32, height: i32, color: Color) {
+DrawRectangleLines :: void (posX: i32, posY: i32, width: i32, height: i32, color: Color) {
     lib.DrawRectangleLines(posX, posY, width, height, color)
 }
 
-DrawRectangleRounded: void (rec: Rectangle, roundness: f32, segments: i32, color: Color) {
+DrawRectangleRounded :: void (rec: Rectangle, roundness: f32, segments: i32, color: Color) {
     lib.DrawRectangleRounded(rec, roundness, segments, color)
 }
 
-DrawTriangle: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color) {
+DrawTriangle :: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color) {
     lib.DrawTriangle(v1, v2, v3, color)
 }
 
-DrawTriangleLines: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color) {
+DrawTriangleLines :: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color) {
     lib.DrawTriangleLines(v1, v2, v3, color)
 }
 
-LoadTexture: Texture (fileName: string) {
+LoadTexture :: Texture (fileName: string) {
     return lib.LoadTexture(fileName)
 }
 
-LoadTextureFromImage: Texture (image: i64) {
+LoadTextureFromImage :: Texture (image: i64) {
     return lib.LoadTextureFromImage(image)
 }
 
-UnloadTexture: void (texture: Texture) {
+UnloadTexture :: void (texture: Texture) {
     lib.UnloadTexture(texture)
 }
 
-IsTextureValid: bool (texture: Texture) {
+IsTextureValid :: bool (texture: Texture) {
     return lib.IsTextureValid(texture)
 }
 
-DrawTexture: void (texture: Texture, posX: i32, posY: i32, tint: Color) {
+DrawTexture :: void (texture: Texture, posX: i32, posY: i32, tint: Color) {
     lib.DrawTexture(texture, posX, posY, tint)
 }
 
-DrawTextureV: void (texture: Texture, position: Vector2, tint: Color) {
+DrawTextureV :: void (texture: Texture, position: Vector2, tint: Color) {
     lib.DrawTextureV(texture, position, tint)
 }
 
-DrawTextureEx: void (texture: Texture, position: Vector2, rotation: f32, scale: f32, tint: Color) {
+DrawTextureEx :: void (texture: Texture, position: Vector2, rotation: f32, scale: f32, tint: Color) {
     lib.DrawTextureEx(texture, position, rotation, scale, tint)
 }
 
-DrawTextureRec: void (texture: Texture, source: Rectangle, position: Vector2, tint: Color) {
+DrawTextureRec :: void (texture: Texture, source: Rectangle, position: Vector2, tint: Color) {
     lib.DrawTextureRec(texture, source, position, tint)
 }
 
-DrawTexturePro: void (texture: Texture, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) {
+DrawTexturePro :: void (texture: Texture, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) {
     lib.DrawTexturePro(texture, source, dest, origin, rotation, tint)
 }
 
-LoadRenderTexture: RenderTexture (width: i32, height: i32) {
+LoadRenderTexture :: RenderTexture (width: i32, height: i32) {
     return lib.LoadRenderTexture(width, height)
 }
 
-UnloadRenderTexture: void (target: RenderTexture) {
+UnloadRenderTexture :: void (target: RenderTexture) {
     lib.UnloadRenderTexture(target)
 }
 
-IsRenderTextureValid: bool (target: RenderTexture) {
+IsRenderTextureValid :: bool (target: RenderTexture) {
     return lib.IsRenderTextureValid(target)
 }
 
-IsKeyPressed: bool (key: i32) {
+IsKeyPressed :: bool (key: i32) {
     return lib.IsKeyPressed(key)
 }
 
-IsKeyPressedRepeat: bool (key: i32) {
+IsKeyPressedRepeat :: bool (key: i32) {
     return lib.IsKeyPressedRepeat(key)
 }
 
-IsKeyDown: bool (key: i32) {
+IsKeyDown :: bool (key: i32) {
     return lib.IsKeyDown(key)
 }
 
-IsKeyReleased: bool (key: i32) {
+IsKeyReleased :: bool (key: i32) {
     return lib.IsKeyReleased(key)
 }
 
-IsKeyUp: bool (key: i32) {
+IsKeyUp :: bool (key: i32) {
     return lib.IsKeyUp(key)
 }
 
-GetKeyPressed: i32 () {
+GetKeyPressed :: i32 () {
     return lib.GetKeyPressed()
 }
 
-GetCharPressed: i32 () {
+GetCharPressed :: i32 () {
     return lib.GetCharPressed()
 }
 
-SetExitKey: void (key: i32) {
+SetExitKey :: void (key: i32) {
     lib.SetExitKey(key)
 }
 
-IsGamepadAvailable: bool (gamepad: i32) {
+IsGamepadAvailable :: bool (gamepad: i32) {
     return lib.IsGamepadAvailable(gamepad)
 }
 
-GetGamepadName: string (gamepad: i32) {
+GetGamepadName :: string (gamepad: i32) {
     return lib.GetGamepadName(gamepad)
 }
 
-IsGamepadButtonPressed: bool (gamepad: i32, button: i32) {
+IsGamepadButtonPressed :: bool (gamepad: i32, button: i32) {
     return lib.IsGamepadButtonPressed(gamepad, button)
 }
 
-IsGamepadButtonDown: bool (gamepad: i32, button: i32) {
+IsGamepadButtonDown :: bool (gamepad: i32, button: i32) {
     return lib.IsGamepadButtonDown(gamepad, button)
 }
 
-IsGamepadButtonReleased: bool (gamepad: i32, button: i32) {
+IsGamepadButtonReleased :: bool (gamepad: i32, button: i32) {
     return lib.IsGamepadButtonReleased(gamepad, button)
 }
 
-IsGamepadButtonUp: bool (gamepad: i32, button: i32) {
+IsGamepadButtonUp :: bool (gamepad: i32, button: i32) {
     return lib.IsGamepadButtonUp(gamepad, button)
 }
 
-GetGamepadButtonPressed: i32 () {
+GetGamepadButtonPressed :: i32 () {
     return lib.GetGamepadButtonPressed()
 }
 
-GetGamepadAxisCount: i32 (gamepad: i32) {
+GetGamepadAxisCount :: i32 (gamepad: i32) {
     return lib.GetGamepadAxisCount(gamepad)
 }
 
-GetGamepadAxisMovement: f32 (gamepad: i32, axis: i32) {
+GetGamepadAxisMovement :: f32 (gamepad: i32, axis: i32) {
     return lib.GetGamepadAxisMovement(gamepad, axis)
 }
 
-SetGamepadMappings: i32 (mappings: string) {
+SetGamepadMappings :: i32 (mappings: string) {
     return lib.SetGamepadMappings(mappings)
 }
 
-SetGamepadVibration: void (gamepad: i32, leftMotor: f32, rightMotor: f32, duration: f32) {
+SetGamepadVibration :: void (gamepad: i32, leftMotor: f32, rightMotor: f32, duration: f32) {
     lib.SetGamepadVibration(gamepad, leftMotor, rightMotor, duration)
 }
 
-IsMouseButtonPressed: bool (button: i32) {
+IsMouseButtonPressed :: bool (button: i32) {
     return lib.IsMouseButtonPressed(button)
 }
 
-IsMouseButtonDown: bool (button: i32) {
+IsMouseButtonDown :: bool (button: i32) {
     return lib.IsMouseButtonDown(button)
 }
 
-IsMouseButtonReleased: bool (button: i32) {
+IsMouseButtonReleased :: bool (button: i32) {
     return lib.IsMouseButtonReleased(button)
 }
 
-IsMouseButtonUp: bool (button: i32) {
+IsMouseButtonUp :: bool (button: i32) {
     return lib.IsMouseButtonUp(button)
 }
 
-GetMouseX: i32 () {
+GetMouseX :: i32 () {
     return lib.GetMouseX()
 }
 
-GetMouseY: i32 () {
+GetMouseY :: i32 () {
     return lib.GetMouseY()
 }
 
-GetMousePosition: Vector2 () {
+GetMousePosition :: Vector2 () {
     return lib.GetMousePosition()
 }
 
-GetMouseDelta: Vector2 () {
+GetMouseDelta :: Vector2 () {
     return lib.GetMouseDelta()
 }
 
-SetMousePosition: void (x: i32, y: i32) {
+SetMousePosition :: void (x: i32, y: i32) {
     lib.SetMousePosition(x, y)
 }
 
-SetMouseOffset: void (offsetX: i32, offsetY: i32) {
+SetMouseOffset :: void (offsetX: i32, offsetY: i32) {
     lib.SetMouseOffset(offsetX, offsetY)
 }
 
-SetMouseScale: void (scaleX: f32, scaleY: f32) {
+SetMouseScale :: void (scaleX: f32, scaleY: f32) {
     lib.SetMouseScale(scaleX, scaleY)
 }
 
-GetMouseWheelMove: f32 () {
+GetMouseWheelMove :: f32 () {
     return lib.GetMouseWheelMove()
 }
 
-GetMouseWheelMoveV: Vector2 () {
+GetMouseWheelMoveV :: Vector2 () {
     return lib.GetMouseWheelMoveV()
 }
 
-SetMouseCursor: void (cursor: i32) {
+SetMouseCursor :: void (cursor: i32) {
     lib.SetMouseCursor(cursor)
 }
 
-GetTouchX: i32 () {
+GetTouchX :: i32 () {
     return lib.GetTouchX()
 }
 
-GetTouchY: i32 () {
+GetTouchY :: i32 () {
     return lib.GetTouchY()
 }
 
-GetTouchPosition: Vector2 (index: i32) {
+GetTouchPosition :: Vector2 (index: i32) {
     return lib.GetTouchPosition(index)
 }
 
-GetTouchPointId: i32 (index: i32) {
+GetTouchPointId :: i32 (index: i32) {
     return lib.GetTouchPointId(index)
 }
 
-GetTouchPointCount: i32 () {
+GetTouchPointCount :: i32 () {
     return lib.GetTouchPointCount()
 }
 
-SetGesturesEnabled: void (flags: u32) {
+SetGesturesEnabled :: void (flags: u32) {
     lib.SetGesturesEnabled(flags)
 }
 
-IsGestureDetected: bool (gesture: u32) {
+IsGestureDetected :: bool (gesture: u32) {
     return lib.IsGestureDetected(gesture)
 }
 
-GetGestureDetected: i32 () {
+GetGestureDetected :: i32 () {
     return lib.GetGestureDetected()
 }
 
-GetGestureHoldDuration: f32 () {
+GetGestureHoldDuration :: f32 () {
     return lib.GetGestureHoldDuration()
 }
 
-GetGestureDragVector: Vector2 () {
+GetGestureDragVector :: Vector2 () {
     return lib.GetGestureDragVector()
 }
 
-GetGestureDragAngle: f32 () {
+GetGestureDragAngle :: f32 () {
     return lib.GetGestureDragAngle()
 }
 
-GetGesturePinchVector: Vector2 () {
+GetGesturePinchVector :: Vector2 () {
     return lib.GetGesturePinchVector()
 }
 
-GetGesturePinchAngle: f32 () {
+GetGesturePinchAngle :: f32 () {
     return lib.GetGesturePinchAngle()
 }
 
-CheckCollisionRecs: bool (rec1: Rectangle, rec2: Rectangle) {
+CheckCollisionRecs :: bool (rec1: Rectangle, rec2: Rectangle) {
     return lib.CheckCollisionRecs(rec1, rec2)
 }
 
-CheckCollisionCircles: bool (center1: Vector2, radius1: f32, center2: Vector2, radius2: f32) {
+CheckCollisionCircles :: bool (center1: Vector2, radius1: f32, center2: Vector2, radius2: f32) {
     return lib.CheckCollisionCircles(center1, radius1, center2, radius2)
 }
 
-CheckCollisionCircleRec: bool (center: Vector2, radius: f32, rec: Rectangle) {
+CheckCollisionCircleRec :: bool (center: Vector2, radius: f32, rec: Rectangle) {
     return lib.CheckCollisionCircleRec(center, radius, rec)
 }
 
-CheckCollisionPointRec: bool (point: Vector2, rec: Rectangle) {
+CheckCollisionPointRec :: bool (point: Vector2, rec: Rectangle) {
     return lib.CheckCollisionPointRec(point, rec)
 }
 
-CheckCollisionPointCircle: bool (point: Vector2, center: Vector2, radius: f32) {
+CheckCollisionPointCircle :: bool (point: Vector2, center: Vector2, radius: f32) {
     return lib.CheckCollisionPointCircle(point, center, radius)
 }
 
-CheckCollisionPointTriangle: bool (point: Vector2, p1: Vector2, p2: Vector2, p3: Vector2) {
+CheckCollisionPointTriangle :: bool (point: Vector2, p1: Vector2, p2: Vector2, p3: Vector2) {
     return lib.CheckCollisionPointTriangle(point, p1, p2, p3)
 }
 
-InitAudioDevice: void () {
+InitAudioDevice :: void () {
     lib.InitAudioDevice()
 }
 
-CloseAudioDevice: void () {
+CloseAudioDevice :: void () {
     lib.CloseAudioDevice()
 }
 
-IsAudioDeviceReady: bool () {
+IsAudioDeviceReady :: bool () {
     return lib.IsAudioDeviceReady()
 }
 
-SetMasterVolume: void (volume: f32) {
+SetMasterVolume :: void (volume: f32) {
     lib.SetMasterVolume(volume)
 }
 
-GetMasterVolume: f32 () {
+GetMasterVolume :: f32 () {
     return lib.GetMasterVolume()
 }
 

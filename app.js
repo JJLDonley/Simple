@@ -169,7 +169,7 @@ function highlightSimple(source) {
       if (simpleKeywords.has(word)) out += `<span class="tok-keyword">${word}</span>`;
       else if (simpleTypes.has(word)) out += `<span class="tok-type">${word}</span>`;
       else if (modules.has(word)) out += `<span class="tok-module">${word}</span>`;
-      else if (/^\s*\(/.test(rest) || /^\s*:\s*[A-Za-z_][A-Za-z0-9_.<>]*\s*\(/.test(rest)) out += `<span class="tok-function">${word}</span>`;
+      else if (/^\s*\(/.test(rest) || /^\s*:{1,2}\s*[A-Za-z_][A-Za-z0-9_.<>]*\s*\(/.test(rest)) out += `<span class="tok-function">${word}</span>`;
       else out += escapeHtml(word);
       i += word.length;
       continue;
@@ -215,7 +215,9 @@ const exampleMeta = {
 };
 
 const examples = {
-  toolScript: `import Standard.IO
+  toolScript: `module examples.tool
+
+import Standard.IO
 import Standard.FS
 import System.OS
 
@@ -227,55 +229,61 @@ if (Standard.FS.exists(path)) {
   Standard.IO.println("{} missing", path)
 }
 
-main : i32 () {
+main :: i32 () {
   return 0
 }`,
-  artifactModel: `import Standard.IO
+  artifactModel: `module examples.artifacts
+
+import Standard.IO
 
 Vec2 :: artifact {
   x : f64
   y : f64
 
-  lengthSquared : f64 () {
+  lengthSquared :: f64 () {
     return self.x * self.x + self.y * self.y
   }
 }
 
 Actor :: artifact {
-  name : string
   pos : Vec2
   hp : i32
 
-  moveBy : void (delta : Vec2) {
+  moveBy :: void (delta : Vec2) {
     self.pos.x = self.pos.x + delta.x
     self.pos.y = self.pos.y + delta.y
   }
 
-  alive : bool () {
+  alive :: bool () {
     return self.hp > 0
   }
 }
 
-main : i32 () {
-  player : Actor = { .name = "Ada", .pos = { .x = 2.0, .y = 3.0 }, .hp = 10 }
-  player.moveBy({ .x = 1.0, .y = -1.0 })
+main :: i32 () {
+  start : Vec2 = { .x = 2.0, .y = 3.0 }
+  delta : Vec2 = { .x = 1.0, .y = -1.0 }
+  player : Actor = { start, 10 }
+  player.moveBy(delta)
 
-  Standard.IO.println("{} alive={} dist2={}",
-    player.name,
-    player.alive(),
-    player.pos.lengthSquared())
+  isAlive : bool = player.alive()
+  distanceSquared : f64 = player.pos.lengthSquared()
+  Standard.IO.println("player status")
+  Standard.IO.println(isAlive)
+  Standard.IO.println(distanceSquared)
   return 0
 }`,
-  namespaceApi: `import Standard.IO
+  namespaceApi: `module examples.checksum
+
+import Standard.IO
 
 Checksum :: namespace {
   seed :: i32 = 17
 
-  step : i32 (hash : i32, value : i32) {
+  step :: i32 (hash : i32, value : i32) {
     return hash * 31 + value
   }
 
-  list : i32 (values : i32[]) {
+  list :: i32 (values : i32[]) {
     hash : i32 = Checksum.seed
     for (i : i32 = 0; i < len(values); i = i + 1) {
       |> (values[i] < 0) { skip }
@@ -285,7 +293,7 @@ Checksum :: namespace {
   }
 }
 
-main : i32 () {
+main :: i32 () {
   values : i32[] = [4, 8, -1, 15, 16, 23, 42]
   Standard.IO.println("checksum={}", Checksum.list(values))
   return 0
@@ -294,7 +302,7 @@ main : i32 () {
 module tools.math
 
 MathTools :: namespace {
-  clamp : i32 (value : i32, lo : i32, hi : i32) {
+  clamp :: i32 (value : i32, lo : i32, hi : i32) {
     |> (value < lo) { return lo }
     |> (value > hi) { return hi }
     |> default { return value }
@@ -302,72 +310,69 @@ MathTools :: namespace {
 }
 
 // file: main.simple
+module app.main
+
 import Standard.IO
 import tools.math
 
-main : i32 () {
+main :: i32 () {
   score : i32 = MathTools.clamp(128, 0, 100)
   Standard.IO.println("score={}", score)
   return score
 }`,
-  typedCollections: `import Standard.IO
+  typedCollections: `module examples.collections
 
-Score :: artifact {
-  name : string
-  points : i32
-}
+import Standard.IO
 
-main : i32 () {
-  scores : Score[] = [
-    { .name = "Ada", .points = 14 },
-    { .name = "Lin", .points = 22 },
-    { .name = "Ken", .points = 18 }
-  ]
+main :: i32 () {
+  scores : i32[] = [14, 22, 18]
 
   best : i32 = 0
   for (i : i32 = 1; i < len(scores); i = i + 1) {
-    if (scores[i].points > scores[best].points) {
+    if (scores[i] > scores[best]) {
       best = i
     }
   }
 
-  winner : Score = scores[best]
-  Standard.IO.println("winner={} score={}", winner.name, winner.points)
-  return winner.points
+  Standard.IO.println("highest score")
+  Standard.IO.println(scores[best])
+  return scores[best]
 }`,
-  ffiBinding: `import System.FFI
+  ffiBinding: `module examples.ffi
+
+import System.FFI
 import Standard.IO
 
-Raylib :: namespace {
-  extern raylib.InitWindow : void (w : i32, h : i32, title : string)
-  extern raylib.WindowShouldClose : bool ()
-  extern raylib.BeginDrawing : void ()
-  extern raylib.ClearBackground : void (color : i32)
-  extern raylib.EndDrawing : void ()
-  extern raylib.CloseWindow : void ()
-}
+extern raylib.InitWindow : void (w : i32, h : i32, title : string)
+extern raylib.WindowShouldClose : bool ()
+extern raylib.BeginDrawing : void ()
+extern raylib.ClearBackground : void (color : i32)
+extern raylib.EndDrawing : void ()
+extern raylib.CloseWindow : void ()
 
-main : i32 () {
+main :: i32 () {
   lib : i64 = System.FFI.open("libraylib.so", raylib)
   if (lib == 0) {
     Standard.IO.println("raylib load failed: {}", System.FFI.lastError())
     return 1
   }
 
-  Raylib.InitWindow(800, 600, "Simple + raylib")
-  while (!Raylib.WindowShouldClose()) {
-    Raylib.BeginDrawing()
-    Raylib.ClearBackground(0)
-    Raylib.EndDrawing()
+  lib.InitWindow(800, 600, "Simple + raylib")
+  while (!lib.WindowShouldClose()) {
+    lib.BeginDrawing()
+    lib.ClearBackground(0)
+    lib.EndDrawing()
   }
-  Raylib.CloseWindow()
+  lib.CloseWindow()
   System.FFI.close(lib)
   return 0
 }`,
-  systemFs: `import System.FS
+  systemFs: `module examples.fs
+
+import System.FS
 import Standard.IO
 
-main : i32 () {
+main :: i32 () {
   path :: string = "simple.toml"
 
   if (!System.FS.exists(path)) {
@@ -380,25 +385,29 @@ main : i32 () {
   return 0
 }`,
   httpServer: `// WIP domain: Standard.HTTP
+module examples.http
+
 import Standard.HTTP
 import Standard.IO
 
-main : i32 () {
+main :: i32 () {
   server : Standard.HTTP.Server = Standard.HTTP.serve("127.0.0.1", 8080, handler)?
   Standard.IO.println("listening on http://127.0.0.1:8080")
   return server.wait()?
 }
 
-handler : Standard.HTTP.Response (request : Standard.HTTP.Request) {
+handler :: Standard.HTTP.Response (request : Standard.HTTP.Request) {
   if (request.path == "/health") {
     return Standard.HTTP.Response.text(200, "ok")
   }
   return Standard.HTTP.Response.json(200, Standard.Json.object({ "name": "Simple" }))
 }`,
   terminalLoop: `// WIP domain: Standard.Terminal
+module examples.terminal
+
 import Standard.Terminal
 
-main : i32 () {
+main :: i32 () {
   term : Standard.Terminal.Handle = Standard.Terminal.open()?
   Standard.Terminal.enterRaw(term)?
   Standard.Terminal.enterAltScreen(term)?
@@ -420,10 +429,12 @@ main : i32 () {
   return 0
 }`,
   asyncFlow: `// WIP domain: Standard.Promise / Standard.HTTP.async
+module examples.async
+
 import Standard.HTTP
 import Standard.IO
 
-main : i32 () {
+main :: i32 () {
   home : Promise<Standard.HTTP.Response> = Standard.HTTP.async.get("https://example.com")
   api : Promise<Standard.HTTP.Response> = Standard.HTTP.async.get("https://example.com/api")
 

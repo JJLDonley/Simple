@@ -1,56 +1,99 @@
-import System.FFI
+module raylib.platformer
+
 import Standard.IO
-import "raylib.simple"
+import raylib
 
 Player :: artifact {
-    position: Vector2
-    velocity: Vector2
-    size: Vector2
-    speed: f32
+  position : Vector2
+  velocity : Vector2
+  size : Vector2
+  moveSpeed : f32
+  jumpSpeed : f32
+  grounded : bool
 
-    Update: void () {
-        |> IsKeyDown(KeyboardKey.RIGHT) { self.velocity.x = self.speed } 
-        |> IsKeyDown(KeyboardKey.LEFT) { self.velocity.x = -self.speed }
-        |> default { self.velocity.x = 0.0 }
+  Update :: void () {
+    |> (IsKeyDown(KeyboardKey.RIGHT)) { self.velocity.x = self.moveSpeed }
+    |> (IsKeyDown(KeyboardKey.LEFT)) { self.velocity.x = -self.moveSpeed }
+    |> default { self.velocity.x = 0.0 }
 
-        |> IsKeyDown(KeyboardKey.DOWN) { self.velocity.y = self.speed } 
-        |> IsKeyDown(KeyboardKey.UP) { self.velocity.y = -self.speed }
-        |> default { self.velocity.y = 0.0 }
-
-        self.position.x += self.velocity.x
-        self.position.y += self.velocity.y
+    if (self.grounded && IsKeyPressed(KeyboardKey.SPACE)) {
+      self.velocity.y = self.jumpSpeed
+      self.grounded = false
     }
+
+    // Positive velocity moves up; gravity pulls it back down.
+    self.velocity.y -= 0.6
+    self.position.x += self.velocity.x
+    self.position.y -= self.velocity.y
+  }
+
+  CanLand :: bool (previousBottom : f32, platformPosition : Vector2, platformSize : Vector2) {
+    currentBottom :: f32 = self.position.y + self.size.y
+    overlapsX :: bool = self.position.x + self.size.x > platformPosition.x &&
+                       self.position.x < platformPosition.x + platformSize.x
+    return self.velocity.y <= 0.0 && overlapsX &&
+           previousBottom <= platformPosition.y && currentBottom >= platformPosition.y
+  }
+
+  Land :: void (platformY : f32) {
+    self.position.y = platformY - self.size.y
+    self.velocity.y = 0.0
+    self.grounded = true
+  }
 }
 
+screenWidth :: i32 = 960
+screenHeight :: i32 = 540
 
-main: i32 () {
-    if lib == 0 {
-        Standard.IO.println(System.FFI.lastError())
-        return 1
-    }
+floorPosition :: Vector2 = { 0.0, 500.0 }
+floorSize :: Vector2 = { 960.0, 40.0 }
+platformOnePosition :: Vector2 = { 130.0, 405.0 }
+platformOneSize :: Vector2 = { 190.0, 22.0 }
+platformTwoPosition :: Vector2 = { 390.0, 330.0 }
+platformTwoSize :: Vector2 = { 180.0, 22.0 }
+platformThreePosition :: Vector2 = { 680.0, 250.0 }
+platformThreeSize :: Vector2 = { 170.0, 22.0 }
 
-    player :: Player = {
-        .position = {0.0, 0.0},
-        .velocity = {0.0, 0.0},
-        .size = {100.0, 100.0},
-        .speed = 5.0
-    }
-
-    InitWindow(800, 600, "Hello Raylib from Simple!")
-    SetTargetFPS(60)
-    
-    while !WindowShouldClose() {
-        player.Update()
-        
-        BeginDrawing()
-        ClearBackground(BLACK)
-        DrawText("Hello, Raylib!", 190, 200, 20, WHITE)
-        DrawCircle(400, 300, 50.0, BLUE)
-        DrawRectangleV(player.position, player.size, RED)
-        DrawFPS(10, 10)
-        EndDrawing()
-    }
-
-    CloseWindow()
-
+player : Player = {
+  .position = { 60.0, 420.0 },
+  .velocity = { 0.0, 0.0 },
+  .size = { 42.0, 58.0 },
+  .moveSpeed = 5.0,
+  .jumpSpeed = 13.0,
+  .grounded = false
 }
+
+InitWindow(screenWidth, screenHeight, "Simple Platformer")
+SetTargetFPS(60)
+
+while (!WindowShouldClose()) {
+  previousBottom :: f32 = player.position.y + player.size.y
+  player.Update()
+  player.grounded = false
+
+  |> (player.CanLand(previousBottom, platformThreePosition, platformThreeSize)) {
+    player.Land(platformThreePosition.y)
+  }
+  |> (player.CanLand(previousBottom, platformTwoPosition, platformTwoSize)) {
+    player.Land(platformTwoPosition.y)
+  }
+  |> (player.CanLand(previousBottom, platformOnePosition, platformOneSize)) {
+    player.Land(platformOnePosition.y)
+  }
+  |> (player.CanLand(previousBottom, floorPosition, floorSize)) {
+    player.Land(floorPosition.y)
+  }
+  |> default {}
+
+  BeginDrawing()
+  ClearBackground(SKYBLUE)
+  DrawText("Arrow keys move, Space jumps", 24, 24, 20, DARKGRAY)
+  DrawRectangleV(floorPosition, floorSize, DARKGREEN)
+  DrawRectangleV(platformOnePosition, platformOneSize, BROWN)
+  DrawRectangleV(platformTwoPosition, platformTwoSize, BROWN)
+  DrawRectangleV(platformThreePosition, platformThreeSize, BROWN)
+  DrawRectangleV(player.position, player.size, RED)
+  EndDrawing()
+}
+
+CloseWindow()
