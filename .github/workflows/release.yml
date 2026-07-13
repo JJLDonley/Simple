@@ -58,17 +58,17 @@ jobs:
             script: ./scripts/build/macos.sh
             pkg_ext: tar.gz
             flavor: int
-            experimental: false
+            experimental: true
           - os: macos-latest
             script: ./scripts/build/macos.sh
             pkg_ext: tar.gz
             flavor: llvm
-            experimental: false
+            experimental: true
           - os: windows-latest
             script: ./scripts/build/windows.sh
             pkg_ext: zip
             flavor: int
-            experimental: false
+            experimental: true
           - os: windows-latest
             script: ./scripts/build/windows.sh
             pkg_ext: zip
