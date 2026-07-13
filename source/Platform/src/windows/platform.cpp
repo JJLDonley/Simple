@@ -113,6 +113,7 @@ bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error
     }
   }
   arguments.insert(arguments.end(), extra.begin(), extra.end());
+  if (!extra.empty()) arguments.push_back("ws2_32.lib");
   arguments.push_back("/Fe:" + request.output.string());
 
   if (std::getenv("SIMPLE_TEST_TRACE")) {
