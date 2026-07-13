@@ -175,7 +175,7 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
   if (!fs::exists(runtime_lib)) {
     if (error) {
       *error = std::string("missing runtime library: ") + runtime_lib.string() +
-               " (rebuild with ./build.sh or reinstall simple runtime)";
+               " (rebuild with scripts/build/local.sh or reinstall simple runtime)";
     }
     return false;
   }

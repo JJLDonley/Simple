@@ -164,21 +164,26 @@ cmake/Platform.cmake
 cmake/platform/Linux.cmake
 cmake/platform/macOS.cmake
 cmake/platform/Windows.cmake
+scripts/build/local.sh
 scripts/build/linux.sh
 scripts/build/macos.sh
 scripts/build/windows.sh
+scripts/build/windows.bat
+scripts/install/unix.sh
+scripts/install/windows.bat
+scripts/editor/rebuild_vscode_lsp_package.sh
 ```
 
-The root `build_linux`, `build_macos`, and `build_windows` commands remain small compatibility
-wrappers. CI invokes the scripts under `scripts/build/` directly. Common language, VM, and runtime
-sources are shared; platform files own dependency discovery, runtime-library naming, and packaging.
+The repository root contains project metadata only; build and install entry points live under
+`scripts/`. CI invokes the platform scripts directly. Common language, VM, and runtime sources are
+shared; platform files own dependency discovery, runtime-library naming, and packaging.
 
 ### Build from source
 
 Interpreter build on Linux/macOS:
 
 ```bash
-./build.sh
+./scripts/build/local.sh
 ```
 
 LLVM JIT build:
@@ -198,7 +203,7 @@ cmake -S . -B build -DSIMPLEVM_ENABLE_LLVM_JIT=ON \
 Windows interpreter build:
 
 ```bat
-build.bat
+scripts\build\windows.bat
 ```
 
 Build output:
@@ -215,26 +220,26 @@ Build internals, tests, static libraries, and shared libraries live under `build
 Linux/macOS:
 
 ```bash
-./install.sh
+./scripts/install/unix.sh
 ```
 
-Custom prefix:
+Custom binary directory:
 
 ```bash
-PREFIX="$HOME/.local" ./install.sh
+BINDIR="$HOME/.local/bin" ./scripts/install/unix.sh
 ```
 
 Windows:
 
 ```bat
-install.bat
+scripts\install\windows.bat
 ```
 
 Custom Windows install directory:
 
 ```bat
 set SIMPLE_INSTALL_DIR=C:\Tools\Simple\bin
-install.bat
+scripts\install\windows.bat
 ```
 
 After install, use `svm` directly:

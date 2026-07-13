@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [[ "$(uname -s)" != "Linux" ]]; then
-  echo "build_linux can only run on Linux hosts." >&2
+  echo "scripts/build/linux.sh can only run on Linux hosts." >&2
   exit 1
 fi
 
@@ -116,6 +116,6 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
   ln -sfn "${PREFIX}/current/bin/simple" "${BIN_DIR}/simple"
 fi
 
-echo "build_linux complete"
+echo "Linux build complete"
 echo "target: $TARGET"
 echo "version: $VERSION"

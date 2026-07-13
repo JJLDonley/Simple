@@ -2,7 +2,7 @@
 
 Build:
 ```
-./build.sh
+./scripts/build/local.sh
 ```
 
 Freeze Status (v0.1):
@@ -15,14 +15,9 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Build (Windows PowerShell):
-```
-./build.ps1
-```
-
 Build (Windows cmd):
 ```
-build.bat
+scripts\build\windows.bat
 ```
 
 Run:

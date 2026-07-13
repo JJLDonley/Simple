@@ -20,7 +20,8 @@ The same command implementation supports different compatibility modes by execut
 - `svm`: the compiler/tooling/runtime command. It owns `run`, `check`, `build`, `compile`, `emit`, and `lsp`.
 - `simple`: runtime-stub name only. It is not a compiler and does not expose compiler commands.
 
-The root `bin/` directory should contain only these two files after `./build.sh` or `build.bat`.
+The root `bin/` directory should contain only these two files after
+`./scripts/build/local.sh` or `scripts\build\windows.bat`.
 
 ## Common options
 
@@ -93,14 +94,14 @@ When compiling `.simple`, the CLI resolves local imports, project-root imports, 
 
 ## Build scripts
 
-Use the root scripts for local builds:
+Use the platform scripts for local builds:
 
 ```bash
-./build.sh
+./scripts/build/local.sh
 ```
 
 ```bat
-build.bat
+scripts\build\windows.bat
 ```
 
 They build the CMake `simplevm` compiler target and `simple_stub` runtime target, then publish only `bin/svm` plus `bin/simple` at the repository root. The maintained CMake build tree is `Compiler/build`; stale alternate build trees such as `build-llvm` or `build-lsp` should not be kept.

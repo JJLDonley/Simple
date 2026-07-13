@@ -1,10 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set ROOT_DIR=%~dp0
+for %%I in ("%~dp0..\..") do set "ROOT_DIR=%%~fI\"
 if "%SIMPLE_INSTALL_DIR%"=="" set SIMPLE_INSTALL_DIR=%LocalAppData%\Simple\bin
 
-call "%ROOT_DIR%build.bat"
+call "%ROOT_DIR%scripts\build\windows.bat"
 if errorlevel 1 exit /b %errorlevel%
 
 if not exist "%SIMPLE_INSTALL_DIR%" mkdir "%SIMPLE_INSTALL_DIR%"

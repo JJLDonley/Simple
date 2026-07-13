@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*) ;;
   *)
-    echo "build_windows can only run on Windows hosts (Git Bash/MSYS/Cygwin)." >&2
+    echo "scripts/build/windows.sh can only run on Windows hosts (Git Bash/MSYS/Cygwin)." >&2
     exit 1
     ;;
 esac
@@ -160,6 +160,6 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
   fi
 fi
 
-echo "build_windows complete"
+echo "Windows build complete"
 echo "target: $TARGET"
 echo "version: $VERSION"

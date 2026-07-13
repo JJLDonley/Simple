@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
 CONFIG="${CONFIG:-Release}"
 JOBS="${JOBS:-2}"
@@ -10,7 +10,7 @@ LLVM_JIT="${SIMPLEVM_ENABLE_LLVM_JIT:-${LLVM_JIT:-OFF}}"
 
 usage() {
   cat <<EOF
-usage: install.sh [options]
+usage: ./scripts/install/unix.sh [options]
 
 Build Simple, copy binaries to Compiler/bin, then install them to ~/.local/bin.
 
@@ -27,8 +27,8 @@ Environment:
   JOBS=2
   BINDIR=$HOME/.local/bin
   SIMPLEVM_ENABLE_LLVM_JIT=ON|OFF
-  LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm
-  CC=clang-22 CXX=clang++-22
+  LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
+  CC=clang-18 CXX=clang++-18
 EOF
 }
 
@@ -75,17 +75,17 @@ configure_args=(
 )
 
 if [[ "$LLVM_JIT" == "ON" ]]; then
-  if [[ -z "${LLVM_DIR:-}" && -d /usr/lib/llvm-22/lib/cmake/llvm ]]; then
-    export LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm
+  if [[ -z "${LLVM_DIR:-}" && -d /usr/lib/llvm-18/lib/cmake/llvm ]]; then
+    export LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
   fi
   if [[ -n "${LLVM_DIR:-}" ]]; then
     configure_args+=(-DLLVM_DIR="$LLVM_DIR")
   fi
-  if [[ -z "${CC:-}" ]] && command -v clang-22 >/dev/null 2>&1; then
-    export CC=clang-22
+  if [[ -z "${CC:-}" ]] && command -v clang-18 >/dev/null 2>&1; then
+    export CC=clang-18
   fi
-  if [[ -z "${CXX:-}" ]] && command -v clang++-22 >/dev/null 2>&1; then
-    export CXX=clang++-22
+  if [[ -z "${CXX:-}" ]] && command -v clang++-18 >/dev/null 2>&1; then
+    export CXX=clang++-18
   fi
   if [[ -n "${CC:-}" ]]; then
     configure_args+=(-DCMAKE_C_COMPILER="$CC")

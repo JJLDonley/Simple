@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "build_macos can only run on macOS hosts." >&2
+  echo "scripts/build/macos.sh can only run on macOS hosts." >&2
   exit 1
 fi
 
@@ -124,6 +124,6 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
   ln -sfn "${PREFIX}/current/bin/simple" "${BIN_DIR}/simple"
 fi
 
-echo "build_macos complete"
+echo "macOS build complete"
 echo "target: $TARGET"
 echo "version: $VERSION"
