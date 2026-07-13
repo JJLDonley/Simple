@@ -6,7 +6,7 @@
     {
       "name": "llvm",
       "default-features": false,
-      "features": ["core", "target-x86"]
+      "features": ["target-x86"]
     }
   ]
 }
