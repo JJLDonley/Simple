@@ -15,7 +15,7 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool LspUsesSharedRastSourceImportLoader() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_lsp_source_import_loader_test";
+  const auto dir = TestTempPath("simple_lsp_source_import_loader_test");
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "dep.simple");
@@ -34,7 +34,7 @@ bool LspUsesSharedRastSourceImportLoader() {
 }
 
 bool LspUsesSharedRastSimpleFileIndex() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_lsp_import_index_test";
+  const auto dir = TestTempPath("simple_lsp_import_index_test");
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "LspThing.simple");
@@ -88,7 +88,7 @@ bool RunCommand(const LspCommand& command) {
 }
 
 std::string TempPath(const std::string& name) {
-  return CliTempPath(name).string();
+  return TestTempPath(name).string();
 }
 
 std::string FileUri(const std::filesystem::path& path) {
@@ -284,7 +284,7 @@ bool LspDidOpenEmptyDocumentClearsDiagnostics() {
 
 bool LspDidOpenResolvesLocalFileImport() {
   namespace fs = std::filesystem;
-  const fs::path base_dir = fs::temp_directory_path() / "simple_lsp_local_import_case";
+  const fs::path base_dir = TestTempPath("simple_lsp_local_import_case");
   std::error_code ec;
   fs::create_directories(base_dir, ec);
 
@@ -3332,7 +3332,7 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
 
 bool LspCodeActionCreatesMissingImportFile() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_missing_import_action_test";
+  const auto dir = TestTempPath("simple_lsp_missing_import_action_test");
   fs::create_directories(dir);
   const auto main_path = dir / "main.simple";
   const auto missing_path = dir / "missing.simple";
@@ -3530,7 +3530,7 @@ bool LspSelectionRangeReturnsNestedRanges() {
 
 bool LspDocumentLinkResolvesLocalImports() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_doclink_test";
+  const auto dir = TestTempPath("simple_lsp_doclink_test");
   fs::create_directories(dir);
   const auto main_path = dir / "main.simple";
   const auto dep_path = dir / "dep.simple";
@@ -3560,7 +3560,7 @@ bool LspDocumentLinkResolvesLocalImports() {
 
 bool LspDocumentLinkResolvesModuleHeaderImports() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_doclink_module_test";
+  const auto dir = TestTempPath("simple_lsp_doclink_module_test");
   fs::create_directories(dir);
   const auto main_path = dir / "main.simple";
   const auto dep_path = dir / "dep.simple";
@@ -3608,7 +3608,7 @@ bool LspDocumentLinkResolvesReservedImportDocs() {
 
 bool LspDocumentLinkResolvesModuleMapEntries() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_doclink_module_map_test";
+  const auto dir = TestTempPath("simple_lsp_doclink_module_map_test");
   fs::create_directories(dir / "src");
   const auto map_path = dir / "simple.modules";
   const auto target_path = dir / "src" / "thing.simple";
@@ -3639,7 +3639,7 @@ bool LspDocumentLinkResolvesModuleMapEntries() {
 
 bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_test";
+  const auto dir = TestTempPath("simple_lsp_workspace_symbols_test");
   fs::create_directories(dir);
   const auto main_path = dir / "main.simple";
   const auto sibling_path = dir / "sibling.simple";
@@ -3669,7 +3669,7 @@ bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
 
 bool LspWorkspaceSymbolsIndexNestedSimpleFiles() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_nested_test";
+  const auto dir = TestTempPath("simple_lsp_workspace_symbols_nested_test");
   const auto nested_dir = dir / "nested" / "deeper";
   fs::create_directories(nested_dir);
   const auto main_path = dir / "main.simple";
@@ -3700,8 +3700,8 @@ bool LspWorkspaceSymbolsIndexNestedSimpleFiles() {
 
 bool LspWorkspaceSymbolsIndexModuleMapFiles() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_module_map_test";
-  const auto external_dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_module_map_external";
+  const auto dir = TestTempPath("simple_lsp_workspace_symbols_module_map_test");
+  const auto external_dir = TestTempPath("simple_lsp_workspace_symbols_module_map_external");
   fs::create_directories(dir);
   fs::create_directories(external_dir);
   const auto main_path = dir / "main.simple";
@@ -3738,7 +3738,7 @@ bool LspWorkspaceSymbolsIndexModuleMapFiles() {
 
 bool LspReferencesIndexSiblingSimpleFiles() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_references_files_test";
+  const auto dir = TestTempPath("simple_lsp_references_files_test");
   fs::create_directories(dir);
   const auto main_path = dir / "main.simple";
   const auto sibling_path = dir / "sibling.simple";
@@ -3854,7 +3854,7 @@ bool LspCallHierarchyReturnsFunctionCalls() {
 
 bool LspCallHierarchyIndexesWorkspaceFiles() {
   namespace fs = std::filesystem;
-  const auto dir = fs::temp_directory_path() / "simple_lsp_call_hierarchy_workspace_test";
+  const auto dir = TestTempPath("simple_lsp_call_hierarchy_workspace_test");
   const auto nested_dir = dir / "nested";
   fs::create_directories(nested_dir);
   const auto main_path = dir / "main.simple";

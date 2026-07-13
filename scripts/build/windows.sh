@@ -105,7 +105,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   if [[ "$RUN_TESTS" -eq 1 ]]; then
     cmake --build "$BUILD_DIR" --config Release --target simplevm_tests --parallel "${JOBS:-2}"
     test_exe="$(find_exe simplevm_tests)"
-    SIMPLE_TEST_TRACE=1 "$test_exe"
+    "$test_exe"
   fi
 fi
 

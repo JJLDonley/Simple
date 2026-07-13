@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -16,6 +18,11 @@ const char* OperatingSystemName();
 const char* ArchitectureName();
 const char* SharedLibraryExtension();
 const char* StaticLibraryExtension();
+char PathListDelimiter();
+int32_t CurrentProcessId();
+int64_t MemoryPageSize();
+bool UtcTime(std::time_t value, std::tm* out);
+std::FILE* OpenFile(const std::string& path, const char* mode);
 
 std::string ExecutablePath(const char* argv0 = nullptr);
 std::filesystem::path TempDirectory();

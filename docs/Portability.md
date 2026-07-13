@@ -7,8 +7,9 @@ Simple separates portable compiler/VM code from host integration under
 
 Portable code uses `platform/platform.h` for:
 
-- host OS and architecture identification;
+- host OS, architecture, process, and memory-page identification;
 - executable and temporary-directory discovery;
+- path-list delimiters, UTC conversion, and host-safe file opening;
 - environment access;
 - dynamic-library loading;
 - native runner compilation.

@@ -13,7 +13,7 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool CliCompileSvmDefaultsToExeAndInfersSimpleExt() {
-  const auto out_path = CliTempExecutablePath("svm_compile_hello_exec");
+  const auto out_path = TestTempExecutablePath("svm_compile_hello_exec");
   if (RunCliSvm({"compile", "tests/simple/hello", "--out", out_path.string()}) != 0) return false;
   const bool ok = RunProcess(out_path, {}) == 0;
   std::filesystem::remove(out_path);
@@ -21,7 +21,7 @@ bool CliCompileSvmDefaultsToExeAndInfersSimpleExt() {
 }
 
 bool CliCompileSvmOutSbcStaysBytecode() {
-  const auto out_path = CliTempPath("svm_compile_hello.sbc");
+  const auto out_path = TestTempPath("svm_compile_hello.sbc");
   if (RunCliSvm({"compile", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
@@ -31,11 +31,12 @@ bool CliCompileSvmOutSbcStaysBytecode() {
 }
 
 bool CliBuildDynamicExe() {
-  const auto out_path = CliTempExecutablePath("simple_build_hello_exec");
+  const auto out_path = TestTempExecutablePath("simple_build_hello_exec");
   if (RunCliSvm({"build", "-d", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   if (RunProcess(out_path, {}) != 0) return false;
 #if defined(__linux__)
-  const std::string deps = RunCliCaptureStdout("ldd " + out_path.string(), "simple_cli_build_stdout.txt");
+  const std::string deps = RunProcessCaptureStdout(
+      "ldd", {out_path.string()}, "simple_cli_build_stdout.txt");
   if (deps.empty()) return false;
   if (deps.find("libsimplevm_runtime.so") == std::string::npos) return false;
 #endif
@@ -44,11 +45,12 @@ bool CliBuildDynamicExe() {
 }
 
 bool CliBuildStaticExe() {
-  const auto out_path = CliTempExecutablePath("simple_build_hello_exec_static");
+  const auto out_path = TestTempExecutablePath("simple_build_hello_exec_static");
   if (RunCliSvm({"build", "-s", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   if (RunProcess(out_path, {}) != 0) return false;
 #if defined(__linux__)
-  const std::string deps = RunCliCaptureStdout("ldd " + out_path.string(), "simple_cli_build_stdout.txt");
+  const std::string deps = RunProcessCaptureStdout(
+      "ldd", {out_path.string()}, "simple_cli_build_stdout.txt");
   if (deps.empty()) return false;
   if (deps.find("libsimplevm_runtime.so") != std::string::npos) return false;
 #endif
@@ -57,7 +59,7 @@ bool CliBuildStaticExe() {
 }
 
 bool CliBuildEmitIr() {
-  const auto out_path = CliTempPath("simple_cli_emit_ir.sir");
+  const auto out_path = TestTempPath("simple_cli_emit_ir.sir");
   if (RunCliSvm({"emit", "-ir", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path);
   if (!in) return false;
@@ -68,7 +70,7 @@ bool CliBuildEmitIr() {
 }
 
 bool CliBuildEmitSbc() {
-  const auto out_path = CliTempPath("simple_cli_emit_sbc.sbc");
+  const auto out_path = TestTempPath("simple_cli_emit_sbc.sbc");
   if (RunCliSvm({"emit", "-sbc", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
@@ -90,7 +92,7 @@ bool CliBuildCheckSbc() {
 }
 
 bool CliBuildSimpleToSbc() {
-  const auto out_path = CliTempPath("simple_cli_build_hello.sbc");
+  const auto out_path = TestTempPath("simple_cli_build_hello.sbc");
   if (RunCliSvm({"build", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
@@ -100,7 +102,7 @@ bool CliBuildSimpleToSbc() {
 }
 
 bool CliSplitBuildWritesEmbeddedRunner() {
-  const auto path = std::filesystem::temp_directory_path() / "simple_cli_embedded_runner_test.cpp";
+  const auto path = TestTempPath("simple_cli_embedded_runner_test.cpp");
   std::string error;
   const bool ok = Simple::CLI::WriteEmbeddedRunner(path.string(), {0x01, 0x02, 0x03}, &error);
   std::ifstream in(path);

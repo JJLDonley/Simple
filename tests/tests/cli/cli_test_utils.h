@@ -6,8 +6,6 @@
 
 namespace Simple::VM::Tests {
 
-std::filesystem::path CliTempPath(const std::string& name);
-std::filesystem::path CliTempExecutablePath(const std::string& name);
 std::string CliToolPath(const std::string& name);
 int RunProcess(const std::filesystem::path& executable,
                const std::vector<std::string>& arguments,
@@ -25,9 +23,9 @@ bool RunCliSvmQuiet(const std::vector<std::string>& arguments);
 std::string RunCliSvmCaptureStderr(const std::vector<std::string>& arguments,
                                    const std::string& temp_name,
                                    int* out_exit_code = nullptr);
-int CliExitCodeFromSystemResult(int result);
-std::string RunCliCaptureStdout(const std::string& command,
-                                const std::string& temp_name,
-                                int* out_exit_code = nullptr);
+std::string RunProcessCaptureStdout(const std::filesystem::path& executable,
+                                    const std::vector<std::string>& arguments,
+                                    const std::string& temp_name,
+                                    int* out_exit_code = nullptr);
 
 } // namespace Simple::VM::Tests

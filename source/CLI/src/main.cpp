@@ -10,9 +10,6 @@
 #include <cctype>
 #include <vector>
 #include <unordered_set>
-#if defined(__linux__)
-#include <unistd.h>
-#endif
 
 #include "ir_compiler.h"
 #include "ir_lang.h"

@@ -1,52 +1,29 @@
 #include "platform/platform.h"
+#include "../common/posix_process.h"
 
-#include <cctype>
 #include <cstdlib>
 #include <dlfcn.h>
-#include <sys/wait.h>
 #include <unistd.h>
-#include <utility>
 #include <vector>
 
 namespace Simple::Platform {
 namespace {
 void SetError(std::string* error, const std::string& value) { if (error) *error = value; }
-std::vector<std::string> SplitArguments(const std::string& text) {
-  std::vector<std::string> arguments;
-  std::string current;
-  bool quoted = false;
-  for (char c : text) {
-    if (c == '"' || c == '\'') quoted = !quoted;
-    else if (std::isspace(static_cast<unsigned char>(c)) && !quoted) {
-      if (!current.empty()) { arguments.push_back(std::move(current)); current.clear(); }
-    } else current += c;
-  }
-  if (!current.empty()) arguments.push_back(std::move(current));
-  return arguments;
-}
-
-int RunProcess(const std::vector<std::string>& arguments) {
-  if (arguments.empty()) return -1;
-  const pid_t child = fork();
-  if (child < 0) return -1;
-  if (child == 0) {
-    std::vector<char*> argv;
-    argv.reserve(arguments.size() + 1);
-    for (const auto& argument : arguments) argv.push_back(const_cast<char*>(argument.c_str()));
-    argv.push_back(nullptr);
-    execvp(argv[0], argv.data());
-    _exit(127);
-  }
-  int status = 0;
-  if (waitpid(child, &status, 0) < 0) return -1;
-  return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-}
 }
 
 OperatingSystem HostOperatingSystem() { return OperatingSystem::Linux; }
 const char* OperatingSystemName() { return "linux"; }
 const char* SharedLibraryExtension() { return ".so"; }
 const char* StaticLibraryExtension() { return ".a"; }
+char PathListDelimiter() { return ':'; }
+int32_t CurrentProcessId() { return static_cast<int32_t>(getpid()); }
+int64_t MemoryPageSize() { return static_cast<int64_t>(sysconf(_SC_PAGESIZE)); }
+bool UtcTime(std::time_t value, std::tm* out) {
+  return out && gmtime_r(&value, out) != nullptr;
+}
+std::FILE* OpenFile(const std::string& path, const char* mode) {
+  return std::fopen(path.c_str(), mode);
+}
 
 std::string ExecutablePath(const char* argv0) {
   char buffer[4096];
@@ -91,17 +68,18 @@ bool CloseDynamicLibrary(int64_t handle, std::string* error) {
 
 bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error) {
   const char* configured = std::getenv("CXX");
-  std::vector<std::string> arguments = SplitArguments(configured && *configured ? configured : "c++");
+  std::vector<std::string> arguments =
+      Posix::SplitArguments(configured && *configured ? configured : "c++");
   arguments.insert(arguments.end(), {"-std=c++17", "-O2", "-Wall", "-Wextra"});
   for (const auto& include : request.include_dirs) arguments.push_back("-I" + include.string());
   arguments.push_back(request.source.string());
   for (const auto& library : request.libraries) arguments.push_back(library.string());
   if (request.dynamic_runtime) arguments.push_back("-Wl,-rpath," + request.runtime_library_dir.string());
   arguments.insert(arguments.end(), {"-ldl", "-lffi"});
-  auto extra = SplitArguments(request.extra_link_flags);
+  auto extra = Posix::SplitArguments(request.extra_link_flags);
   arguments.insert(arguments.end(), extra.begin(), extra.end());
   arguments.insert(arguments.end(), {"-o", request.output.string()});
-  if (RunProcess(arguments) == 0) return true;
+  if (Posix::RunProcess(arguments) == 0) return true;
   SetError(error, "failed to compile embedded executable with the Linux C++ toolchain");
   return false;
 }

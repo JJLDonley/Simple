@@ -5,23 +5,13 @@
 #include "native/spec_builder.h"
 #include "native/thread.h"
 #include "native/time.h"
+#include "platform/platform.h"
 
 #include <cstdlib>
 #include <string>
 #include <thread>
 #include <utility>
 
-#if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#ifdef Yield
-#undef Yield
-#endif
-#else
-#include <unistd.h>
-#endif
 
 namespace Simple::VM::Native {
 namespace {
@@ -85,35 +75,22 @@ NativeCallResult OsArch(NativeCallContext&) {
 }
 
 NativeCallResult OsIsLinux(NativeCallContext&) {
-#if defined(__linux__)
-  return NativeCallResult::Bool(true);
-#else
-  return NativeCallResult::Bool(false);
-#endif
+  return NativeCallResult::Bool(
+      Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::Linux);
 }
 
 NativeCallResult OsIsMacos(NativeCallContext&) {
-#if defined(__APPLE__)
-  return NativeCallResult::Bool(true);
-#else
-  return NativeCallResult::Bool(false);
-#endif
+  return NativeCallResult::Bool(
+      Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::macOS);
 }
 
 NativeCallResult OsIsWindows(NativeCallContext&) {
-#if defined(_WIN32)
-  return NativeCallResult::Bool(true);
-#else
-  return NativeCallResult::Bool(false);
-#endif
+  return NativeCallResult::Bool(
+      Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::Windows);
 }
 
 NativeCallResult OsPid(NativeCallContext&) {
-#if defined(_WIN32)
-  return NativeCallResult::I32(static_cast<int32_t>(GetCurrentProcessId()));
-#else
-  return NativeCallResult::I32(static_cast<int32_t>(getpid()));
-#endif
+  return NativeCallResult::I32(Simple::Platform::CurrentProcessId());
 }
 
 NativeCallResult OsCpuCount(NativeCallContext&) {
@@ -121,13 +98,7 @@ NativeCallResult OsCpuCount(NativeCallContext&) {
 }
 
 NativeCallResult OsPageSize(NativeCallContext&) {
-#if defined(_WIN32)
-  SYSTEM_INFO info{};
-  GetSystemInfo(&info);
-  return NativeCallResult::I32(static_cast<int32_t>(info.dwPageSize));
-#else
-  return NativeCallResult::I32(static_cast<int32_t>(sysconf(_SC_PAGESIZE)));
-#endif
+  return NativeCallResult::I32(static_cast<int32_t>(Simple::Platform::MemoryPageSize()));
 }
 
 NativeCallResult OsExit(NativeCallContext& context) {

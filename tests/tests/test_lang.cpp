@@ -2535,7 +2535,7 @@ bool LangRejectUnimplementedStandardDuplicateRootMembers() {
 
 bool LangValidateNamespaceExternManifestAndCall() {
   namespace fs = std::filesystem;
-  const fs::path dir = fs::temp_directory_path() / "simple_ns_extern_manifest_test";
+  const fs::path dir = TestTempPath("simple_ns_extern_manifest_test");
   std::error_code ec;
   fs::remove_all(dir, ec);
   fs::create_directories(dir, ec);

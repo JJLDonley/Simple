@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,9 @@ struct TestResult {
   size_t total = 0;
   size_t failed = 0;
 };
+
+std::filesystem::path TestTempPath(const std::string& name);
+std::filesystem::path TestTempExecutablePath(const std::string& name);
 
 void SetEnvVar(const std::string& name, const std::string& value);
 void UnsetEnvVar(const std::string& name);

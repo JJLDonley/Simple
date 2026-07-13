@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iterator>
 
+#include "platform/platform.h"
+
 namespace Simple::VM::Native::Fs {
 
 bool ReadText(const std::string& path, std::string* out) {
@@ -94,13 +96,7 @@ bool Cwd(std::string* out) {
 }
 
 std::FILE* OpenFile(const std::string& path, const char* mode) {
-#if defined(_WIN32)
-  std::FILE* file = nullptr;
-  if (fopen_s(&file, path.c_str(), mode) != 0) return nullptr;
-  return file;
-#else
-  return std::fopen(path.c_str(), mode);
-#endif
+  return Simple::Platform::OpenFile(path, mode);
 }
 
 } // namespace Simple::VM::Native::Fs

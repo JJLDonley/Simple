@@ -2,6 +2,8 @@
 
 #include <filesystem>
 
+#include "platform/platform.h"
+
 namespace Simple::VM::Native::Path {
 
 std::string Separator() {
@@ -9,11 +11,7 @@ std::string Separator() {
 }
 
 std::string Delimiter() {
-#if defined(_WIN32)
-  return ";";
-#else
-  return ":";
-#endif
+  return std::string(1, Simple::Platform::PathListDelimiter());
 }
 
 bool IsAbsolute(const std::string& value) {

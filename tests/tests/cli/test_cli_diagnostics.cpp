@@ -64,7 +64,7 @@ bool CliMissingInputDiagnostics() {
   std::string stderr_text = RunCliDiagnosticsCaptureStderr({"check"}, &exit_code);
   if (exit_code != 1 || stderr_text.find("error[E8001]: missing input file") != 0) return false;
 
-  const auto missing_path = CliTempPath("simple_missing_input_contract.simple");
+  const auto missing_path = TestTempPath("simple_missing_input_contract.simple");
   std::filesystem::remove(missing_path);
   stderr_text = RunCliDiagnosticsCaptureStderr(
       {"check", missing_path.string()}, &exit_code);

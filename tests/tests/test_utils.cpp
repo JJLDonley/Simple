@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 
 #include "ir_compiler.h"
@@ -16,6 +17,47 @@
 #include "vm.h"
 
 namespace Simple::VM::Tests {
+namespace {
+
+struct TempDirectory {
+  std::filesystem::path path;
+
+  TempDirectory() {
+    const auto seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto base = std::filesystem::temp_directory_path();
+    for (uint32_t attempt = 0; attempt < 100; ++attempt) {
+      path = base / ("simplevm_tests_" + std::to_string(seed) + "_" +
+                     std::to_string(attempt));
+      std::error_code error;
+      if (std::filesystem::create_directory(path, error)) return;
+    }
+    path = base;
+  }
+
+  ~TempDirectory() {
+    std::error_code error;
+    if (path != std::filesystem::temp_directory_path()) {
+      std::filesystem::remove_all(path, error);
+    }
+  }
+};
+
+const std::filesystem::path& TestTempDirectory() {
+  static const TempDirectory directory;
+  return directory.path;
+}
+
+} // namespace
+
+std::filesystem::path TestTempPath(const std::string& name) {
+  return TestTempDirectory() / name;
+}
+
+std::filesystem::path TestTempExecutablePath(const std::string& name) {
+  return Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::Windows
+             ? TestTempPath(name + ".exe")
+             : TestTempPath(name);
+}
 
 using Simple::Byte::sbc::AppendU32;
 using Simple::Byte::sbc::AppendU64;
@@ -284,18 +326,12 @@ bool RunSirTextExpectExit(const std::string& sir, int32_t expected) {
 
 TestResult RunSection(const TestSection& section) {
   std::cout << "section: " << section.name << " (" << section.count << " tests)\n";
-  std::string trace_value;
-  const bool trace = Simple::Platform::GetEnvironment("SIMPLE_TEST_TRACE", &trace_value) &&
-                     !trace_value.empty() && trace_value[0] != '0';
   size_t failed = 0;
   for (size_t i = 0; i < section.count; ++i) {
     const TestCase& test = section.tests[i];
-    if (trace) std::cout << "[ RUN      ] " << test.name << "\n";
     if (!test.fn()) {
       ++failed;
       std::cerr << "[  FAILED  ] " << test.name << "\n";
-    } else if (trace) {
-      std::cout << "[       OK ] " << test.name << "\n";
     }
   }
   std::cout << "section result: " << section.name << " "

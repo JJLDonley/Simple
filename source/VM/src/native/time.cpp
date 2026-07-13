@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <sstream>
 
+#include "platform/platform.h"
+
 namespace Simple::VM::Native::Time {
 
 int64_t MonotonicNs() {
@@ -27,11 +29,7 @@ std::string FormatWallNsUtc(int64_t ns) {
   }
   std::time_t tt = static_cast<std::time_t>(sec);
   std::tm tm{};
-#if defined(_WIN32)
-  gmtime_s(&tm, &tt);
-#else
-  gmtime_r(&tt, &tm);
-#endif
+  if (!Simple::Platform::UtcTime(tt, &tm)) return {};
   std::ostringstream oss;
   oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S") << '.'
       << std::setw(9) << std::setfill('0') << frac << 'Z';

@@ -1,9 +1,6 @@
 #include "cli/cli_test_utils.h"
+#include "test_utils.h"
 
-#include <chrono>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -20,58 +17,6 @@
 #endif
 
 namespace Simple::VM::Tests {
-namespace {
-
-std::string WrapSystemCommand(const std::string& command) {
-#ifdef _WIN32
-  // cmd.exe requires an outer quote when the executable path is quoted.
-  return "\"" + command + "\"";
-#else
-  return command;
-#endif
-}
-
-struct TempDirectory {
-  std::filesystem::path path;
-
-  TempDirectory() {
-    const auto seed = std::chrono::steady_clock::now().time_since_epoch().count();
-    const auto base = std::filesystem::temp_directory_path();
-    for (uint32_t attempt = 0; attempt < 100; ++attempt) {
-      path = base / ("simplevm_tests_" + std::to_string(seed) + "_" +
-                     std::to_string(attempt));
-      std::error_code error;
-      if (std::filesystem::create_directory(path, error)) return;
-    }
-    path = base;
-  }
-
-  ~TempDirectory() {
-    std::error_code error;
-    if (path != std::filesystem::temp_directory_path()) {
-      std::filesystem::remove_all(path, error);
-    }
-  }
-};
-
-const std::filesystem::path& TestTempDirectory() {
-  static const TempDirectory directory;
-  return directory.path;
-}
-
-} // namespace
-
-std::filesystem::path CliTempPath(const std::string& name) {
-  return TestTempDirectory() / name;
-}
-
-std::filesystem::path CliTempExecutablePath(const std::string& name) {
-#ifdef _WIN32
-  return CliTempPath(name + ".exe");
-#else
-  return CliTempPath(name);
-#endif
-}
 
 std::string CliToolPath(const std::string& name) {
   std::string executable = name;
@@ -88,7 +33,10 @@ int RunProcess(const std::filesystem::path& executable_path,
                const std::filesystem::path& stdin_path,
                const std::filesystem::path& stdout_path,
                const std::filesystem::path& stderr_path) {
-  const std::string executable = std::filesystem::absolute(executable_path).string();
+  const bool search_path = !executable_path.has_parent_path();
+  const std::string executable = search_path
+                                     ? executable_path.string()
+                                     : std::filesystem::absolute(executable_path).string();
 #ifdef _WIN32
   auto quote_argument = [](const std::wstring& argument) {
     std::wstring quoted = L"\"";
@@ -148,8 +96,9 @@ int RunProcess(const std::filesystem::path& executable_path,
                              startup.hStdError != INVALID_HANDLE_VALUE;
   PROCESS_INFORMATION process{};
   const BOOL created = valid_handles
-                           ? CreateProcessW(executable_wide.c_str(), mutable_command.data(),
-                                            nullptr, nullptr, TRUE, 0, nullptr, nullptr,
+                           ? CreateProcessW(search_path ? nullptr : executable_wide.c_str(),
+                                            mutable_command.data(), nullptr, nullptr, TRUE, 0,
+                                            nullptr, nullptr,
                                             &startup, &process)
                            : FALSE;
   int result = -1;
@@ -185,12 +134,15 @@ int RunProcess(const std::filesystem::path& executable_path,
     argv.push_back(const_cast<char*>(executable.c_str()));
     for (const auto& argument : arguments) argv.push_back(const_cast<char*>(argument.c_str()));
     argv.push_back(nullptr);
-    execv(executable.c_str(), argv.data());
+    if (search_path) execvp(executable.c_str(), argv.data());
+    else execv(executable.c_str(), argv.data());
     _exit(127);
   }
   int status = 0;
   if (waitpid(child, &status, 0) < 0) return -1;
-  return CliExitCodeFromSystemResult(status);
+  if (WIFEXITED(status)) return WEXITSTATUS(status);
+  if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+  return status;
 #endif
 }
 
@@ -199,8 +151,8 @@ int RunCliTool(const std::string& tool, const std::vector<std::string>& argument
 }
 
 bool RunCliToolQuiet(const std::string& tool, const std::vector<std::string>& arguments) {
-  const auto output = CliTempPath(tool + "_quiet_stdout.txt");
-  const auto error = CliTempPath(tool + "_quiet_stderr.txt");
+  const auto output = TestTempPath(tool + "_quiet_stdout.txt");
+  const auto error = TestTempPath(tool + "_quiet_stderr.txt");
   return RunProcess(CliToolPath(tool), arguments, {}, output, error) == 0;
 }
 
@@ -208,8 +160,8 @@ std::string RunCliToolCaptureStderr(const std::string& tool,
                                     const std::vector<std::string>& arguments,
                                     const std::string& temp_name,
                                     int* out_exit_code) {
-  const auto output = CliTempPath(temp_name + ".stdout");
-  const auto error = CliTempPath(temp_name);
+  const auto output = TestTempPath(temp_name + ".stdout");
+  const auto error = TestTempPath(temp_name);
   const int result = RunProcess(CliToolPath(tool), arguments, {}, output, error);
   if (out_exit_code) *out_exit_code = result;
   std::ifstream in(error);
@@ -234,24 +186,13 @@ std::string RunCliSvmCaptureStderr(const std::vector<std::string>& arguments,
   return RunCliToolCaptureStderr("svm", arguments, temp_name, out_exit_code);
 }
 
-int CliExitCodeFromSystemResult(int result) {
-#ifdef _WIN32
-  return result;
-#else
-  if (result == -1) return -1;
-  if (WIFEXITED(result)) return WEXITSTATUS(result);
-  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
-  return result;
-#endif
-}
-
-std::string RunCliCaptureStdout(const std::string& command,
-                                const std::string& temp_name,
-                                int* out_exit_code) {
-  const auto path = CliTempPath(temp_name);
-  const int result = std::system(
-      WrapSystemCommand(command + " > \"" + path.string() + "\"").c_str());
-  if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
+std::string RunProcessCaptureStdout(const std::filesystem::path& executable,
+                                    const std::vector<std::string>& arguments,
+                                    const std::string& temp_name,
+                                    int* out_exit_code) {
+  const auto path = TestTempPath(temp_name);
+  const int result = RunProcess(executable, arguments, {}, path, {});
+  if (out_exit_code) *out_exit_code = result;
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   in.close();

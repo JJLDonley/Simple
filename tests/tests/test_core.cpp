@@ -15973,9 +15973,8 @@ bool RunNativeEnvModuleTest() {
 
 bool RunFfiDlRuntimeModuleTest() {
   std::string error;
-  const auto missing = std::filesystem::temp_directory_path() /
-                       (std::string("simple_missing_library") +
-                        Simple::Platform::SharedLibraryExtension());
+  const auto missing = TestTempPath(
+      std::string("simple_missing_library") + Simple::Platform::SharedLibraryExtension());
   if (Simple::VM::Ffi::DlRuntime::Open(missing.string(), &error) != 0) {
     return false;
   }
@@ -15989,8 +15988,7 @@ bool RunFfiDlRuntimeModuleTest() {
 }
 
 bool RunNativeFsModuleTest() {
-  const std::string dir =
-      (std::filesystem::temp_directory_path() / "simple_native_fs_module").string();
+  const std::string dir = TestTempPath("simple_native_fs_module").string();
   const std::string file = (std::filesystem::path(dir) / "data.txt").string();
   const std::string copy = (std::filesystem::path(dir) / "copy.txt").string();
   Simple::VM::Native::Fs::Remove(file);
@@ -16095,8 +16093,7 @@ bool RunJitScaffoldModuleTest() {
 }
 
 bool RunNativeLogModuleTest() {
-  const std::string path =
-      (std::filesystem::temp_directory_path() / "simple_native_log_module.txt").string();
+  const std::string path = TestTempPath("simple_native_log_module.txt").string();
   std::remove(path.c_str());
   Simple::VM::Native::Log::SetLevel(3);
   if (!Simple::VM::Native::Log::SetFile(path)) return false;

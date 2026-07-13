@@ -86,10 +86,6 @@ void AppendSections(std::vector<TestSection>& sections, TestSectionGetter getter
 } // namespace Simple::VM::Tests
 
 int main(int argc, char** argv) {
-  // Preserve the last completed test when a platform terminates the process.
-  std::cout << std::unitbuf;
-  std::cerr << std::unitbuf;
-
   if (argc > 1 && std::string(argv[1]) == "--sir") {
     if (argc < 3) {
       std::cerr << "usage: simplevm_tests --sir <file.sir> [--no-verify]\n";

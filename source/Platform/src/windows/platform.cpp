@@ -50,6 +50,20 @@ OperatingSystem HostOperatingSystem() { return OperatingSystem::Windows; }
 const char* OperatingSystemName() { return "windows"; }
 const char* SharedLibraryExtension() { return ".dll"; }
 const char* StaticLibraryExtension() { return ".lib"; }
+char PathListDelimiter() { return ';'; }
+int32_t CurrentProcessId() { return static_cast<int32_t>(GetCurrentProcessId()); }
+int64_t MemoryPageSize() {
+  SYSTEM_INFO info{};
+  GetSystemInfo(&info);
+  return static_cast<int64_t>(info.dwPageSize);
+}
+bool UtcTime(std::time_t value, std::tm* out) {
+  return out && gmtime_s(out, &value) == 0;
+}
+std::FILE* OpenFile(const std::string& path, const char* mode) {
+  std::FILE* file = nullptr;
+  return fopen_s(&file, path.c_str(), mode) == 0 ? file : nullptr;
+}
 
 std::string ExecutablePath(const char* argv0) {
   std::vector<wchar_t> buffer(32768);

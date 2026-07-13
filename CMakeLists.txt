@@ -420,9 +420,6 @@ target_compile_definitions(simplevm_tests PRIVATE
   SIMPLEVM_RUNTIME_STATIC_NAME="${SIMPLEVM_RUNTIME_STATIC_NAME}"
 )
 add_dependencies(simplevm_tests simpleffi_test simplevm_runtime_shared)
-if (SIMPLEVM_ENABLE_LLVM_JIT)
-  target_compile_definitions(simplevm_tests PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
-endif()
 
 install(TARGETS simplevm simple_stub simplevm_core_static simplevm_core_shared simplevm_runtime_static simplevm_runtime_shared
   RUNTIME DESTINATION bin

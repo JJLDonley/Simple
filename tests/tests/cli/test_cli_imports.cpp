@@ -61,7 +61,7 @@ bool CliStressImportCycleCheck() {
 }
 
 bool CliAcceptsModuleHeaderInCheckCommand() {
-  const auto path = CliTempPath("simple_cli_module_header.simple");
+  const auto path = TestTempPath("simple_cli_module_header.simple");
   {
     std::ofstream out(path);
     out << "module main\n\nmain : i32 () { return 0 }\n";
@@ -73,7 +73,7 @@ bool CliAcceptsModuleHeaderInCheckCommand() {
 
 bool CliLocalUsingImportDoesNotReachValidator() {
   namespace fs = std::filesystem;
-  const fs::path dir = fs::temp_directory_path() / "simple_local_using_import_case";
+  const fs::path dir = TestTempPath("simple_local_using_import_case");
   std::error_code ec;
   fs::remove_all(dir, ec);
   fs::create_directories(dir, ec);
@@ -108,7 +108,7 @@ bool CliSplitImportsNoCliLspDuplicateImportWrappers() {
 }
 
 bool CliSplitImportsBuildSharedSimpleFileIndex() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_import_index_test";
+  const auto dir = TestTempPath("simple_cli_import_index_test");
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "Thing.simple");
@@ -121,7 +121,7 @@ bool CliSplitImportsBuildSharedSimpleFileIndex() {
 }
 
 bool CliSplitImportsBuildSharedModuleIndex() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_module_index_test";
+  const auto dir = TestTempPath("simple_cli_module_index_test");
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "widget.simple");
@@ -136,7 +136,7 @@ bool CliSplitImportsBuildSharedModuleIndex() {
 }
 
 bool CliSplitImportsLoadProgramWithSharedEntryPoint() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_load_imports_test";
+  const auto dir = TestTempPath("simple_cli_load_imports_test");
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "lib.simple");
@@ -155,7 +155,7 @@ bool CliSplitImportsLoadProgramWithSharedEntryPoint() {
 }
 
 bool CliSplitImportsAppendProgramWithSharedLoader() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_import_loader_test";
+  const auto dir = TestTempPath("simple_cli_import_loader_test");
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "lib.simple");
@@ -181,7 +181,7 @@ bool CliSplitImportsAppendProgramWithSharedLoader() {
 }
 
 bool CliSplitImportsResolveSharedModuleImport() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_resolve_import_test";
+  const auto dir = TestTempPath("simple_cli_resolve_import_test");
   std::filesystem::create_directories(dir);
   const auto file = dir / "widget.simple";
   {
@@ -201,7 +201,7 @@ bool CliSplitImportsResolveSharedModuleImport() {
 }
 
 bool CliSplitImportsWriteSharedAutoModuleMap() {
-  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_auto_module_map_test";
+  const auto dir = TestTempPath("simple_cli_auto_module_map_test");
   std::filesystem::create_directories(dir);
   const auto file = dir / "thing.simple";
   {

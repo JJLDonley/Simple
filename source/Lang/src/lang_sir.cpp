@@ -13,6 +13,7 @@
 
 #include "CAST/parser.h"
 #include "lang_reserved.h"
+#include "platform/platform.h"
 #include "RAST/reserved_resolution.h"
 #include "TAST/type_checker.h"
 #include "TAST/types.h"
@@ -435,27 +436,15 @@ bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
 }
 
 bool HostIsLinux() {
-#if defined(__linux__)
-  return true;
-#else
-  return false;
-#endif
+  return Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::Linux;
 }
 
 bool HostIsMacOs() {
-#if defined(__APPLE__)
-  return true;
-#else
-  return false;
-#endif
+  return Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::macOS;
 }
 
 bool HostIsWindows() {
-#if defined(_WIN32)
-  return true;
-#else
-  return false;
-#endif
+  return Simple::Platform::HostOperatingSystem() == Simple::Platform::OperatingSystem::Windows;
 }
 
 bool HostHasDl() {

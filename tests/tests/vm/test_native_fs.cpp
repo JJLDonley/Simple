@@ -98,7 +98,7 @@ bool VmNativeRegistryUsesNamedMetadataHandlers() {
 }
 
 bool VmSplitNativeFsWritesReadsAndRemovesText() {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "simple_vm_native_fs_split_test.txt";
+  const std::filesystem::path path = TestTempPath("simple_vm_native_fs_split_test.txt");
   const std::string text = "split fs test";
   std::string read;
   if (!Simple::VM::Native::Fs::WriteText(path.string(), text)) return false;
@@ -541,7 +541,7 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
   using Simple::VM::Native::NativeHandleId;
   using Simple::VM::Native::NativeResourceRegistry;
 
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "simple_vm_registry_file.tmp";
+  const std::filesystem::path path = TestTempPath("simple_vm_registry_file.tmp");
   std::filesystem::remove(path);
 
   const std::string path_text = path.string();
