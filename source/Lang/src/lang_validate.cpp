@@ -2131,6 +2131,12 @@ bool CheckStmt(const Stmt& stmt,
                        error)) {
           return false;
         }
+        // CheckStmt records a type pointer in the scope. The temporary statement
+        // is only used for validation, so retain the type owned by the for-loop.
+        auto loop_local = scopes.back().find(stmt.loop_var_decl.name);
+        if (loop_local != scopes.back().end()) {
+          loop_local->second.type = &stmt.loop_var_decl.type;
+        }
       }
       if (!CheckExpr(stmt.loop_iter, ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;

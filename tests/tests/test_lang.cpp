@@ -41,47 +41,12 @@
 #include <cstdlib>
 #include <iostream>
 #include <iterator>
-#ifndef _WIN32
-#include <sys/wait.h>
-#endif
 
 namespace Simple::VM::Tests {
 namespace {
 
-int SystemExitCode(int result) {
-#ifdef _WIN32
-  return result;
-#else
-  if (WIFEXITED(result)) return WEXITSTATUS(result);
-  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
-  return result;
-#endif
-}
-
-std::string TempPath(const std::string& name);
-
-std::string ReadFileText(const std::string& path) {
-  std::ifstream in(path, std::ios::binary);
-  if (!in) return {};
-  std::string text;
-  in.seekg(0, std::ios::end);
-  text.resize(static_cast<size_t>(in.tellg()));
-  in.seekg(0, std::ios::beg);
-  in.read(text.data(), static_cast<std::streamsize>(text.size()));
-  return text;
-}
-
 std::string RunCommandCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
-  const std::string err_path = TempPath("simple_command_stderr_capture.txt");
-  const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
-  const int result = std::system(wrapped.c_str());
-  if (out_exit_code) *out_exit_code = SystemExitCode(result);
-  return ReadFileText(err_path);
-}
-
-std::string TempPath(const std::string& name) {
-  namespace fs = std::filesystem;
-  return (fs::temp_directory_path() / name).string();
+  return RunCliCaptureStderr(command, "simple_command_stderr_capture.txt", out_exit_code);
 }
 
 bool RunSimpleFileExpectExit(const std::string& path, int32_t expected) {

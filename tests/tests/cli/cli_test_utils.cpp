@@ -20,6 +20,15 @@ const char* NullDevice() {
 #endif
 }
 
+std::string WrapSystemCommand(const std::string& command) {
+#ifdef _WIN32
+  // cmd.exe requires an outer quote when the executable path is quoted.
+  return "\"" + command + "\"";
+#else
+  return command;
+#endif
+}
+
 } // namespace
 
 std::filesystem::path CliTempPath(const std::string& name) {
@@ -62,18 +71,20 @@ int CliExitCodeFromSystemResult(int result) {
 
 bool RunCliCommandQuiet(const std::string& command) {
   const std::string null_device = NullDevice();
-  return std::system((command + " >" + null_device + " 2>" + null_device).c_str()) == 0;
+  return std::system(WrapSystemCommand(command + " >" + null_device +
+                                       " 2>" + null_device).c_str()) == 0;
 }
 
 bool RunCliCommandRaw(const std::string& command) {
-  return std::system(command.c_str()) == 0;
+  return std::system(WrapSystemCommand(command).c_str()) == 0;
 }
 
 std::string RunCliCaptureStdout(const std::string& command,
                                 const std::string& temp_name,
                                 int* out_exit_code) {
   const auto path = CliTempPath(temp_name);
-  const int result = std::system((command + " > \"" + path.string() + "\"").c_str());
+  const int result = std::system(
+      WrapSystemCommand(command + " > \"" + path.string() + "\"").c_str());
   if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -85,8 +96,9 @@ std::string RunCliCaptureStderr(const std::string& command,
                                 const std::string& temp_name,
                                 int* out_exit_code) {
   const auto path = CliTempPath(temp_name);
-  const int result = std::system((command + " 1>" + NullDevice() + " 2> \"" +
-                                  path.string() + "\"").c_str());
+  const int result = std::system(
+      WrapSystemCommand(command + " 1>" + NullDevice() + " 2> \"" +
+                        path.string() + "\"").c_str());
   if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
