@@ -371,7 +371,7 @@ int main(int argc, char** argv) {
   bool use_jit = true;
   bool force_interpreter = false;
   bool build_exe = false;
-  bool build_static = false;
+  bool build_static = true;
   bool print_jit_stats = false;
   bool build_mode_explicit = false;
   for (int i = 2; i < argc; ++i) {

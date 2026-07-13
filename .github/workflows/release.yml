@@ -107,7 +107,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/vcpkg-bincache
-          key: vcpkg-${{ runner.os }}-${{ matrix.flavor }}-llvm18-libffi-v1
+          key: vcpkg-${{ runner.os }}-${{ matrix.flavor }}-llvm18-static-release-v2
 
       - name: Setup Windows vcpkg dependencies
         if: runner.os == 'Windows'
@@ -127,11 +127,17 @@ jobs:
           $env:VCPKG_FORCE_SYSTEM_BINARIES = "1"
           $env:VCPKG_DEFAULT_BINARY_CACHE = $binaryCache
           New-Item -ItemType Directory -Force -Path $binaryCache | Out-Null
-          $packages = @("libffi:x64-windows")
-          if ("${{ matrix.flavor }}" -eq "llvm") { $packages += "llvm:x64-windows" }
+          $triplet = "x64-windows-static-release"
+          $env:VCPKG_OVERLAY_TRIPLETS = Join-Path $env:GITHUB_WORKSPACE "cmake/platform/triplets"
+          $packages = @("libffi:${triplet}")
+          if ("${{ matrix.flavor }}" -eq "llvm") {
+            # ORC needs LLVM core plus the native x86 target, not Clang, LLD,
+            # bindings, tools, terminfo, or debug libraries.
+            $packages += "llvm[core,target-x86]:${triplet}"
+          }
           $maxAttempts = 4
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            & "$vcpkgRoot/vcpkg.exe" install $packages
+            & "$vcpkgRoot/vcpkg.exe" install $packages --x-no-default-features
             if ($LASTEXITCODE -eq 0) { break }
             if ($attempt -eq $maxAttempts) { exit $LASTEXITCODE }
             Write-Host "vcpkg install failed (attempt $attempt/$maxAttempts), retrying in 15s..."
@@ -139,7 +145,7 @@ jobs:
           }
           "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           if ("${{ matrix.flavor }}" -eq "llvm") {
-            $llvmDir = Join-Path $vcpkgRoot "installed/x64-windows/share/llvm"
+            $llvmDir = Join-Path $vcpkgRoot "installed/x64-windows-static-release/share/llvm"
             if (-not (Test-Path (Join-Path $llvmDir "LLVMConfig.cmake"))) {
               throw "vcpkg LLVM CMake package not found at $llvmDir"
             }
@@ -179,7 +185,8 @@ jobs:
           chmod +x ./scripts/build/linux.sh ./scripts/build/macos.sh ./scripts/build/windows.sh
           cmake_args=(
             --cmake-arg "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake"
-            --cmake-arg "-DVCPKG_TARGET_TRIPLET=x64-windows"
+            --cmake-arg "-DVCPKG_TARGET_TRIPLET=x64-windows-static-release"
+            --cmake-arg "-DVCPKG_OVERLAY_TRIPLETS=${GITHUB_WORKSPACE}/cmake/platform/triplets"
           )
           if [[ "${{ matrix.flavor }}" == "llvm" ]]; then
             cmake_args+=(--cmake-arg "-DSIMPLEVM_ENABLE_LLVM_JIT=ON")

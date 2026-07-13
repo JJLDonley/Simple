@@ -95,7 +95,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
     cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release \
       -DSIMPLEVM_VERSION_OVERRIDE="$VERSION"
   fi
-  cmake --build "$BUILD_DIR" --config Release --target simplevm_runtime_static simplevm_runtime_shared simplevm simple_stub --parallel "${JOBS:-2}"
+  cmake --build "$BUILD_DIR" --config Release --target simplevm_runtime_static simplevm simple_stub --parallel "${JOBS:-2}"
   svm_exe="$(find_exe svm)"
   simple_exe="$(find_exe simple)"
   rm -rf "$ROOT_DIR/bin"
@@ -115,15 +115,14 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
   mkdir -p "$STAGE_DIR/bin" "$STAGE_DIR/lib" "$STAGE_DIR/include/simplevm" "$STAGE_DIR/share/simple"
   cp "$ROOT_DIR/bin/svm.exe" "$STAGE_DIR/bin/svm.exe"
   cp "$ROOT_DIR/bin/simple.exe" "$STAGE_DIR/bin/simple.exe"
-  for lib in \
-    "$BIN_OUT"/simplevm_runtime.dll "$BIN_OUT"/simplevm_runtime.lib \
-    "$BIN_OUT"/Release/simplevm_runtime.dll "$BIN_OUT"/Release/simplevm_runtime.lib \
-    "$BIN_OUT"/simplevm_core.dll "$BIN_OUT"/simplevm_core.lib \
-    "$BIN_OUT"/Release/simplevm_core.dll "$BIN_OUT"/Release/simplevm_core.lib; do
-    [[ -f "$lib" ]] && cp "$lib" "$STAGE_DIR/lib/"
+  runtime_lib=""
+  for candidate in "$BIN_OUT/simplevm_runtime.lib" "$BIN_OUT/Release/simplevm_runtime.lib"; do
+    [[ -f "$candidate" ]] && runtime_lib="$candidate" && break
   done
-  cp "$ROOT_DIR/VM/include/"*.h "$STAGE_DIR/include/simplevm/" 2>/dev/null || true
-  cp "$ROOT_DIR/Byte/include/"*.h "$STAGE_DIR/include/simplevm/" 2>/dev/null || true
+  [[ -n "$runtime_lib" ]] || { echo "static Simple runtime library not found" >&2; exit 1; }
+  cp "$runtime_lib" "$STAGE_DIR/lib/simplevm_runtime.lib"
+  cp -R "$ROOT_DIR/VM/include/." "$STAGE_DIR/include/simplevm/"
+  cp -R "$ROOT_DIR/Byte/include/." "$STAGE_DIR/include/simplevm/"
   [[ -f "$ROOT_DIR/Docs/README.md" ]] && cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
   rm -f "$PKG_PATH"
   if command -v powershell.exe >/dev/null 2>&1; then

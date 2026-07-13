@@ -1,5 +1,6 @@
 #include "test_utils.h"
 
+#include <filesystem>
 #include <string>
 
 #include "cli/cli_test_utils.h"
@@ -61,9 +62,12 @@ bool CliMissingInputDiagnostics() {
   std::string stderr_text = RunCliDiagnosticsCaptureStderr("bin/svm check", &exit_code);
   if (exit_code != 1 || stderr_text.find("error[E8001]: missing input file") != 0) return false;
 
-  stderr_text = RunCliDiagnosticsCaptureStderr("bin/svm check /tmp/simple_missing_input_contract.simple", &exit_code);
+  const auto missing_path = CliTempPath("simple_missing_input_contract.simple");
+  std::filesystem::remove(missing_path);
+  stderr_text = RunCliDiagnosticsCaptureStderr(
+      "bin/svm check \"" + missing_path.string() + "\"", &exit_code);
   return exit_code == 1 &&
-         stderr_text.find("error[E8001]: failed to open file: /tmp/simple_missing_input_contract.simple") == 0;
+         stderr_text.find("error[E8001]: failed to open file: " + missing_path.string()) == 0;
 }
 
 bool CliSplitDiagnosticsRendersErrorLine() {

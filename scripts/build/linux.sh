@@ -78,7 +78,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
     cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release \
       -DSIMPLEVM_VERSION_OVERRIDE="$VERSION"
   fi
-  cmake --build "$BUILD_DIR" --config Release --target simplevm_runtime_static simplevm_runtime_shared simplevm simple_stub --parallel "${JOBS:-2}"
+  cmake --build "$BUILD_DIR" --config Release --target simplevm_runtime_static simplevm simple_stub --parallel "${JOBS:-2}"
   rm -rf "$ROOT_DIR/bin"
   mkdir -p "$ROOT_DIR/bin"
   cp "$BIN_OUT/svm" "$ROOT_DIR/bin/svm"
@@ -96,11 +96,9 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
   mkdir -p "$STAGE_DIR/bin" "$STAGE_DIR/lib" "$STAGE_DIR/include/simplevm" "$STAGE_DIR/share/simple"
   cp "$ROOT_DIR/bin/svm" "$STAGE_DIR/bin/svm"
   cp "$ROOT_DIR/bin/simple" "$STAGE_DIR/bin/simple"
-  for lib in "$BIN_OUT"/libsimplevm_runtime.so "$BIN_OUT"/libsimplevm_runtime.a "$BIN_OUT"/libsimplevm_core.so "$BIN_OUT"/libsimplevm_core.a; do
-    [[ -f "$lib" ]] && cp "$lib" "$STAGE_DIR/lib/"
-  done
-  cp "$ROOT_DIR/VM/include/"*.h "$STAGE_DIR/include/simplevm/" 2>/dev/null || true
-  cp "$ROOT_DIR/Byte/include/"*.h "$STAGE_DIR/include/simplevm/" 2>/dev/null || true
+  cp "$BIN_OUT/libsimplevm_runtime.a" "$STAGE_DIR/lib/"
+  cp -R "$ROOT_DIR/VM/include/." "$STAGE_DIR/include/simplevm/"
+  cp -R "$ROOT_DIR/Byte/include/." "$STAGE_DIR/include/simplevm/"
   [[ -f "$ROOT_DIR/Docs/README.md" ]] && cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
   tar -czf "$PKG_PATH" -C "$DIST_DIR" "$(basename "$STAGE_DIR")"
 fi

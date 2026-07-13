@@ -279,6 +279,10 @@ set_target_properties(simplevm_runtime_static PROPERTIES POSITION_INDEPENDENT_CO
 
 add_library(simplevm_runtime_shared SHARED ${SIMPLEVM_RUNTIME_SRC})
 set_target_properties(simplevm_runtime_shared PROPERTIES OUTPUT_NAME simplevm_runtime)
+if(WIN32)
+  # Keep the DLL import library distinct from the static runtime archive.
+  set_target_properties(simplevm_runtime_shared PROPERTIES ARCHIVE_OUTPUT_NAME simplevm_runtime_shared)
+endif()
 target_include_directories(simplevm_runtime_shared PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_LIBRARY_ROOT}/include
@@ -390,7 +394,7 @@ target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm_tests PRIVATE
   SIMPLEVM_RUNTIME_SHARED_NAME="${SIMPLEVM_RUNTIME_SHARED_NAME}"
 )
-add_dependencies(simplevm_tests simpleffi_test)
+add_dependencies(simplevm_tests simpleffi_test simplevm_runtime_shared)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm_tests PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
 endif()

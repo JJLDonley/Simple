@@ -76,7 +76,10 @@ Emits intermediate output. Current workflows use it primarily for SIR/SBC inspec
 
 ### `build` / `compile`
 
-Builds an output artifact. `svm` produces executable stubs unless the output path ends in `.sbc`, in which case bytecode is written. `simple` does not build or compile.
+Builds an output artifact. `svm` produces statically linked, self-contained executable stubs by
+default unless the output path ends in `.sbc`, in which case bytecode is written. `-d` explicitly
+requests a shared-runtime developer build; normal release packages do not ship shared Simple
+libraries. `simple` does not build or compile.
 
 ### `lsp`
 

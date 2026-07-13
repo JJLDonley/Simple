@@ -74,6 +74,10 @@ classifier, not a separate SemVer version.
   published and cannot block the stable packages.
 - Windows LLVM packaging is deferred until its LLVM runtime and toolchain distribution are stable.
 - Every published flavor runs the full test suite during release CI.
+- User packages contain self-contained `svm`/`simple` binaries plus the static runtime and headers
+  needed for generated stubs. Shared Simple libraries are not shipped in user packages.
+- `svm build` defaults to a static, self-contained executable; `-d` is an explicit SDK/development
+  mode.
 
 Artifact names follow this form:
 
