@@ -1,5 +1,7 @@
 #include "test_utils.h"
 #include "diagnostic_bridge.h"
+#include "cli/cli_test_utils.h"
+#include "platform/platform.h"
 #include "RAST/import_index.h"
 #include "RAST/import_loader.h"
 
@@ -60,42 +62,44 @@ bool LspDiagnosticBridgePublishesStructuredDiagnostic() {
          json.find("undeclared identifier: foo") != std::string::npos;
 }
 
-bool RunCommand(const std::string& command) {
-  const int result = std::system(command.c_str());
+std::string LspBinaryPath();
+
+struct LspCommand {
+  std::string input;
+  std::string output;
+  std::string error;
+  bool debug_tokens = false;
+};
+
+bool RunCommand(const LspCommand& command) {
+  std::string previous_debug;
+  const bool had_debug = Simple::Platform::GetEnvironment("SIMPLE_LSP_DEBUG_TOKENS",
+                                                           &previous_debug);
+  if (command.debug_tokens) {
+    Simple::Platform::SetEnvironment("SIMPLE_LSP_DEBUG_TOKENS", "1");
+  }
+  const int result = RunProcess(LspBinaryPath(), {"lsp"}, command.input,
+                                command.output, command.error);
+  if (command.debug_tokens) {
+    if (had_debug) Simple::Platform::SetEnvironment("SIMPLE_LSP_DEBUG_TOKENS", previous_debug);
+    else Simple::Platform::UnsetEnvironment("SIMPLE_LSP_DEBUG_TOKENS");
+  }
   return result == 0;
 }
 
 std::string TempPath(const std::string& name) {
-  namespace fs = std::filesystem;
-  return (fs::temp_directory_path() / name).string();
+  return CliTempPath(name).string();
 }
 
 std::string LspBinaryPath() {
-  namespace fs = std::filesystem;
-  fs::path cursor = fs::current_path();
-  for (int i = 0; i < 6; ++i) {
-    const fs::path build_svm = cursor / "build" / "bin" / "svm";
-    if (fs::exists(build_svm)) return build_svm.string();
-    const fs::path svm = cursor / "bin" / "svm";
-    if (fs::exists(svm)) return svm.string();
-    if (!cursor.has_parent_path()) break;
-    const fs::path parent = cursor.parent_path();
-    if (parent == cursor) break;
-    cursor = parent;
-  }
-  return "bin/simple";
+  return CliToolPath("svm");
 }
 
-std::string LspPipeCommand(const std::string& in_path,
-                           const std::string& out_path,
-                           const std::string& err_path,
-                           const std::string& env_prefix = {}) {
-  std::string cmd;
-  if (!env_prefix.empty()) {
-    cmd = env_prefix + " ";
-  }
-  cmd += "cat " + in_path + " | " + LspBinaryPath() + " lsp 1> " + out_path + " 2> " + err_path;
-  return cmd;
+LspCommand LspPipeCommand(const std::string& in_path,
+                          const std::string& out_path,
+                          const std::string& err_path,
+                          const std::string& env_prefix = {}) {
+  return LspCommand{in_path, out_path, err_path, !env_prefix.empty()};
 }
 
 std::string ReadFileText(const std::string& path) {
@@ -1906,7 +1910,7 @@ bool LspSemanticTokensDebugEnvDoesNotBreakResponse() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = LspPipeCommand(in_path, out_path, err_path, "SIMPLE_LSP_DEBUG_TOKENS=1");
+  const auto cmd = LspPipeCommand(in_path, out_path, err_path, "SIMPLE_LSP_DEBUG_TOKENS=1");
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   return out_contents.find("\"id\":67") != std::string::npos &&

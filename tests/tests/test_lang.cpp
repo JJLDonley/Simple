@@ -45,8 +45,9 @@
 namespace Simple::VM::Tests {
 namespace {
 
-std::string RunCommandCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
-  return RunCliCaptureStderr(command, "simple_command_stderr_capture.txt", out_exit_code);
+std::string RunCommandCaptureStderr(const std::vector<std::string>& arguments,
+                                    int* out_exit_code = nullptr) {
+  return RunCliSvmCaptureStderr(arguments, "simple_command_stderr_capture.txt", out_exit_code);
 }
 
 bool RunSimpleFileExpectExit(const std::string& path, int32_t expected) {
@@ -544,10 +545,7 @@ bool LangSimpleFixtureStressLangFeatures() {
 }
 
 bool LangSimpleFixtureStressRaylibLike() {
-  int exit_code = 0;
-  RunCommandCaptureStderr(CliSvmCommand("run tests/simple_modules/stress_raylib_like_main.simple"),
-                          &exit_code);
-  return exit_code == 16;
+  return RunCliSvm({"run", "tests/simple_modules/stress_raylib_like_main.simple"}) == 16;
 }
 
 bool LangStressEnumAsTypeRuntime() {
@@ -949,7 +947,7 @@ bool LangSimpleBadPrintArray() {
 
 bool LangSimpleBadImportUnknown() {
   int exit_code = 0;
-  const std::string err = RunCommandCaptureStderr(CliSvmCommand("check tests/simple_bad/import_unknown.simple"), &exit_code);
+  const std::string err = RunCommandCaptureStderr({"check", "tests/simple_bad/import_unknown.simple"}, &exit_code);
   return exit_code != 0 && err.find("import not found") != std::string::npos;
 }
 
@@ -2519,7 +2517,7 @@ bool LangRejectSystemIoPrintln() {
 
 bool LangRejectUnplannedSystemMathImport() {
   int exit_code = 0;
-  const std::string err = RunCommandCaptureStderr(CliSvmCommand("check tests/simple_bad/system_math_import.simple"), &exit_code);
+  const std::string err = RunCommandCaptureStderr({"check", "tests/simple_bad/system_math_import.simple"}, &exit_code);
   return exit_code != 0 && err.find("import not found") != std::string::npos;
 }
 

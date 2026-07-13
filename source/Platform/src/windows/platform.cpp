@@ -5,7 +5,10 @@
 #endif
 #include <windows.h>
 
+#include <cctype>
 #include <cstdlib>
+#include <process.h>
+#include <utility>
 #include <vector>
 
 namespace Simple::Platform {
@@ -21,7 +24,26 @@ std::string WindowsError(const char* fallback) {
   if (text) LocalFree(text);
   return result;
 }
-std::string Quote(const std::filesystem::path& path) { return "\"" + path.string() + "\""; }
+std::vector<std::string> SplitArguments(const std::string& text) {
+  std::vector<std::string> arguments;
+  std::string current;
+  bool quoted = false;
+  for (size_t i = 0; i < text.size(); ++i) {
+    const char c = text[i];
+    if (c == '"') {
+      quoted = !quoted;
+    } else if (std::isspace(static_cast<unsigned char>(c)) && !quoted) {
+      if (!current.empty()) {
+        arguments.push_back(std::move(current));
+        current.clear();
+      }
+    } else {
+      current += c;
+    }
+  }
+  if (!current.empty()) arguments.push_back(std::move(current));
+  return arguments;
+}
 }
 
 OperatingSystem HostOperatingSystem() { return OperatingSystem::Windows; }
@@ -72,15 +94,24 @@ bool CloseDynamicLibrary(int64_t handle, std::string* error) {
 bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error) {
   std::string configured;
   GetEnvironment("CXX", &configured);
-  std::string command = configured.empty() ? "cl.exe" : configured;
-  command += " /nologo /std:c++17 /O2 /EHsc /MT";
-  for (const auto& include : request.include_dirs) command += " /I" + Quote(include);
-  command += " " + Quote(request.source);
-  for (const auto& library : request.libraries) command += " " + Quote(library);
-  command += " ffi.lib ";
-  command += request.extra_link_flags;
-  command += " /Fe:" + Quote(request.output);
-  if (std::system(command.c_str()) == 0) return true;
+  const std::string compiler = configured.empty() ? "cl.exe" : configured;
+  std::vector<std::string> arguments = {
+      compiler, "/nologo", "/std:c++17", "/O2", "/EHsc", "/MT"};
+  for (const auto& include : request.include_dirs) {
+    arguments.push_back("/I" + include.string());
+  }
+  arguments.push_back(request.source.string());
+  for (const auto& library : request.libraries) arguments.push_back(library.string());
+  arguments.push_back("ffi.lib");
+  auto extra = SplitArguments(request.extra_link_flags);
+  arguments.insert(arguments.end(), extra.begin(), extra.end());
+  arguments.push_back("/Fe:" + request.output.string());
+
+  std::vector<const char*> argv;
+  argv.reserve(arguments.size() + 1);
+  for (const auto& argument : arguments) argv.push_back(argument.c_str());
+  argv.push_back(nullptr);
+  if (_spawnvp(_P_WAIT, compiler.c_str(), argv.data()) == 0) return true;
   SetError(error, "failed to compile embedded executable with the MSVC C++ toolchain");
   return false;
 }
