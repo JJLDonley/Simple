@@ -384,7 +384,7 @@ std::vector<uint8_t> BuildIrIncDecNegWideModule() {
 std::vector<uint8_t> BuildIrListInsertRemoveI64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(0);
-  builder.EmitNewList(0, 4);
+  builder.EmitNewListI64(0, 4);
   builder.EmitDup();
   builder.EmitConstI32(0);
   builder.EmitConstI64(9);
@@ -1946,7 +1946,7 @@ std::vector<uint8_t> BuildIrTypeOfModule() {
 std::vector<uint8_t> BuildIrArrayI64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewArray(0, 2);
+  builder.EmitNewArrayI64(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstI32(1);
@@ -1985,7 +1985,7 @@ std::vector<uint8_t> BuildIrArrayI64Module() {
 std::vector<uint8_t> BuildIrListF32Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListF32(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstF32(3.5f);
@@ -2022,7 +2022,7 @@ std::vector<uint8_t> BuildIrListF32Module() {
 std::vector<uint8_t> BuildIrListRefModule() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListRef(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitOp(Simple::Byte::OpCode::ConstNull);
@@ -2037,7 +2037,7 @@ std::vector<uint8_t> BuildIrListRefModule() {
   Simple::IR::IrLabel ok = builder2.CreateLabel();
   Simple::IR::IrLabel done = builder2.CreateLabel();
   builder2.EmitEnter(1);
-  builder2.EmitNewList(0, 2);
+  builder2.EmitNewListRef(0, 2);
   builder2.EmitStoreLocal(0);
   builder2.EmitLoadLocal(0);
   builder2.EmitOp(Simple::Byte::OpCode::ConstNull);
@@ -2078,7 +2078,7 @@ std::vector<uint8_t> BuildIrListRefModule() {
 std::vector<uint8_t> BuildIrArrayF64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewArray(0, 2);
+  builder.EmitNewArrayF64(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstI32(1);
@@ -2119,7 +2119,7 @@ std::vector<uint8_t> BuildIrArrayRefModule() {
   Simple::IR::IrLabel ok = builder.CreateLabel();
   Simple::IR::IrLabel done = builder.CreateLabel();
   builder.EmitEnter(1);
-  builder.EmitNewArray(0, 2);
+  builder.EmitNewArrayRef(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstI32(0);
@@ -2164,7 +2164,7 @@ std::vector<uint8_t> BuildIrArrayRefModule() {
 std::vector<uint8_t> BuildIrListF64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListF64(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstF64(4.0);
@@ -2201,7 +2201,7 @@ std::vector<uint8_t> BuildIrListF64Module() {
 std::vector<uint8_t> BuildIrArrayF32Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewArray(0, 2);
+  builder.EmitNewArrayF32(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstI32(1);
@@ -2240,7 +2240,7 @@ std::vector<uint8_t> BuildIrArrayF32Module() {
 std::vector<uint8_t> BuildIrListI64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListI64(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstI64(21);
@@ -2549,7 +2549,7 @@ std::vector<uint8_t> BuildIrArrayGetSetRefModule() {
 std::vector<uint8_t> BuildIrListGetSetF32Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListF32(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstF32(2.5f);
@@ -2598,7 +2598,7 @@ std::vector<uint8_t> BuildIrListGetSetRefModule() {
   Simple::IR::IrLabel ok = builder.CreateLabel();
   Simple::IR::IrLabel done = builder.CreateLabel();
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListRef(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitOp(Simple::Byte::OpCode::ConstNull);
@@ -2642,7 +2642,7 @@ std::vector<uint8_t> BuildIrListGetSetRefModule() {
 std::vector<uint8_t> BuildIrListGetSetI64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListI64(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstI64(10);
@@ -2689,7 +2689,7 @@ std::vector<uint8_t> BuildIrListGetSetI64Module() {
 std::vector<uint8_t> BuildIrListGetSetF64Module() {
   Simple::IR::IrBuilder builder;
   builder.EmitEnter(1);
-  builder.EmitNewList(0, 2);
+  builder.EmitNewListF64(0, 2);
   builder.EmitStoreLocal(0);
   builder.EmitLoadLocal(0);
   builder.EmitConstF64(2.0);
@@ -5500,7 +5500,7 @@ bool RunIrTextArrayI64Test() {
   const char* text =
       "func main locals=1 stack=12\n"
       "  enter 1\n"
-      "  newarray 0 2\n"
+      "  newarray i64 2\n"
       "  stloc 0\n"
       "  ldloc 0\n"
       "  const i32 0\n"
@@ -5522,7 +5522,7 @@ bool RunIrTextArrayF32Test() {
   const char* text =
       "func main locals=1 stack=12\n"
       "  enter 1\n"
-      "  newarray 0 1\n"
+      "  newarray f32 1\n"
       "  stloc 0\n"
       "  ldloc 0\n"
       "  const i32 0\n"
@@ -5544,7 +5544,7 @@ bool RunIrTextArrayF64Test() {
   const char* text =
       "func main locals=1 stack=12\n"
       "  enter 1\n"
-      "  newarray 0 1\n"
+      "  newarray f64 1\n"
       "  stloc 0\n"
       "  ldloc 0\n"
       "  const i32 0\n"
