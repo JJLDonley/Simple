@@ -9,10 +9,10 @@
 #include <iterator>
 #include <string>
 #ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#include <process.h>
-#include <sys/stat.h>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #else
 #include <fcntl.h>
 #include <sys/wait.h>
@@ -90,43 +90,79 @@ int RunProcess(const std::filesystem::path& executable_path,
                const std::filesystem::path& stderr_path) {
   const std::string executable = std::filesystem::absolute(executable_path).string();
 #ifdef _WIN32
-  struct Redirect {
-    int target = -1;
-    int saved = -1;
-    int opened = -1;
-  };
-  std::vector<Redirect> redirects;
-  auto redirect = [&](int target, const std::filesystem::path& path, int flags) -> bool {
-    if (path.empty()) return true;
-    Redirect value;
-    value.target = target;
-    value.saved = _dup(target);
-    value.opened = _open(path.string().c_str(), flags | _O_BINARY, _S_IREAD | _S_IWRITE);
-    if (value.saved < 0 || value.opened < 0 || _dup2(value.opened, target) != 0) {
-      if (value.opened >= 0) _close(value.opened);
-      if (value.saved >= 0) _close(value.saved);
-      return false;
+  auto quote_argument = [](const std::wstring& argument) {
+    std::wstring quoted = L"\"";
+    size_t backslashes = 0;
+    for (wchar_t c : argument) {
+      if (c == L'\\') {
+        ++backslashes;
+      } else if (c == L'\"') {
+        quoted.append(backslashes * 2 + 1, L'\\');
+        quoted += c;
+        backslashes = 0;
+      } else {
+        quoted.append(backslashes, L'\\');
+        backslashes = 0;
+        quoted += c;
+      }
     }
-    redirects.push_back(value);
-    return true;
+    quoted.append(backslashes * 2, L'\\');
+    quoted += L'\"';
+    return quoted;
   };
-  const bool redirected = redirect(0, stdin_path, _O_RDONLY) &&
-                          redirect(1, stdout_path, _O_WRONLY | _O_CREAT | _O_TRUNC) &&
-                          redirect(2, stderr_path, _O_WRONLY | _O_CREAT | _O_TRUNC);
-  std::vector<const char*> argv;
-  argv.reserve(arguments.size() + 2);
-  argv.push_back(executable.c_str());
-  for (const auto& argument : arguments) argv.push_back(argument.c_str());
-  argv.push_back(nullptr);
-  const int result = redirected
-                         ? static_cast<int>(_spawnv(_P_WAIT, executable.c_str(), argv.data()))
-                         : -1;
-  std::fflush(nullptr);
-  for (auto it = redirects.rbegin(); it != redirects.rend(); ++it) {
-    _dup2(it->saved, it->target);
-    _close(it->opened);
-    _close(it->saved);
+
+  const std::wstring executable_wide = std::filesystem::path(executable).wstring();
+  std::wstring command_line = quote_argument(executable_wide);
+  for (const auto& argument : arguments) {
+    command_line += L" ";
+    command_line += quote_argument(std::filesystem::path(argument).wstring());
   }
+  std::vector<wchar_t> mutable_command(command_line.begin(), command_line.end());
+  mutable_command.push_back(L'\0');
+
+  SECURITY_ATTRIBUTES security{};
+  security.nLength = sizeof(security);
+  security.bInheritHandle = TRUE;
+  std::vector<HANDLE> opened_handles;
+  auto open_redirect = [&](const std::filesystem::path& path, DWORD access,
+                           DWORD creation, DWORD standard_handle) -> HANDLE {
+    if (path.empty()) return GetStdHandle(standard_handle);
+    HANDLE handle = CreateFileW(path.wstring().c_str(), access,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
+                                creation, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (handle != INVALID_HANDLE_VALUE) opened_handles.push_back(handle);
+    return handle;
+  };
+
+  STARTUPINFOW startup{};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESTDHANDLES;
+  startup.hStdInput = open_redirect(stdin_path, GENERIC_READ, OPEN_EXISTING,
+                                    STD_INPUT_HANDLE);
+  startup.hStdOutput = open_redirect(stdout_path, GENERIC_WRITE, CREATE_ALWAYS,
+                                     STD_OUTPUT_HANDLE);
+  startup.hStdError = open_redirect(stderr_path, GENERIC_WRITE, CREATE_ALWAYS,
+                                    STD_ERROR_HANDLE);
+  const bool valid_handles = startup.hStdInput != INVALID_HANDLE_VALUE &&
+                             startup.hStdOutput != INVALID_HANDLE_VALUE &&
+                             startup.hStdError != INVALID_HANDLE_VALUE;
+  PROCESS_INFORMATION process{};
+  const BOOL created = valid_handles
+                           ? CreateProcessW(executable_wide.c_str(), mutable_command.data(),
+                                            nullptr, nullptr, TRUE, 0, nullptr, nullptr,
+                                            &startup, &process)
+                           : FALSE;
+  int result = -1;
+  if (created) {
+    WaitForSingleObject(process.hProcess, INFINITE);
+    DWORD exit_code = 0;
+    if (GetExitCodeProcess(process.hProcess, &exit_code)) {
+      result = static_cast<int>(exit_code);
+    }
+    CloseHandle(process.hThread);
+    CloseHandle(process.hProcess);
+  }
+  for (HANDLE handle : opened_handles) CloseHandle(handle);
   return result;
 #else
   const pid_t child = fork();
