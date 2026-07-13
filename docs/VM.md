@@ -12,6 +12,7 @@ The Simple VM executes verified SBC modules and provides the runtime services us
 - [Heap objects](#heap-objects)
 - [Runtime limits](#runtime-limits)
 - [Imports and native runtime](#imports-and-native-runtime)
+- [Native resource lifecycle](#native-resource-lifecycle)
 - [Dynamic libraries / FFI](#dynamic-libraries--ffi)
 - [Intrinsics and syscalls](#intrinsics-and-syscalls)
 - [Errors and traps](#errors-and-traps)
@@ -83,13 +84,29 @@ Language imports map to VM runtime modules. `System.*` names are canonical. The 
 
 Native modules include time, filesystem/path/env/OS helpers, logging, buffers, JSON, channels, random values, and threads where implemented by tests.
 
-Native host resources use generational opaque handles. SBC type metadata can mark opaque handle layouts with the language-neutral type flag `0x4` and a stable native resource kind id in the type row reserved field; runtime ABI classification maps those rows to 8-byte handle values, and the native layer maps the same rows back to `NativeResourceKind`. `System.Handle<T>` lowers to a packed `NativeHandleId { index, generation }` VM word. `NativeResourceRegistry` validates handle index, generation, kind, and closed state before use, and sweeps owned live resources during registry shutdown. Shutdown sweep is best-effort: close callback failures are counted, records are still marked closed, and finalize callbacks still run. Legacy `System.FS` integer file descriptors are backed internally by registry file handles while preserving the existing surface ABI; native dispatch no longer carries a parallel raw `open_files` table.
+Native host resources use runtime-owned generational opaque handles. SBC type metadata can mark opaque handle layouts with the language-neutral type flag `0x4` and a stable native resource kind id in the type row reserved field; runtime ABI classification maps those rows to 8-byte handle values, and the native layer maps the same rows back to `NativeResourceKind`. `System.Handle<T>` lowers to a packed `NativeHandleId { index, generation, owner }` VM word. The owner identity prevents a handle created by one runtime registry from being accepted by another.
 
 Native function metadata records layer, module, symbol, parameter/result types, resource uses, ownership transfer, cleanup behavior, blocking behavior, allocation behavior, GC/safepoint behavior, capability tags, platform availability, stability, and documentation summaries. `NativeCallContext` exposes typed argument accessors for scalar slots, canonical bool/char values, references, native handles, validated resource handles, borrowed string/byte views, and strings, and `NativeCallResult` exposes typed result builders for scalar slots, canonical bool/char values, references, native handles, strings, void, and errors. `ValidateNativeRegistryMetadata` checks required metadata invariants and uses the runtime ABI verifier to reject non-callable native signatures. `ValidateExternalCAbiSignature` applies the stricter external C FFI subset, permitting primitive/pointer payloads while rejecting VM refs, managed strings, closures, generic result/option values, and implicit `string -> char*` coercion. `ValidateExternalCAbiTypeInfos` also permits stable no-reference aggregate layouts after layout computation and explicit wrapper types for C strings, string views, and bytes views. Dynamic library call dispatch builds this ABI metadata and validates it before preparing or invoking libffi. The interpreter and JIT use this shared metadata instead of ad hoc native signatures. Metadata dispatch validates declared input/inout resource handles against `NativeResourceRegistry` before invoking native handlers when a registry is supplied by the host runtime. String results returned by native handlers are allocated as VM-owned heap strings before being exposed to bytecode. Direct native binding is opt-in metadata and is considered safe only for non-blocking, non-allocating, no-resource functions with no GC safepoint. `ExecOptions::capability_policy` defaults to allow-all for current CLI compatibility, and metadata dispatch rejects calls whose capability tags are not allowed by a stricter host policy. Current tags cover filesystem access, path metadata filesystem queries, FFI dynamic loading, environment read/write, process argument access, threading, clock/time, and randomness. Native stability metadata distinguishes stable discovery helpers such as platform/architecture queries from unsafe system interfaces such as dynamic library loading.
 
+## Native resource lifecycle
+
+Each runtime registry owns its resource slots. A live record contains a stable resource kind, slot generation, runtime owner identity, ownership flag, closed state, an optional type-erased smart-pointer payload, and an optional close callback. Handles never contain raw host handles or host pointers.
+
+Resource operations follow these rules:
+
+1. Creation transfers an owned host resource into the registry and returns an opaque packed handle.
+2. Every use validates non-null encoding, runtime owner, slot index, generation, expected kind, and open state before the native handler runs.
+3. Explicit close invokes the close callback once, marks the record closed, and resets the owned payload. A second close reports `resource already closed`.
+4. Reusing a closed slot increments its generation, so old handles report `stale handle`.
+5. Runtime shutdown visits every remaining owned live record. Close failures are counted, but all records are marked closed and every owned payload is released, making cleanup deterministic and non-throwing.
+
+`System.FS` integer descriptors remain surface-level indexes for the current library signature, but each entry resolves to an owned registry file handle before access. `System.FFI.open` returns an opaque registry handle rather than a platform library handle; `sym` and `close` validate that handle and shutdown closes any library the program leaves open. Symbols returned by `sym` are borrowed external-C addresses and are valid only while their owning library remains open. `System.Json.parse` values and every typed `System.Channel` family also use the same registry, so explicit `free`/`close`, stale-handle checks, runtime ownership, and shutdown cleanup follow one lifecycle instead of process-global handle ownership.
+
+Native string, byte, and array inputs remain VM-owned for the duration described by their ABI view. `SimpleStringView` and `SimpleBytesView` are borrow-only and must not be retained after the native call. A native function that needs data beyond the call must copy it into resource-owned storage. VM references, managed strings, and mutable heap payload pointers must not cross worker/thread boundaries without an explicit rooted ownership design.
+
 ## Dynamic libraries / FFI
 
-`System.FFI` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime checks argument count, argument types, return shape, and ABI support. Recursive artifact ABI is rejected.
+`System.FFI` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime validates library handles, argument count and types, return shape, and ABI support. Recursive artifact ABI is rejected. Closing or shutting down the owning runtime releases the platform dynamic-library handle.
 
 ## Intrinsics and syscalls
 

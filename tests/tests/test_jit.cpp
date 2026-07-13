@@ -9139,7 +9139,7 @@ bool RunLlvmJitManagedArgImportCallInsideLoopTest() {
   return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 1;
 }
 
-bool RunLlvmJitResourceInputImportCallInsideLoopTest() {
+bool RunLlvmJitResourceInputImportRejectsInvalidHandleTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
 
@@ -9205,11 +9205,12 @@ bool RunLlvmJitResourceInputImportCallInsideLoopTest() {
   std::string error;
   Simple::VM::Heap heap;
   Simple::VM::ExecOptions options;
-  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, &options, ret, has_ret, error)) {
-    std::cerr << "LLVM JIT resource-input import loop run failed: " << error << "\n";
+  if (backend.TryRunFunctionWithRuntime(
+          load.module, 0, {}, &heap, nullptr, &options, ret, has_ret, error)) {
+    std::cerr << "expected LLVM JIT resource-input import to reject a null handle\n";
     return false;
   }
-  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 1;
+  return error == "unsupported";
 }
 
 bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
@@ -9594,7 +9595,7 @@ static const TestCase kJitTests[] = {
   {"llvm_jit_dynamic_dl_string_arg_inside_loop", RunLlvmJitDynamicDlStringArgInsideLoopTest},
   {"llvm_jit_dynamic_dl_managed_signature_diagnostic", RunLlvmJitDynamicDlManagedSignatureDiagnosticTest},
   {"llvm_jit_managed_arg_import_call_inside_loop", RunLlvmJitManagedArgImportCallInsideLoopTest},
-  {"llvm_jit_resource_input_import_call_inside_loop", RunLlvmJitResourceInputImportCallInsideLoopTest},
+  {"llvm_jit_resource_input_import_rejects_invalid_handle", RunLlvmJitResourceInputImportRejectsInvalidHandleTest},
   {"llvm_jit_unsafe_import_call_inside_loop_rejects", RunLlvmJitUnsafeImportCallInsideLoopRejectsTest},
   {"llvm_jit_indirect_call_inside_loop_rejects", RunLlvmJitIndirectCallInsideLoopRejectsTest},
   {"llvm_jit_direct_unspecified_void_call_inside_loop", RunLlvmJitDirectUnspecifiedVoidCallInsideLoopTest},

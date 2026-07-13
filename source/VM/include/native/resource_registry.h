@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -8,8 +9,16 @@
 
 namespace Simple::VM::Native {
 
-inline constexpr uint32_t kNativeHandleGenerationShift = 32u;
-inline constexpr uint64_t kNativeHandleIndexMask = 0xffffffffu;
+inline constexpr uint32_t kNativeHandleIndexBits = 21u;
+inline constexpr uint32_t kNativeHandleGenerationBits = 21u;
+inline constexpr uint32_t kNativeHandleOwnerBits = 22u;
+inline constexpr uint32_t kNativeHandleGenerationShift = kNativeHandleIndexBits;
+inline constexpr uint32_t kNativeHandleOwnerShift =
+    kNativeHandleIndexBits + kNativeHandleGenerationBits;
+inline constexpr uint64_t kNativeHandleIndexMask = (uint64_t{1} << kNativeHandleIndexBits) - 1u;
+inline constexpr uint64_t kNativeHandleGenerationMask =
+    (uint64_t{1} << kNativeHandleGenerationBits) - 1u;
+inline constexpr uint64_t kNativeHandleOwnerMask = (uint64_t{1} << kNativeHandleOwnerBits) - 1u;
 inline constexpr uint32_t kFirstNativeHandleGeneration = 1u;
 inline constexpr uint32_t kNativeResourceNoParameter = 0xffffffffu;
 
@@ -46,31 +55,34 @@ bool NativeResourceKindFromOpaqueTypeRow(const Simple::Byte::TypeRow& row,
 struct NativeHandleId {
   uint32_t index = 0;
   uint32_t generation = 0;
+  uint32_t owner = 0;
 
-  bool IsNull() const { return generation == 0; }
+  bool IsNull() const { return generation == 0 || owner == 0; }
 };
 
 uint64_t PackNativeHandleId(NativeHandleId handle);
 NativeHandleId UnpackNativeHandleId(uint64_t value);
 
 using NativeResourceCloseFn = bool (*)(void* payload, std::string* error);
-using NativeResourceFinalizeFn = void (*)(void* payload);
 
 struct NativeResourceRecord {
   NativeResourceKind kind = NativeResourceKind::Unknown;
   uint32_t generation = 0;
+  uint32_t owner = 0;
   bool owned = true;
   bool closed = true;
   std::string debug_label;
-  void* payload = nullptr;
+  // C++17 type-erased ownership. The registry is the sole persistent owner;
+  // shared_ptr permits typed construction without manual delete/finalizer code.
+  std::shared_ptr<void> payload;
   NativeResourceCloseFn close = nullptr;
-  NativeResourceFinalizeFn finalize = nullptr;
 };
 
 enum class NativeResourceStatus {
   Ok,
   InvalidHandle,
   StaleHandle,
+  WrongOwner,
   WrongKind,
   AlreadyClosed,
   CloseFailed,
@@ -80,7 +92,7 @@ const char* NativeResourceStatusName(NativeResourceStatus status);
 
 class NativeResourceRegistry {
  public:
-  NativeResourceRegistry() = default;
+  NativeResourceRegistry();
   NativeResourceRegistry(const NativeResourceRegistry&) = delete;
   NativeResourceRegistry& operator=(const NativeResourceRegistry&) = delete;
   NativeResourceRegistry(NativeResourceRegistry&&) = delete;
@@ -101,6 +113,7 @@ class NativeResourceRegistry {
 
   size_t LiveCount() const;
   size_t SlotCount() const { return records_.size(); }
+  uint32_t OwnerId() const { return owner_id_; }
 
  private:
   struct Slot {
@@ -109,6 +122,7 @@ class NativeResourceRegistry {
     bool occupied = false;
   };
 
+  uint32_t owner_id_ = 0;
   std::vector<Slot> records_;
 };
 

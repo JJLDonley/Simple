@@ -22,16 +22,16 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `System.Env` | process args/env | native `System.Env` surface |
 | `System.OS` | platform/process facts | native `System.OS` surface |
 | `System.Time` | clocks/timers | native `System.OS`/time backing |
-| `System.FFI` | dynamic loading/extern FFI | native `System.FFI` surface |
+| `System.FFI` | dynamic loading/extern FFI | runtime-owned library handles and borrowed symbols |
 | `System.ASM` | C/DynASM/native unit compilation/linking | planned |
 | `System.Buffer` | low-level mutable/native/runtime buffer handles, C/C++-style data handling, FFI/pinning/explicit cleanup semantics | canonical `System.Buffer` runtime backing |
 | `System.Bytes` | low-level immutable/owned byte values if distinct from buffers | planned/value-level byte surface |
-| `System.Json` | isolated low-level JSON handles (`parse`, `stringify`, `free`) | current `System.Json` runtime backing |
+| `System.Json` | isolated low-level JSON handles (`parse`, `stringify`, `free`) | runtime-owned JSON value handles |
 | `System.Log` | logging sink | native `System.Log` surface |
 | `System.Random` | low-level RNG | native `System.Random` surface |
 | `System.Thread` | OS/runtime thread primitives | native `System.Thread` surface |
 | `System.Job` | VM jobs/promises | planned on Promise runtime |
-| `System.Channel` | low-level channels | native `System.Channel` surface |
+| `System.Channel` | low-level typed channels | runtime-owned channel handles |
 | `System.Process` | process spawning/control | planned |
 | `System.Net` | sockets/listeners | planned |
 | `System.HTTP` | low-level HTTP client/server handles | planned |
@@ -57,6 +57,12 @@ Every public `System.*` native function must declare:
 - stability status
 - doc summary
 - JIT loop-safety classification derived from metadata, not guessed
+
+## Resource lifecycle
+
+Current file, FFI library, JSON value, and channel resources are owned by the executing VM's native resource registry. Packed handles carry slot, generation, and runtime-owner identity. Native dispatch rejects null, foreign-runtime, stale, wrong-kind, and already-closed handles before ordinary input operations. Explicit close/free operations release host state and invalidate the handle; shutdown closes and finalizes any owned resource the program leaves live.
+
+Borrowed text/byte views last only for one native call. Dynamic symbols last only while their owning FFI library remains open. Resource-returning functions declare transfer-to-caller plus VM-shutdown cleanup metadata, borrowed operations declare input metadata, and close/free operations declare transfer-to-callee plus required cleanup.
 
 ## Migration rule
 

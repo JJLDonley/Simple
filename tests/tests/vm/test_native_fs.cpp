@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -12,6 +13,7 @@
 #include "native/fs.h"
 #include "native/registry.h"
 #include "native/resource_registry.h"
+#include "runtime/values.h"
 
 namespace Simple::VM::Tests {
 namespace {
@@ -329,7 +331,13 @@ bool VmNativeFunctionMetadataDeclaresResources() {
   const auto* fs_close = registry.Find("System.FS", "close");
   const auto* dl_open = registry.Find("System.FFI", "open");
   const auto* dl_sym = registry.Find("System.FFI", "sym");
-  if (!fs_open || !fs_read || !fs_close || !dl_open || !dl_sym) return false;
+  const auto* json_parse = registry.Find("System.Json", "parse");
+  const auto* channel_new = registry.Find("System.Channel", "newI32");
+  const auto* channel_recv = registry.Find("System.Channel", "recvI32");
+  if (!fs_open || !fs_read || !fs_close || !dl_open || !dl_sym || !json_parse ||
+      !channel_new || !channel_recv) {
+    return false;
+  }
   if (fs_open->resources.size() != 1 ||
       fs_open->resources[0].kind != NativeResourceKind::File ||
       fs_open->resources[0].access != NativeResourceAccess::Output ||
@@ -360,9 +368,18 @@ bool VmNativeFunctionMetadataDeclaresResources() {
   return dl_open->resources.size() == 1 &&
          dl_open->resources[0].kind == NativeResourceKind::FfiLibrary &&
          dl_open->resources[0].access == NativeResourceAccess::Output &&
-         dl_sym->resources.size() == 1 &&
-         dl_sym->resources[0].parameter_index == 0 &&
-         !dl_open->capability_tags.empty();
+         dl_open->blocking == NativeBlockingBehavior::MayBlock &&
+         dl_open->allocation == NativeAllocationBehavior::MayAllocateHost &&
+         dl_sym->resources.size() == 1 && dl_sym->resources[0].parameter_index == 0 &&
+         !dl_open->capability_tags.empty() && json_parse->resources.size() == 1 &&
+         json_parse->resources[0].kind == NativeResourceKind::JsonValue &&
+         json_parse->allocation == NativeAllocationBehavior::MayAllocateHost &&
+         channel_new->resources.size() == 1 &&
+         channel_new->resources[0].kind == NativeResourceKind::Channel &&
+         channel_new->allocation == NativeAllocationBehavior::MayAllocateHost &&
+         channel_recv->resources.size() == 1 &&
+         channel_recv->resources[0].access == NativeResourceAccess::Input &&
+         channel_recv->blocking == NativeBlockingBehavior::MayBlock;
 }
 
 bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
@@ -574,6 +591,171 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
   return ok;
 }
 
+bool VmNativeFfiLibrariesUseOwnedResourceHandles() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Native::BuildDefaultRegistry;
+  using Simple::VM::Native::DispatchMetadataImport;
+  using Simple::VM::Native::MetadataDispatchContext;
+  using Simple::VM::Native::NativeHandleId;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::NativeResourceStatus;
+  using Simple::VM::Native::Slot;
+  using Simple::VM::Native::UnpackNativeHandleId;
+  using Simple::VM::Runtime::PackRef;
+
+  const std::filesystem::path library_path =
+      std::filesystem::path(SIMPLEVM_PROJECT_ROOT) / SIMPLEVM_TEST_FFI_LIBRARY;
+  Heap heap;
+  const uint32_t path_ref = CreateString(heap, AsciiToU16(library_path.string()));
+  const uint32_t symbol_ref = CreateString(heap, AsciiToU16("simple_add_i32"));
+  NativeResourceRegistry resources;
+  std::string dl_error;
+  MetadataDispatchContext context;
+  context.heap = &heap;
+  context.resource_registry = &resources;
+  context.dl_last_error = &dl_error;
+  const auto registry = BuildDefaultRegistry();
+
+  Slot library_value = 0;
+  bool has_return = false;
+  std::string error;
+  if (!DispatchMetadataImport(registry, "System.FFI", "open", {PackRef(path_ref)},
+                              TypeKind::I64, context, &library_value, &has_return,
+                              &error) ||
+      !error.empty() || !has_return) {
+    return false;
+  }
+  const NativeHandleId library_handle = UnpackNativeHandleId(library_value);
+  if (library_handle.IsNull() || library_handle.owner != resources.OwnerId() ||
+      resources.Get(library_handle, NativeResourceKind::FfiLibrary, nullptr) !=
+          NativeResourceStatus::Ok) {
+    return false;
+  }
+
+  Slot symbol_value = 0;
+  if (!DispatchMetadataImport(registry, "System.FFI", "sym",
+                              {library_value, PackRef(symbol_ref)}, TypeKind::I64,
+                              context, &symbol_value, &has_return, &error) ||
+      !error.empty() || symbol_value == 0) {
+    return false;
+  }
+
+  Slot close_result = 1;
+  if (!DispatchMetadataImport(registry, "System.FFI", "close", {library_value},
+                              TypeKind::I32, context, &close_result, &has_return,
+                              &error) ||
+      !error.empty() || Simple::VM::Runtime::UnpackI32(close_result) != 0 ||
+      resources.LiveCount() != 0) {
+    return false;
+  }
+
+  error.clear();
+  symbol_value = 0;
+  return DispatchMetadataImport(registry, "System.FFI", "sym",
+                                {library_value, PackRef(symbol_ref)}, TypeKind::I64,
+                                context, &symbol_value, &has_return, &error) &&
+         error.find("resource already closed") != std::string::npos;
+}
+
+bool VmNativeJsonValuesUseOwnedResourceHandles() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Native::BuildDefaultRegistry;
+  using Simple::VM::Native::DispatchMetadataImport;
+  using Simple::VM::Native::MetadataDispatchContext;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::Slot;
+  using Simple::VM::Runtime::PackRef;
+
+  Heap heap;
+  NativeResourceRegistry resources;
+  MetadataDispatchContext context;
+  context.heap = &heap;
+  context.resource_registry = &resources;
+  const auto registry = BuildDefaultRegistry();
+  const uint32_t text_ref = CreateString(heap, AsciiToU16("{\"ready\":true}"));
+  Slot json_value = 0;
+  bool has_return = false;
+  std::string error;
+  if (!DispatchMetadataImport(registry, "System.Json", "parse", {PackRef(text_ref)},
+                              TypeKind::I64, context, &json_value, &has_return,
+                              &error) ||
+      !error.empty() || json_value == 0 || resources.LiveCount() != 1) {
+    return false;
+  }
+  Slot string_value = 0;
+  if (!DispatchMetadataImport(registry, "System.Json", "stringify", {json_value},
+                              TypeKind::String, context, &string_value, &has_return,
+                              &error) ||
+      !error.empty() || string_value == HeapLayout::kNullRef) {
+    return false;
+  }
+  Slot free_result = 0;
+  if (!DispatchMetadataImport(registry, "System.Json", "free", {json_value},
+                              TypeKind::I32, context, &free_result, &has_return,
+                              &error) ||
+      !error.empty() || Simple::VM::Runtime::UnpackI32(free_result) != 1 ||
+      resources.LiveCount() != 0) {
+    return false;
+  }
+  free_result = 1;
+  return DispatchMetadataImport(registry, "System.Json", "free", {json_value},
+                                TypeKind::I32, context, &free_result, &has_return,
+                                &error) &&
+         error.empty() && Simple::VM::Runtime::UnpackI32(free_result) == 0;
+}
+
+bool VmNativeChannelsUseOwnedResourceHandles() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Native::BuildDefaultRegistry;
+  using Simple::VM::Native::DispatchMetadataImport;
+  using Simple::VM::Native::MetadataDispatchContext;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::Slot;
+  using Simple::VM::Runtime::PackI32;
+
+  Heap heap;
+  NativeResourceRegistry resources;
+  MetadataDispatchContext context;
+  context.heap = &heap;
+  context.resource_registry = &resources;
+  const auto registry = BuildDefaultRegistry();
+  bool has_return = false;
+  std::string error;
+  Slot channel = 0;
+  if (!DispatchMetadataImport(registry, "System.Channel", "newI32", {}, TypeKind::I64,
+                              context, &channel, &has_return, &error) ||
+      !error.empty() || channel == 0 || resources.LiveCount() != 1) {
+    return false;
+  }
+  Slot sent = 0;
+  if (!DispatchMetadataImport(registry, "System.Channel", "sendI32",
+                              {channel, PackI32(42)}, TypeKind::I32, context, &sent,
+                              &has_return, &error) ||
+      !error.empty() || Simple::VM::Runtime::UnpackI32(sent) != 1) {
+    return false;
+  }
+  Slot received = 0;
+  if (!DispatchMetadataImport(registry, "System.Channel", "recvI32", {channel},
+                              TypeKind::I32, context, &received, &has_return,
+                              &error) ||
+      !error.empty() || Simple::VM::Runtime::UnpackI32(received) != 42) {
+    return false;
+  }
+  Slot close_result = 0;
+  if (!DispatchMetadataImport(registry, "System.Channel", "close", {channel},
+                              TypeKind::Unspecified, context, &close_result,
+                              &has_return, &error) ||
+      !error.empty() || has_return || resources.LiveCount() != 0) {
+    return false;
+  }
+  sent = 0;
+  return DispatchMetadataImport(registry, "System.Channel", "sendI32",
+                                {channel, PackI32(1)}, TypeKind::I32, context, &sent,
+                                &has_return, &error) &&
+         error.find("resource already closed") != std::string::npos;
+}
+
 bool VmNativeResourceKindIdsAreStable() {
   using Simple::VM::Native::IsKnownNativeResourceKindId;
   using Simple::VM::Native::NativeResourceKind;
@@ -617,25 +799,21 @@ bool VmNativeResourceRegistryReportsShutdownFailures() {
   NativeResourceRegistry registry;
   NativeResourceRecord record;
   record.kind = NativeResourceKind::File;
-  record.payload = &close_count;
+  record.payload = std::shared_ptr<void>(&close_count, [](void*) {});
   record.close = [](void* payload, std::string* error) -> bool {
     ++*static_cast<int*>(payload);
     if (error) *error = "close failed for test";
     return false;
   };
-  record.finalize = [](void* payload) {
-    // The close counter address is reused as a sentinel payload. Finalize does
-    // not own it; this test only verifies that finalization still runs.
-    (void)payload;
-  };
-  registry.Insert(record);
+  registry.Insert(std::move(record));
 
   NativeResourceRecord second;
   second.kind = NativeResourceKind::Buffer;
-  second.payload = &finalize_count;
+  second.payload = std::shared_ptr<void>(&finalize_count, [](void* payload) {
+    ++*static_cast<int*>(payload);
+  });
   second.close = [](void*, std::string*) -> bool { return true; };
-  second.finalize = [](void* payload) { ++*static_cast<int*>(payload); };
-  registry.Insert(second);
+  registry.Insert(std::move(second));
 
   const size_t failed = registry.SweepShutdown();
   return failed == 1 && close_count == 1 && finalize_count == 1 && registry.LiveCount() == 0;
@@ -653,7 +831,7 @@ bool VmNativeResourceRegistryTracksHandleLifecycle() {
   NativeResourceRecord record;
   record.kind = NativeResourceKind::File;
   record.debug_label = "unit-file";
-  record.payload = &close_count;
+  record.payload = std::shared_ptr<void>(&close_count, [](void*) {});
   record.close = [](void* payload, std::string*) -> bool {
     ++*static_cast<int*>(payload);
     return true;
@@ -661,13 +839,16 @@ bool VmNativeResourceRegistryTracksHandleLifecycle() {
 
   const NativeHandleId handle = registry.Insert(record);
   if (registry.LiveCount() != 1) return false;
-  if (Simple::VM::Native::UnpackNativeHandleId(Simple::VM::Native::PackNativeHandleId(handle)).generation !=
-      handle.generation) {
+  const NativeHandleId unpacked = Simple::VM::Native::UnpackNativeHandleId(
+      Simple::VM::Native::PackNativeHandleId(handle));
+  if (unpacked.index != handle.index || unpacked.generation != handle.generation ||
+      unpacked.owner != handle.owner || handle.owner != registry.OwnerId()) {
     return false;
   }
 
   NativeResourceRecord* found = nullptr;
-  if (registry.Get(handle, NativeResourceKind::File, &found) != NativeResourceStatus::Ok || !found) {
+  if (registry.Get(handle, NativeResourceKind::File, &found) != NativeResourceStatus::Ok ||
+      !found || found->owner != registry.OwnerId()) {
     return false;
   }
   if (registry.Get(handle, NativeResourceKind::Socket, nullptr) != NativeResourceStatus::WrongKind) {
@@ -688,6 +869,42 @@ bool VmNativeResourceRegistryTracksHandleLifecycle() {
   return close_count == 2 && registry.LiveCount() == 0;
 }
 
+bool VmNativeResourceRegistryRejectsForeignAndInvalidHandles() {
+  using Simple::VM::Native::NativeHandleId;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceRecord;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::NativeResourceStatus;
+
+  NativeResourceRecord record;
+  record.kind = NativeResourceKind::File;
+  NativeResourceRegistry first;
+  NativeResourceRegistry second;
+  const NativeHandleId first_handle = first.Insert(record);
+  const NativeHandleId second_handle = second.Insert(record);
+  if (first_handle.owner == second_handle.owner || first_handle.IsNull() ||
+      second_handle.IsNull()) {
+    return false;
+  }
+  if (second.Get(first_handle, NativeResourceKind::File, nullptr) !=
+      NativeResourceStatus::WrongOwner) {
+    return false;
+  }
+  NativeHandleId invalid = first_handle;
+  invalid.index = static_cast<uint32_t>(first.SlotCount() + 10u);
+  if (first.Get(invalid, NativeResourceKind::File, nullptr) !=
+      NativeResourceStatus::InvalidHandle) {
+    return false;
+  }
+  if (first.Get({}, NativeResourceKind::File, nullptr) !=
+      NativeResourceStatus::InvalidHandle) {
+    return false;
+  }
+  return std::string(Simple::VM::Native::NativeResourceStatusName(
+                         NativeResourceStatus::WrongOwner)) ==
+         "resource belongs to another runtime";
+}
+
 const TestCase kVmNativeFsTests[] = {
   {"vm_runtime_dispatches_registered_natives_by_metadata_first", VmRuntimeDispatchesRegisteredNativesByMetadataFirst},
   {"vm_dynamic_dl_dispatch_lives_in_ffi_module", VmDynamicDlDispatchLivesInFfiModule},
@@ -706,9 +923,13 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_dispatch_validates_resource_handles", VmNativeDispatchValidatesResourceHandles},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_fs_open_close_uses_resource_registry", VmNativeFsOpenCloseUsesResourceRegistry},
+  {"vm_native_ffi_libraries_use_owned_resource_handles", VmNativeFfiLibrariesUseOwnedResourceHandles},
+  {"vm_native_json_values_use_owned_resource_handles", VmNativeJsonValuesUseOwnedResourceHandles},
+  {"vm_native_channels_use_owned_resource_handles", VmNativeChannelsUseOwnedResourceHandles},
   {"vm_native_resource_kind_ids_are_stable", VmNativeResourceKindIdsAreStable},
   {"vm_native_resource_registry_reports_shutdown_failures", VmNativeResourceRegistryReportsShutdownFailures},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
+  {"vm_native_resource_registry_rejects_foreign_and_invalid_handles", VmNativeResourceRegistryRejectsForeignAndInvalidHandles},
 };
 
 const TestSection kVmNativeFsSections[] = {

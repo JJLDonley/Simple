@@ -195,13 +195,9 @@ set_target_properties(simpleffi_test PROPERTIES
   OUTPUT_NAME simpleffi
   WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
-set(SIMPLEVM_TEST_FFI_LIBRARY
-    "tests/ffi/${CMAKE_SHARED_LIBRARY_PREFIX}simpleffi${CMAKE_SHARED_LIBRARY_SUFFIX}")
-add_custom_command(TARGET simpleffi_test POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          $<TARGET_FILE:simpleffi_test>
-          ${SIMPLEVM_ROOT}/${SIMPLEVM_TEST_FFI_LIBRARY}
-)
+# Keep the native fixture inside each build tree. An absolute target path prevents
+# concurrent sanitizer/compiler configurations from overwriting one shared binary.
+set(SIMPLEVM_TEST_FFI_LIBRARY "$<TARGET_FILE:simpleffi_test>")
 
 add_library(simplevm_core_obj OBJECT
   ${SIMPLEVM_CORE_SRC}

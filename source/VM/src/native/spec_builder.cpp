@@ -65,6 +65,11 @@ NativeFunctionSpec MayBlock(NativeFunctionSpec spec) {
   return spec;
 }
 
+NativeFunctionSpec MayAllocateHost(NativeFunctionSpec spec) {
+  spec.allocation = NativeAllocationBehavior::MayAllocateHost;
+  return spec;
+}
+
 NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capability) {
   spec.capability_tags.push_back(capability);
   return spec;

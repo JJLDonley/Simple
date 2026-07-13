@@ -16008,14 +16008,12 @@ bool RunNativeFsModuleTest() {
 }
 
 bool RunNativeJsonModuleTest() {
-  const int64_t handle = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
-  if (handle == 0) return false;
+  const auto document = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
+  if (!document) return false;
   std::string text;
-  if (!Simple::VM::Native::Json::Stringify(handle, &text)) return false;
-  if (text != "{\"ok\":[true, null, 3]}") return false;
-  if (Simple::VM::Native::Json::Parse("{bad") != 0) return false;
-  if (!Simple::VM::Native::Json::Free(handle)) return false;
-  return !Simple::VM::Native::Json::Stringify(handle, &text);
+  if (!Simple::VM::Native::Json::Stringify(*document, &text)) return false;
+  return text == "{\"ok\":[true, null, 3]}" &&
+         !Simple::VM::Native::Json::Parse("{bad");
 }
 
 bool RunGcRootTracerModuleTest() {
@@ -16158,7 +16156,7 @@ bool RunCompatibilityVersionConstantsTest() {
   return Simple::Lang::kLangSyntaxVersionMinor == 0 &&
          Simple::Lang::kSirVersionMinor == 0 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 0;
+         Simple::VM::kRuntimeAbiVersionMinor == 1;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {

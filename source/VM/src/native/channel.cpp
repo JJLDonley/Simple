@@ -21,4 +21,15 @@ void CloseAll(int64_t handle) {
   Close(g_bytes, handle);
 }
 
+void DestroyAll(int64_t handle) {
+  CloseAll(handle);
+  Erase(g_i32, handle);
+  Erase(g_i64, handle);
+  Erase(g_f32, handle);
+  Erase(g_f64, handle);
+  Erase(g_bool, handle);
+  Erase(g_string, handle);
+  Erase(g_bytes, handle);
+}
+
 } // namespace Simple::VM::Native::Channel

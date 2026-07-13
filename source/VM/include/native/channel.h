@@ -100,7 +100,14 @@ void Close(Registry<T>& registry, int64_t handle) {
   state->cv.notify_all();
 }
 
+template <typename T>
+void Erase(Registry<T>& registry, int64_t handle) {
+  std::lock_guard<std::mutex> lock(registry.mutex);
+  registry.channels.erase(handle);
+}
+
 void CloseAll(int64_t handle);
+void DestroyAll(int64_t handle);
 
 } // namespace Simple::VM::Native::Channel
 

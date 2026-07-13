@@ -25,6 +25,7 @@ NativeFunctionSpec WithResource(NativeFunctionSpec spec,
                                 NativeResourceAccess access,
                                 uint32_t parameter_index = kNativeResourceNoParameter);
 NativeFunctionSpec MayBlock(NativeFunctionSpec spec);
+NativeFunctionSpec MayAllocateHost(NativeFunctionSpec spec);
 NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capability);
 NativeFunctionSpec WithStability(NativeFunctionSpec spec, NativeStability stability);
 NativeFunctionSpec WithDoc(NativeFunctionSpec spec, const char* summary);

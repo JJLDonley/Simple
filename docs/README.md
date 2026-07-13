@@ -22,8 +22,8 @@ its implementation.
 ## Development
 
 - [Portability](Portability.md) — operating-system and architecture boundary.
-- [Coding standards](Standards.md) — conventions for compiler and runtime
-  changes.
+- [Coding standards](Standards.md) — mandatory modern C++, no-shim/dead-code,
+  boundary, testing, and continuous-cleanup rules.
 
 Release planning, implementation audits, and personal working notes are not
 part of the public documentation. Keep those in the ignored `.notes/`

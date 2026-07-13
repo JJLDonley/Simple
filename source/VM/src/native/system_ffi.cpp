@@ -6,24 +6,50 @@
 
 #include "ffi/dl_runtime.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace Simple::VM::Native {
-using Simple::VM::Runtime::PackI32;
 using Simple::VM::Runtime::PackI64;
 using Simple::VM::Runtime::PackRef;
-using Simple::VM::Runtime::UnpackI64;
 using Simple::VM::Runtime::UnpackRef;
 
 namespace {
+
+struct DynamicLibraryResource {
+  int64_t native_handle = 0;
+};
+
+bool CloseDynamicLibraryResource(void* payload, std::string* error) {
+  auto* library = static_cast<DynamicLibraryResource*>(payload);
+  if (!library || library->native_handle == 0) return true;
+  if (!Simple::VM::Ffi::DlRuntime::Close(library->native_handle, error)) return false;
+  library->native_handle = 0;
+  return true;
+}
 
 void SetDlError(NativeCallContext& context, const std::string& text) {
   if (context.dl_last_error) *context.dl_last_error = text;
 }
 
+NativeResourceRecord* GetDynamicLibraryResource(NativeCallContext& context, size_t index) {
+  NativeResourceRecord* record = nullptr;
+  NativeHandleId handle;
+  const NativeResourceStatus status = context.ArgResourceHandle(
+      index, NativeResourceKind::FfiLibrary, &handle, &record);
+  if (status != NativeResourceStatus::Ok) {
+    SetDlError(context, "System.FFI invalid library handle: " +
+                            std::string(NativeResourceStatusName(status)));
+    return nullptr;
+  }
+  return record;
+}
+
 NativeCallResult DlOpen(NativeCallContext& context) {
   NativeCallResult result;
-  if (!context.dl_last_error) {
+  if (!context.dl_last_error || !context.resource_registry) {
+    SetDlError(context, "System.FFI.open runtime resource registry unavailable");
     result.value = PackI64(0);
     return result;
   }
@@ -39,18 +65,37 @@ NativeCallResult DlOpen(NativeCallContext& context) {
     result.value = PackI64(0);
     return result;
   }
-  result.value = PackI64(Simple::VM::Ffi::DlRuntime::Open(path, context.dl_last_error));
-  return result;
+  const int64_t native_handle = Simple::VM::Ffi::DlRuntime::Open(path, context.dl_last_error);
+  if (native_handle == 0) {
+    result.value = PackI64(0);
+    return result;
+  }
+
+  auto library = std::make_shared<DynamicLibraryResource>();
+  library->native_handle = native_handle;
+  NativeResourceRecord record;
+  record.kind = NativeResourceKind::FfiLibrary;
+  record.debug_label = path;
+  record.payload = library;
+  record.close = CloseDynamicLibraryResource;
+  const NativeHandleId handle = context.resource_registry->Insert(std::move(record));
+  if (handle.IsNull()) {
+    CloseDynamicLibraryResource(library.get(), context.dl_last_error);
+    SetDlError(context, "System.FFI.open resource registry is full");
+    result.value = PackI64(0);
+    return result;
+  }
+  return NativeCallResult::Handle(handle);
 }
 
 NativeCallResult DlSymbol(NativeCallContext& context) {
   NativeCallResult result;
-  const int64_t handle = UnpackI64(context.args[0]);
-  if (handle == 0) {
-    SetDlError(context, "System.FFI.sym null handle");
+  NativeResourceRecord* record = GetDynamicLibraryResource(context, 0);
+  if (!record || !record->payload) {
     result.value = PackI64(0);
     return result;
   }
+  const auto* library = static_cast<const DynamicLibraryResource*>(record->payload.get());
   const uint32_t name_ref = UnpackRef(context.args[1]);
   if (name_ref == HeapLayout::kNullRef) {
     SetDlError(context, "System.FFI.sym null name");
@@ -63,14 +108,31 @@ NativeCallResult DlSymbol(NativeCallContext& context) {
     result.value = PackI64(0);
     return result;
   }
-  result.value = PackI64(context.dl_last_error ? Simple::VM::Ffi::DlRuntime::Symbol(handle, name, context.dl_last_error) : 0);
+  result.value = PackI64(context.dl_last_error
+                             ? Simple::VM::Ffi::DlRuntime::Symbol(
+                                   library->native_handle, name, context.dl_last_error)
+                             : 0);
   return result;
 }
 
 NativeCallResult DlClose(NativeCallContext& context) {
-  NativeCallResult result;
-  result.value = PackI32(Simple::VM::Ffi::DlRuntime::Close(UnpackI64(context.args[0]), context.dl_last_error) ? 0 : -1);
-  return result;
+  if (!context.resource_registry) {
+    SetDlError(context, "System.FFI.close runtime resource registry unavailable");
+    return NativeCallResult::I32(-1);
+  }
+  NativeHandleId handle;
+  if (!context.ArgHandle(0, &handle)) {
+    SetDlError(context, "System.FFI.close invalid handle encoding");
+    return NativeCallResult::I32(-1);
+  }
+  const NativeResourceStatus status = context.resource_registry->Close(
+      handle, NativeResourceKind::FfiLibrary, context.dl_last_error);
+  if (status != NativeResourceStatus::Ok) {
+    SetDlError(context, "System.FFI.close invalid library handle: " +
+                            std::string(NativeResourceStatusName(status)));
+    return NativeCallResult::I32(-1);
+  }
+  return NativeCallResult::I32(0);
 }
 
 NativeCallResult DlLastError(NativeCallContext& context) {
@@ -91,9 +153,12 @@ void RegisterSystemDl(NativeRegistry& registry) {
   const auto module = Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FFI);
   registry.Register(WithDoc(
       WithStability(
-          WithResource(WithCapability(MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::Open), {TypeKind::String},
-                                               TypeKind::I64, DlOpen),
-                                      "ffi.dynamic_load"),
+          WithResource(WithCapability(
+                           MayBlock(MayAllocateHost(MakeSpec(
+                               module,
+                               Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::Open),
+                               {TypeKind::String}, TypeKind::I64, DlOpen))),
+                           "ffi.dynamic_load"),
                        NativeResourceKind::FfiLibrary, NativeResourceAccess::Output),
           NativeStability::Unsafe),
       "Open a dynamic library handle."));

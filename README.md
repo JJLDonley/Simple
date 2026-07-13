@@ -422,9 +422,7 @@ Start with the [documentation index](docs/README.md).
 
 ## Contributing
 
-Keep platform behavior behind the platform interface, add tests for observable
-changes, and update public documentation when a language, runtime, bytecode, or
-CLI contract changes. Run the full test executable before submitting a change.
+Follow the mandatory [coding standards](docs/Standards.md): use modern C++17 ownership and type-safety practices, keep platform behavior behind the platform interface, and leave no shims or dead code. Run the continuous cleanup gate after every commit-sized update. Add tests for observable changes, update affected public documentation, and run the required full-suite/configuration checks before submitting code.
 
 ## License
 

@@ -1,20 +1,11 @@
 #include "native/json.h"
 
-#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <functional>
-#include <mutex>
-#include <unordered_map>
+#include <utility>
 
 namespace Simple::VM::Native::Json {
-namespace {
-
-std::atomic<int64_t> g_next_handle{1};
-std::mutex g_mutex;
-std::unordered_map<int64_t, std::string> g_documents;
-
-} // namespace
 
 bool IsValidText(const std::string& text) {
   size_t pos = 0;
@@ -124,26 +115,15 @@ bool IsValidText(const std::string& text) {
   return pos == text.size();
 }
 
-int64_t Parse(const std::string& text) {
-  if (!IsValidText(text)) return 0;
-  const int64_t handle = g_next_handle.fetch_add(1);
-  std::lock_guard<std::mutex> lock(g_mutex);
-  g_documents[handle] = text;
-  return handle;
+std::optional<Document> Parse(const std::string& text) {
+  if (!IsValidText(text)) return std::nullopt;
+  return Document{text};
 }
 
-bool Stringify(int64_t handle, std::string* out) {
+bool Stringify(const Document& document, std::string* out) {
   if (!out) return false;
-  std::lock_guard<std::mutex> lock(g_mutex);
-  auto it = g_documents.find(handle);
-  if (it == g_documents.end()) return false;
-  *out = it->second;
+  *out = document.text;
   return true;
-}
-
-bool Free(int64_t handle) {
-  std::lock_guard<std::mutex> lock(g_mutex);
-  return g_documents.erase(handle) != 0;
 }
 
 } // namespace Simple::VM::Native::Json

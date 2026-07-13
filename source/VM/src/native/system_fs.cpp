@@ -7,6 +7,7 @@
 #include "native/spec_builder.h"
 
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,7 +33,7 @@ std::FILE* GetFileFromRegistry(NativeCallContext& context, int32_t fd) {
   const NativeResourceStatus status = context.resource_registry->Get(
       (*context.file_handles)[static_cast<size_t>(fd)], NativeResourceKind::File, &record);
   if (status != NativeResourceStatus::Ok || !record) return nullptr;
-  return static_cast<std::FILE*>(record->payload);
+  return static_cast<std::FILE*>(record->payload.get());
 }
 
 NativeCallResult PathSeparator(NativeCallContext&) {
@@ -219,9 +220,14 @@ NativeCallResult FsOpen(NativeCallContext& context) {
   record.kind = NativeResourceKind::File;
   record.owned = true;
   record.debug_label = path;
-  record.payload = file;
+  record.payload = std::shared_ptr<void>(file, [](void*) {});
   record.close = CloseFileResource;
   const NativeHandleId handle = context.resource_registry->Insert(std::move(record));
+  if (handle.IsNull()) {
+    std::fclose(file);
+    result.value = PackI32(-1);
+    return result;
+  }
   context.file_handles->push_back(handle);
   result.value = PackI32(static_cast<int32_t>(context.file_handles->size() - 1));
   return result;

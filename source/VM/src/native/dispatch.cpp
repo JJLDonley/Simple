@@ -109,13 +109,15 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   }
   if (runtime.resource_registry) {
     for (const NativeResourceUse& resource : spec->resources) {
-      if (resource.access == NativeResourceAccess::Output) continue;
+      // Output resources do not exist until the handler returns. Input/output
+      // operations validate inside the handler so close/free APIs can preserve
+      // their documented result shape for stale or already-closed handles.
+      if (resource.access != NativeResourceAccess::Input) continue;
       if (resource.parameter_index >= args.size()) {
         if (out_error) *out_error = function_name + " resource parameter index out of range";
         return true;
       }
-      if (Simple::Lang::IsCanonicalLibraryModule(module_name, Simple::Lang::SystemModule::FFI) ||
-          resource.parameter_index >= spec->parameter_types.size() ||
+      if (resource.parameter_index >= spec->parameter_types.size() ||
           spec->parameter_types[resource.parameter_index] != Simple::Byte::TypeKind::I64) {
         continue;
       }

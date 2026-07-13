@@ -2,7 +2,6 @@
 /build
 /build-*
 /.vscode
-/tests/ffi/*.so
 /dist
 /node_modules
 /editor/vscode-simple/node_modules/

@@ -1621,7 +1621,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
       {"docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
       {"docs/JIT.md", "## Table of contents", "## Correctness rule"},
       {"docs/CLI.md", "## Table of contents", "## Input types"},
-      {"docs/Standards.md", "# Simple Project Coding Standards", "## 10. Documentation Required"},
+      {"docs/Standards.md", "# Simple Project Coding Standards", "## 13. Continuous Cleanup Gate"},
   };
   for (const auto& doc : docs) {
     std::ifstream in(doc.path);

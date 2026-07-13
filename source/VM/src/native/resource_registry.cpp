@@ -1,8 +1,21 @@
 #include "native/resource_registry.h"
 
+#include <atomic>
 #include <utility>
 
 namespace Simple::VM::Native {
+namespace {
+
+uint32_t AllocateNativeResourceOwnerId() {
+  static std::atomic<uint32_t> next_owner{1};
+  for (;;) {
+    const uint32_t candidate = next_owner.fetch_add(1, std::memory_order_relaxed) &
+                               static_cast<uint32_t>(kNativeHandleOwnerMask);
+    if (candidate != 0) return candidate;
+  }
+}
+
+} // namespace
 
 uint16_t NativeResourceKindId(NativeResourceKind kind) {
   return static_cast<uint16_t>(kind);
@@ -56,14 +69,20 @@ bool NativeResourceKindFromOpaqueTypeRow(const Simple::Byte::TypeRow& row,
 }
 
 uint64_t PackNativeHandleId(NativeHandleId handle) {
-  return (static_cast<uint64_t>(handle.generation) << kNativeHandleGenerationShift) |
-         handle.index;
+  return ((static_cast<uint64_t>(handle.owner) & kNativeHandleOwnerMask)
+          << kNativeHandleOwnerShift) |
+         ((static_cast<uint64_t>(handle.generation) & kNativeHandleGenerationMask)
+          << kNativeHandleGenerationShift) |
+         (static_cast<uint64_t>(handle.index) & kNativeHandleIndexMask);
 }
 
 NativeHandleId UnpackNativeHandleId(uint64_t value) {
   NativeHandleId handle;
   handle.index = static_cast<uint32_t>(value & kNativeHandleIndexMask);
-  handle.generation = static_cast<uint32_t>(value >> kNativeHandleGenerationShift);
+  handle.generation = static_cast<uint32_t>((value >> kNativeHandleGenerationShift) &
+                                            kNativeHandleGenerationMask);
+  handle.owner = static_cast<uint32_t>((value >> kNativeHandleOwnerShift) &
+                                       kNativeHandleOwnerMask);
   return handle;
 }
 
@@ -75,6 +94,8 @@ const char* NativeResourceStatusName(NativeResourceStatus status) {
       return "invalid handle";
     case NativeResourceStatus::StaleHandle:
       return "stale handle";
+    case NativeResourceStatus::WrongOwner:
+      return "resource belongs to another runtime";
     case NativeResourceStatus::WrongKind:
       return "wrong resource kind";
     case NativeResourceStatus::AlreadyClosed:
@@ -85,6 +106,9 @@ const char* NativeResourceStatusName(NativeResourceStatus status) {
   return "unknown resource status";
 }
 
+NativeResourceRegistry::NativeResourceRegistry()
+    : owner_id_(AllocateNativeResourceOwnerId()) {}
+
 NativeResourceRegistry::~NativeResourceRegistry() {
   SweepShutdown();
 }
@@ -93,34 +117,40 @@ NativeHandleId NativeResourceRegistry::Insert(NativeResourceRecord record) {
   for (uint32_t i = 0; i < records_.size(); ++i) {
     Slot& slot = records_[i];
     if (slot.occupied && !slot.record.closed) continue;
-    if (slot.record.finalize && slot.record.payload) {
-      slot.record.finalize(slot.record.payload);
-    }
-    slot.generation = slot.generation == 0 ? kFirstNativeHandleGeneration : slot.generation + 1;
+    slot.record.payload.reset();
+    slot.generation = slot.generation == 0
+                          ? kFirstNativeHandleGeneration
+                          : (slot.generation + 1u) &
+                                static_cast<uint32_t>(kNativeHandleGenerationMask);
     if (slot.generation == 0) slot.generation = kFirstNativeHandleGeneration;
     record.generation = slot.generation;
+    record.owner = owner_id_;
     record.closed = false;
     slot.record = std::move(record);
     slot.occupied = true;
-    return NativeHandleId{i, slot.generation};
+    return NativeHandleId{i, slot.generation, owner_id_};
   }
 
+  if (records_.size() > kNativeHandleIndexMask) return {};
   Slot slot;
   slot.generation = kFirstNativeHandleGeneration;
   record.generation = slot.generation;
+  record.owner = owner_id_;
   record.closed = false;
   slot.record = std::move(record);
   slot.occupied = true;
   records_.push_back(std::move(slot));
   return NativeHandleId{static_cast<uint32_t>(records_.size() - 1u),
-                        kFirstNativeHandleGeneration};
+                        kFirstNativeHandleGeneration, owner_id_};
 }
 
 NativeResourceStatus NativeResourceRegistry::Get(NativeHandleId handle,
                                                  NativeResourceKind expected_kind,
                                                  NativeResourceRecord** out_record) {
   if (out_record) *out_record = nullptr;
-  if (handle.IsNull() || handle.index >= records_.size()) return NativeResourceStatus::InvalidHandle;
+  if (handle.IsNull()) return NativeResourceStatus::InvalidHandle;
+  if (handle.owner != owner_id_) return NativeResourceStatus::WrongOwner;
+  if (handle.index >= records_.size()) return NativeResourceStatus::InvalidHandle;
   Slot& slot = records_[handle.index];
   if (!slot.occupied) return NativeResourceStatus::InvalidHandle;
   if (slot.generation != handle.generation) return NativeResourceStatus::StaleHandle;
@@ -138,10 +168,11 @@ NativeResourceStatus NativeResourceRegistry::Close(NativeHandleId handle,
   NativeResourceRecord* record = nullptr;
   const NativeResourceStatus status = Get(handle, expected_kind, &record);
   if (status != NativeResourceStatus::Ok) return status;
-  if (record->owned && record->close && !record->close(record->payload, error)) {
+  if (record->owned && record->close && !record->close(record->payload.get(), error)) {
     return NativeResourceStatus::CloseFailed;
   }
   record->closed = true;
+  record->payload.reset();
   return NativeResourceStatus::Ok;
 }
 
@@ -152,13 +183,10 @@ size_t NativeResourceRegistry::SweepShutdown() {
     NativeResourceRecord& record = slot.record;
     if (!record.closed && record.owned && record.close) {
       std::string ignored;
-      if (!record.close(record.payload, &ignored)) ++failed_closes;
+      if (!record.close(record.payload.get(), &ignored)) ++failed_closes;
     }
     record.closed = true;
-    if (record.finalize && record.payload) {
-      record.finalize(record.payload);
-      record.payload = nullptr;
-    }
+    record.payload.reset();
   }
   return failed_closes;
 }

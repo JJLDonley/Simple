@@ -1,14 +1,17 @@
 #ifndef SIMPLE_VM_NATIVE_JSON_H
 #define SIMPLE_VM_NATIVE_JSON_H
 
-#include <cstdint>
+#include <optional>
 #include <string>
 
 namespace Simple::VM::Native::Json {
 
-int64_t Parse(const std::string& text);
-bool Stringify(int64_t handle, std::string* out);
-bool Free(int64_t handle);
+struct Document {
+  std::string text;
+};
+
+std::optional<Document> Parse(const std::string& text);
+bool Stringify(const Document& document, std::string* out);
 bool IsValidText(const std::string& text);
 
 } // namespace Simple::VM::Native::Json

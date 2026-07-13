@@ -274,16 +274,20 @@ bool RunNativeRegistryModuleTest() {
   const auto env_unset_result = env_unset ? env_unset->handler(env_unset_ctx)
                                           : Simple::VM::Native::NativeCallResult{};
   const uint32_t json_text = make_metadata_string("{\"ok\":true}");
+  Simple::VM::Native::NativeResourceRegistry metadata_resources;
   Simple::VM::Native::NativeCallContext json_parse_ctx;
   json_parse_ctx.heap = &metadata_heap;
+  json_parse_ctx.resource_registry = &metadata_resources;
   json_parse_ctx.args = {json_text};
   const auto json_parse_result = json_parse ? json_parse->handler(json_parse_ctx)
                                             : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext json_stringify_ctx;
+  json_stringify_ctx.resource_registry = &metadata_resources;
   json_stringify_ctx.args = {json_parse_result.value};
   const auto json_stringify_result = json_stringify ? json_stringify->handler(json_stringify_ctx)
                                                     : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext json_free_ctx;
+  json_free_ctx.resource_registry = &metadata_resources;
   json_free_ctx.args = {json_parse_result.value};
   const auto json_free_result = json_free ? json_free->handler(json_free_ctx)
                                           : Simple::VM::Native::NativeCallResult{};
@@ -292,12 +296,14 @@ bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeCallContext dl_open_ctx;
   dl_open_ctx.heap = &metadata_heap;
   dl_open_ctx.dl_last_error = &metadata_dl_error;
+  dl_open_ctx.resource_registry = &metadata_resources;
   dl_open_ctx.args = {dl_missing_path};
   const auto dl_open_result = dl_open ? dl_open->handler(dl_open_ctx)
                                       : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext dl_sym_ctx;
   dl_sym_ctx.heap = &metadata_heap;
   dl_sym_ctx.dl_last_error = &metadata_dl_error;
+  dl_sym_ctx.resource_registry = &metadata_resources;
   dl_sym_ctx.args = {0, dl_missing_path};
   const auto dl_sym_result = dl_sym ? dl_sym->handler(dl_sym_ctx)
                                     : Simple::VM::Native::NativeCallResult{};
@@ -307,27 +313,33 @@ bool RunNativeRegistryModuleTest() {
                                                   : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext dl_close_ctx;
   dl_close_ctx.dl_last_error = &metadata_dl_error;
+  dl_close_ctx.resource_registry = &metadata_resources;
   dl_close_ctx.args = {0};
   const auto dl_close_result = dl_close ? dl_close->handler(dl_close_ctx)
                                         : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_new_string_ctx;
+  channel_new_string_ctx.resource_registry = &metadata_resources;
   const auto channel_new_string_result = channel_string ? channel_string->handler(channel_new_string_ctx)
                                                         : Simple::VM::Native::NativeCallResult{};
   const uint32_t channel_message = make_metadata_string("metadata-channel");
   Simple::VM::Native::NativeCallContext channel_send_string_ctx;
   channel_send_string_ctx.heap = &metadata_heap;
+  channel_send_string_ctx.resource_registry = &metadata_resources;
   channel_send_string_ctx.args = {channel_new_string_result.value, channel_message};
   const auto channel_send_string_result = channel_send_string ? channel_send_string->handler(channel_send_string_ctx)
                                                               : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_pending_string_ctx;
+  channel_pending_string_ctx.resource_registry = &metadata_resources;
   channel_pending_string_ctx.args = {channel_new_string_result.value};
   const auto channel_pending_string_result = channel_pending_string ? channel_pending_string->handler(channel_pending_string_ctx)
                                                                     : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_recv_string_ctx;
+  channel_recv_string_ctx.resource_registry = &metadata_resources;
   channel_recv_string_ctx.args = {channel_new_string_result.value};
   const auto channel_recv_string_result = channel_recv_string ? channel_recv_string->handler(channel_recv_string_ctx)
                                                               : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_new_bytes_ctx;
+  channel_new_bytes_ctx.resource_registry = &metadata_resources;
   const auto channel_new_bytes_result = channel_bytes ? channel_bytes->handler(channel_new_bytes_ctx)
                                                       : Simple::VM::Native::NativeCallResult{};
   const uint32_t channel_bytes_ref = CreateBytes(metadata_heap, {65, 66});
@@ -335,15 +347,18 @@ bool RunNativeRegistryModuleTest() {
   if (!channel_bytes_obj || channel_bytes_obj->header.kind != ObjectKind::Bytes) return false;
   Simple::VM::Native::NativeCallContext channel_send_bytes_ctx;
   channel_send_bytes_ctx.heap = &metadata_heap;
+  channel_send_bytes_ctx.resource_registry = &metadata_resources;
   channel_send_bytes_ctx.args = {channel_new_bytes_result.value, channel_bytes_ref};
   const auto channel_send_bytes_result = channel_send_bytes ? channel_send_bytes->handler(channel_send_bytes_ctx)
                                                             : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_pending_bytes_ctx;
+  channel_pending_bytes_ctx.resource_registry = &metadata_resources;
   channel_pending_bytes_ctx.args = {channel_new_bytes_result.value};
   const auto channel_pending_bytes_result = channel_pending_bytes ? channel_pending_bytes->handler(channel_pending_bytes_ctx)
                                                                   : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_recv_bytes_ctx;
   channel_recv_bytes_ctx.heap = &metadata_heap;
+  channel_recv_bytes_ctx.resource_registry = &metadata_resources;
   channel_recv_bytes_ctx.args = {channel_new_bytes_result.value};
   const auto channel_recv_bytes_result = channel_recv_bytes ? channel_recv_bytes->handler(channel_recv_bytes_ctx)
                                                             : Simple::VM::Native::NativeCallResult{};
@@ -496,7 +511,6 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* fs_list_dir_obj = metadata_heap.Get(static_cast<uint32_t>(fs_list_dir_result.value));
   if (!fs_list_dir_obj) return false;
   const uint32_t fs_list_dir_len = read_test_u32(fs_list_dir_obj->payload, 0);
-  Simple::VM::Native::NativeResourceRegistry metadata_resources;
   std::vector<Simple::VM::Native::NativeHandleId> metadata_file_handles;
   Simple::VM::Native::NativeCallContext fs_open_write_ctx;
   fs_open_write_ctx.heap = &metadata_heap;
