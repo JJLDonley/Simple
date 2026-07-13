@@ -11,4 +11,7 @@
 /raylib
 /scripts/__pycache__/
 
+# Local planning notes and personal project documents.
+/.notes/
+
 *.modules

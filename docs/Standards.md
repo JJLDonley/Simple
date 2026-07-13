@@ -174,17 +174,8 @@ Tests should be deterministic and not depend on external network services.
 
 Update documentation when behavior changes affect users, embedders, or compatibility.
 
-Relevant docs:
-
-- `docs/Timeline.md`
-- `docs/CLI.md`
-- `docs/VM.md`
-- `docs/Language.md`
-- `docs/Byte.md`
-- `docs/IR.md`
-- `docs/JIT.md`
-
-Timeline entries must be actionable.
+The public documentation index is `docs/README.md`. Update the relevant
+language, CLI, bytecode, VM, JIT, or portability document alongside the code.
 
 ## 11. Compatibility
 

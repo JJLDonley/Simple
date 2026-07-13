@@ -1021,7 +1021,7 @@ CLI import resolution handles project-root imports, relative imports, module-map
 
 ## Reserved/System modules and standard library
 
-`System.*` is canonical for low-level runtime modules. `Standard.*` is the high-level library root that wraps or composes `System.*`. There are no public short compatibility aliases. See `docs/System.md`, `docs/Standard.md`, and `docs/LibraryMigration.md` for the no-alias model.
+`System.*` is canonical for low-level runtime modules. `Standard.*` is the high-level library root that wraps or composes `System.*`. There are no public short compatibility aliases. See `docs/System.md` and `docs/Standard.md` for the library model.
 
 The standard library is part of the language-facing runtime surface. Reserved imports map onto enum-backed catalog entries and native-backed runtime modules; no implicit ABI coercion is performed. If a module/member is not listed in the catalog or covered by tests, treat it as unsupported.
 

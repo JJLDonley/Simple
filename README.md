@@ -1,206 +1,158 @@
 # Simple
 
-<p align="center">
-  <strong>Simple like C. Statically typed. General purpose.</strong>
-</p>
+Simple is a statically typed, general-purpose language built around a portable
+bytecode runtime. Source code is checked ahead of execution, lowered to Simple
+IR (SIR), encoded as Simple Bytecode (SBC), and run by the Simple VM.
 
-<p align="center">
-  <a href="docs/Language.md">Language</a> ·
-  <a href="docs/Timeline.md">Timeline</a> ·
-  <a href="docs/IR.md">SIR</a> ·
-  <a href="docs/Byte.md">SBC</a> ·
-  <a href="docs/VM.md">VM</a> ·
-  <a href="https://github.com/JJLDonley/Simple/releases">Releases</a>
-</p>
+The interpreter is the reference runtime on Linux, macOS, and Windows. An
+optional LLVM 18 ORC JIT accelerates supported bytecode without changing the
+portable SBC distribution format.
 
-Simple: identity-first, strictly typed — scripted in minutes, portable everywhere.
-
-It compiles `.simple` source to portable SBC bytecode for the Simple VM, with JIT, GC, canonical System and Standard libraries, and explicit FFI.
-
-The project includes the language front-end, resolver, type checker, SIR/IR lowering, SBC loader/verifier, interpreter runtime, native modules, CLI, LSP server, and JIT scaffolding.
-
-> Status: active development. Simple is usable for fixtures, tests, imports, artifacts, arrays/lists, native modules, and dynamic-library experiments. Syntax and APIs are still evolving while the native-library architecture settles.
-
----
+Simple is under active development. It can compile and run the programs in its
+test suite, but the language, libraries, bytecode format, and tooling are not
+yet stable.
 
 ## Contents
 
-- [Why Simple](#why-simple)
-- [Install / build](#install--build)
-- [Getting started](#getting-started)
-- [Language taste](#language-taste)
-- [Toolchain](#toolchain)
-- [Runtime](#runtime)
-- [Library direction](#library-direction)
-- [CLI](#cli)
+- [Releases](#releases)
+- [Development dependencies](#development-dependencies)
+- [Install and build](#install-and-build)
+- [Development expectations](#development-expectations)
+- [The language](#the-language)
+- [Command line](#command-line)
+- [Compiler and runtime](#compiler-and-runtime)
 - [Tests](#tests)
-- [Repository map](#repository-map)
+- [Repository layout](#repository-layout)
 - [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
----
+## Releases
 
-## Why Simple
+Packages are published on the
+[GitHub releases page](https://github.com/JJLDonley/Simple/releases).
 
-Simple came about from wanting an identity-first, strictly typed language that scripts quickly and ships as portable VM bytecode.
+| Platform | Interpreter (`int`) | LLVM 18 (`llvm`) | Archive |
+|---|:---:|:---:|---|
+| Linux x86_64 | supported | supported | `.tar.gz` |
+| macOS arm64/x86_64 | supported | supported | `.tar.gz` |
+| Windows x86_64 | supported | experimental | `.zip` |
 
-Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.
+Use an `int` package for the interpreter-only runtime. Use an `llvm` package
+to enable the LLVM ORC JIT; unsupported functions still run in the
+interpreter. Windows LLVM support is experimental and may not be available for
+every release.
 
-| Goal | What it means |
-|---|---|
-| **General purpose** | Build tools, scripts, applications, native-backed programs, and VM-hosted code. |
-| **Static typing** | Variables, parameters, returns, arrays, lists, artifacts, enums, and native signatures are checked before execution. |
-| **Quick scripting** | Top-level statements let small programs stay small. |
-| **Readable pipeline** | `Language → SIR → SBC → VM` is inspectable. |
-| **Native library focus** | Low-level `System.*` and high-level `Standard.*` APIs are the current roadmap priority. |
+Archive names include the version, platform, architecture, and runtime flavor:
 
----
-
-## Install / build
-
-### Release build matrix
-
-Simple publishes one release version with explicit runtime flavors. The flavor is an artifact
-classifier, not a separate SemVer version.
-
-| Operating system | Architecture | `int` | `llvm` | Package |
-|---|---|:---:|:---:|---|
-| Linux | x86_64 | ✅ | ✅ | `.tar.gz` |
-| macOS | runner architecture (`arm64` or `x86_64`) | ✅ | ✅ | `.tar.gz` |
-| Windows | x86_64 | ✅ | 🧪 Build/test only | `.zip` (`int` only) |
-
-- `int` is the dependency-light interpreter build.
-- `llvm` includes the LLVM ORC JIT and falls back to the interpreter for unsupported functions.
-- Windows LLVM 18 is built and tested as an allowed-to-fail experimental CI job, but is not
-  published and cannot block the stable packages.
-- Windows LLVM packaging is deferred until its LLVM runtime and toolchain distribution are stable.
-- Every published flavor runs the full test suite during release CI.
-- User packages contain self-contained `svm`/`simple` binaries plus the static runtime and headers
-  needed for generated stubs. Shared Simple libraries are not shipped in user packages.
-- `svm build` defaults to a static, self-contained executable; `-d` is an explicit SDK/development
-  mode.
-
-Artifact names follow this form:
-
-```txt
+```text
 simple-v0.5.0-linux-x86_64-int.tar.gz
 simple-v0.5.0-linux-x86_64-llvm.tar.gz
 simple-v0.5.0-darwin-arm64-int.tar.gz
-simple-v0.5.0-darwin-arm64-llvm.tar.gz
 simple-v0.5.0-windows-x86_64-int.zip
 ```
 
-`simple-latest-<platform>-<architecture>-<flavor>` aliases are also published.
+Aliases beginning with `simple-latest-` point to the newest package for a
+given target and flavor.
 
-### Download a release
+## Development dependencies
 
-Download a package from the
-[latest GitHub release](https://github.com/JJLDonley/Simple/releases/latest) before considering a
-source build. Replace `int` with `llvm` on Linux or macOS when JIT support is wanted.
+All source builds require:
 
-#### Linux x86_64
+- CMake 3.16 or newer;
+- a C++17 compiler;
+- libffi development headers and libraries;
+- Git;
+- Bash for the Unix build scripts, or Git Bash for Windows release scripts.
 
-```bash
+| Platform | Compiler | Interpreter dependencies | LLVM build |
+|---|---|---|---|
+| Ubuntu/Debian | GCC or Clang | `libffi-dev`, `pkg-config` | `llvm-18-dev` |
+| macOS | Xcode command-line tools | Homebrew `libffi`, `pkg-config` | Homebrew `llvm@18` |
+| Windows | Visual Studio C++ tools | vcpkg `libffi` | vcpkg LLVM 18 SDK |
+
+Typical setup commands:
+
+```sh
+# Ubuntu/Debian interpreter build
+sudo apt-get install cmake build-essential libffi-dev pkg-config
+
+# Add this for LLVM support
+sudo apt-get install llvm-18-dev
+```
+
+```sh
+# macOS
+xcode-select --install
+brew install cmake libffi pkg-config
+
+# Add this for LLVM support
+brew install llvm@18
+```
+
+Windows development uses a Visual Studio developer environment. The vcpkg
+manifests are under `cmake/platform/vcpkg/`, with the static release triplet in
+`cmake/platform/triplets/`.
+
+## Install and build
+
+### Install a release
+
+Download the package for your platform from the
+[latest release](https://github.com/JJLDonley/Simple/releases/latest), extract
+it, and add its `bin` directory to `PATH`.
+
+Linux example:
+
+```sh
 curl -LO https://github.com/JJLDonley/Simple/releases/latest/download/simple-latest-linux-x86_64-int.tar.gz
 tar -xzf simple-latest-linux-x86_64-int.tar.gz
-cd simple-*-linux-x86_64
-./bin/svm version
+./simple-*/bin/svm version
 ```
 
-#### macOS
+macOS uses `darwin-arm64` or `darwin-x86_64` in the archive name.
 
-Apple Silicon:
-
-```bash
-curl -LO https://github.com/JJLDonley/Simple/releases/latest/download/simple-latest-darwin-arm64-int.tar.gz
-tar -xzf simple-latest-darwin-arm64-int.tar.gz
-cd simple-*-darwin-arm64
-./bin/svm version
-```
-
-Intel macOS uses `darwin-x86_64` in the file name instead.
-
-#### Windows x86_64
-
-PowerShell:
+Windows PowerShell example:
 
 ```powershell
 Invoke-WebRequest `
   https://github.com/JJLDonley/Simple/releases/latest/download/simple-latest-windows-x86_64-int.zip `
-  -OutFile simple-int.zip
-Expand-Archive simple-int.zip -DestinationPath simple-int
-& .\simple-int\bin\svm.exe version
+  -OutFile simple.zip
+Expand-Archive simple.zip -DestinationPath simple
+& .\simple\bin\svm.exe version
 ```
 
-The extracted directory can be moved anywhere. Add its `bin` directory to `PATH` to invoke `svm`
-without a full path.
-
-### Source-build prerequisites
-
-| Requirement | Linux | macOS | Windows |
-|---|---|---|---|
-| C++ toolchain | GCC or Clang | Xcode Command Line Tools | Visual Studio 2022 C++ tools |
-| Build system | CMake | CMake | CMake |
-| FFI | `libffi-dev`, `pkg-config` | Homebrew `libffi`, `pkg-config` | vcpkg `libffi:x64-windows` |
-| LLVM flavor | `llvm-18-dev` | Homebrew `llvm@18` | vcpkg LLVM 18 SDK (CI build/test) |
-| Shell | Bash | Bash | Git Bash/MSYS2 for release scripts |
-
-Typical dependency installation:
-
-```bash
-# Ubuntu/Debian, interpreter build
-sudo apt-get install cmake build-essential libffi-dev pkg-config
-
-# Ubuntu/Debian, LLVM build
-sudo apt-get install cmake build-essential libffi-dev pkg-config llvm-18-dev
-
-# macOS
-xcode-select --install
-brew install cmake libffi pkg-config        # interpreter
-brew install llvm@18                        # additionally for LLVM JIT
-```
-
-### Platform build layout
-
-Platform build policy is kept out of the compiler sources:
-
-```txt
-cmake/Platform.cmake
-cmake/platform/Linux.cmake
-cmake/platform/macOS.cmake
-cmake/platform/Windows.cmake
-scripts/build/local.sh
-scripts/build/linux.sh
-scripts/build/macos.sh
-scripts/build/windows.sh
-scripts/build/windows.bat
-scripts/install/unix.sh
-scripts/install/windows.bat
-scripts/editor/rebuild_vscode_lsp_package.sh
-```
-
-The repository root contains project metadata only; build and install entry points live under
-`scripts/`. CI invokes the platform scripts directly. Common language, VM, and runtime sources are
-shared; platform files own dependency discovery, runtime-library naming, and packaging.
+The extracted package can be moved without rebuilding it.
 
 ### Build from source
 
-Interpreter build on Linux/macOS:
+Interpreter build on Linux or macOS:
 
-```bash
+```sh
 ./scripts/build/local.sh
 ```
 
-LLVM JIT build:
+Manual CMake build:
 
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSIMPLEVM_ENABLE_LLVM_JIT=ON
-cmake --build build --target simplevm simple_stub --parallel 2
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel 2
 ```
 
-On Homebrew systems, CMake may need the LLVM package location:
+LLVM build:
 
-```bash
-cmake -S . -B build -DSIMPLEVM_ENABLE_LLVM_JIT=ON \
+```sh
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DSIMPLEVM_ENABLE_LLVM_JIT=ON
+cmake --build build --parallel 2
+```
+
+Homebrew may require its LLVM package path explicitly:
+
+```sh
+cmake -S . -B build \
+  -DSIMPLEVM_ENABLE_LLVM_JIT=ON \
   -DLLVM_DIR="$(brew --prefix llvm@18)/lib/cmake/llvm"
 ```
 
@@ -210,207 +162,126 @@ Windows interpreter build:
 scripts\build\windows.bat
 ```
 
-Build output:
+Build output is written under `build/bin/`. Platform scripts copy the
+user-facing commands to `bin/`:
 
-```txt
-bin/svm      compiler/tooling/runtime CLI
-bin/simple   runtime stub only; not a compiler
+```text
+bin/svm       compiler, runtime, and language server
+bin/simple    embedded-program runtime stub
 ```
 
-Build internals, tests, static libraries, and shared libraries live under `build/bin/`.
+Install a local Unix build with:
 
-### Install
-
-Linux/macOS:
-
-```bash
+```sh
 ./scripts/install/unix.sh
 ```
 
-Custom binary directory:
-
-```bash
-BINDIR="$HOME/.local/bin" ./scripts/install/unix.sh
-```
-
-Windows:
+On Windows:
 
 ```bat
 scripts\install\windows.bat
 ```
 
-Custom Windows install directory:
+## Development expectations
 
-```bat
-set SIMPLE_INSTALL_DIR=C:\Tools\Simple\bin
-scripts\install\windows.bat
-```
+The path to a stable language is divided into a few broad stages:
 
-After install, use `svm` directly:
+| Stage | Expected outcome |
+|---|---|
+| `0.5` | Establish the compiler, canonical `System.*`/`Standard.*` imports, interpreter, and optional JIT baseline. |
+| `0.6` | Complete the native runtime foundations and make the core libraries consistent across supported operating systems. |
+| `0.7` | Finish the intended core language surface and remove temporary language restrictions. |
+| `0.8` | Harden the VM, verifier, GC, JIT, ABI, and performance behavior. |
+| `0.9` | Stabilize projects, packages, editor tooling, documentation, and distribution. |
+| `1.0` | Freeze the documented language, bytecode, runtime, and compatibility contracts. |
 
-```bash
-svm run tests/simple/hello.simple
-svm check tests/simple/point_sum.simple
-svm emit -sbc tests/simple/hello.simple --out hello.sbc
-```
+These are expectations rather than release promises. A stage is complete only
+when its behavior is implemented, tested on supported platforms, documented,
+and represented consistently in the compiler, runtime, CLI, and LSP.
 
-`simple` is reserved for generated/embedded runtime stubs and is not a compiler command.
+## The language
 
----
-
-## Getting started
-
-Create `hello.simple`:
+A Simple program may define a `main` function or use top-level statements for
+short scripts.
 
 ```simple
 import Standard.IO
 
 main : i32 () {
-  Standard.IO.println("hello from Simple")
+  Standard.IO.println("hello, world")
   return 0
 }
 ```
 
-Run it:
+Run it with:
 
-```bash
+```sh
 svm run hello.simple
 ```
 
-Check without running:
+### Language contents
 
-```bash
-svm check hello.simple
-```
+| Topic | Contents |
+|---|---|
+| [Lexical rules](docs/Language.md#lexical-rules) | Keywords, comments, operators, numeric literals, strings, and character escapes. |
+| [Programs and modules](docs/Language.md#program-structure-and-entry-points) | Entry points, top-level statements, source files, and module headers. |
+| [Declarations](docs/Language.md#declarations) | Mutable and immutable variables, functions, and `::` declarations. |
+| [Types](docs/Language.md#types) | Primitive types, arrays, lists, generics, procedures, and pointers. |
+| [Literals](docs/Language.md#literals) | Numeric, boolean, character, string, array, list, and artifact values. |
+| [Expressions](docs/Language.md#expressions) | Operators, calls, indexing, member access, assignment, and casts. |
+| [Control flow](docs/Language.md#statements-and-control-flow) | `if`, `else`, `while`, `for`, `switch`, and `return`. |
+| [Functions](docs/Language.md#functions-procedure-types-and-function-literals) | Parameters, return values, procedure types, and function literals. |
+| [Arrays and lists](docs/Language.md#arrays-and-lists) | Fixed-size arrays, growable lists, indexing, and list methods. |
+| [Artifacts](docs/Language.md#artifacts) | Structured values, fields, methods, initialization, and `self`. |
+| [Enums](docs/Language.md#enums) | Named integer-backed values and scoped members. |
+| [Imports and `using`](docs/Language.md#imports-and-using) | Project modules and canonical library imports. |
+| [System and Standard libraries](docs/Language.md#reservedsystem-modules-and-standard-library) | Runtime-facing `System.*` modules and higher-level `Standard.*` modules. |
+| [Extern and FFI](docs/Language.md#extern-declarations-and-ffi-abi) | Native declarations, dynamic libraries, supported ABI types, and rejection rules. |
+| [Diagnostics](docs/Language.md#diagnostics) | Compiler error classes and unsupported constructs. |
+| [Known limitations](docs/Language.md#known-limitations) | Language features that are incomplete or deliberately restricted. |
 
-Emit bytecode:
-
-```bash
-svm emit -sbc hello.simple --out hello.sbc
-```
-
-Top-level statements are also valid for script-style programs:
-
-```simple
-import Standard.IO
-
-Standard.IO.println("script start")
-
-add : i32 (a : i32, b : i32) {
-  return a + b
-}
-
-Standard.IO.println("sum={}", add(2, 3))
-```
-
----
-
-## Language taste
-
-### Declarations and mutability
-
-`:` declares mutable bindings. `::` declares immutable bindings or named top-level constructs.
+### Bindings and functions
 
 ```simple
-count : i32 = 1
+count : i32 = 0
 limit :: i32 = 10
 
-count = count + 1
-```
-
-### Functions
-
-```simple
 add : i32 (a : i32, b : i32) {
   return a + b
 }
 
-log : void (message : string) {
-  Standard.IO.println(message)
-}
+count = add(count, 1)
 ```
 
 ### Artifacts
 
-Artifacts define structured data with optional methods. Fields define layout. Methods define behavior.
+Artifacts combine structured data and methods:
 
 ```simple
 Counter :: artifact {
   value : i32
 
-  inc : void () {
-    self.value = self.value + 1
-  }
-
-  get : i32 () {
-    return self.value
+  increment : void () {
+    self.value += 1
   }
 }
 
 main : i32 () {
-  c : Counter = { .value = 0 }
-  c.inc()
-  return c.get()
+  counter : Counter = { .value = 0 }
+  counter.increment()
+  return counter.value
 }
-```
-
-### Namespaces
-
-Namespaces group related declarations.
-
-```simple
-Maths :: namespace {
-  PI :: f64 = 3.14159
-
-  add : i32 (a : i32, b : i32) {
-    return a + b
-  }
-}
-
-main : i32 () {
-  return Maths.add(40, 2)
-}
-```
-
-### Enums
-
-Enum members are scoped under the enum type.
-
-```simple
-Color :: enum {
-  Red = 1
-  Green = 2
-  Blue = 3
-}
-
-favorite : Color = Color.Green
 ```
 
 ### Arrays and lists
 
-Fixed arrays use `T{N}`. Growable lists use `T[]`.
-
 ```simple
-fixed : i32{3} = {1, 2, 3}
-items : i32[] = [1, 2, 3]
-
-items[1] = 9
-count : i32 = len(items)
-```
-
-### Casts
-
-Primitive casts use `@Type(value)`:
-
-```simple
-a : i8 = 40
-b : i8 = 2
-sum : i32 = @i32(a) + @i32(b)
+coordinates : i32{3} = {10, 20, 30}
+values : i32[] = [1, 2, 3]
+values[1] = 9
 ```
 
 ### Modules and imports
-
-`module` names a file/module for import indexing. Named imports are resolved through the project/module index.
 
 ```simple
 module Tools.Math
@@ -420,7 +291,7 @@ add : i32 (a : i32, b : i32) {
 }
 ```
 
-Use it from another file:
+Another module can import it:
 
 ```simple
 import Tools.Math
@@ -430,173 +301,111 @@ main : i32 () {
 }
 ```
 
-### FFI and extern
+The complete language reference is [docs/Language.md](docs/Language.md).
 
-Native interop uses strict `extern` declarations. Unsupported ABI shapes are rejected instead of guessed.
+## Command line
 
-```simple
-import System.FFI
-import Standard.IO
-
-extern raylib.InitWindow : void (w : i32, h : i32, title : string)
-extern raylib.CloseWindow : void ()
-
-lib : i64 = System.FFI.open("libraylib.so", raylib)
-if (lib == 0) {
-  Standard.IO.println("raylib load failed: {}", System.FFI.lastError())
-  return 1
-}
-
-raylib.InitWindow(800, 600, "Simple")
-raylib.CloseWindow()
-```
-
----
-
-## Toolchain
-
-```txt
-Language → SIR → SBC → VM
-```
-
-| Layer | Role |
-|---|---|
-| **Language** | `.simple` source, parser, resolver, type checker. |
-| **SIR** | Readable intermediate representation for inspecting compiler lowering. |
-| **SBC** | Compact bytecode artifact with loader/verifier checks. |
-| **VM** | Verified execution, heap, native dispatch, traps, limits. |
-
-Common inspection commands:
-
-```bash
-svm emit -ir main.simple --out main.sir
-svm emit -sbc main.simple --out main.sbc
-svm run main.simple
-```
-
----
-
-## Runtime
-
-The Simple runtime loads SBC bytecode, verifies structure, executes instructions, manages VM-owned values, and provides native-backed runtime modules.
-
-| Runtime area | Responsibility |
-|---|---|
-| Loader | Reads SBC headers, sections, bytecode version, and entry metadata. |
-| Verifier | Rejects unsupported or malformed bytecode before execution. |
-| Interpreter | Executes instructions, call frames, locals, globals, traps, and runtime limits. |
-| Heap / GC | Owns strings, arrays, lists, artifacts, and runtime objects. |
-| Native dispatch | Connects runtime calls to native modules through checked boundaries. |
-
-Expected runtime/OS failures should become values such as `Result<T>` or `Option<T>` as the native library evolves. Traps remain for invalid contracts, stale/wrong handles, bytecode violations, and VM invariants.
-
----
-
-## Library direction
-
-Simple’s native library roadmap is layered:
-
-| Layer | Role |
-|---|---|
-| VM Native Core | Resource registry, handle validation, metadata, cleanup, capability policy. |
-| `System.*` | Low-level APIs close to host/runtime behavior. |
-| `Standard.*` | High-level APIs built over `System.*`. |
-| Legacy diagnostics | Short imports are rejected with canonical `System.*` / `Standard.*` replacements; they are not aliases. |
-
-### Core native-facing types
-
-| Type | Purpose |
-|---|---|
-| `System.Handle<T>` | Typed opaque native resource handle. |
-| `Result<T>` | Expected success/failure result. |
-| `Option<T>` | Presence/absence or ready/not-ready value. |
-| `Promise<T>` | Planned async result carrier. |
-
-### Planned `System.*` modules
-
-| Module | Purpose |
-|---|---|
-| `System.FS` | Files, directories, file handles, read/write/seek/stat/list/copy/remove. |
-| `System.Path` | Join, normalize, absolute/relative paths, basename, dirname, extension. |
-| `System.Buffer` | Native buffer handles, slicing, copying, bounds-checked access. |
-| `System.Bytes` | Heap-owned byte sequences and byte/string conversion. |
-| `System.Net` | TCP/UDP sockets, listeners, connect/listen/accept/send/receive/close. |
-| `System.HTTP` | HTTP clients, server handles, request/response IO, limits, timeouts. |
-| `Standard.HTTPS` | TLS-backed clients/servers, cert loading, verification diagnostics over `System.HTTP`/`System.Net`. |
-| `System.Terminal` | Raw mode, alternate screen, cursor, style, key/mouse/resize events. |
-| `System.Process` | Spawn, wait, kill, stdio, capability checks. |
-| `System.Thread` | OS thread handles and thread-related runtime operations. |
-| `System.Job` | VM jobs, spawn/join/detach/cancel, result propagation. |
-| `System.Channel` | Send/receive/try operations, pending, close, wakeup behavior. |
-| `System.Time` | Wall/monotonic clocks, timers, sleep, durations. |
-| `System.Random` | Seeded random generators and random numeric values. |
-| `System.Json` | Parse, stringify, typed accessors, JSON value handles. |
-| `System.Log` | Levels, structured messages, runtime/file sinks. |
-| `System.FFI` | Foreign function interface, dynamic libraries, symbols, strict ABI. |
-| `System.ASM` | C/DynASM native-code units, object generation, stub/AOT linking. |
-
----
-
-## CLI
-
-`svm` is the compiler/tooling/runtime command:
-
-```bash
-svm run <file.simple|file.sir|module.sbc>
-svm check <file.simple|file.sir|module.sbc>
-svm build <file.simple|file.sir> --out <program|program.sbc>
-svm compile <file.simple|file.sir> --out <program|program.sbc>
-svm emit -ir <file.simple> --out <file.sir>
-svm emit -sbc <file.simple|file.sir> --out <file.sbc>
+```text
+svm run <source.simple|module.sir|module.sbc>
+svm check <source.simple|module.sir|module.sbc>
+svm build <source.simple|module.sir> --out <program>
+svm emit -ir <source.simple> --out <module.sir>
+svm emit -sbc <source.simple|module.sir> --out <module.sbc>
 svm lsp
+svm version
 ```
 
-`simple` is the runtime-stub executable name used for embedded SBC payloads.
+Examples:
 
----
+```sh
+svm check hello.simple
+svm emit -ir hello.simple --out hello.sir
+svm emit -sbc hello.simple --out hello.sbc
+svm run hello.sbc
+svm build hello.simple --out hello
+```
+
+`svm build` uses the static runtime by default. `-d` requests a shared-runtime
+development build.
+
+## Compiler and runtime
+
+```text
+.simple source
+      |
+      v
+ lexer / parser / resolver / type checker
+      |
+      v
+ Simple IR (SIR)
+      |
+      v
+ Simple Bytecode (SBC)
+      |
+      v
+ verifier -> interpreter or LLVM JIT
+```
+
+SIR is a readable intermediate form used to inspect compiler lowering. SBC is
+the serialized format consumed by the VM. The verifier rejects malformed or
+unsupported bytecode before execution.
+
+Host-specific behavior is isolated under `source/Platform/`. Portable compiler
+and VM code use that interface rather than embedding operating-system checks.
+See [docs/Portability.md](docs/Portability.md) for details.
 
 ## Tests
 
-```bash
-cmake --build build --target simplevm_tests -j2
+```sh
+cmake -S . -B build
+cmake --build build --target simplevm_tests --parallel 2
 ./build/bin/simplevm_tests
 ```
 
----
+Windows:
 
-## Repository map
+```bat
+build\bin\simplevm_tests.exe
+```
 
-| Area | Path | Doc |
-|---|---|---|
-| Language front-end | `source/Lang/` | [docs/Language.md](docs/Language.md) |
-| IR / SIR compiler | `source/IR/` | [docs/IR.md](docs/IR.md) |
-| SBC bytecode | `source/Byte/` | [docs/Byte.md](docs/Byte.md) |
-| VM runtime | `source/VM/` | [docs/VM.md](docs/VM.md) |
-| JIT scaffolding | `source/VM/include/jit/`, `source/VM/src/jit/` | [docs/JIT.md](docs/JIT.md) |
-| CLI and build stubs | `source/CLI/` | [docs/CLI.md](docs/CLI.md) |
-| LSP/editor support | `source/LSP/`, `editor/` | `svm lsp` |
-| Tests and fixtures | `tests/` | [Tests](#tests) |
+The suite covers the language front end, IR, bytecode, VM, native modules, CLI,
+LSP, and end-to-end language fixtures.
 
----
+## Repository layout
+
+```text
+source/       compiler, VM, CLI, LSP, and platform code
+tests/        unit tests and language fixtures
+docs/         public language and implementation documentation
+editor/       editor integrations
+cmake/        CMake and platform configuration
+scripts/      build, install, audit, and editor scripts
+```
+
+Generated files belong in `build/`, `bin/`, and `dist/`. Personal planning and
+audit notes belong in the ignored `.notes/` directory.
 
 ## Documentation
 
-| Doc | Contents |
-|---|---|
-| [docs/Language.md](docs/Language.md) | Syntax, semantics, imports, artifacts, enums, FFI. |
-| [docs/VM.md](docs/VM.md) | Runtime, heap, imports, ABI, execution model. |
-| [docs/IR.md](docs/IR.md) | SIR/IR contract. |
-| [docs/Byte.md](docs/Byte.md) | SBC bytecode, loader, verifier. |
-| [docs/CLI.md](docs/CLI.md) | `svm` and `simple` behavior. |
-| [docs/JIT.md](docs/JIT.md) | Optional JIT/tiering behavior. |
-| [docs/Portability.md](docs/Portability.md) | OS/architecture abstraction and porting rules. |
-| [docs/Timeline.md](docs/Timeline.md) | Native-library roadmap and lower-priority backlog. |
-| [docs/Standards.md](docs/Standards.md) | Project coding standards. |
+Start with the [documentation index](docs/README.md).
 
----
+- [Language reference](docs/Language.md)
+- [System library](docs/System.md)
+- [Standard library](docs/Standard.md)
+- [Command-line interface](docs/CLI.md)
+- [Simple IR](docs/IR.md)
+- [Simple Bytecode](docs/Byte.md)
+- [Virtual machine](docs/VM.md)
+- [LLVM JIT](docs/JIT.md)
+- [Portability](docs/Portability.md)
+- [Coding standards](docs/Standards.md)
 
-## Version
+## Contributing
 
-Current tool version: `v0.5.0`.
+Keep platform behavior behind the platform interface, add tests for observable
+changes, and update public documentation when a language, runtime, bytecode, or
+CLI contract changes. Run the full test executable before submitting a change.
 
-The canonical tool/package version lives in `VERSION`. Build scripts and release CI read that file, and CMake embeds the same value into `svm version`.
+## License
+
+Simple is distributed under the terms in [LICENSE](LICENSE).

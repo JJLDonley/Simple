@@ -980,7 +980,7 @@ inline std::array<std::string_view, kSystemBufferMembers.size()> SystemBufferMem
   return names;
 }
 
-// Transitional native names. Phase 3 in docs/Timeline.md removes the lowercase runtime modules.
+// Transitional native names retained only for explicit migration diagnostics.
 inline std::optional<SystemModule> NativeBackingModule(StandardModule module) {
   switch (module) {
     case StandardModule::IO: return SystemModule::IO;
