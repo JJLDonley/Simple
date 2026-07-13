@@ -218,21 +218,25 @@ main :: i32 () {
         <section id="installation" class="doc-section" data-title="Installation">
           <h2>Installation</h2>
           <p class="section-status">Status: Implemented</p>
-          <p>Simple currently builds from source. The developer CLI is <code>svm</code>. The <code>simple</code> executable is a runtime stub for generated/embedded programs.</p>
+          <p>Download a packaged interpreter or LLVM build from the <a href="https://github.com/JJLDonley/Simple/releases/latest" target="_blank" rel="noopener noreferrer">latest release</a>, or build from source. The developer CLI is <code>svm</code>; <code>simple</code> is the runtime stub for generated programs.</p>
 
           <h3>Build</h3>
           <pre><code class="language-bash"># Linux / macOS
-./build.sh
+./scripts/build/local.sh
 
 # Windows
-build.bat</code></pre>
+scripts\build\windows.bat</code></pre>
 
           <h3>Install</h3>
-          <pre><code class="language-bash"># Linux / macOS
-./install.sh
+          <p>The Unix installer enables LLVM 18 JIT by default. Use <code>--no-llvm-jit</code> for an interpreter-only installation.</p>
+          <pre><code class="language-bash"># Linux / macOS: LLVM JIT enabled by default
+./scripts/install/unix.sh
 
-# custom prefix
-PREFIX="$HOME/.local" ./install.sh</code></pre>
+# interpreter-only install
+./scripts/install/unix.sh --no-llvm-jit
+
+# custom binary directory
+BINDIR="$HOME/.local/bin" ./scripts/install/unix.sh</code></pre>
 
           <table>
             <thead><tr><th>Binary</th><th>Role</th></tr></thead>
@@ -281,7 +285,7 @@ Standard.IO.println("sum={}", add(2, 3))</code></pre>
         <section id="program-structure" class="doc-section" data-title="Program structure">
           <h2>Program structure</h2>
           <p class="section-status">Status: Implemented</p>
-          <p>A Simple source file can begin with a qualified <code>module</code> name, followed by imports, declarations, and optional top-level statements. Named script files still execute top-level statements in source order through an implicit script entry.</p>
+          <p>Every Simple source file begins with a qualified <code>module</code> name, followed by imports, declarations, and optional top-level statements. Script files require module names too and execute top-level statements in source order through an implicit script entry.</p>
 
           <pre><code class="language-simple">module app.main
 
@@ -298,7 +302,7 @@ main :: i32 () {
           <table>
             <thead><tr><th>Construct</th><th>Meaning</th></tr></thead>
             <tbody>
-              <tr><td><code>module app.main</code></td><td>Names the source unit for module indexing and named imports.</td></tr>
+              <tr><td><code>module app.main</code></td><td>Declares the required runtime module namespace and named-import identity.</td></tr>
               <tr><td><code>import Standard.IO</code></td><td>Canonical high-level library import.</td></tr>
               <tr><td><code>import Standard.Math</code></td><td>Canonical standard math module import.</td></tr>
               <tr><td><code>main :: i32 ()</code></td><td>Immutable entry-point function when no top-level script body is used.</td></tr>
@@ -482,7 +486,9 @@ for n : i32 = 1 .. 4 {
 }</code></pre>
 
           <h3>While loops, break, and return</h3>
-          <pre><code class="language-simple">main :: i32 () {
+          <pre><code class="language-simple">module examples.loops
+
+main :: i32 () {
   total : i32 = 30
 
   while (total > 20) {
@@ -548,7 +554,7 @@ favorite : Color = Color.Green</code></pre>
         <section id="namespaces" class="doc-section" data-title="Namespaces">
           <h2>Namespaces</h2>
           <p class="section-status">Status: Implemented</p>
-          <p>Namespaces group related declarations. They are useful for constants, utility functions, domain APIs, and organized module surfaces.</p>
+          <p>Each source file belongs to its declared module namespace. A <code>namespace</code> declaration adds an explicitly named group for constants, utility functions, and domain APIs.</p>
 
           <pre><code class="language-simple">Maths :: namespace {
   PI :: f64 = 3.14159
@@ -566,9 +572,11 @@ value : i32 = Maths.add(2, 3)</code></pre>
         <section id="modules-imports" class="doc-section" data-title="Modules and imports">
           <h2>Modules and imports</h2>
           <p class="section-status">Status: Partial</p>
-          <p>Simple supports reserved runtime modules, named module imports resolved by the project/module index, and quoted source paths for explicit local imports. Import resolution handles project-root modules, module-map entries, relative paths, missing imports, ambiguity, and cycles.</p>
+          <p>Every source file declares a runtime module namespace. Unquoted imports resolve module names through module headers or module maps; quoted imports resolve explicit source paths. Import resolution also handles reserved modules, relative paths, missing imports, ambiguity, and cycles.</p>
 
-          <pre><code class="language-simple">import Standard.IO
+          <pre><code class="language-simple">module examples.imports
+
+import Standard.IO
 import System.IO
 import app.config
 import "./local_helpers"
@@ -590,19 +598,23 @@ import "./legacy_helpers.simple"</code></pre>
           <p class="section-status">Status: Partial</p>
           <p>Simple exposes native interop through strict <code>extern</code> declarations and dynamic-library runtime APIs. Extern signatures are checked; unsupported ABI shapes are rejected instead of guessed.</p>
 
-          <pre><code class="language-simple">import System.FFI
+          <pre><code class="language-simple">module examples.ffi
+
+import System.FFI
 import Standard.IO
 
 extern raylib.InitWindow : void (w : i32, h : i32, title : string)
 extern raylib.CloseWindow : void ()
 
-lib : i64 = System.FFI.open("libraylib.so", raylib)
+lib :: i64 = System.FFI.open("libraylib.so", raylib)
 if (lib == 0) {
-  Standard.IO.println("raylib load failed: {}", System.FFI.lastError())
+  Standard.IO.println("raylib load failed")
 }
 
-raylib.InitWindow(800, 600, "Simple")
-raylib.CloseWindow()</code></pre>
+lib.InitWindow(800, 600, "Simple")
+lib.CloseWindow()</code></pre>
+
+          <p>See the locally runnable <a href="raylib/main.simple">Raylib platformer source</a> and its <a href="raylib/raylib.simple">Raylib bindings</a>.</p>
 
           <h3>ABI rules</h3>
           <ul>
@@ -779,7 +791,7 @@ svm run main.simple</code></pre>
         <section id="status" class="doc-section" data-title="Status">
           <h2>Status</h2>
           <p>Simple is in active development. Current surface includes parser, resolver, type checker, canonical <code>System.*</code>/<code>Standard.*</code> imports, artifacts, enums, arrays, lists, strings, SIR/SBC emission, loader/verifier, VM execution, native modules, CLI, LSP, and LLVM ORC JIT.</p>
-          <p>Current tool version: <code>v0.5.0</code>. Full suite status: <code>1809/1809</code>, including JIT <code>61/61</code>.</p>
+          <p>Current tool version: <code>v0.5.0</code>. Full suite status: <code>1821/1821</code>, including JIT <code>61/61</code>.</p>
         </section>
       </article>
     </main>
