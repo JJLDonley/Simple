@@ -17,12 +17,11 @@ if (SIMPLEVM_ENABLE_LLVM_JIT)
   )
   separate_arguments(SIMPLEVM_LLVM_DEFINITIONS NATIVE_COMMAND "${LLVM_DEFINITIONS}")
   if(WIN32)
-    execute_process(
-      COMMAND "${LLVM_TOOLS_BINARY_DIR}/llvm-config" --libfiles core executionengine orcjit orctargetprocess native support target --system-libs
-      OUTPUT_VARIABLE SIMPLEVM_LLVM_EMBED_LINK_FLAGS
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      RESULT_VARIABLE SIMPLEVM_LLVM_CONFIG_RESULT
-    )
+    file(GLOB SIMPLEVM_LLVM_EMBED_LIBRARIES "${LLVM_LIBRARY_DIRS}/*.lib")
+    if(NOT SIMPLEVM_LLVM_EMBED_LIBRARIES)
+      message(FATAL_ERROR "no LLVM libraries found for embedded-runtime linking")
+    endif()
+    list(JOIN SIMPLEVM_LLVM_EMBED_LIBRARIES " " SIMPLEVM_LLVM_EMBED_LINK_FLAGS)
   else()
     execute_process(
       COMMAND "${LLVM_TOOLS_BINARY_DIR}/llvm-config" --ldflags --libs core executionengine orcjit orctargetprocess native support target --system-libs
@@ -30,9 +29,9 @@ if (SIMPLEVM_ENABLE_LLVM_JIT)
       OUTPUT_STRIP_TRAILING_WHITESPACE
       RESULT_VARIABLE SIMPLEVM_LLVM_CONFIG_RESULT
     )
-  endif()
-  if(NOT SIMPLEVM_LLVM_CONFIG_RESULT EQUAL 0 OR SIMPLEVM_LLVM_EMBED_LINK_FLAGS STREQUAL "")
-    message(FATAL_ERROR "llvm-config failed to produce embedded-runtime linker flags")
+    if(NOT SIMPLEVM_LLVM_CONFIG_RESULT EQUAL 0 OR SIMPLEVM_LLVM_EMBED_LINK_FLAGS STREQUAL "")
+      message(FATAL_ERROR "llvm-config failed to produce embedded-runtime linker flags")
+    endif()
   endif()
   string(REPLACE "\n" " " SIMPLEVM_LLVM_EMBED_LINK_FLAGS "${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
 endif()
