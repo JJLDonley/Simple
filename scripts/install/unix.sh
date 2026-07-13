@@ -6,7 +6,7 @@ BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
 CONFIG="${CONFIG:-Release}"
 JOBS="${JOBS:-2}"
 BINDIR="${BINDIR:-$HOME/.local/bin}"
-LLVM_JIT="${SIMPLEVM_ENABLE_LLVM_JIT:-${LLVM_JIT:-OFF}}"
+LLVM_JIT="${SIMPLEVM_ENABLE_LLVM_JIT:-${LLVM_JIT:-ON}}"
 
 usage() {
   cat <<EOF
@@ -15,7 +15,7 @@ usage: ./scripts/install/unix.sh [options]
 Build Simple, copy binaries to Compiler/bin, then install them to ~/.local/bin.
 
 Options:
-  --llvm-jit           Build with LLVM ORC JIT enabled
+  --llvm-jit           Build with LLVM ORC JIT enabled (default)
   --no-llvm-jit        Build without LLVM ORC JIT
   --build-dir <dir>    CMake build dir (default: Compiler/build)
   -j, --jobs <n>       Parallel build jobs (default: $JOBS)
@@ -26,7 +26,7 @@ Environment:
   CONFIG=Release|Debug
   JOBS=2
   BINDIR=$HOME/.local/bin
-  SIMPLEVM_ENABLE_LLVM_JIT=ON|OFF
+  SIMPLEVM_ENABLE_LLVM_JIT=ON|OFF (default: ON)
   LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
   CC=clang-18 CXX=clang++-18
 EOF
