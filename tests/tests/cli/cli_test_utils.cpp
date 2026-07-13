@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <iterator>
 #include <string>
 #ifdef _WIN32
@@ -146,23 +148,38 @@ int RunProcess(const std::filesystem::path& executable_path,
   const bool valid_handles = startup.hStdInput != INVALID_HANDLE_VALUE &&
                              startup.hStdOutput != INVALID_HANDLE_VALUE &&
                              startup.hStdError != INVALID_HANDLE_VALUE;
+  const bool trace = std::getenv("SIMPLE_TEST_TRACE") != nullptr;
+  if (trace) {
+    std::cerr << "[ PROCESS  ] launch " << executable << "\n";
+  }
   PROCESS_INFORMATION process{};
+  SetLastError(ERROR_SUCCESS);
   const BOOL created = valid_handles
                            ? CreateProcessW(executable_wide.c_str(), mutable_command.data(),
                                             nullptr, nullptr, TRUE, 0, nullptr, nullptr,
                                             &startup, &process)
                            : FALSE;
+  const DWORD create_error = created ? ERROR_SUCCESS : GetLastError();
   int result = -1;
   if (created) {
-    WaitForSingleObject(process.hProcess, INFINITE);
+    const DWORD wait_result = WaitForSingleObject(process.hProcess, INFINITE);
     DWORD exit_code = 0;
-    if (GetExitCodeProcess(process.hProcess, &exit_code)) {
-      result = static_cast<int>(exit_code);
+    const BOOL read_exit = GetExitCodeProcess(process.hProcess, &exit_code);
+    if (read_exit) result = static_cast<int>(exit_code);
+    if (trace) {
+      std::cerr << "[ PROCESS  ] pid=" << process.dwProcessId
+                << " wait=0x" << std::hex << wait_result
+                << " exit=0x" << exit_code << std::dec
+                << " read_exit=" << (read_exit ? 1 : 0) << "\n";
     }
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
+  } else if (trace) {
+    std::cerr << "[ PROCESS  ] create failed error=" << create_error
+              << " valid_handles=" << (valid_handles ? 1 : 0) << "\n";
   }
   for (HANDLE handle : opened_handles) CloseHandle(handle);
+  if (trace) std::cerr << "[ PROCESS  ] return " << result << "\n";
   return result;
 #else
   const pid_t child = fork();
