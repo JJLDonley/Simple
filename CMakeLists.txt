@@ -279,6 +279,12 @@ if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_link_libraries(simplevm_runtime_static PUBLIC ${SIMPLEVM_LLVM_LIBS})
 endif()
 set_target_properties(simplevm_runtime_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(WIN32 AND SIMPLEVM_FFI_LIB)
+  add_custom_command(TARGET simplevm_runtime_static POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SIMPLEVM_FFI_LIB}"
+            "$<TARGET_FILE_DIR:simplevm_runtime_static>/ffi.lib")
+endif()
 
 add_library(simplevm_runtime_shared SHARED ${SIMPLEVM_RUNTIME_SRC})
 set_target_properties(simplevm_runtime_shared PROPERTIES OUTPUT_NAME simplevm_runtime)

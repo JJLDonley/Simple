@@ -102,7 +102,7 @@ bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error
   }
   arguments.push_back(request.source.string());
   for (const auto& library : request.libraries) arguments.push_back(library.string());
-  arguments.push_back("ffi.lib");
+  arguments.push_back((request.runtime_library_dir / "ffi.lib").string());
   auto extra = SplitArguments(request.extra_link_flags);
   arguments.insert(arguments.end(), extra.begin(), extra.end());
   arguments.push_back("/Fe:" + request.output.string());

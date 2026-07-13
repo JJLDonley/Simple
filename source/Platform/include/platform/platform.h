@@ -19,6 +19,7 @@ const char* StaticLibraryExtension();
 
 std::string ExecutablePath(const char* argv0 = nullptr);
 std::filesystem::path TempDirectory();
+std::string NormalizeFileUriPath(std::string path);
 bool GetEnvironment(const std::string& name, std::string* value);
 bool SetEnvironment(const std::string& name, const std::string& value);
 bool UnsetEnvironment(const std::string& name);

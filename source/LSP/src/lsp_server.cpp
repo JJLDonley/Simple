@@ -87,7 +87,9 @@ bool FileUriToPath(const std::string& uri, std::string* out_path) {
     if (!host.empty() && !StartsWithCaseInsensitive(host, "localhost")) return false;
     path_pos = slash;
   }
-  return DecodeUriPath(rest.substr(path_pos), out_path);
+  if (!DecodeUriPath(rest.substr(path_pos), out_path)) return false;
+  *out_path = Simple::Platform::NormalizeFileUriPath(std::move(*out_path));
+  return true;
 }
 
 bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& source_text, std::string* error) {

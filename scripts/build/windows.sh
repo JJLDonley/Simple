@@ -121,6 +121,12 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
   done
   [[ -n "$runtime_lib" ]] || { echo "static Simple runtime library not found" >&2; exit 1; }
   cp "$runtime_lib" "$STAGE_DIR/lib/simplevm_runtime.lib"
+  ffi_lib=""
+  for candidate in "$BIN_OUT/ffi.lib" "$BIN_OUT/Release/ffi.lib"; do
+    [[ -f "$candidate" ]] && ffi_lib="$candidate" && break
+  done
+  [[ -n "$ffi_lib" ]] || { echo "static libffi library not found" >&2; exit 1; }
+  cp "$ffi_lib" "$STAGE_DIR/lib/ffi.lib"
   cp -R "$ROOT_DIR/source/VM/include/." "$STAGE_DIR/include/simplevm/"
   cp -R "$ROOT_DIR/source/Byte/include/." "$STAGE_DIR/include/simplevm/"
   [[ -f "$ROOT_DIR/docs/README.md" ]] && cp "$ROOT_DIR/docs/README.md" "$STAGE_DIR/share/simple/README.md"
