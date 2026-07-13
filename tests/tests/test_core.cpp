@@ -16100,13 +16100,11 @@ bool RunNativeOsModuleTest() {
 }
 
 bool RunNativePathModuleTest() {
-  if (Simple::VM::Native::Path::Join("build", "a/../b") !=
-      std::filesystem::path("build/b").make_preferred().string()) return false;
+  if (Simple::VM::Native::Path::Join("build", "a/../b") != "build/b") return false;
   if (Simple::VM::Native::Path::Dirname("build/file.txt") != "build") return false;
   if (Simple::VM::Native::Path::Basename("build/file.txt") != "file.txt") return false;
   if (Simple::VM::Native::Path::Extension("build/file.txt") != ".txt") return false;
-  if (Simple::VM::Native::Path::Normalize("build/./x") !=
-      std::filesystem::path("build/x").make_preferred().string()) return false;
+  if (Simple::VM::Native::Path::Normalize("build/./x") != "build/x") return false;
   return Simple::VM::Native::Path::Exists(".") && Simple::VM::Native::Path::IsDir(".");
 }
 
