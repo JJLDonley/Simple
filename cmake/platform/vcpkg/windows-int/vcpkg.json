@@ -1,5 +1,5 @@
 {
   "name": "simple-windows-int-dependencies",
-  "version-string": "0.5.1",
+  "version-string": "0",
   "dependencies": ["libffi"]
 }

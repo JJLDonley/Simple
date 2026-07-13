@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.version }}
+      prerelease: ${{ steps.ver.outputs.prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -36,7 +37,14 @@ jobs:
             echo "invalid version '${ver}'; expected vMAJOR.MINOR.PATCH" >&2
             exit 1
           fi
+          patch="${ver##*.}"
+          if [[ "${patch}" == "0" ]]; then
+            prerelease=false
+          else
+            prerelease=true
+          fi
           echo "version=${ver}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
 
   build-packages:
     needs: compute-version
@@ -117,9 +125,13 @@ jobs:
         with:
           path: ${{ runner.temp }}/vcpkg-bincache
           key: windows-vcpkg-llvm-${{ hashFiles('cmake/platform/vcpkg/windows-llvm/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
+          # One-time migration from the last cache whose root manifest tracked
+          # the Simple release version. Future keys use dependency metadata only.
+          restore-keys: |
+            windows-vcpkg-llvm-537cffa26e25246c7fd0024b091c8acdfd96a1a1e8ca28ae10e29fe6f4149f25
 
       - name: Require seeded Windows LLVM cache
-        if: runner.os == 'Windows' && matrix.flavor == 'llvm' && steps.windows-llvm-cache.outputs.cache-hit != 'true'
+        if: runner.os == 'Windows' && matrix.flavor == 'llvm' && steps.windows-llvm-cache.outputs.cache-matched-key == ''
         shell: pwsh
         run: throw "Windows LLVM cache is missing; run the Windows LLVM Cache workflow first"
 
@@ -130,6 +142,8 @@ jobs:
         with:
           path: ${{ runner.temp }}/vcpkg-bincache
           key: windows-vcpkg-int-${{ hashFiles('cmake/platform/vcpkg/windows-int/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
+          restore-keys: |
+            windows-vcpkg-int-45bc19c4e671fa34731003856ad2e287aca6191f19f64934d33f867935df9d95
 
       - name: Setup Windows vcpkg dependencies
         if: runner.os == 'Windows'
@@ -285,7 +299,19 @@ jobs:
         run: |
           find dist -type f -name 'simple-*' -exec cp {} dist/ \;
 
-      - name: Create latest aliases + checksums
+      - name: Create versioned checksums
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for pkg in dist/simple-"${VERSION}"-*.tar.gz dist/simple-"${VERSION}"-*.zip; do
+            sha256sum "$pkg" > "${pkg}.sha256"
+          done
+
+      - name: Create stable latest aliases
+        if: needs.compute-version.outputs.prerelease == 'false'
         shell: bash
         env:
           VERSION: ${{ needs.compute-version.outputs.version }}
@@ -306,7 +332,6 @@ jobs:
               continue
             fi
             cp "$pkg" "$latest"
-            sha256sum "$pkg" > "${pkg}.sha256"
             sha256sum "$latest" > "${latest}.sha256"
           done
 
@@ -316,7 +341,10 @@ jobs:
           tag_name: ${{ needs.compute-version.outputs.version }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
+          prerelease: ${{ needs.compute-version.outputs.prerelease }}
+          make_latest: ${{ needs.compute-version.outputs.prerelease == 'false' }}
           body: |
+            ${{ needs.compute-version.outputs.prerelease == 'true' && 'Experimental development release. Stable releases use v0.X.0 tags.' || 'Stable release.' }}
             Release artifacts for Linux, macOS, and Windows are attached below.
           files: |
             dist/simple-${{ needs.compute-version.outputs.version }}-*.tar.gz

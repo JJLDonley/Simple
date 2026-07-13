@@ -26,9 +26,11 @@ jobs:
         with:
           path: ${{ runner.temp }}/vcpkg-bincache
           key: windows-vcpkg-llvm-${{ hashFiles('cmake/platform/vcpkg/windows-llvm/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
+          restore-keys: |
+            windows-vcpkg-llvm-537cffa26e25246c7fd0024b091c8acdfd96a1a1e8ca28ae10e29fe6f4149f25
 
       - name: Build LLVM 18 binary package
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-matched-key == ''
         shell: pwsh
         run: |
           $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"

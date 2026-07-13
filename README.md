@@ -32,6 +32,13 @@ yet stable.
 Packages are published on the
 [GitHub releases page](https://github.com/JJLDonley/Simple/releases).
 
+Simple uses the release channel encoded by its version:
+
+- `v0.X.0` is a stable milestone release.
+- `v0.X.Y`, where `Y` is nonzero, is an experimental development release toward the next stable milestone.
+
+Experimental releases are marked as GitHub prereleases and do not replace the stable `latest` packages.
+
 | Platform | Interpreter (`int`) | LLVM 18 (`llvm`) | Archive |
 |---|:---:|:---:|---|
 | Linux x86_64 | supported | supported | `.tar.gz` |
@@ -52,8 +59,7 @@ simple-v0.5.0-darwin-arm64-int.tar.gz
 simple-v0.5.0-windows-x86_64-int.zip
 ```
 
-Aliases beginning with `simple-latest-` point to the newest package for a
-given target and flavor.
+Aliases beginning with `simple-latest-` point to the newest stable `v0.X.0` package for a given target and flavor. Experimental patch releases use only versioned archive names.
 
 ## Development dependencies
 

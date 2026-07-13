@@ -225,6 +225,13 @@ Respect public compatibility surfaces:
 
 Breaking changes require explicit documentation and a versioning decision.
 
+Release channels before `v1.0` are encoded in the patch component:
+
+- `v0.X.0` is a stable milestone release.
+- `v0.X.Y` with `Y > 0` is an experimental development release toward the next stable milestone.
+- Experimental versions must be published as GitHub prereleases and must not replace stable `simple-latest-*` packages.
+- vcpkg dependency-manifest versions are cache metadata, not the Simple tool version; keep them stable unless dependencies change.
+
 ## 13. Continuous Cleanup Gate
 
 Cleanup is mandatory after every minor update. A minor update is one coherent, commit-sized change: a bug fix, small feature slice, refactor slice, build/CI adjustment, test adjustment, or documentation correction. Cleanup happens after the update works, before starting the next update, and again before committing if the diff changed during validation.
