@@ -40,6 +40,8 @@ This page is the canonical language reference for the syntax and behavior covere
 ## Quick example
 
 ```simple
+module Examples.Reference
+
 import Standard.IO
 
 Point :: data {
@@ -50,16 +52,16 @@ Point :: data {
 Counter :: artifact {
   value : i32
 
-  inc : i32 () {
+  inc :: i32 () {
     return self.value + 1
   }
 }
 
-add : i32 (a : i32, b : i32) {
+add :: i32 (a : i32, b : i32) {
   return a + b
 }
 
-main : i32 () {
+main :: i32 () {
   p : Point = { .x = 3, .y = 4 }
   c : Counter = { .value = 6 }
   Standard.IO.println("next={}", c.inc())
@@ -70,8 +72,8 @@ main : i32 () {
 Important syntax facts:
 
 - `name : Type` declares a **mutable** binding.
-- `name :: Type` declares an **immutable** binding.
-- `module Name` declares the file/module header used by import indexing.
+- `name :: Type` declares an **immutable** binding; functions and methods use this form.
+- `module Name` is required and declares the source unit's runtime module namespace and named-import identity, including for script-style files.
 - `Name :: artifact`, `Name :: data`, `Name :: namespace`, and `Name :: enum` declare top-level kinds.
 - `skip` is the loop-continue statement.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
@@ -122,15 +124,15 @@ Language syntax tables use the same status style as the IR and Byte references:
 This is the high-level grammar contract for accepted source. Details are refined by the syntax tables below.
 
 ```ebnf
-program        = [ module-header-decl ] { import-decl | using-decl | extern-decl | top-decl | stmt } ;
+program        = module-header-decl { import-decl | using-decl | extern-decl | top-decl | stmt } ;
 module-header-decl   = "module" qualified-name ;
-import-decl    = "import" qualified-name [ "as" ident ] ;
+import-decl    = "import" ( qualified-name | string-literal ) [ "as" ident ] ;
 using-decl     = "using" qualified-name ;
 extern-decl    = "extern" [ qualified-name ] function-signature ;
 top-decl       = var-decl | func-decl | artifact-decl | data-decl | namespace-decl | enum-decl ;
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
-func-decl      = ident ":" type "(" [ params ] ")" block ;
+func-decl      = ident (":" | "::") type "(" [ params ] ")" block ;
 artifact-decl  = ident "::" "artifact" "{" { field-decl | func-decl } "}" ;
 data-decl      = ident "::" "data" "{" { field-decl } "}" ;
 namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
@@ -210,7 +212,8 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `name : Type` | TAST | Mutable binding with default init if no initializer. |
 | ✅ | `name : Type = expr` | TAST | Mutable binding with typed initializer. |
 | ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
-| ✅ | `name : Ret (params) block` | TAST | Function declaration. |
+| ✅ | `name :: Ret (params) block` | TAST | Immutable function or method declaration; canonical for functions that are not reassigned. |
+| ✅ | `name : Ret (params) block` | TAST | Mutable function or method declaration when reassignment is intended. |
 | ✅ | `Name :: artifact { ... }` | TAST | Managed artifact declaration; layout may be optimized. |
 | ✅ | `Name :: data { ... }` | TAST/IRE | Stable data struct declaration; field order/layout is preserved for ABI/data use. |
 | ✅ | `Name :: namespace { ... }` | RAST/TAST | Namespace/module declaration. |
@@ -355,7 +358,7 @@ enum
 namespace
 ```
 
-Use `module` for file/module headers. Use `Name :: namespace { ... }` for in-language namespace objects.
+Use `module` for the required runtime module namespace and import identity. Use `Name :: namespace { ... }` for explicitly grouped declarations within a module.
 
 ### Operators and punctuation
 
@@ -377,7 +380,9 @@ Semicolons are accepted as statement terminators. Newlines/block boundaries can 
 Whitespace separates tokens. Comments are ignored by the lexer. Same-line multiple statements require semicolons:
 
 ```simple
-main : i32 () { x : i32 = 1; y : i32 = 2; return x + y; }
+module Examples.Reference
+
+main :: i32 () { x : i32 = 1; y : i32 = 2; return x + y; }
 ```
 
 ### Numeric literals
@@ -391,7 +396,9 @@ Floating literals are context-typed as `f32` or `f64` by expected type.
 Strings and chars support normal escapes and hex escapes. Invalid escapes are rejected by lexer tests.
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   c : char = '\x41'
   s : string = "A\x42"
   return 0
@@ -400,17 +407,17 @@ main : i32 () {
 
 ## Program structure and entry points
 
-A file may start with an optional module header and may then contain imports, extern declarations, top-level declarations, and top-level script statements.
+Every `.simple` source file starts with a module header naming the source unit, followed by imports, extern declarations, top-level declarations, or top-level script statements. Script-style files also require module names; top-level statements still execute through the implicit script entry.
 
 ```simple
 module Examples.Math
 import Standard.Math
 
-square : i32 (x : i32) {
+square :: i32 (x : i32) {
   return x * x
 }
 
-main : i32 () {
+main :: i32 () {
   return square(7)
 }
 ```
@@ -420,33 +427,37 @@ Entry behavior:
 - If top-level executable statements exist, they are normalized into an implicit script entry.
 - If no top-level executable statements exist and `main` exists, `main` is used as the entry.
 - Top-level `return` is invalid.
-- A `main : void ()` function is valid; a missing explicit return is valid for `void`.
+- A `main :: void ()` function is valid; a missing explicit return is valid for `void`.
 
 ## File/module headers
 
-A file may start with a module header:
+Every source file starts with a module header:
 
 ```simple
 module Tools.Widget
 ```
 
-The module header gives the file an import-index name. It does **not** declare a runtime namespace object and it does **not** wrap the declarations that follow it.
+The required module header declares the source file's runtime module namespace and import-index identity.
 
 ```simple
 module Tools.Widget
 
-widgetValue : i32 () {
-  return 42
+Widgets :: namespace {
+  widgetValue :: i32 () {
+    return 42
+  }
 }
 ```
 
 Another file can import that module name:
 
 ```simple
+module App.Main
+
 import Tools.Widget
 
-main : i32 () {
-  return widgetValue()
+main :: i32 () {
+  return Widgets.widgetValue()
 }
 ```
 
@@ -454,15 +465,17 @@ Rules:
 
 - The header keyword is `module`.
 - The module name is an identifier path, for example `Main`, `Lib`, or `Tools.Widget`.
-- The header should appear before imports/declarations/statements.
-- Only import indexing uses the module name; ordinary language lookup still uses declarations, imports, modules, and `using`.
-- `Name :: namespace { ... }` is the declaration form for language namespace values; headers never use braces.
+- The required header appears before imports, declarations, and statements.
+- The module name is the source unit's runtime namespace and import identity.
+- Named imports resolve module headers or module-map entries.
+- Quoted imports resolve explicit source paths.
+- `Name :: namespace { ... }` groups declarations inside the current module; module declarations never use braces.
 
-Use `Name :: namespace { ... }` only when you want a language namespace value:
+Use `Name :: namespace { ... }` when declarations need an additional named group:
 
 ```simple
 Math :: namespace {
-  one : i32 () { return 1 }
+  one :: i32 () { return 1 }
 }
 ```
 
@@ -492,7 +505,7 @@ x : i32
 ### Functions
 
 ```simple
-add : i32 (a : i32, b : i32) {
+add :: i32 (a : i32, b : i32) {
   return a + b
 }
 ```
@@ -500,7 +513,7 @@ add : i32 (a : i32, b : i32) {
 Function declarations use name-first syntax:
 
 ```txt
-name : ReturnType (params...) { body }
+name :: ReturnType (params...) { body }
 ```
 
 The marker before the return type also carries return mutability facts used by validation.
@@ -512,7 +525,7 @@ The marker before the return type also carries return mutability facts used by v
 ```simple
 Pi :: f64 = 3.141592
 Point :: artifact { x : i32; y : i32 }
-Math :: namespace { one : i32 () { return 1 } }
+Math :: namespace { one :: i32 () { return 1 } }
 Color :: enum { Red = 1, Green = 2 }
 ```
 
@@ -521,7 +534,9 @@ Color :: enum { Red = 1, Green = 2 }
 Mutability is part of declarations and parameters:
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   x : i32 = 1    // mutable
   y :: i32 = 2   // immutable
   x = x + 1      // ok
@@ -543,7 +558,7 @@ The validator rejects writes to immutable values:
 Parameters follow the same marker rule:
 
 ```simple
-use : i32 (x : i32, y :: i32) {
+use :: i32 (x : i32, y :: i32) {
   x = x + 1   // ok
   return x + y
 }
@@ -670,11 +685,13 @@ Arithmetic and comparison are type-checked. Examples rejected by tests include b
 Primitive casts require the `@` prefix:
 
 ```simple
-add : i32 (a : i32, b : i32) {
+module Examples.Reference
+
+add :: i32 (a : i32, b : i32) {
   return a + b
 }
 
-main : i32 () {
+main :: i32 () {
   a : i8 = 40
   b : i8 = 2
   return add(@i32(a), @i32(b))
@@ -684,7 +701,9 @@ main : i32 () {
 String conversions use the same syntax where supported:
 
 ```simple
-main : string () {
+module Examples.Reference
+
+main :: string () {
   x : i32 = 42
   return @string(x)
 }
@@ -697,7 +716,9 @@ Using primitive type names as normal functions for casts is rejected. The expect
 ### Return
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   return 0
 }
 ```
@@ -707,7 +728,9 @@ Non-void functions must return on all required paths. `void` functions may fall 
 ### If / else
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   x : i32 = 7
   if (x > 5) {
     return 1
@@ -720,7 +743,7 @@ main : i32 () {
 Condition chains use `|>` branches. They are checked for return flow and can end with `|> default`:
 
 ```simple
-scoreLabel : string (score : i32) {
+scoreLabel :: string (score : i32) {
   |> (score >= 90) { return "great" }
   |> (score >= 70) { return "solid" }
   |> default { return "needs work" }
@@ -732,7 +755,9 @@ Nested `if`/`else` chains are also normalized and checked for return flow, but `
 ### While
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   i : i32 = 0
   sum : i32 = 0
   while (i < 10) {
@@ -752,7 +777,9 @@ main : i32 () {
 Three-part `for` loops are supported:
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   total : i32 = 0
   for (i : i32 = 1; i <= 5; i += 1) {
     total += i
@@ -785,7 +812,9 @@ Malformed ranges/headers are rejected by parser tests.
 Switch expressions use `=>` branches and `default`:
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   x : i32 = 1
   return switch (x) {
     x > 0 => { local : i32 = 10; return local }
@@ -897,7 +926,9 @@ items.clear()
 Strings are first-class heap values. `==` and `!=` compare string contents:
 
 ```simple
-main : i32 () {
+module Examples.Reference
+
+main :: i32 () {
   s : string = "hello"
   if (s == "hello") { return len(s) }
   return 0
@@ -907,9 +938,11 @@ main : i32 () {
 IO formatting validates placeholder calls. Examples use standard-library printing:
 
 ```simple
+module Examples.Reference
+
 import Standard.IO
 
-main : void () {
+main :: void () {
   Standard.IO.print("answer={}", 42)
   Standard.IO.println(" done")
 }
@@ -926,7 +959,7 @@ Point :: artifact {
   x : i32
   y : i32
 
-  sum : i32 () {
+  sum :: i32 () {
     return self.x + self.y
   }
 }
@@ -947,7 +980,7 @@ Artifact methods may mutate mutable fields:
 Counter :: artifact {
   value : i32
 
-  inc : void () {
+  inc :: void () {
     self.value += 1
   }
 }
@@ -960,16 +993,18 @@ Artifact ABI flattening is used for supported extern/FFI cases. Recursive artifa
 Namespaces group variables and functions under a named scope:
 
 ```simple
+module Examples.Reference
+
 Math :: namespace {
   base :: i32 = 2
 
-  add : i32 (a : i32, b : i32) {
+  add :: i32 (a : i32, b : i32) {
     return a + b
   }
 }
 
-main : i32 () {
-  return Standard.Math.add(Standard.Math.base, 3)
+main :: i32 () {
+  return Math.add(Math.base, 3)
 }
 ```
 
@@ -980,12 +1015,14 @@ Unknown module members, using modules as types, and assigning to immutable modul
 Enums use `:: enum` and require qualified access:
 
 ```simple
+module Examples.Reference
+
 Color :: enum {
   Red = 1,
   Green = 2
 }
 
-main : i32 () {
+main :: i32 () {
   return Color.Green
 }
 ```
@@ -994,23 +1031,37 @@ Tests reject unqualified enum variants (`Green` instead of `Color.Green`), unkno
 
 ## Imports and `using`
 
-Imports accept quoted paths, unquoted module paths, and aliases:
+Imports accept declared module names, explicit quoted source paths, and aliases. A module source can declare its import identity:
 
 ```simple
-import "raylib"
-import "raylib" as Ray
+module Graphics.Raylib
+```
+
+Other source units can import that module name or request a local path explicitly:
+
+```simple
+module App.Main
+
+import Graphics.Raylib
+import Graphics.Raylib as Ray
+import "./local_helpers"
+import "./legacy_helpers.simple"
 import Standard.IO
 import Standard.FS as FileSystem
 import System.IO
 ```
 
+Quoted paths are resolved as source paths; unquoted qualified names are resolved through module headers, module maps, or canonical `System.*`/`Standard.*` modules.
+
 `using` imports members into unqualified call scope:
 
 ```simple
+module Examples.Reference
+
 import System.Channel
 using System.Channel
 
-main : i32 () {
+main :: i32 () {
   ch : i64 = newI32()
   sendI32(ch, 9)
   return recvI32(ch)
@@ -1065,10 +1116,12 @@ Short imports such as `IO`, `FS`, `DL`, `Time`, `Buffer`, and `Channel` are reje
 `using ModuleName` exposes module members for unqualified calls where that module supports it:
 
 ```simple
+module Examples.Reference
+
 import System.Bytes
 using System.Bytes
 
-main : i32 () {
+main :: i32 () {
   b : i32[] = new(4)
   return len(b)
 }
@@ -1079,8 +1132,10 @@ main : i32 () {
 Procedure values use `fn` types:
 
 ```simple
-main : i32 () {
-  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b }
+module Examples.Reference
+
+main :: i32 () {
+  f :: fn i32 (a : i32, b : i32) = (a, b) { return a + b }
   return f(40, 2)
 }
 ```
@@ -1110,13 +1165,15 @@ Extern names may be module-qualified. Calls are checked for argument count and t
 Dynamic-library usage is exposed through the canonical `System.FFI` runtime API. Example shape from fixtures:
 
 ```simple
+module Examples.Reference
+
 import System.FFI
 
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
 lib :: i64 = System.FFI.open("tests/ffi/libsimpleffi.so", ffi)
 
-main : i32 () {
+main :: i32 () {
   return ffi.simple_add_i32(40, 2)
 }
 ```

@@ -34,17 +34,18 @@ rather than separate version tags:
 |---|:---:|:---:|
 | Linux x86_64 | ✅ | ✅ |
 | macOS hosted-runner architecture | ✅ | ✅ |
-| Windows x86_64 | ✅ | 🧪 Build/test only |
+| Windows x86_64 | ✅ | 🧪 Published when its experimental build succeeds |
 
 For example, `simple-v0.5.0-linux-x86_64-int.tar.gz` and
 `simple-v0.5.0-linux-x86_64-llvm.tar.gz` belong to the same `v0.5.0` release. The suffix is an
 artifact flavor, not a SemVer prerelease suffix. Release CI builds and tests each published flavor.
-The interpreter package remains the dependency-light default. Windows LLVM 18 runs as an
-allowed-to-fail build-and-test job; it is not uploaded and cannot block stable package publication.
-Windows LLVM packaging remains deferred until its LLVM toolchain and runtime distribution are
-stable.
+The interpreter package remains the dependency-light release flavor. Linux interpreter and LLVM
+packages are required release outputs. macOS and Windows jobs remain allowed-to-fail, but every
+successful flavor is uploaded. Windows LLVM 18 is therefore experimental and opportunistic rather
+than a release gate.
 
-CLI execution uses JIT by default when `svm` is built with LLVM ORC support. Use `-int` or `--interpreter` to force the interpreter. The compatibility `-jit` flag is still accepted.
+The Unix source installer enables LLVM JIT by default and accepts `--no-llvm-jit` for an
+interpreter-only install. CLI execution uses JIT by default when `svm` is built with LLVM ORC support. Use `-int` or `--interpreter` to force the interpreter. The compatibility `-jit` flag is still accepted.
 
 Library/API execution remains interpreter-first unless the caller explicitly opts in:
 
@@ -64,10 +65,16 @@ Not every method can run through LLVM yet. Unsupported methods stay on or fall b
 
 ## LLVM ORC migration
 
-Build-time switch:
+The Unix installer enables JIT by default:
 
 ```bash
-cmake -S Compiler -B Compiler/build -DSIMPLEVM_ENABLE_LLVM_JIT=ON
+./scripts/install/unix.sh
+```
+
+Use `./scripts/install/unix.sh --no-llvm-jit` to opt out. For manual CMake builds, enable the backend explicitly:
+
+```bash
+cmake -S . -B build -DSIMPLEVM_ENABLE_LLVM_JIT=ON
 ```
 
 Runtime selection during the migration:

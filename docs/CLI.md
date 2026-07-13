@@ -93,7 +93,7 @@ Examples of command-level failures include missing input, unsupported extension 
 
 ## Imports in CLI workflows
 
-When compiling `.simple`, the CLI resolves local imports, project-root imports, module-map entries, and reserved standard-library imports. Generated `simple.modules` files are build artifacts and should not be committed.
+When compiling `.simple`, the CLI resolves unquoted module names through module headers/module maps and resolves quoted imports as explicit source paths. Project-root, relative, reserved `System.*`/`Standard.*`, missing, ambiguous, and cyclic imports share the same loader. Generated `simple.modules` files are build artifacts and should not be committed.
 
 ## Build scripts
 
@@ -107,4 +107,6 @@ Use the platform scripts for local builds:
 scripts\build\windows.bat
 ```
 
-They build the CMake `simplevm` compiler target and `simple_stub` runtime target, then publish only `bin/svm` plus `bin/simple` at the repository root. The maintained CMake build tree is `Compiler/build`; stale alternate build trees such as `build-llvm` or `build-lsp` should not be kept.
+They build the CMake `simplevm` compiler target and `simple_stub` runtime target, then publish only `bin/svm` plus `bin/simple` at the repository root. The maintained CMake build tree is `build`; stale alternate build trees such as `build-llvm` or `build-lsp` should not be kept.
+
+On Unix, `./scripts/install/unix.sh` installs an LLVM-enabled build by default. Pass `--no-llvm-jit` to install the interpreter-only configuration. The installer verifies and reapplies the selected JIT mode if a compiler change causes CMake to regenerate its cache.

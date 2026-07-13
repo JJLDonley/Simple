@@ -170,11 +170,13 @@ bin/svm       compiler, runtime, and language server
 bin/simple    embedded-program runtime stub
 ```
 
-Install a local Unix build with:
+Install a local Unix build with LLVM 18 JIT enabled by default:
 
 ```sh
 ./scripts/install/unix.sh
 ```
+
+Use `./scripts/install/unix.sh --no-llvm-jit` for an interpreter-only local install. If changing compilers causes CMake to regenerate its cache, the installer reapplies the requested JIT mode before building.
 
 On Windows:
 
@@ -201,13 +203,14 @@ and represented consistently in the compiler, runtime, CLI, and LSP.
 
 ## The language
 
-A Simple program may define a `main` function or use top-level statements for
-short scripts.
+Every Simple source file begins with a required `module` declaration. That name is the source unit's runtime module namespace and named-import identity. The file may then define a `main` function or use top-level statements for short scripts.
 
 ```simple
+module examples.hello
+
 import Standard.IO
 
-main : i32 () {
+main :: i32 () {
   Standard.IO.println("hello, world")
   return 0
 }
@@ -234,7 +237,7 @@ svm run hello.simple
 | [Arrays and lists](docs/Language.md#arrays-and-lists) | Fixed-size arrays, growable lists, indexing, and list methods. |
 | [Artifacts](docs/Language.md#artifacts) | Structured values, fields, methods, initialization, and `self`. |
 | [Enums](docs/Language.md#enums) | Named integer-backed values and scoped members. |
-| [Imports and `using`](docs/Language.md#imports-and-using) | Project modules and canonical library imports. |
+| [Imports and `using`](docs/Language.md#imports-and-using) | Named project modules, explicit quoted source paths, aliases, and canonical library imports. |
 | [System and Standard libraries](docs/Language.md#reservedsystem-modules-and-standard-library) | Runtime-facing `System.*` modules and higher-level `Standard.*` modules. |
 | [Extern and FFI](docs/Language.md#extern-declarations-and-ffi-abi) | Native declarations, dynamic libraries, supported ABI types, and rejection rules. |
 | [Diagnostics](docs/Language.md#diagnostics) | Compiler error classes and unsupported constructs. |
@@ -246,7 +249,7 @@ svm run hello.simple
 count : i32 = 0
 limit :: i32 = 10
 
-add : i32 (a : i32, b : i32) {
+add :: i32 (a : i32, b : i32) {
   return a + b
 }
 
@@ -258,15 +261,17 @@ count = add(count, 1)
 Artifacts combine structured data and methods:
 
 ```simple
+module Examples.Reference
+
 Counter :: artifact {
   value : i32
 
-  increment : void () {
+  increment :: void () {
     self.value += 1
   }
 }
 
-main : i32 () {
+main :: i32 () {
   counter : Counter = { .value = 0 }
   counter.increment()
   return counter.value
@@ -283,22 +288,37 @@ values[1] = 9
 
 ### Modules and imports
 
+A module declaration is required for scripts and declaration-oriented source files. Imports accept declared module names as well as quoted source paths.
+
 ```simple
 module Tools.Math
 
-add : i32 (a : i32, b : i32) {
-  return a + b
+MathTools :: namespace {
+  add :: i32 (a : i32, b : i32) {
+    return a + b
+  }
 }
 ```
 
-Another module can import it:
+Another source unit can import its declared module name:
 
 ```simple
+module App.Main
+
 import Tools.Math
 
-main : i32 () {
-  return add(40, 2)
+main :: i32 () {
+  return MathTools.add(40, 2)
 }
+```
+
+Explicit local source imports are also supported when path-based resolution is intended:
+
+```simple
+module App.Local
+
+import "./local_helpers"
+import "./legacy_helpers.simple"
 ```
 
 The complete language reference is [docs/Language.md](docs/Language.md).
