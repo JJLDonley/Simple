@@ -72,8 +72,11 @@ bool CliJitStatsPrintFunctionNames() {
 bool CliSplitContractDetectsToolModesAndCommands() {
   const auto simple = Simple::CLI::DetectToolMode("simple");
   const auto svm = Simple::CLI::DetectToolMode("svm");
+  const auto simple_exe = Simple::CLI::DetectToolMode("simple.exe");
+  const auto svm_exe = Simple::CLI::DetectToolMode("svm.exe");
   return simple.simple_only && !simple.compiler_frontend &&
          svm.svm_mode && svm.compiler_frontend &&
+         simple_exe.simple_only && svm_exe.compiler_frontend &&
          Simple::CLI::IsBuildCommand("compile") &&
          Simple::CLI::IsKnownCommand("lsp") &&
          !Simple::CLI::IsKnownCommand("unknown");

@@ -91,6 +91,12 @@ std::string TempPath(const std::string& name) {
   return CliTempPath(name).string();
 }
 
+std::string FileUri(const std::filesystem::path& path) {
+  const std::string generic = std::filesystem::absolute(path).generic_string();
+  return std::string("file://") +
+         (generic.empty() || generic.front() == '/' ? "" : "/") + generic;
+}
+
 std::string LspBinaryPath() {
   return CliToolPath("svm");
 }
@@ -287,7 +293,7 @@ bool LspDidOpenResolvesLocalFileImport() {
   if (!WriteBinaryFile(dep_path, "Vec :: artifact { x : i32 }\n")) return false;
 
   const std::string session_name = "simple_lsp_local_import";
-  const std::string uri = "file://" + main_path;
+  const std::string uri = FileUri(main_path);
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
@@ -3330,8 +3336,8 @@ bool LspCodeActionCreatesMissingImportFile() {
   fs::create_directories(dir);
   const auto main_path = dir / "main.simple";
   const auto missing_path = dir / "missing.simple";
-  const std::string uri = "file://" + main_path.generic_string();
-  const std::string missing_uri = "file://" + missing_path.generic_string();
+  const std::string uri = FileUri(main_path);
+  const std::string missing_uri = FileUri(missing_path);
   const std::string in_path = TempPath("simple_lsp_missing_import_action_in.txt");
   const std::string out_path = TempPath("simple_lsp_missing_import_action_out.txt");
   const std::string err_path = TempPath("simple_lsp_missing_import_action_err.txt");
@@ -3532,7 +3538,7 @@ bool LspDocumentLinkResolvesLocalImports() {
     std::ofstream dep(dep_path);
     dep << "dep : i32 () { return 1 }";
   }
-  const std::string uri = "file://" + main_path.generic_string();
+  const std::string uri = FileUri(main_path);
   const std::string in_path = TempPath("simple_lsp_doclink_in.txt");
   const std::string out_path = TempPath("simple_lsp_doclink_out.txt");
   const std::string err_path = TempPath("simple_lsp_doclink_err.txt");
@@ -3562,8 +3568,8 @@ bool LspDocumentLinkResolvesModuleHeaderImports() {
     std::ofstream dep(dep_path);
     dep << "module Tools.Dep\ndep : i32 () { return 1 }";
   }
-  const std::string uri = "file://" + main_path.generic_string();
-  const std::string dep_uri = "file://" + dep_path.generic_string();
+  const std::string uri = FileUri(main_path);
+  const std::string dep_uri = FileUri(dep_path);
   const std::string in_path = TempPath("simple_lsp_doclink_module_in.txt");
   const std::string out_path = TempPath("simple_lsp_doclink_module_out.txt");
   const std::string err_path = TempPath("simple_lsp_doclink_module_err.txt");
@@ -3610,8 +3616,8 @@ bool LspDocumentLinkResolvesModuleMapEntries() {
     std::ofstream target(target_path);
     target << "module Tools.Thing\nthing : i32 () { return 1 }";
   }
-  const std::string uri = "file://" + map_path.generic_string();
-  const std::string target_uri = "file://" + target_path.generic_string();
+  const std::string uri = FileUri(map_path);
+  const std::string target_uri = FileUri(target_path);
   const std::string in_path = TempPath("simple_lsp_doclink_module_map_in.txt");
   const std::string out_path = TempPath("simple_lsp_doclink_module_map_out.txt");
   const std::string err_path = TempPath("simple_lsp_doclink_module_map_err.txt");
@@ -3641,8 +3647,8 @@ bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
     std::ofstream sibling(sibling_path);
     sibling << "siblingFunc : i32 () { return 7 }";
   }
-  const std::string main_uri = "file://" + main_path.generic_string();
-  const std::string sibling_uri = "file://" + sibling_path.generic_string();
+  const std::string main_uri = FileUri(main_path);
+  const std::string sibling_uri = FileUri(sibling_path);
   const std::string in_path = TempPath("simple_lsp_workspace_symbols_file_in.txt");
   const std::string out_path = TempPath("simple_lsp_workspace_symbols_file_out.txt");
   const std::string err_path = TempPath("simple_lsp_workspace_symbols_file_err.txt");
@@ -3672,8 +3678,8 @@ bool LspWorkspaceSymbolsIndexNestedSimpleFiles() {
     std::ofstream nested(nested_path);
     nested << "nestedFunc : i32 () { return 7 }";
   }
-  const std::string main_uri = "file://" + main_path.generic_string();
-  const std::string nested_uri = "file://" + nested_path.generic_string();
+  const std::string main_uri = FileUri(main_path);
+  const std::string nested_uri = FileUri(nested_path);
   const std::string in_path = TempPath("simple_lsp_workspace_symbols_nested_in.txt");
   const std::string out_path = TempPath("simple_lsp_workspace_symbols_nested_out.txt");
   const std::string err_path = TempPath("simple_lsp_workspace_symbols_nested_err.txt");
@@ -3709,8 +3715,8 @@ bool LspWorkspaceSymbolsIndexModuleMapFiles() {
     std::ofstream map(map_path);
     map << "Mapped.Lib=\"" << external_path.generic_string() << "\"\n";
   }
-  const std::string main_uri = "file://" + main_path.generic_string();
-  const std::string external_uri = "file://" + external_path.generic_string();
+  const std::string main_uri = FileUri(main_path);
+  const std::string external_uri = FileUri(external_path);
   const std::string in_path = TempPath("simple_lsp_workspace_symbols_module_map_in.txt");
   const std::string out_path = TempPath("simple_lsp_workspace_symbols_module_map_out.txt");
   const std::string err_path = TempPath("simple_lsp_workspace_symbols_module_map_err.txt");
@@ -3740,8 +3746,8 @@ bool LspReferencesIndexSiblingSimpleFiles() {
     std::ofstream sibling(sibling_path);
     sibling << "useIt : i32 () { return shared() }";
   }
-  const std::string main_uri = "file://" + main_path.generic_string();
-  const std::string sibling_uri = "file://" + sibling_path.generic_string();
+  const std::string main_uri = FileUri(main_path);
+  const std::string sibling_uri = FileUri(sibling_path);
   const std::string in_path = TempPath("simple_lsp_references_file_in.txt");
   const std::string out_path = TempPath("simple_lsp_references_file_out.txt");
   const std::string err_path = TempPath("simple_lsp_references_file_err.txt");
@@ -3857,8 +3863,8 @@ bool LspCallHierarchyIndexesWorkspaceFiles() {
     std::ofstream nested(nested_path);
     nested << "nestedFunc : i32 () { return 7 }\ncaller : i32 () { return callee() }";
   }
-  const std::string main_uri = "file://" + main_path.generic_string();
-  const std::string nested_uri = "file://" + nested_path.generic_string();
+  const std::string main_uri = FileUri(main_path);
+  const std::string nested_uri = FileUri(nested_path);
   const std::string in_path = TempPath("simple_lsp_call_hierarchy_workspace_in.txt");
   const std::string out_path = TempPath("simple_lsp_call_hierarchy_workspace_out.txt");
   const std::string err_path = TempPath("simple_lsp_call_hierarchy_workspace_err.txt");

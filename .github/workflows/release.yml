@@ -169,6 +169,12 @@ jobs:
           path: ${{ runner.temp }}/vcpkg-bincache
           key: windows-vcpkg-int-${{ hashFiles('cmake/platform/vcpkg/windows-int/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
 
+      - name: Configure MSVC developer environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
       - name: Build + test + package (Linux/macOS)
         if: runner.os != 'Windows'
         shell: bash
