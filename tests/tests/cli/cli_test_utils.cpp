@@ -10,15 +10,43 @@
 #endif
 
 namespace Simple::VM::Tests {
+namespace {
+
+const char* NullDevice() {
+#ifdef _WIN32
+  return "NUL";
+#else
+  return "/dev/null";
+#endif
+}
+
+} // namespace
 
 std::filesystem::path CliTempPath(const std::string& name) {
   return std::filesystem::temp_directory_path() / name;
 }
 
+std::filesystem::path CliTempExecutablePath(const std::string& name) {
+#ifdef _WIN32
+  return CliTempPath(name + ".exe");
+#else
+  return CliTempPath(name);
+#endif
+}
+
 std::string CliToolPath(const std::string& name) {
-  const auto build_path = std::filesystem::path("build") / "bin" / name;
+  std::string executable = name;
+#ifdef _WIN32
+  executable += ".exe";
+#endif
+  const auto build_path = std::filesystem::path("build") / "bin" / executable;
   if (std::filesystem::exists(build_path)) return build_path.string();
-  return (std::filesystem::path("bin") / name).string();
+  return (std::filesystem::path("bin") / executable).string();
+}
+
+std::string CliSvmCommand(const std::string& arguments) {
+  return "\"" + CliToolPath("svm") + "\"" +
+         (arguments.empty() ? std::string{} : " " + arguments);
 }
 
 int CliExitCodeFromSystemResult(int result) {
@@ -33,7 +61,8 @@ int CliExitCodeFromSystemResult(int result) {
 }
 
 bool RunCliCommandQuiet(const std::string& command) {
-  return std::system((command + " >/dev/null 2>/dev/null").c_str()) == 0;
+  const std::string null_device = NullDevice();
+  return std::system((command + " >" + null_device + " 2>" + null_device).c_str()) == 0;
 }
 
 bool RunCliCommandRaw(const std::string& command) {
@@ -44,7 +73,7 @@ std::string RunCliCaptureStdout(const std::string& command,
                                 const std::string& temp_name,
                                 int* out_exit_code) {
   const auto path = CliTempPath(temp_name);
-  const int result = std::system((command + " > " + path.string()).c_str());
+  const int result = std::system((command + " > \"" + path.string() + "\"").c_str());
   if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -56,7 +85,8 @@ std::string RunCliCaptureStderr(const std::string& command,
                                 const std::string& temp_name,
                                 int* out_exit_code) {
   const auto path = CliTempPath(temp_name);
-  const int result = std::system((command + " 1>/dev/null 2> " + path.string()).c_str());
+  const int result = std::system((command + " 1>" + NullDevice() + " 2> \"" +
+                                  path.string() + "\"").c_str());
   if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());

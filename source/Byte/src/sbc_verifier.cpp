@@ -954,8 +954,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
           }
           case Simple::Byte::ExtendedOpCode::CallMethod: {
             ValType argc = pop_type();
-            ValType func = pop_type();
-            VerifyResult r1 = check_type(func, ValType::I32, "CALL_METHOD function id type mismatch");
+            ValType function_type = pop_type();
+            VerifyResult r1 = check_type(function_type, ValType::I32, "CALL_METHOD function id type mismatch");
             if (!r1.ok) return r1;
             VerifyResult r2 = check_type(argc, ValType::I32, "CALL_METHOD argc type mismatch");
             if (!r2.ok) return r2;
@@ -965,9 +965,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           }
           case Simple::Byte::ExtendedOpCode::CallVirtual: {
             ValType argc = pop_type();
-            ValType sig = pop_type();
+            ValType signature_type = pop_type();
             (void)pop_type();
-            VerifyResult r1 = check_type(sig, ValType::I32, "CALL_VIRTUAL sig id type mismatch");
+            VerifyResult r1 = check_type(signature_type, ValType::I32, "CALL_VIRTUAL sig id type mismatch");
             if (!r1.ok) return r1;
             VerifyResult r2 = check_type(argc, ValType::I32, "CALL_VIRTUAL argc type mismatch");
             if (!r2.ok) return r2;
@@ -1170,8 +1170,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
           }
           case Simple::Byte::ExtendedOpCode::Spawn:
           case Simple::Byte::ExtendedOpCode::MakeFuture: {
-            ValType func = pop_type();
-            VerifyResult r = check_type(func, ValType::I32, "TASK_CREATE function id type mismatch");
+            ValType function_type = pop_type();
+            VerifyResult r = check_type(function_type, ValType::I32, "TASK_CREATE function id type mismatch");
             if (!r.ok) return r;
             push_type(ValType::I32);
             pc = next;

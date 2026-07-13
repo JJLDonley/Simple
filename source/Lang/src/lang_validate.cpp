@@ -3100,12 +3100,12 @@ bool ValidateProgram(const Program& program, std::string* error) {
         name_ptr = &decl.var.name;
         ctx.globals[decl.var.name] = &decl.var;
         if (decl.var.has_init_expr && decl.var.type.pointer_depth > 0) {
-          std::vector<std::unordered_map<std::string, LocalInfo>> empty_scopes;
+          std::vector<std::unordered_map<std::string, LocalInfo>> initializer_scopes;
           bool known = false;
           bool points_to_immutable = false;
           GetPointerImmutabilityFromExpr(decl.var.init_expr,
                                          ctx,
-                                         empty_scopes,
+                                         initializer_scopes,
                                          nullptr,
                                          &known,
                                          &points_to_immutable);

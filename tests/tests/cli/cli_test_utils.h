@@ -6,7 +6,9 @@
 namespace Simple::VM::Tests {
 
 std::filesystem::path CliTempPath(const std::string& name);
+std::filesystem::path CliTempExecutablePath(const std::string& name);
 std::string CliToolPath(const std::string& name);
+std::string CliSvmCommand(const std::string& arguments);
 int CliExitCodeFromSystemResult(int result);
 bool RunCliCommandQuiet(const std::string& command);
 bool RunCliCommandRaw(const std::string& command);

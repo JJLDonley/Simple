@@ -102,12 +102,26 @@ jobs:
             echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> "$GITHUB_ENV"
           fi
 
-      - name: Cache Windows vcpkg binaries
-        if: runner.os == 'Windows'
-        uses: actions/cache@v6
+      - name: Restore Windows LLVM binary cache
+        id: windows-llvm-cache
+        if: runner.os == 'Windows' && matrix.flavor == 'llvm'
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/vcpkg-bincache
-          key: vcpkg-${{ runner.os }}-${{ matrix.flavor }}-llvm18-static-release-v5
+          key: windows-vcpkg-llvm-${{ hashFiles('cmake/platform/vcpkg/windows-llvm/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
+
+      - name: Require seeded Windows LLVM cache
+        if: runner.os == 'Windows' && matrix.flavor == 'llvm' && steps.windows-llvm-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: throw "Windows LLVM cache is missing; run the Windows LLVM Cache workflow first"
+
+      - name: Restore Windows interpreter binary cache
+        id: windows-int-cache
+        if: runner.os == 'Windows' && matrix.flavor == 'int'
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/vcpkg-bincache
+          key: windows-vcpkg-int-${{ hashFiles('cmake/platform/vcpkg/windows-int/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
 
       - name: Setup Windows vcpkg dependencies
         if: runner.os == 'Windows'
@@ -147,6 +161,13 @@ jobs:
             }
             "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
+
+      - name: Save Windows interpreter binary cache
+        if: runner.os == 'Windows' && matrix.flavor == 'int' && steps.windows-int-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/vcpkg-bincache
+          key: windows-vcpkg-int-${{ hashFiles('cmake/platform/vcpkg/windows-int/**', 'cmake/platform/triplets/x64-windows-static-release.cmake') }}
 
       - name: Build + test + package (Linux/macOS)
         if: runner.os != 'Windows'

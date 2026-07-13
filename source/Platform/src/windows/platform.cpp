@@ -70,9 +70,10 @@ bool CloseDynamicLibrary(int64_t handle, std::string* error) {
 }
 
 bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error) {
-  const char* configured = std::getenv("CXX");
-  std::string command = configured && *configured ? configured : "cl.exe";
-  command += " /nologo /std:c++17 /O2 /EHsc";
+  std::string configured;
+  GetEnvironment("CXX", &configured);
+  std::string command = configured.empty() ? "cl.exe" : configured;
+  command += " /nologo /std:c++17 /O2 /EHsc /MT";
   for (const auto& include : request.include_dirs) command += " /I" + Quote(include);
   command += " " + Quote(request.source);
   for (const auto& library : request.libraries) command += " " + Quote(library);

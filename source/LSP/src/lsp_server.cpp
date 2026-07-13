@@ -20,6 +20,7 @@
 #include "lang_reserved.h"
 #include "Lexer/token.h"
 #include "TAST/type_checker.h"
+#include "platform/platform.h"
 
 namespace Simple::LSP {
 namespace {
@@ -2849,9 +2850,14 @@ std::string SemanticTokenModifiersName(uint32_t mods) {
   return out;
 }
 
+bool DebugSemanticTokensEnabled() {
+  std::string value;
+  return Simple::Platform::GetEnvironment("SIMPLE_LSP_DEBUG_TOKENS", &value) &&
+         !value.empty() && value[0] != '0';
+}
+
 void DebugDumpSemanticTokens(const std::vector<SemanticTokenEntry>& entries) {
-  const char* env = std::getenv("SIMPLE_LSP_DEBUG_TOKENS");
-  if (!env || env[0] == '\0' || env[0] == '0') return;
+  if (!DebugSemanticTokensEnabled()) return;
   std::cerr << "[simple-lsp] semantic tokens (" << entries.size() << ")\n";
   for (const auto& entry : entries) {
     std::cerr << "  " << entry.line << ":" << entry.col
@@ -2873,8 +2879,7 @@ void ReplySemanticTokensFull(std::ostream& out,
   }
   const std::string& text = it->second;
   const auto refs = LexTokenRefs(it->second);
-  const char* debug_env = std::getenv("SIMPLE_LSP_DEBUG_TOKENS");
-  if (debug_env && debug_env[0] != '\0' && debug_env[0] != '0') {
+  if (DebugSemanticTokensEnabled()) {
     std::cerr << "[simple-lsp] token refs: " << refs.size() << "\n";
   }
   std::unordered_set<std::string> import_aliases;
@@ -3034,8 +3039,7 @@ void ReplySemanticTokensFull(std::ostream& out,
         member_receivers[i] = std::move(receiver);
       }
     }
-    const char* debug_env = std::getenv("SIMPLE_LSP_DEBUG_TOKENS");
-    if (debug_env && debug_env[0] != '\0' && debug_env[0] != '0') {
+    if (DebugSemanticTokensEnabled()) {
       std::cerr << "[simple-lsp] member access scan\n";
       for (size_t i = 0; i < refs.size(); ++i) {
         if (refs[i].token.kind != Simple::Lang::TokenKind::Identifier) continue;

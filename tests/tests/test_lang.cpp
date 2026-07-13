@@ -31,6 +31,7 @@
 #include "ir_compiler.h"
 #include "simple_runner.h"
 #include "test_utils.h"
+#include "cli/cli_test_utils.h"
 
 #include <filesystem>
 #include <fstream>
@@ -579,7 +580,7 @@ bool LangSimpleFixtureStressLangFeatures() {
 
 bool LangSimpleFixtureStressRaylibLike() {
   int exit_code = 0;
-  RunCommandCaptureStderr("bin/svm run tests/simple_modules/stress_raylib_like_main.simple",
+  RunCommandCaptureStderr(CliSvmCommand("run tests/simple_modules/stress_raylib_like_main.simple"),
                           &exit_code);
   return exit_code == 16;
 }
@@ -970,7 +971,7 @@ bool LangSimpleBadPrintArray() {
 
 bool LangSimpleBadImportUnknown() {
   int exit_code = 0;
-  const std::string err = RunCommandCaptureStderr("./build/bin/svm check tests/simple_bad/import_unknown.simple", &exit_code);
+  const std::string err = RunCommandCaptureStderr(CliSvmCommand("check tests/simple_bad/import_unknown.simple"), &exit_code);
   return exit_code != 0 && err.find("import not found") != std::string::npos;
 }
 
@@ -2540,7 +2541,7 @@ bool LangRejectSystemIoPrintln() {
 
 bool LangRejectUnplannedSystemMathImport() {
   int exit_code = 0;
-  const std::string err = RunCommandCaptureStderr("./build/bin/svm check tests/simple_bad/system_math_import.simple", &exit_code);
+  const std::string err = RunCommandCaptureStderr(CliSvmCommand("check tests/simple_bad/system_math_import.simple"), &exit_code);
   return exit_code != 0 && err.find("import not found") != std::string::npos;
 }
 
