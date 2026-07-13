@@ -9,6 +9,7 @@
 #include "ir_compiler.h"
 #include "ir_lang.h"
 #include "opcode.h"
+#include "platform/platform.h"
 #include "sbc_emitter.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
@@ -283,12 +284,18 @@ bool RunSirTextExpectExit(const std::string& sir, int32_t expected) {
 
 TestResult RunSection(const TestSection& section) {
   std::cout << "section: " << section.name << " (" << section.count << " tests)\n";
+  std::string trace_value;
+  const bool trace = Simple::Platform::GetEnvironment("SIMPLE_TEST_TRACE", &trace_value) &&
+                     !trace_value.empty() && trace_value[0] != '0';
   size_t failed = 0;
   for (size_t i = 0; i < section.count; ++i) {
     const TestCase& test = section.tests[i];
+    if (trace) std::cout << "[ RUN      ] " << test.name << "\n";
     if (!test.fn()) {
       ++failed;
-      std::cerr << "failed: " << test.name << "\n";
+      std::cerr << "[  FAILED  ] " << test.name << "\n";
+    } else if (trace) {
+      std::cout << "[       OK ] " << test.name << "\n";
     }
   }
   std::cout << "section result: " << section.name << " "
