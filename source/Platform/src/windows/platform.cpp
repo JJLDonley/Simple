@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <process.h>
+#include <iostream>
 #include <utility>
 #include <vector>
 
@@ -114,6 +115,11 @@ bool BuildNativeExecutable(const NativeBuildRequest& request, std::string* error
   arguments.insert(arguments.end(), extra.begin(), extra.end());
   arguments.push_back("/Fe:" + request.output.string());
 
+  if (std::getenv("SIMPLE_TEST_TRACE")) {
+    std::cerr << "[ COMPILER ]";
+    for (const auto& argument : arguments) std::cerr << " [" << argument << "]";
+    std::cerr << "\n";
+  }
   std::vector<const char*> argv;
   argv.reserve(arguments.size() + 1);
   for (const auto& argument : arguments) argv.push_back(argument.c_str());
