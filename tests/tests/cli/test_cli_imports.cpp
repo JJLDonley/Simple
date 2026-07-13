@@ -213,6 +213,7 @@ bool CliSplitImportsWriteSharedAutoModuleMap() {
   const bool ok = Simple::Lang::RAST::WriteAutoModuleMapIfMissing(dir, modules);
   std::ifstream in(dir / "simple.modules");
   const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  in.close();
   std::filesystem::remove_all(dir);
   return ok && text.find("Auto.Thing=\"thing.simple\"") != std::string::npos;
 }

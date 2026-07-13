@@ -231,6 +231,7 @@ std::string RunCliToolCaptureStderr(const std::string& tool,
   if (out_exit_code) *out_exit_code = result;
   std::ifstream in(error);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  in.close();
   std::filesystem::remove(output);
   std::filesystem::remove(error);
   return text;
@@ -270,6 +271,7 @@ std::string RunCliCaptureStdout(const std::string& command,
   if (out_exit_code) *out_exit_code = CliExitCodeFromSystemResult(result);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  in.close();
   std::filesystem::remove(path);
   return text;
 }

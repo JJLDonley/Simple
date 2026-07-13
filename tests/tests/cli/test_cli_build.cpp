@@ -25,6 +25,7 @@ bool CliCompileSvmOutSbcStaysBytecode() {
   if (RunCliSvm({"compile", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
+  in.close();
   std::filesystem::remove(out_path);
   return ok;
 }
@@ -61,6 +62,7 @@ bool CliBuildEmitIr() {
   std::ifstream in(out_path);
   if (!in) return false;
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  in.close();
   std::filesystem::remove(out_path);
   return contents.find("func") != std::string::npos;
 }
@@ -70,6 +72,7 @@ bool CliBuildEmitSbc() {
   if (RunCliSvm({"emit", "-sbc", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
+  in.close();
   std::filesystem::remove(out_path);
   return ok;
 }
@@ -91,6 +94,7 @@ bool CliBuildSimpleToSbc() {
   if (RunCliSvm({"build", "tests/simple/hello.simple", "--out", out_path.string()}) != 0) return false;
   std::ifstream in(out_path, std::ios::binary);
   const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
+  in.close();
   std::filesystem::remove(out_path);
   return ok;
 }
@@ -101,6 +105,7 @@ bool CliSplitBuildWritesEmbeddedRunner() {
   const bool ok = Simple::CLI::WriteEmbeddedRunner(path.string(), {0x01, 0x02, 0x03}, &error);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  in.close();
   std::filesystem::remove(path);
   return ok && text.find("kSbcData") != std::string::npos && text.find("0x1") != std::string::npos;
 }
