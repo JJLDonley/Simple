@@ -102,6 +102,12 @@ echo "  install:  $BINDIR"
 echo "  llvm-jit: $LLVM_JIT"
 
 cmake "${configure_args[@]}"
+configured_jit="$(grep '^SIMPLEVM_ENABLE_LLVM_JIT:BOOL=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2- || true)"
+if [[ "$configured_jit" != "$LLVM_JIT" ]]; then
+  # Changing compilers makes CMake regenerate its cache and can reset options;
+  # apply the requested configuration once more after that regeneration.
+  cmake "${configure_args[@]}"
+fi
 cmake --build "$BUILD_DIR" --target simplevm simple_stub --parallel "$JOBS"
 
 mkdir -p "$ROOT_DIR/bin"
