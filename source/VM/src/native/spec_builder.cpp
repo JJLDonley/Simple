@@ -70,6 +70,18 @@ NativeFunctionSpec MayAllocateHost(NativeFunctionSpec spec) {
   return spec;
 }
 
+NativeFunctionSpec MaySafepoint(NativeFunctionSpec spec) {
+  spec.gc_behavior = NativeGcBehavior::MaySafepoint;
+  return spec;
+}
+
+NativeFunctionSpec AsStandardModule(NativeFunctionSpec spec,
+                                    Simple::Lang::StandardModule module) {
+  spec.library_module = Simple::Lang::ToLibraryModuleId(module);
+  spec.layer = NativeLayer::Standard;
+  return spec;
+}
+
 NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capability) {
   spec.capability_tags.push_back(capability);
   return spec;

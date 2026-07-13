@@ -135,6 +135,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/system_channel.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_ffi.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_fs.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/system_job.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_json.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_log.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_os.cpp
@@ -376,6 +377,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/vm/test_jit.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_channel.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_fs.cpp
+  ${SIMPLEVM_TEST_ROOT}/vm/test_native_job.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_registry.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_abi.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_limits.cpp

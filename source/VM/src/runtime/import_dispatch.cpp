@@ -16,6 +16,7 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                               Heap& heap,
                               std::vector<Simple::VM::Native::NativeHandleId>& file_handles,
                               Simple::VM::Native::NativeResourceRegistry& resource_registry,
+                              const std::shared_ptr<PromiseRegistry>& promise_registry,
                               std::string& dl_last_error,
                               uint32_t func_id,
                               const std::vector<Slot>& args,
@@ -91,6 +92,7 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
   native_context.file_handles = &file_handles;
   native_context.dl_last_error = &dl_last_error;
   native_context.resource_registry = &resource_registry;
+  native_context.promise_registry = promise_registry;
   native_context.capability_policy = &options.capability_policy;
   if (Simple::VM::Native::DispatchMetadataImport(native_registry,
                                                  mod,

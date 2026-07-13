@@ -38,12 +38,14 @@ const char* PromiseStatusName(PromiseStatus status) {
 }
 
 AbiPromiseId PromiseRegistry::Create() {
+  std::lock_guard<std::mutex> lock(mutex_);
   for (uint32_t i = 0; i < records_.size(); ++i) {
     Slot& slot = records_[i];
-    if (slot.occupied && slot.record.state == PromiseState::Pending) continue;
-    slot.generation = slot.generation == 0 ? kFirstPromiseGeneration : slot.generation + 1;
+    if (slot.occupied) continue;
+    slot.generation = slot.generation == 0 ? kFirstPromiseGeneration : slot.generation + 1u;
     if (slot.generation == 0) slot.generation = kFirstPromiseGeneration;
-    slot.record = PromiseRecord{AbiPromiseId{i, slot.generation}, PromiseState::Pending, false, false, 0, {}, {}};
+    slot.record = PromiseRecord{AbiPromiseId{i, slot.generation}, PromiseState::Pending,
+                                false, false, 0, {}, {}};
     slot.occupied = true;
     return slot.record.id;
   }
@@ -57,14 +59,29 @@ AbiPromiseId PromiseRegistry::Create() {
   return records_.back().record.id;
 }
 
-PromiseStatus PromiseRegistry::Get(AbiPromiseId id, const PromiseRecord** out) const {
-  if (out) *out = nullptr;
-  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
-  const Slot& slot = records_[id.index];
-  if (!slot.occupied) return PromiseStatus::InvalidId;
-  if (slot.generation != id.generation) return PromiseStatus::StaleId;
-  if (out) *out = &slot.record;
-  return PromiseStatus::Ok;
+PromiseStatus PromiseRegistry::Get(AbiPromiseId id, PromiseRecord* out) const {
+  if (out) *out = {};
+  std::lock_guard<std::mutex> lock(mutex_);
+  const Slot* slot = nullptr;
+  const PromiseStatus status = ValidateLocked(id, &slot);
+  if (status == PromiseStatus::Ok && out) *out = slot->record;
+  return status;
+}
+
+PromiseStatus PromiseRegistry::Wait(AbiPromiseId id, PromiseRecord* out) {
+  if (out) *out = {};
+  std::unique_lock<std::mutex> lock(mutex_);
+  PromiseStatus status = PromiseStatus::Ok;
+  state_changed_.wait(lock, [&] {
+    Slot* slot = nullptr;
+    status = ValidateLocked(id, &slot);
+    return status != PromiseStatus::Ok || slot->record.state != PromiseState::Pending;
+  });
+  if (status != PromiseStatus::Ok) return status;
+  Slot* slot = nullptr;
+  status = ValidateLocked(id, &slot);
+  if (status == PromiseStatus::Ok && out) *out = slot->record;
+  return status;
 }
 
 PromiseStatus PromiseRegistry::Resolve(AbiPromiseId id, uint64_t payload) {
@@ -80,44 +97,58 @@ PromiseStatus PromiseRegistry::Fail(AbiPromiseId id, std::string error) {
 }
 
 PromiseStatus PromiseRegistry::RequestCancel(AbiPromiseId id) {
-  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
-  Slot& slot = records_[id.index];
-  if (!slot.occupied) return PromiseStatus::InvalidId;
-  if (slot.generation != id.generation) return PromiseStatus::StaleId;
-  if (slot.record.state != PromiseState::Pending) return PromiseStatus::NotPending;
-  slot.record.cancellation_requested = true;
+  std::lock_guard<std::mutex> lock(mutex_);
+  Slot* slot = nullptr;
+  const PromiseStatus status = ValidateLocked(id, &slot);
+  if (status != PromiseStatus::Ok) return status;
+  if (slot->record.state != PromiseState::Pending) return PromiseStatus::NotPending;
+  slot->record.cancellation_requested = true;
   return PromiseStatus::Ok;
 }
 
 PromiseStatus PromiseRegistry::Cancel(AbiPromiseId id) {
-  PromiseStatus status = RequestCancel(id);
-  if (status != PromiseStatus::Ok) return status;
   return Complete(id, PromiseState::Canceled, false, 0, {});
 }
 
-PromiseStatus PromiseRegistry::AddWaiter(AbiPromiseId id, AbiPromiseId waiter) {
-  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
-  Slot& slot = records_[id.index];
-  if (!slot.occupied) return PromiseStatus::InvalidId;
-  if (slot.generation != id.generation) return PromiseStatus::StaleId;
-  if (slot.record.state != PromiseState::Pending) return PromiseStatus::NotPending;
-  slot.record.waiters.push_back(waiter);
+PromiseStatus PromiseRegistry::Release(AbiPromiseId id) {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    Slot* slot = nullptr;
+    const PromiseStatus status = ValidateLocked(id, &slot);
+    if (status != PromiseStatus::Ok) return status;
+    if (slot->record.state == PromiseState::Pending) return PromiseStatus::NotPending;
+    slot->record = {};
+    slot->occupied = false;
+  }
+  state_changed_.notify_all();
   return PromiseStatus::Ok;
 }
 
-PromiseStatus PromiseRegistry::DrainWaiters(AbiPromiseId id, std::vector<AbiPromiseId>* out_waiters) {
+PromiseStatus PromiseRegistry::AddWaiter(AbiPromiseId id, AbiPromiseId waiter) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  Slot* slot = nullptr;
+  const PromiseStatus status = ValidateLocked(id, &slot);
+  if (status != PromiseStatus::Ok) return status;
+  if (slot->record.state != PromiseState::Pending) return PromiseStatus::NotPending;
+  slot->record.waiters.push_back(waiter);
+  return PromiseStatus::Ok;
+}
+
+PromiseStatus PromiseRegistry::DrainWaiters(AbiPromiseId id,
+                                            std::vector<AbiPromiseId>* out_waiters) {
   if (!out_waiters) return PromiseStatus::InvalidId;
-  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
-  Slot& slot = records_[id.index];
-  if (!slot.occupied) return PromiseStatus::InvalidId;
-  if (slot.generation != id.generation) return PromiseStatus::StaleId;
-  *out_waiters = std::move(slot.record.waiters);
-  slot.record.waiters.clear();
+  std::lock_guard<std::mutex> lock(mutex_);
+  Slot* slot = nullptr;
+  const PromiseStatus status = ValidateLocked(id, &slot);
+  if (status != PromiseStatus::Ok) return status;
+  *out_waiters = std::move(slot->record.waiters);
+  slot->record.waiters.clear();
   return PromiseStatus::Ok;
 }
 
 std::vector<uint32_t> PromiseRegistry::CollectRootRefs() const {
   std::vector<uint32_t> roots;
+  std::lock_guard<std::mutex> lock(mutex_);
   for (const Slot& slot : records_) {
     if (!slot.occupied) continue;
     const PromiseRecord& record = slot.record;
@@ -128,22 +159,59 @@ std::vector<uint32_t> PromiseRegistry::CollectRootRefs() const {
   return roots;
 }
 
+size_t PromiseRegistry::SlotCount() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return records_.size();
+}
+
+size_t PromiseRegistry::LiveCount() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  size_t count = 0;
+  for (const Slot& slot : records_) {
+    if (slot.occupied) ++count;
+  }
+  return count;
+}
+
+PromiseStatus PromiseRegistry::ValidateLocked(AbiPromiseId id, Slot** out_slot) {
+  if (out_slot) *out_slot = nullptr;
+  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
+  Slot& slot = records_[id.index];
+  if (slot.generation != id.generation) return PromiseStatus::StaleId;
+  if (!slot.occupied) return PromiseStatus::InvalidId;
+  if (out_slot) *out_slot = &slot;
+  return PromiseStatus::Ok;
+}
+
+PromiseStatus PromiseRegistry::ValidateLocked(AbiPromiseId id, const Slot** out_slot) const {
+  if (out_slot) *out_slot = nullptr;
+  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
+  const Slot& slot = records_[id.index];
+  if (slot.generation != id.generation) return PromiseStatus::StaleId;
+  if (!slot.occupied) return PromiseStatus::InvalidId;
+  if (out_slot) *out_slot = &slot;
+  return PromiseStatus::Ok;
+}
+
 PromiseStatus PromiseRegistry::Complete(AbiPromiseId id,
                                         PromiseState state,
                                         bool payload_is_ref,
                                         uint64_t payload,
                                         std::string error) {
-  PromiseRecord* record = nullptr;
-  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
-  Slot& slot = records_[id.index];
-  if (!slot.occupied) return PromiseStatus::InvalidId;
-  if (slot.generation != id.generation) return PromiseStatus::StaleId;
-  record = &slot.record;
-  if (record->state != PromiseState::Pending) return PromiseStatus::NotPending;
-  record->state = state;
-  record->payload_is_ref = payload_is_ref;
-  record->payload = payload;
-  record->error = std::move(error);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    Slot* slot = nullptr;
+    const PromiseStatus status = ValidateLocked(id, &slot);
+    if (status != PromiseStatus::Ok) return status;
+    PromiseRecord& record = slot->record;
+    if (record.state != PromiseState::Pending) return PromiseStatus::NotPending;
+    record.state = state;
+    record.cancellation_requested = state == PromiseState::Canceled;
+    record.payload_is_ref = payload_is_ref;
+    record.payload = payload;
+    record.error = std::move(error);
+  }
+  state_changed_.notify_all();
   return PromiseStatus::Ok;
 }
 

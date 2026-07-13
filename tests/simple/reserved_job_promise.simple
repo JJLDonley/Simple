@@ -1,0 +1,27 @@
+module Tests.JobPromise
+
+import System.Job
+import Standard.Promise
+
+main :: i32 () {
+  job : i64 = System.Job.spawn(5, 42)
+  if (job == 0) { return 1 }
+  if (System.Job.await(job) != 42) { return 2 }
+  if (System.Job.poll(job) != 1) { return 3 }
+  System.Job.close(job)
+
+  failed : i64 = Standard.Promise.runFailed(0, "expected failure")
+  if (failed == 0) { return 4 }
+  Standard.Promise.await(failed)
+  if (!Standard.Promise.isDone(failed)) { return 5 }
+  if (!Standard.Promise.isFailed(failed)) { return 6 }
+  if (Standard.Promise.error(failed) != "expected failure") { return 7 }
+  Standard.Promise.close(failed)
+
+  canceled : i64 = Standard.Promise.run(60000, 9)
+  if (canceled == 0) { return 8 }
+  if (!Standard.Promise.cancel(canceled)) { return 9 }
+  if (!Standard.Promise.isCancelled(canceled)) { return 10 }
+  Standard.Promise.close(canceled)
+  return 0
+}

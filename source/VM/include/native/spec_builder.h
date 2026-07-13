@@ -26,6 +26,9 @@ NativeFunctionSpec WithResource(NativeFunctionSpec spec,
                                 uint32_t parameter_index = kNativeResourceNoParameter);
 NativeFunctionSpec MayBlock(NativeFunctionSpec spec);
 NativeFunctionSpec MayAllocateHost(NativeFunctionSpec spec);
+NativeFunctionSpec MaySafepoint(NativeFunctionSpec spec);
+NativeFunctionSpec AsStandardModule(NativeFunctionSpec spec,
+                                    Simple::Lang::StandardModule module);
 NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capability);
 NativeFunctionSpec WithStability(NativeFunctionSpec spec, NativeStability stability);
 NativeFunctionSpec WithDoc(NativeFunctionSpec spec, const char* summary);

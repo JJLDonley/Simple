@@ -13,6 +13,7 @@ The Simple VM executes verified SBC modules and provides the runtime services us
 - [Runtime limits](#runtime-limits)
 - [Imports and native runtime](#imports-and-native-runtime)
 - [Native resource lifecycle](#native-resource-lifecycle)
+- [Jobs and promises](#jobs-and-promises)
 - [Dynamic libraries / FFI](#dynamic-libraries--ffi)
 - [Intrinsics and syscalls](#intrinsics-and-syscalls)
 - [Errors and traps](#errors-and-traps)
@@ -103,6 +104,12 @@ Resource operations follow these rules:
 `System.FS` integer descriptors remain surface-level indexes for the current library signature, but each entry resolves to an owned registry file handle before access. `System.FFI.open` returns an opaque registry handle rather than a platform library handle; `sym` and `close` validate that handle and shutdown closes any library the program leaves open. Symbols returned by `sym` are borrowed external-C addresses and are valid only while their owning library remains open. `System.Json.parse` values and every typed `System.Channel` family also use the same registry, so explicit `free`/`close`, stale-handle checks, runtime ownership, and shutdown cleanup follow one lifecycle instead of process-global handle ownership.
 
 Native string, byte, and array inputs remain VM-owned for the duration described by their ABI view. `SimpleStringView` and `SimpleBytesView` are borrow-only and must not be retained after the native call. A native function that needs data beyond the call must copy it into resource-owned storage. VM references, managed strings, and mutable heap payload pointers must not cross worker/thread boundaries without an explicit rooted ownership design.
+
+## Jobs and promises
+
+The synchronized `PromiseRegistry` keeps pending, completed, failed, and cancelled records stable until their owning `Job` resource closes. Completion, cancellation, polling, and blocking waits synchronize through a registry mutex and condition variable. Job shutdown wakes timers before joining workers, so abandoned long-delay jobs do not delay VM teardown.
+
+The public experimental boundary carries only copied `i64` results and copied failure strings. Worker threads never access the heap, VM frames, globals, closures, or other resource handles. Native metadata marks job creation as host-allocating, `await` as blocking, and all async state boundaries as potential safepoints. See [Jobs and promises](Async.md).
 
 ## Dynamic libraries / FFI
 

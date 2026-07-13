@@ -195,6 +195,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<uint32_t> llvm_reject_counts(module.functions.size(), 0);
   std::vector<std::string> llvm_reject_reasons(module.functions.size());
   std::vector<Simple::VM::Native::NativeHandleId> file_handles;
+  auto promise_registry = std::make_shared<Simple::VM::Runtime::PromiseRegistry>();
   Simple::VM::Native::NativeResourceRegistry resource_registry;
   std::string dl_last_error;
   uint64_t compile_tick = 0;
@@ -3591,7 +3592,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, dl_last_error, func_id, call_args, ret, has_ret, error)) {
+          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, func_id, call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (has_ret) Push(stack, ret);
@@ -3677,7 +3678,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, dl_last_error, static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
+          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (has_ret) Push(stack, ret);
@@ -3739,7 +3740,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, dl_last_error, func_id, call_args, ret, has_ret, error)) {
+          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, func_id, call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (call_stack.empty()) {

@@ -9,6 +9,8 @@ its implementation.
   imports, and FFI.
 - [System library](System.md) — low-level runtime and host-facing modules.
 - [Standard library](Standard.md) — higher-level library modules.
+- [Jobs and promises](Async.md) — experimental async states, ownership, cancellation,
+  blocking, and GC boundaries.
 
 ## Toolchain
 

@@ -141,7 +141,12 @@ bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string*
     if (error) *error = name + " missing handler";
     return false;
   }
-  if (spec.module_name.rfind("System.", 0) == 0 && spec.layer != NativeLayer::System) {
+  const bool standard_backed_by_system =
+      spec.library_module && spec.library_module->root == Simple::Lang::LibraryRoot::Standard &&
+      Simple::Lang::ToNativeModule(*spec.library_module) == spec.module_name &&
+      spec.layer == NativeLayer::Standard;
+  if (spec.module_name.rfind("System.", 0) == 0 && spec.layer != NativeLayer::System &&
+      !standard_backed_by_system) {
     if (error) *error = name + " system native function must declare system layer";
     return false;
   }
@@ -152,7 +157,8 @@ bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string*
       return false;
     }
     const Simple::Lang::LibraryModuleId expected{parsed_module->root, parsed_module->module_index};
-    if (!(*spec.library_module == expected)) {
+    if (!(*spec.library_module == expected) &&
+        Simple::Lang::ToNativeModule(*spec.library_module) != spec.module_name) {
       if (error) *error = name + " native module catalog id mismatch";
       return false;
     }

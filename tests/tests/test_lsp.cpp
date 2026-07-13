@@ -1357,6 +1357,31 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }
 
+bool LspCompletionIncludesPromiseStateMembers() {
+  const std::string session_name = "simple_lsp_completion_promise_members";
+  const std::string uri = "file:///workspace/complete_promise_members.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import Standard.Promise as Promise\\nPromise.is\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":60,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":10}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input = BuildLspFrame(init_req) + BuildLspFrame(open_req) +
+                            BuildLspFrame(completion_req) + BuildLspFrame(shutdown_req) +
+                            BuildLspFrame(exit_req);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
+  return err_contents.empty() && out_contents.find("\"id\":60") != std::string::npos &&
+         out_contents.find("\"label\":\"isDone\"") != std::string::npos &&
+         out_contents.find("\"label\":\"isFailed\"") != std::string::npos &&
+         out_contents.find("\"label\":\"isCancelled\"") != std::string::npos;
+}
+
 bool LspCompletionIncludesSystemImplicitAliasMembers() {
   const std::string session_name = "simple_lsp_completion_system_implicit_alias";
   const std::string uri = "file:///workspace/complete_system_implicit_alias.simple";
@@ -1619,6 +1644,30 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
          out_contents.find("FFI.open : i64 (path)") != std::string::npos &&
          out_contents.find("FFI.open : i64 (path, manifest)") != std::string::npos &&
          out_contents.find("\"activeSignature\":1") != std::string::npos &&
+         out_contents.find("\"activeParameter\":1") != std::string::npos;
+}
+
+bool LspSignatureHelpForPromiseRun() {
+  const std::string session_name = "simple_lsp_signature_promise_run";
+  const std::string uri = "file:///workspace/signature_promise_run.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import Standard.Promise as Promise\\nPromise.run(5, 42)\"}}}";
+  const std::string signature_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":61,\"method\":\"textDocument/signatureHelp\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":17}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input = BuildLspFrame(init_req) + BuildLspFrame(open_req) +
+                            BuildLspFrame(signature_req) + BuildLspFrame(shutdown_req) +
+                            BuildLspFrame(exit_req);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
+  return err_contents.empty() && out_contents.find("\"id\":61") != std::string::npos &&
+         out_contents.find("Promise.run : i64 (delayMs, result)") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
 
@@ -4139,6 +4188,7 @@ const TestCase kLspTests[] = {
   {"lsp_completion_suggests_reserved_import_modules_unquoted",
    LspCompletionSuggestsReservedImportModulesUnquoted},
   {"lsp_completion_includes_reserved_module_alias_members", LspCompletionIncludesReservedModuleAliasMembers},
+  {"lsp_completion_includes_promise_state_members", LspCompletionIncludesPromiseStateMembers},
   {"lsp_completion_includes_system_implicit_alias_members", LspCompletionIncludesSystemImplicitAliasMembers},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_signature_help_tracks_active_parameter", LspSignatureHelpTracksActiveParameter},
@@ -4148,6 +4198,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_reserved_alias_member", LspSignatureHelpForReservedAliasMember},
   {"lsp_signature_help_for_io_alias_format_call", LspSignatureHelpForIoAliasFormatCall},
   {"lsp_signature_help_for_System_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
+  {"lsp_signature_help_for_promise_run", LspSignatureHelpForPromiseRun},
   {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_classify_module_keyword", LspSemanticTokensClassifyModuleKeyword},

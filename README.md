@@ -422,6 +422,7 @@ Start with the [documentation index](docs/README.md).
 - [Simple IR](docs/IR.md)
 - [Simple Bytecode](docs/Byte.md)
 - [Virtual machine](docs/VM.md)
+- [Jobs and promises](docs/Async.md)
 - [LLVM JIT](docs/JIT.md)
 - [Portability](docs/Portability.md)
 - [Coding standards](docs/Standards.md)

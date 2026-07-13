@@ -942,7 +942,7 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
     std::string error;
     if (!Simple::VM::Runtime::DispatchImportCallByName(*module, options, *registry, *context.heap,
                                                        g_llvm_file_handles, g_llvm_resource_registry,
-                                                       g_llvm_dl_last_error,
+                                                       {}, g_llvm_dl_last_error,
                                                        func_index, context.args, ret, ret_present, error)) {
       Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, error);
       g_llvm_trap = true;
@@ -2833,6 +2833,17 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     const auto& target_sig = module.sigs[target_method.sig_id];
     if (arg_count != target_sig.param_count) { reason = std::string("LLVM JIT ") + opname + " arg count mismatch"; return false; }
     if (target_func == func_index && arg_count != param_count) { reason = std::string("LLVM JIT ") + opname + " self arg count mismatch"; return false; }
+    if (target_func < module.function_is_import.size() && module.function_is_import[target_func]) {
+      const auto* native_spec = native_import_spec(target_func);
+      if (native_spec) {
+        for (const auto& resource : native_spec->resources) {
+          if (resource.kind == Simple::VM::Native::NativeResourceKind::Job) {
+            reason = "unsupported: async job imports require interpreter runtime ownership";
+            return false;
+          }
+        }
+      }
+    }
     if (stack.size() < arg_count) { reason = std::string("LLVM JIT ") + opname + " stack underflow"; return false; }
     llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count == 0 ? 1 : arg_count), std::string(opname) + "_args");
     for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
@@ -4804,6 +4815,17 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         const bool import_like_call =
             target_func < module.function_is_import.size() && module.function_is_import[target_func];
+        if (import_like_call) {
+          const auto* native_spec = native_import_spec(target_func);
+          if (native_spec) {
+            for (const auto& resource : native_spec->resources) {
+              if (resource.kind == Simple::VM::Native::NativeResourceKind::Job) {
+                reason = "unsupported: async job imports require interpreter runtime ownership";
+                return false;
+              }
+            }
+          }
+        }
         const bool dynamic_dl_direct_call = import_like_call && [&]() {
           std::string module_name;
           std::string symbol_name;

@@ -33,11 +33,13 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `Standard.HTTP` | HTTP client/server helpers | `System.HTTP`, `System.Net`, `System.Buffer`, `System.Bytes`, `System.Json` |
 | `Standard.HTTPS` | secure HTTP helpers | `System.HTTP`, `System.FS`, `System.Net` |
 | `Standard.Terminal` | high-level terminal sessions/raw/alt helpers | `System.Terminal` |
-| `Standard.Promise` | Promise helpers | `System.Job` |
+| `Standard.Promise` | experimental run/await/poll/cancel/state helpers | `System.Job` |
 | `Standard.Channel` | generic channel wrappers | `System.Channel` |
 | `Standard.Collections` | List/Map/Set/Queue/Stack | source-level generics |
 | `Standard.Result` | Result helpers | language `Result<T,E>` |
 | `Standard.Option` | Option helpers | language `Option<T>` |
+
+The current `Standard.Promise` surface wraps runtime-owned `System.Job` handles. It is scalar-only, requires explicit `close`, and does not execute Simple closures on workers. See [Jobs and promises](Async.md).
 
 ## API documentation contract
 

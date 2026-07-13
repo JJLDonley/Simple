@@ -1106,6 +1106,7 @@ Short imports such as `IO`, `FS`, `DL`, `Time`, `Buffer`, and `Channel` are reje
 | `System.Path` / `Standard.Path` | low-level and ergonomic path helpers |
 | `System.Random` / `Standard.Random` | raw RNG and high-level random helpers |
 | `System.Thread` | low-level thread helpers |
+| `System.Job` / `Standard.Promise` | experimental scalar jobs with run/spawn, await, poll, cancellation, state queries, and explicit close |
 | `System.Log` / `Standard.Log` | sink/level/file control and high-level log helpers |
 | `System.Buffer` / `System.Bytes` | low-level mutable buffers and byte helpers |
 | `Standard.Buffer` / `Standard.Bytes` | high-level buffer/byte helper modules, reserved as catalog modules |

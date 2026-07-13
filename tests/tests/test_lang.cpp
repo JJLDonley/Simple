@@ -484,6 +484,10 @@ bool LangSimpleFixtureReservedFile() {
   return RunSimpleFileExpectExit("tests/simple/reserved_file.simple", 0);
 }
 
+bool LangSimpleFixtureReservedJobPromise() {
+  return RunSimpleFileExpectExit("tests/simple/reserved_job_promise.simple", 0);
+}
+
 bool LangSimpleFixtureReservedIoBuffer() {
   return RunSimpleFileExpectExit("tests/simple/reserved_io_buffer.simple", 0);
 }
@@ -1619,6 +1623,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
       {"docs/Language.md", "## File/module headers", "Name :: namespace { ... }"},
       {"docs/Byte.md", "## Table of contents", "## Verifier contract"},
       {"docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
+      {"docs/Async.md", "# Jobs and promises", "## Async value and GC boundary"},
       {"docs/JIT.md", "## Table of contents", "## Correctness rule"},
       {"docs/CLI.md", "## Table of contents", "## Input types"},
       {"docs/Standards.md", "# Simple Project Coding Standards", "## 13. Continuous Cleanup Gate"},
@@ -3673,6 +3678,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_reserved_time", LangSimpleFixtureReservedTime},
   {"lang_simple_fixture_reserved_io_buffer", LangSimpleFixtureReservedIoBuffer},
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
+  {"lang_simple_fixture_reserved_job_promise", LangSimpleFixtureReservedJobPromise},
   {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},

@@ -30,7 +30,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `System.Log` | logging sink | native `System.Log` surface |
 | `System.Random` | low-level RNG | native `System.Random` surface |
 | `System.Thread` | OS/runtime thread primitives | native `System.Thread` surface |
-| `System.Job` | VM jobs/promises | planned on Promise runtime |
+| `System.Job` | VM jobs/promises | experimental runtime-owned jobs and synchronized promise registry |
 | `System.Channel` | low-level typed channels | runtime-owned channel handles |
 | `System.Process` | process spawning/control | planned |
 | `System.Net` | sockets/listeners | planned |
@@ -63,6 +63,8 @@ Every public `System.*` native function must declare:
 Current file, FFI library, JSON value, and channel resources are owned by the executing VM's native resource registry. Packed handles carry slot, generation, and runtime-owner identity. Native dispatch rejects null, foreign-runtime, stale, wrong-kind, and already-closed handles before ordinary input operations. Explicit close/free operations release host state and invalidate the handle; shutdown closes and finalizes any owned resource the program leaves live.
 
 Borrowed text/byte views last only for one native call. Dynamic symbols last only while their owning FFI library remains open. Resource-returning functions declare transfer-to-caller plus VM-shutdown cleanup metadata, borrowed operations declare input metadata, and close/free operations declare transfer-to-callee plus required cleanup.
+
+`System.Job` handles use the same resource lifecycle. Shutdown cancels and wakes pending jobs, joins worker threads, and releases synchronized promise records. The experimental async API is documented in [Jobs and promises](Async.md).
 
 ## Migration rule
 

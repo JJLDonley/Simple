@@ -1,6 +1,8 @@
 #pragma once
 
+#include <condition_variable>
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -42,16 +44,19 @@ class PromiseRegistry {
   PromiseRegistry& operator=(const PromiseRegistry&) = delete;
 
   AbiPromiseId Create();
-  PromiseStatus Get(AbiPromiseId id, const PromiseRecord** out) const;
+  PromiseStatus Get(AbiPromiseId id, PromiseRecord* out) const;
+  PromiseStatus Wait(AbiPromiseId id, PromiseRecord* out);
   PromiseStatus Resolve(AbiPromiseId id, uint64_t payload);
   PromiseStatus ResolveRef(AbiPromiseId id, uint32_t ref);
   PromiseStatus Fail(AbiPromiseId id, std::string error);
   PromiseStatus RequestCancel(AbiPromiseId id);
   PromiseStatus Cancel(AbiPromiseId id);
+  PromiseStatus Release(AbiPromiseId id);
   PromiseStatus AddWaiter(AbiPromiseId id, AbiPromiseId waiter);
   PromiseStatus DrainWaiters(AbiPromiseId id, std::vector<AbiPromiseId>* out_waiters);
   std::vector<uint32_t> CollectRootRefs() const;
-  size_t Size() const { return records_.size(); }
+  size_t SlotCount() const;
+  size_t LiveCount() const;
 
  private:
   struct Slot {
@@ -60,9 +65,13 @@ class PromiseRegistry {
     bool occupied = false;
   };
 
+  PromiseStatus ValidateLocked(AbiPromiseId id, Slot** out_slot);
+  PromiseStatus ValidateLocked(AbiPromiseId id, const Slot** out_slot) const;
   PromiseStatus Complete(AbiPromiseId id, PromiseState state, bool payload_is_ref,
                          uint64_t payload, std::string error);
 
+  mutable std::mutex mutex_;
+  std::condition_variable state_changed_;
   std::vector<Slot> records_;
 };
 

@@ -43,6 +43,7 @@ const TestSection* GetVmInterpreterSections(size_t* count);
 const TestSection* GetVmJitSections(size_t* count);
 const TestSection* GetVmNativeChannelSections(size_t* count);
 const TestSection* GetVmNativeFsSections(size_t* count);
+const TestSection* GetVmNativeJobSections(size_t* count);
 const TestSection* GetVmNativeRegistrySections(size_t* count);
 const TestSection* GetVmRuntimeAbiSections(size_t* count);
 const TestSection* GetVmRuntimeLimitsSections(size_t* count);
@@ -221,6 +222,7 @@ int main(int argc, char** argv) {
   Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmJitSections);
   Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmNativeChannelSections);
   Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmNativeFsSections);
+  Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmNativeJobSections);
   Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmNativeRegistrySections);
   Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmRuntimeAbiSections);
   Simple::VM::Tests::AppendSections(sections, Simple::VM::Tests::GetVmRuntimeLimitsSections);

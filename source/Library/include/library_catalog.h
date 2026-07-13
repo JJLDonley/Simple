@@ -84,7 +84,7 @@ enum class SystemJsonMember { Parse, Free, Stringify, Kind, Get, At, Len, AsStri
 enum class SystemLogMember { Log, SetLevel, SetFile, Flush, Info, Warn, Error };
 enum class SystemRandomMember { Seed, I32, I64, F64, FillBytes, Range };
 enum class SystemThreadMember { Yield, SleepMs, Sleep, HardwareConcurrency, Spawn, Join, Detach };
-enum class SystemJobMember { Spawn, Cancel, Poll, Await };
+enum class SystemJobMember { Spawn, SpawnFailed, Cancel, Poll, Await, Error, Close };
 enum class SystemChannelMember { NewI32, SendI32, TrySendI32, RecvI32, TryRecvI32, PendingI32, NewI64, SendI64, TrySendI64, RecvI64, TryRecvI64, PendingI64, NewF32, SendF32, TrySendF32, RecvF32, TryRecvF32, PendingF32, NewF64, SendF64, TrySendF64, RecvF64, TryRecvF64, PendingF64, NewBool, SendBool, TrySendBool, RecvBool, TryRecvBool, PendingBool, NewString, SendString, TrySendString, RecvString, TryRecvString, PendingString, NewBytes, SendBytes, TrySendBytes, RecvBytes, TryRecvBytes, PendingBytes, Close };
 enum class SystemProcessMember { Spawn, Wait, Kill, Stdin, Stdout, Stderr };
 enum class SystemNetMember { TcpConnect, TcpListen, Accept, Send, Recv, Close, UdpOpen, UdpSendTo, UdpRecvFrom };
@@ -111,7 +111,18 @@ enum class StandardNetMember { Connect, Listen, Read, Write, Close };
 enum class StandardHTTPMember { Get, Post, Put, Delete, Serve };
 enum class StandardHTTPSMember { Get, Post, Serve };
 enum class StandardTerminalMember { Open, Close, WithRaw, WithAltScreen, Clear, Size, MoveCursor, WriteAt, ReadEvent, PollEvent };
-enum class StandardPromiseMember { Run, Await, Poll, Cancel, IsDone };
+enum class StandardPromiseMember {
+  Run,
+  RunFailed,
+  Await,
+  Poll,
+  Cancel,
+  IsDone,
+  IsFailed,
+  IsCancelled,
+  Error,
+  Close,
+};
 enum class StandardChannelMember { New, Send, TrySend, Recv, TryRecv, Close };
 enum class StandardCollectionsMember { List, Map, Set, Queue, Stack };
 enum class StandardResultMember { Ok, Err, IsOk, Unwrap };
@@ -514,9 +525,12 @@ inline std::string_view ToMember(SystemThreadMember member) {
 inline std::string_view ToMember(SystemJobMember member) {
   switch (member) {
     case SystemJobMember::Spawn: return "spawn";
+    case SystemJobMember::SpawnFailed: return "spawnFailed";
     case SystemJobMember::Cancel: return "cancel";
     case SystemJobMember::Poll: return "poll";
     case SystemJobMember::Await: return "await";
+    case SystemJobMember::Error: return "error";
+    case SystemJobMember::Close: return "close";
   }
   return {};
 }
@@ -903,10 +917,15 @@ inline std::string_view ToMember(StandardTerminalMember member) {
 inline std::string_view ToMember(StandardPromiseMember member) {
   switch (member) {
     case StandardPromiseMember::Run: return "run";
+    case StandardPromiseMember::RunFailed: return "runFailed";
     case StandardPromiseMember::Await: return "await";
     case StandardPromiseMember::Poll: return "poll";
     case StandardPromiseMember::Cancel: return "cancel";
     case StandardPromiseMember::IsDone: return "isDone";
+    case StandardPromiseMember::IsFailed: return "isFailed";
+    case StandardPromiseMember::IsCancelled: return "isCancelled";
+    case StandardPromiseMember::Error: return "error";
+    case StandardPromiseMember::Close: return "close";
   }
   return {};
 }
@@ -1025,6 +1044,7 @@ inline std::string_view ToNativeModule(SystemModule module) {
     case SystemModule::Log: return "System.Log";
     case SystemModule::Random: return "System.Random";
     case SystemModule::Thread: return "System.Thread";
+    case SystemModule::Job: return "System.Job";
     case SystemModule::Channel: return "System.Channel";
     default: return {};
   }
@@ -1100,7 +1120,7 @@ inline std::vector<std::string_view> MemberNames(SystemModule module) {
     case SystemModule::Log: return {ToMember(SystemLogMember::Log), ToMember(SystemLogMember::SetLevel), ToMember(SystemLogMember::SetFile), ToMember(SystemLogMember::Flush), ToMember(SystemLogMember::Info), ToMember(SystemLogMember::Warn), ToMember(SystemLogMember::Error)};
     case SystemModule::Random: return {ToMember(SystemRandomMember::Seed), ToMember(SystemRandomMember::I32), ToMember(SystemRandomMember::I64), ToMember(SystemRandomMember::F64), ToMember(SystemRandomMember::FillBytes), ToMember(SystemRandomMember::Range)};
     case SystemModule::Thread: return {ToMember(SystemThreadMember::Yield), ToMember(SystemThreadMember::SleepMs), ToMember(SystemThreadMember::Sleep), ToMember(SystemThreadMember::HardwareConcurrency), ToMember(SystemThreadMember::Spawn), ToMember(SystemThreadMember::Join), ToMember(SystemThreadMember::Detach)};
-    case SystemModule::Job: return {ToMember(SystemJobMember::Spawn), ToMember(SystemJobMember::Cancel), ToMember(SystemJobMember::Poll), ToMember(SystemJobMember::Await)};
+    case SystemModule::Job: return {ToMember(SystemJobMember::Spawn), ToMember(SystemJobMember::SpawnFailed), ToMember(SystemJobMember::Cancel), ToMember(SystemJobMember::Poll), ToMember(SystemJobMember::Await), ToMember(SystemJobMember::Error), ToMember(SystemJobMember::Close)};
     case SystemModule::Channel: return {ToMember(SystemChannelMember::NewI32), ToMember(SystemChannelMember::SendI32), ToMember(SystemChannelMember::TrySendI32), ToMember(SystemChannelMember::RecvI32), ToMember(SystemChannelMember::TryRecvI32), ToMember(SystemChannelMember::PendingI32), ToMember(SystemChannelMember::NewI64), ToMember(SystemChannelMember::SendI64), ToMember(SystemChannelMember::TrySendI64), ToMember(SystemChannelMember::RecvI64), ToMember(SystemChannelMember::TryRecvI64), ToMember(SystemChannelMember::PendingI64), ToMember(SystemChannelMember::NewF32), ToMember(SystemChannelMember::SendF32), ToMember(SystemChannelMember::TrySendF32), ToMember(SystemChannelMember::RecvF32), ToMember(SystemChannelMember::TryRecvF32), ToMember(SystemChannelMember::PendingF32), ToMember(SystemChannelMember::NewF64), ToMember(SystemChannelMember::SendF64), ToMember(SystemChannelMember::TrySendF64), ToMember(SystemChannelMember::RecvF64), ToMember(SystemChannelMember::TryRecvF64), ToMember(SystemChannelMember::PendingF64), ToMember(SystemChannelMember::NewBool), ToMember(SystemChannelMember::SendBool), ToMember(SystemChannelMember::TrySendBool), ToMember(SystemChannelMember::RecvBool), ToMember(SystemChannelMember::TryRecvBool), ToMember(SystemChannelMember::PendingBool), ToMember(SystemChannelMember::NewString), ToMember(SystemChannelMember::SendString), ToMember(SystemChannelMember::TrySendString), ToMember(SystemChannelMember::RecvString), ToMember(SystemChannelMember::TryRecvString), ToMember(SystemChannelMember::PendingString), ToMember(SystemChannelMember::NewBytes), ToMember(SystemChannelMember::SendBytes), ToMember(SystemChannelMember::TrySendBytes), ToMember(SystemChannelMember::RecvBytes), ToMember(SystemChannelMember::TryRecvBytes), ToMember(SystemChannelMember::PendingBytes), ToMember(SystemChannelMember::Close)};
     case SystemModule::Process: return {ToMember(SystemProcessMember::Spawn), ToMember(SystemProcessMember::Wait), ToMember(SystemProcessMember::Kill), ToMember(SystemProcessMember::Stdin), ToMember(SystemProcessMember::Stdout), ToMember(SystemProcessMember::Stderr)};
     case SystemModule::Net: return {ToMember(SystemNetMember::TcpConnect), ToMember(SystemNetMember::TcpListen), ToMember(SystemNetMember::Accept), ToMember(SystemNetMember::Send), ToMember(SystemNetMember::Recv), ToMember(SystemNetMember::Close), ToMember(SystemNetMember::UdpOpen), ToMember(SystemNetMember::UdpSendTo), ToMember(SystemNetMember::UdpRecvFrom)};
@@ -1132,7 +1152,7 @@ inline std::vector<std::string_view> MemberNames(StandardModule module) {
     case StandardModule::HTTP: return {ToMember(StandardHTTPMember::Get), ToMember(StandardHTTPMember::Post), ToMember(StandardHTTPMember::Put), ToMember(StandardHTTPMember::Delete), ToMember(StandardHTTPMember::Serve)};
     case StandardModule::HTTPS: return {ToMember(StandardHTTPSMember::Get), ToMember(StandardHTTPSMember::Post), ToMember(StandardHTTPSMember::Serve)};
     case StandardModule::Terminal: return {ToMember(StandardTerminalMember::Open), ToMember(StandardTerminalMember::Close), ToMember(StandardTerminalMember::WithRaw), ToMember(StandardTerminalMember::WithAltScreen), ToMember(StandardTerminalMember::Clear), ToMember(StandardTerminalMember::Size), ToMember(StandardTerminalMember::MoveCursor), ToMember(StandardTerminalMember::WriteAt), ToMember(StandardTerminalMember::ReadEvent), ToMember(StandardTerminalMember::PollEvent)};
-    case StandardModule::Promise: return {ToMember(StandardPromiseMember::Run), ToMember(StandardPromiseMember::Await), ToMember(StandardPromiseMember::Poll), ToMember(StandardPromiseMember::Cancel), ToMember(StandardPromiseMember::IsDone)};
+    case StandardModule::Promise: return {ToMember(StandardPromiseMember::Run), ToMember(StandardPromiseMember::RunFailed), ToMember(StandardPromiseMember::Await), ToMember(StandardPromiseMember::Poll), ToMember(StandardPromiseMember::Cancel), ToMember(StandardPromiseMember::IsDone), ToMember(StandardPromiseMember::IsFailed), ToMember(StandardPromiseMember::IsCancelled), ToMember(StandardPromiseMember::Error), ToMember(StandardPromiseMember::Close)};
     case StandardModule::Channel: return {ToMember(StandardChannelMember::New), ToMember(StandardChannelMember::Send), ToMember(StandardChannelMember::TrySend), ToMember(StandardChannelMember::Recv), ToMember(StandardChannelMember::TryRecv), ToMember(StandardChannelMember::Close)};
     case StandardModule::Collections: return {ToMember(StandardCollectionsMember::List), ToMember(StandardCollectionsMember::Map), ToMember(StandardCollectionsMember::Set), ToMember(StandardCollectionsMember::Queue), ToMember(StandardCollectionsMember::Stack)};
     case StandardModule::Result: return {ToMember(StandardResultMember::Ok), ToMember(StandardResultMember::Err), ToMember(StandardResultMember::IsOk), ToMember(StandardResultMember::Unwrap)};
@@ -1212,7 +1232,7 @@ inline std::optional<SystemMember> ParseMember(SystemModule module, std::string_
     case SystemModule::Log: if (auto value = ParseEnumMember<SystemLogMember>(member, {SystemLogMember::Log, SystemLogMember::SetLevel, SystemLogMember::SetFile, SystemLogMember::Flush, SystemLogMember::Info, SystemLogMember::Warn, SystemLogMember::Error})) return SystemMember(*value); break;
     case SystemModule::Random: if (auto value = ParseEnumMember<SystemRandomMember>(member, {SystemRandomMember::Seed, SystemRandomMember::I32, SystemRandomMember::I64, SystemRandomMember::F64, SystemRandomMember::FillBytes, SystemRandomMember::Range})) return SystemMember(*value); break;
     case SystemModule::Thread: if (auto value = ParseEnumMember<SystemThreadMember>(member, {SystemThreadMember::Yield, SystemThreadMember::SleepMs, SystemThreadMember::Sleep, SystemThreadMember::HardwareConcurrency, SystemThreadMember::Spawn, SystemThreadMember::Join, SystemThreadMember::Detach})) return SystemMember(*value); break;
-    case SystemModule::Job: if (auto value = ParseEnumMember<SystemJobMember>(member, {SystemJobMember::Spawn, SystemJobMember::Cancel, SystemJobMember::Poll, SystemJobMember::Await})) return SystemMember(*value); break;
+    case SystemModule::Job: if (auto value = ParseEnumMember<SystemJobMember>(member, {SystemJobMember::Spawn, SystemJobMember::SpawnFailed, SystemJobMember::Cancel, SystemJobMember::Poll, SystemJobMember::Await, SystemJobMember::Error, SystemJobMember::Close})) return SystemMember(*value); break;
     case SystemModule::Channel: if (auto value = ParseEnumMember<SystemChannelMember>(member, {SystemChannelMember::NewI32, SystemChannelMember::SendI32, SystemChannelMember::TrySendI32, SystemChannelMember::RecvI32, SystemChannelMember::TryRecvI32, SystemChannelMember::PendingI32, SystemChannelMember::NewI64, SystemChannelMember::SendI64, SystemChannelMember::TrySendI64, SystemChannelMember::RecvI64, SystemChannelMember::TryRecvI64, SystemChannelMember::PendingI64, SystemChannelMember::NewF32, SystemChannelMember::SendF32, SystemChannelMember::TrySendF32, SystemChannelMember::RecvF32, SystemChannelMember::TryRecvF32, SystemChannelMember::PendingF32, SystemChannelMember::NewF64, SystemChannelMember::SendF64, SystemChannelMember::TrySendF64, SystemChannelMember::RecvF64, SystemChannelMember::TryRecvF64, SystemChannelMember::PendingF64, SystemChannelMember::NewBool, SystemChannelMember::SendBool, SystemChannelMember::TrySendBool, SystemChannelMember::RecvBool, SystemChannelMember::TryRecvBool, SystemChannelMember::PendingBool, SystemChannelMember::NewString, SystemChannelMember::SendString, SystemChannelMember::TrySendString, SystemChannelMember::RecvString, SystemChannelMember::TryRecvString, SystemChannelMember::PendingString, SystemChannelMember::NewBytes, SystemChannelMember::SendBytes, SystemChannelMember::TrySendBytes, SystemChannelMember::RecvBytes, SystemChannelMember::TryRecvBytes, SystemChannelMember::PendingBytes, SystemChannelMember::Close})) return SystemMember(*value); break;
     case SystemModule::Process: if (auto value = ParseEnumMember<SystemProcessMember>(member, {SystemProcessMember::Spawn, SystemProcessMember::Wait, SystemProcessMember::Kill, SystemProcessMember::Stdin, SystemProcessMember::Stdout, SystemProcessMember::Stderr})) return SystemMember(*value); break;
     case SystemModule::Net: if (auto value = ParseEnumMember<SystemNetMember>(member, {SystemNetMember::TcpConnect, SystemNetMember::TcpListen, SystemNetMember::Accept, SystemNetMember::Send, SystemNetMember::Recv, SystemNetMember::Close, SystemNetMember::UdpOpen, SystemNetMember::UdpSendTo, SystemNetMember::UdpRecvFrom})) return SystemMember(*value); break;
@@ -1244,7 +1264,7 @@ inline std::optional<StandardMember> ParseMember(StandardModule module, std::str
     case StandardModule::HTTP: if (auto value = ParseEnumMember<StandardHTTPMember>(member, {StandardHTTPMember::Get, StandardHTTPMember::Post, StandardHTTPMember::Put, StandardHTTPMember::Delete, StandardHTTPMember::Serve})) return StandardMember(*value); break;
     case StandardModule::HTTPS: if (auto value = ParseEnumMember<StandardHTTPSMember>(member, {StandardHTTPSMember::Get, StandardHTTPSMember::Post, StandardHTTPSMember::Serve})) return StandardMember(*value); break;
     case StandardModule::Terminal: if (auto value = ParseEnumMember<StandardTerminalMember>(member, {StandardTerminalMember::Open, StandardTerminalMember::Close, StandardTerminalMember::WithRaw, StandardTerminalMember::WithAltScreen, StandardTerminalMember::Clear, StandardTerminalMember::Size, StandardTerminalMember::MoveCursor, StandardTerminalMember::WriteAt, StandardTerminalMember::ReadEvent, StandardTerminalMember::PollEvent})) return StandardMember(*value); break;
-    case StandardModule::Promise: if (auto value = ParseEnumMember<StandardPromiseMember>(member, {StandardPromiseMember::Run, StandardPromiseMember::Await, StandardPromiseMember::Poll, StandardPromiseMember::Cancel, StandardPromiseMember::IsDone})) return StandardMember(*value); break;
+    case StandardModule::Promise: if (auto value = ParseEnumMember<StandardPromiseMember>(member, {StandardPromiseMember::Run, StandardPromiseMember::RunFailed, StandardPromiseMember::Await, StandardPromiseMember::Poll, StandardPromiseMember::Cancel, StandardPromiseMember::IsDone, StandardPromiseMember::IsFailed, StandardPromiseMember::IsCancelled, StandardPromiseMember::Error, StandardPromiseMember::Close})) return StandardMember(*value); break;
     case StandardModule::Channel: if (auto value = ParseEnumMember<StandardChannelMember>(member, {StandardChannelMember::New, StandardChannelMember::Send, StandardChannelMember::TrySend, StandardChannelMember::Recv, StandardChannelMember::TryRecv, StandardChannelMember::Close})) return StandardMember(*value); break;
     case StandardModule::Collections: if (auto value = ParseEnumMember<StandardCollectionsMember>(member, {StandardCollectionsMember::List, StandardCollectionsMember::Map, StandardCollectionsMember::Set, StandardCollectionsMember::Queue, StandardCollectionsMember::Stack})) return StandardMember(*value); break;
     case StandardModule::Result: if (auto value = ParseEnumMember<StandardResultMember>(member, {StandardResultMember::Ok, StandardResultMember::Err, StandardResultMember::IsOk, StandardResultMember::Unwrap})) return StandardMember(*value); break;
@@ -1545,8 +1565,29 @@ inline std::optional<LibrarySignatureSpec> GetSystemLibrarySignature(SystemModul
       }
       return std::nullopt;
     }
+    case SystemModule::Job: {
+      const auto m = std::get<SystemJobMember>(*parsed);
+      switch (m) {
+        case SystemJobMember::Spawn:
+          return LibrarySignature({LibraryParam("delayMs", "i32"),
+                                   LibraryParam("result", "i64")}, "i64");
+        case SystemJobMember::SpawnFailed:
+          return LibrarySignature({LibraryParam("delayMs", "i32"),
+                                   LibraryParam("error", "string")}, "i64");
+        case SystemJobMember::Cancel:
+          return LibrarySignature({LibraryParam("job", "i64")}, "bool");
+        case SystemJobMember::Poll:
+          return LibrarySignature({LibraryParam("job", "i64")}, "i32");
+        case SystemJobMember::Await:
+          return LibrarySignature({LibraryParam("job", "i64")}, "i64");
+        case SystemJobMember::Error:
+          return LibrarySignature({LibraryParam("job", "i64")}, "string");
+        case SystemJobMember::Close:
+          return LibrarySignature({LibraryParam("job", "i64")}, "void");
+      }
+      return std::nullopt;
+    }
     case SystemModule::ASM:
-    case SystemModule::Job:
     case SystemModule::Process:
     case SystemModule::Net:
     case SystemModule::HTTP:
@@ -1667,6 +1708,31 @@ inline std::optional<LibrarySignatureSpec> GetStandardLibrarySignature(StandardM
       }
       return std::nullopt;
     }
+    case StandardModule::Promise: {
+      const auto m = std::get<StandardPromiseMember>(*parsed);
+      switch (m) {
+        case StandardPromiseMember::Run:
+          return LibrarySignature({LibraryParam("delayMs", "i32"),
+                                   LibraryParam("result", "i64")}, "i64");
+        case StandardPromiseMember::RunFailed:
+          return LibrarySignature({LibraryParam("delayMs", "i32"),
+                                   LibraryParam("error", "string")}, "i64");
+        case StandardPromiseMember::Await:
+          return LibrarySignature({LibraryParam("promise", "i64")}, "i64");
+        case StandardPromiseMember::Poll:
+          return LibrarySignature({LibraryParam("promise", "i64")}, "i32");
+        case StandardPromiseMember::Cancel:
+        case StandardPromiseMember::IsDone:
+        case StandardPromiseMember::IsFailed:
+        case StandardPromiseMember::IsCancelled:
+          return LibrarySignature({LibraryParam("promise", "i64")}, "bool");
+        case StandardPromiseMember::Error:
+          return LibrarySignature({LibraryParam("promise", "i64")}, "string");
+        case StandardPromiseMember::Close:
+          return LibrarySignature({LibraryParam("promise", "i64")}, "void");
+      }
+      return std::nullopt;
+    }
     case StandardModule::Console:
     case StandardModule::Buffer:
     case StandardModule::Text:
@@ -1676,7 +1742,6 @@ inline std::optional<LibrarySignatureSpec> GetStandardLibrarySignature(StandardM
     case StandardModule::HTTP:
     case StandardModule::HTTPS:
     case StandardModule::Terminal:
-    case StandardModule::Promise:
     case StandardModule::Channel:
     case StandardModule::Collections:
     case StandardModule::Result:
@@ -1844,8 +1909,8 @@ inline bool IsImplementedSystemMember(SystemModule module, std::string_view memb
       }
       return false;
     case SystemModule::Channel:
-      return true;
     case SystemModule::Job:
+      return true;
     case SystemModule::Process:
     case SystemModule::Net:
     case SystemModule::HTTP:
@@ -1991,8 +2056,9 @@ inline bool IsImplementedStandardMember(StandardModule module, std::string_view 
     case StandardModule::Net:
     case StandardModule::HTTP:
     case StandardModule::HTTPS:
-    case StandardModule::Terminal:
     case StandardModule::Promise:
+      return true;
+    case StandardModule::Terminal:
     case StandardModule::Channel:
     case StandardModule::Collections:
     case StandardModule::Result:

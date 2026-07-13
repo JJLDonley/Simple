@@ -5460,6 +5460,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       !add_catalog_reserved_imports(system_id(SystemModule::Channel),
                                     reserved_aliases_for_id(system_id(SystemModule::Channel)))) return false;
 
+  if (has_reserved_module(system_id(SystemModule::Job)) &&
+      !add_catalog_reserved_imports(system_id(SystemModule::Job),
+                                    reserved_aliases_for_id(system_id(SystemModule::Job)))) return false;
+  if (has_reserved_module(standard_id(StandardModule::Promise)) &&
+      !add_catalog_reserved_imports(standard_id(StandardModule::Promise),
+                                    reserved_aliases_for_id(standard_id(StandardModule::Promise)))) return false;
+
   if (has_reserved_module(system_id(SystemModule::Thread)) &&
       !add_catalog_reserved_imports(system_id(SystemModule::Thread),
                                     reserved_aliases_for_id(system_id(SystemModule::Thread)))) return false;

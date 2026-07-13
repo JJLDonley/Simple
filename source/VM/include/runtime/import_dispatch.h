@@ -2,6 +2,7 @@
 #define SIMPLE_VM_RUNTIME_IMPORT_DISPATCH_H
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -20,6 +21,7 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                               Heap& heap,
                               std::vector<Simple::VM::Native::NativeHandleId>& file_handles,
                               Simple::VM::Native::NativeResourceRegistry& resource_registry,
+                              const std::shared_ptr<PromiseRegistry>& promise_registry,
                               std::string& dl_last_error,
                               uint32_t func_id,
                               const std::vector<Slot>& args,

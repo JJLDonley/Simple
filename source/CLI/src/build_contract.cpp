@@ -1,13 +1,44 @@
 #include "build_contract.h"
 
-#include <cstdlib>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <system_error>
+#include <utility>
 
 #include "platform/platform.h"
 
 namespace Simple::CLI {
+namespace {
+
+class ScopedBuildDirectory {
+ public:
+  explicit ScopedBuildDirectory(std::filesystem::path path) : path_(std::move(path)) {}
+  ScopedBuildDirectory(const ScopedBuildDirectory&) = delete;
+  ScopedBuildDirectory& operator=(const ScopedBuildDirectory&) = delete;
+  ~ScopedBuildDirectory() {
+    std::error_code ignored;
+    std::filesystem::remove_all(path_, ignored);
+  }
+
+  const std::filesystem::path& Path() const { return path_; }
+
+ private:
+  std::filesystem::path path_;
+};
+
+std::filesystem::path NextBuildDirectory() {
+  static std::atomic<uint64_t> sequence{0};
+  const uint64_t id = sequence.fetch_add(1, std::memory_order_relaxed);
+  const auto tick = std::chrono::steady_clock::now().time_since_epoch().count();
+  return Simple::Platform::TempDirectory() /
+         ("simple_embed_" + std::to_string(Simple::Platform::CurrentProcessId()) + "_" +
+          std::to_string(tick) + "_" + std::to_string(id));
+}
+
+} // namespace
 
 bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
   if (!out) return false;
@@ -121,15 +152,14 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
                              bool is_static,
                              std::string* error) {
   namespace fs = std::filesystem;
-  fs::path tmp_dir = Simple::Platform::TempDirectory() /
-                     ("simple_embed_" + std::to_string(std::rand()));
+  ScopedBuildDirectory tmp_dir(NextBuildDirectory());
   std::error_code ec;
-  fs::create_directories(tmp_dir, ec);
+  fs::create_directories(tmp_dir.Path(), ec);
   if (ec) {
     if (error) *error = "failed to create temp dir for build";
     return false;
   }
-  fs::path runner_path = tmp_dir / "embedded_main.cpp";
+  fs::path runner_path = tmp_dir.Path() / "embedded_main.cpp";
   if (!WriteEmbeddedRunner(runner_path.string(), bytes, error)) return false;
 
   fs::path vm_include(layout.vm_include);

@@ -1,6 +1,7 @@
 #include "native/dispatch.h"
 
 #include <cstring>
+#include <utility>
 
 #include "native/capability_policy.h"
 #include "runtime/values.h"
@@ -140,6 +141,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   context.file_handles = runtime.file_handles;
   context.dl_last_error = runtime.dl_last_error;
   context.resource_registry = runtime.resource_registry;
+  context.promise_registry = std::move(runtime.promise_registry);
   NativeCallResult result = spec->handler(context);
   if (!result.ok) {
     if (out_error) *out_error = result.error;

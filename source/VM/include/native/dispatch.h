@@ -17,6 +17,7 @@ struct MetadataDispatchContext {
   std::vector<NativeHandleId>* file_handles = nullptr;
   std::string* dl_last_error = nullptr;
   NativeResourceRegistry* resource_registry = nullptr;
+  std::shared_ptr<Simple::VM::Runtime::PromiseRegistry> promise_registry;
   const CapabilityPolicy* capability_policy = nullptr;
 };
 

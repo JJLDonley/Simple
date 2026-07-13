@@ -7,6 +7,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemRandom(registry);
   RegisterSystemOs(registry);
   RegisterSystemThread(registry);
+  RegisterSystemJob(registry);
   RegisterSystemChannel(registry);
   RegisterSystemJson(registry);
   RegisterSystemLog(registry);

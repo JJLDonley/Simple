@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -13,6 +14,7 @@
 #include "library_catalog.h"
 #include "native/resource_registry.h"
 #include "runtime/abi.h"
+#include "runtime/promise.h"
 #include "sbc_types.h"
 
 namespace Simple::VM::Native {
@@ -26,6 +28,7 @@ struct NativeCallContext {
   std::vector<NativeHandleId>* file_handles = nullptr;
   std::string* dl_last_error = nullptr;
   NativeResourceRegistry* resource_registry = nullptr;
+  std::shared_ptr<Simple::VM::Runtime::PromiseRegistry> promise_registry;
   std::vector<std::string> borrowed_string_storage;
 
   bool ArgBool(size_t index, bool* out) const;
@@ -181,6 +184,7 @@ class NativeRegistry {
 void RegisterSystemRandom(NativeRegistry& registry);
 void RegisterSystemOs(NativeRegistry& registry);
 void RegisterSystemThread(NativeRegistry& registry);
+void RegisterSystemJob(NativeRegistry& registry);
 void RegisterSystemChannel(NativeRegistry& registry);
 void RegisterSystemJson(NativeRegistry& registry);
 void RegisterSystemLog(NativeRegistry& registry);

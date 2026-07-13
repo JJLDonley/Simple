@@ -6,7 +6,9 @@
 #include "runtime/promise.h"
 #include "runtime/type_identity.h"
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace Simple::VM::Tests {
@@ -220,16 +222,16 @@ bool VmRuntimePromiseRegistryTracksStates() {
 
   PromiseRegistry registry;
   const auto first = registry.Create();
-  const Simple::VM::Runtime::PromiseRecord* record = nullptr;
-  if (registry.Get(first, &record) != PromiseStatus::Ok || !record ||
-      record->state != PromiseState::Pending) {
+  Simple::VM::Runtime::PromiseRecord record;
+  if (registry.Get(first, &record) != PromiseStatus::Ok ||
+      record.state != PromiseState::Pending) {
     return false;
   }
   const auto waiter = registry.Create();
   if (registry.AddWaiter(first, waiter) != PromiseStatus::Ok) return false;
   if (registry.RequestCancel(first) != PromiseStatus::Ok) return false;
-  if (registry.Get(first, &record) != PromiseStatus::Ok || !record->cancellation_requested ||
-      record->waiters.size() != 1) {
+  if (registry.Get(first, &record) != PromiseStatus::Ok || !record.cancellation_requested ||
+      record.waiters.size() != 1) {
     return false;
   }
   std::vector<Simple::VM::Runtime::AbiPromiseId> drained;
@@ -239,17 +241,18 @@ bool VmRuntimePromiseRegistryTracksStates() {
   }
   if (registry.Resolve(first, 99) != PromiseStatus::Ok) return false;
   if (registry.Resolve(first, 100) != PromiseStatus::NotPending) return false;
-  if (registry.Get(first, &record) != PromiseStatus::Ok || record->state != PromiseState::Done ||
-      record->payload != 99 || !record->waiters.empty()) {
+  if (registry.Get(first, &record) != PromiseStatus::Ok || record.state != PromiseState::Done ||
+      record.payload != 99 || !record.waiters.empty()) {
     return false;
   }
+  if (registry.Release(first) != PromiseStatus::Ok) return false;
 
   const auto reused = registry.Create();
   if (reused.index != first.index || reused.generation == first.generation) return false;
   if (registry.Get(first, nullptr) != PromiseStatus::StaleId) return false;
   if (registry.Fail(reused, "boom") != PromiseStatus::Ok) return false;
-  if (registry.Get(reused, &record) != PromiseStatus::Ok || record->state != PromiseState::Failed ||
-      record->error != "boom") {
+  if (registry.Get(reused, &record) != PromiseStatus::Ok || record.state != PromiseState::Failed ||
+      record.error != "boom") {
     return false;
   }
 
@@ -261,10 +264,37 @@ bool VmRuntimePromiseRegistryTracksStates() {
   const auto canceled = registry.Create();
   if (registry.Cancel(canceled) != PromiseStatus::Ok) return false;
   if (registry.Get(canceled, &record) != PromiseStatus::Ok ||
-      record->state != PromiseState::Canceled || !record->cancellation_requested) {
+      record.state != PromiseState::Canceled || !record.cancellation_requested) {
     return false;
   }
   return PromiseStatusName(PromiseStatus::NotPending) == std::string("not pending");
+}
+
+bool VmRuntimePromiseRegistryWaitsAcrossThreads() {
+  using Simple::VM::Runtime::PromiseRecord;
+  using Simple::VM::Runtime::PromiseRegistry;
+  using Simple::VM::Runtime::PromiseState;
+  using Simple::VM::Runtime::PromiseStatus;
+
+  PromiseRegistry registry;
+  const auto promise = registry.Create();
+  std::thread worker([&] {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    (void)registry.Resolve(promise, 77);
+  });
+  PromiseRecord record;
+  const PromiseStatus wait_status = registry.Wait(promise, &record);
+  worker.join();
+  if (wait_status != PromiseStatus::Ok || record.state != PromiseState::Done ||
+      record.payload != 77 || registry.LiveCount() != 1) {
+    return false;
+  }
+  if (registry.Release(promise) != PromiseStatus::Ok || registry.LiveCount() != 0) {
+    return false;
+  }
+  const auto reused = registry.Create();
+  return reused.index == promise.index && reused.generation != promise.generation &&
+         registry.Get(promise, nullptr) == PromiseStatus::StaleId;
 }
 
 bool VmRuntimeAbiPacksPromiseIds() {
@@ -729,6 +759,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_enum_underlying_types", VmRuntimeAbiMapsEnumUnderlyingTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
+  {"vm_runtime_promise_registry_waits_across_threads", VmRuntimePromiseRegistryWaitsAcrossThreads},
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_classifies_pass_modes", VmRuntimeAbiClassifiesPassModes},
