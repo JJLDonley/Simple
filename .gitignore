@@ -2,12 +2,12 @@
 /build
 /build-*
 /.vscode
-/Tests/ffi/*.so
+/tests/ffi/*.so
 /dist
 /node_modules
-/Editor/vscode-simple/node_modules/
-/Editor/vscode-simple/*.vsix
-/Tests/extra/
+/editor/vscode-simple/node_modules/
+/editor/vscode-simple/*.vsix
+/tests/extra/
 /raylib
 /scripts/__pycache__/
 

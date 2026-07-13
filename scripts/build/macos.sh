@@ -105,9 +105,9 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
   cp "$ROOT_DIR/bin/svm" "$STAGE_DIR/bin/svm"
   cp "$ROOT_DIR/bin/simple" "$STAGE_DIR/bin/simple"
   cp "$BIN_OUT/libsimplevm_runtime.a" "$STAGE_DIR/lib/"
-  cp -R "$ROOT_DIR/VM/include/." "$STAGE_DIR/include/simplevm/"
-  cp -R "$ROOT_DIR/Byte/include/." "$STAGE_DIR/include/simplevm/"
-  [[ -f "$ROOT_DIR/Docs/README.md" ]] && cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
+  cp -R "$ROOT_DIR/source/VM/include/." "$STAGE_DIR/include/simplevm/"
+  cp -R "$ROOT_DIR/source/Byte/include/." "$STAGE_DIR/include/simplevm/"
+  [[ -f "$ROOT_DIR/docs/README.md" ]] && cp "$ROOT_DIR/docs/README.md" "$STAGE_DIR/share/simple/README.md"
   tar -czf "$PKG_PATH" -C "$DIST_DIR" "$(basename "$STAGE_DIR")"
 fi
 

@@ -1,0 +1,12 @@
+{
+  "name": "simple-windows-llvm-dependencies",
+  "version-string": "0.5.0",
+  "dependencies": [
+    "libffi",
+    {
+      "name": "llvm",
+      "default-features": false,
+      "features": ["core", "target-x86"]
+    }
+  ]
+}

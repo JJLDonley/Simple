@@ -14,7 +14,8 @@ import re
 import sys
 from typing import Iterable
 
-ROOT_DIRS = ["Lang", "VM", "Byte", "Library", "LSP", "CLI", "Tests"]
+ROOT_DIRS = ["source/Lang", "source/VM", "source/Byte", "source/Library",
+             "source/LSP", "source/CLI", "tests"]
 SOURCE_SUFFIXES = {".cpp", ".h", ".hpp", ".cc", ".cxx"}
 
 
@@ -199,7 +200,7 @@ def report_duplicate_test_names(root: pathlib.Path) -> bool:
     array_re = re.compile(r"static\s+const\s+TestCase\s+(\w+)\s*\[\]\s*=\s*\{")
     entry_re = re.compile(r'\{\s*"([^"]+)"\s*,')
     print("\nduplicate test names")
-    for path in (root / "Tests" / "tests").rglob("*.cpp"):
+    for path in (root / "tests" / "tests").rglob("*.cpp"):
         active = None
         seen: dict[str, int] = {}
         for line_no, line in enumerate(read_text(path).splitlines(), 1):
@@ -228,10 +229,10 @@ def report_duplicate_test_names(root: pathlib.Path) -> bool:
 
 
 def report_fixture_drift(root: pathlib.Path) -> bool:
-    test_sources = "\n".join(read_text(path) for path in (root / "Tests" / "tests").rglob("*.cpp"))
+    test_sources = "\n".join(read_text(path) for path in (root / "tests" / "tests").rglob("*.cpp"))
     ok = True
     print("\nunreferenced fixtures")
-    for folder in [root / "Tests" / "simple", root / "Tests" / "simple_bad"]:
+    for folder in [root / "tests" / "simple", root / "tests" / "simple_bad"]:
         if not folder.exists():
             continue
         for path in sorted(folder.rglob("*.simple")):
@@ -249,7 +250,7 @@ def report_stale_diagnostics(root: pathlib.Path) -> bool:
     ok = True
     print("\nstale diagnostic/library substrings")
     for path in iter_files(root, SOURCE_SUFFIXES):
-        if "Tests/tests/test_audit.cpp" in path.as_posix():
+        if "tests/tests/test_audit.cpp" in path.as_posix():
             continue
         for line_no, line in enumerate(read_text(path).splitlines(), 1):
             if stale_re.search(line):
@@ -264,7 +265,7 @@ def report_legacy_imports(root: pathlib.Path) -> bool:
     legacy_re = re.compile(r"^\s*import\s+(IO|FS|DL|Time|Buffer|Channel)\b")
     ok = True
     print("\nlegacy public alias imports in fixtures")
-    for path in (root / "Tests").rglob("*.simple"):
+    for path in (root / "tests").rglob("*.simple"):
         for line_no, line in enumerate(read_text(path).splitlines(), 1):
             if legacy_re.search(line):
                 print(f"  {path.relative_to(root).as_posix()}:{line_no}: {line.strip()}")

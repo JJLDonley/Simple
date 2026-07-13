@@ -121,9 +121,9 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
   done
   [[ -n "$runtime_lib" ]] || { echo "static Simple runtime library not found" >&2; exit 1; }
   cp "$runtime_lib" "$STAGE_DIR/lib/simplevm_runtime.lib"
-  cp -R "$ROOT_DIR/VM/include/." "$STAGE_DIR/include/simplevm/"
-  cp -R "$ROOT_DIR/Byte/include/." "$STAGE_DIR/include/simplevm/"
-  [[ -f "$ROOT_DIR/Docs/README.md" ]] && cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
+  cp -R "$ROOT_DIR/source/VM/include/." "$STAGE_DIR/include/simplevm/"
+  cp -R "$ROOT_DIR/source/Byte/include/." "$STAGE_DIR/include/simplevm/"
+  [[ -f "$ROOT_DIR/docs/README.md" ]] && cp "$ROOT_DIR/docs/README.md" "$STAGE_DIR/share/simple/README.md"
   rm -f "$PKG_PATH"
   if command -v powershell.exe >/dev/null 2>&1; then
     src_win="$STAGE_DIR"

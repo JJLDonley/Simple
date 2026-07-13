@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "Editor/vscode-simple/**"
+      - "editor/vscode-simple/**"
       - ".github/workflows/vscode-extension.yml"
   workflow_dispatch:
     inputs:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Editor/vscode-simple
+        working-directory: editor/vscode-simple
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,8 +49,8 @@ jobs:
         with:
           name: simple-vscode-vsix
           path: |
-            Editor/vscode-simple/simple-vscode.vsix
-            Editor/vscode-simple/simple-vscode.vsix.sha256
+            editor/vscode-simple/simple-vscode.vsix
+            editor/vscode-simple/simple-vscode.vsix.sha256
 
       - name: Publish to GitHub release (optional)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '' }}
@@ -58,5 +58,5 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag_name }}
           files: |
-            Editor/vscode-simple/simple-vscode.vsix
-            Editor/vscode-simple/simple-vscode.vsix.sha256
+            editor/vscode-simple/simple-vscode.vsix
+            editor/vscode-simple/simple-vscode.vsix.sha256

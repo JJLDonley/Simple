@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
-EXT_DIR="$ROOT_DIR/Editor/vscode-simple"
+EXT_DIR="$ROOT_DIR/editor/vscode-simple"
 OUT_DIR="$ROOT_DIR/dist"
 VSIX_OUT="$OUT_DIR/simple-vscode.vsix"
 INSTALL=0

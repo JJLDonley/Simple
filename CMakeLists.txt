@@ -70,14 +70,14 @@ endif()
 if (NOT SIMPLEVM_VERSION MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+$")
   message(FATAL_ERROR "VERSION must be vMAJOR.MINOR.PATCH, got '${SIMPLEVM_VERSION}'")
 endif()
-set(SIMPLEVM_VM_ROOT ${SIMPLEVM_ROOT}/VM)
-set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/IR)
-set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/Byte)
-set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/Lang)
-set(SIMPLEVM_LIBRARY_ROOT ${SIMPLEVM_ROOT}/Library)
-set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
-set(SIMPLEVM_CLI_ROOT ${SIMPLEVM_ROOT}/CLI)
-set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
+set(SIMPLEVM_VM_ROOT ${SIMPLEVM_ROOT}/source/VM)
+set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/source/IR)
+set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/source/Byte)
+set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/source/Lang)
+set(SIMPLEVM_LIBRARY_ROOT ${SIMPLEVM_ROOT}/source/Library)
+set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/source/LSP)
+set(SIMPLEVM_CLI_ROOT ${SIMPLEVM_ROOT}/source/CLI)
+set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_LIBRARY_ROOT}/src/library_catalog.cpp
   ${SIMPLEVM_LIBRARY_ROOT}/src/library_legacy.cpp
@@ -175,7 +175,7 @@ set(SIMPLEVM_CORE_SRC
 
 # Cross-platform dynamic-library fixture used by language and FFI tests. Keep
 # the historical .so spelling because Simple fixtures load this exact path.
-add_library(simpleffi_test SHARED ${SIMPLEVM_ROOT}/Tests/ffi/simple_ffi.c)
+add_library(simpleffi_test SHARED ${SIMPLEVM_ROOT}/tests/ffi/simple_ffi.c)
 set_target_properties(simpleffi_test PROPERTIES
   OUTPUT_NAME simpleffi
   PREFIX "lib"
@@ -185,7 +185,7 @@ set_target_properties(simpleffi_test PROPERTIES
 add_custom_command(TARGET simpleffi_test POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
           $<TARGET_FILE:simpleffi_test>
-          ${SIMPLEVM_ROOT}/Tests/ffi/libsimpleffi.so
+          ${SIMPLEVM_ROOT}/tests/ffi/libsimpleffi.so
 )
 
 add_library(simplevm_core_obj OBJECT
@@ -308,17 +308,17 @@ endif()
 target_compile_definitions(simplevm_runtime_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
 add_executable(simplevm
-  ${SIMPLEVM_ROOT}/CLI/src/main.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/build_contract.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/command_contract.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/command_dispatch.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/diagnostic_render.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/import_contract.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/main.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/build_contract.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/command_contract.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/command_dispatch.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/diagnostic_render.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/import_contract.cpp
   ${SIMPLEVM_LSP_ROOT}/src/diagnostic_bridge.cpp
   ${SIMPLEVM_LSP_ROOT}/src/lsp_server.cpp
 )
 target_include_directories(simplevm PRIVATE
-  ${SIMPLEVM_ROOT}/CLI/include
+  ${SIMPLEVM_ROOT}/source/CLI/include
   ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm PRIVATE simplevm_core_static)
@@ -378,16 +378,16 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/sir_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/simple_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/test_utils.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/build_contract.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/command_contract.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/command_dispatch.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/diagnostic_render.cpp
-  ${SIMPLEVM_ROOT}/CLI/src/import_contract.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/build_contract.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/command_contract.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/command_dispatch.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/diagnostic_render.cpp
+  ${SIMPLEVM_ROOT}/source/CLI/src/import_contract.cpp
   ${SIMPLEVM_LSP_ROOT}/src/diagnostic_bridge.cpp
 )
 target_include_directories(simplevm_tests PRIVATE
   ${SIMPLEVM_TEST_ROOT}
-  ${SIMPLEVM_ROOT}/CLI/include
+  ${SIMPLEVM_ROOT}/source/CLI/include
   ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)

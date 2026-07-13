@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <a href="Docs/Language.md">Language</a> ·
-  <a href="Docs/Timeline.md">Timeline</a> ·
-  <a href="Docs/IR.md">SIR</a> ·
-  <a href="Docs/Byte.md">SBC</a> ·
-  <a href="Docs/VM.md">VM</a> ·
+  <a href="docs/Language.md">Language</a> ·
+  <a href="docs/Timeline.md">Timeline</a> ·
+  <a href="docs/IR.md">SIR</a> ·
+  <a href="docs/Byte.md">SBC</a> ·
+  <a href="docs/VM.md">VM</a> ·
   <a href="https://github.com/JJLDonley/Simple/releases">Releases</a>
 </p>
 
@@ -249,9 +249,9 @@ scripts\install\windows.bat
 After install, use `svm` directly:
 
 ```bash
-svm run Tests/simple/hello.simple
-svm check Tests/simple/point_sum.simple
-svm emit -sbc Tests/simple/hello.simple --out hello.sbc
+svm run tests/simple/hello.simple
+svm check tests/simple/point_sum.simple
+svm emit -sbc tests/simple/hello.simple --out hello.sbc
 ```
 
 `simple` is reserved for generated/embedded runtime stubs and is not a compiler command.
@@ -568,14 +568,14 @@ cmake --build build --target simplevm_tests -j2
 
 | Area | Path | Doc |
 |---|---|---|
-| Language front-end | `Lang/` | [Docs/Language.md](Docs/Language.md) |
-| IR / SIR compiler | `IR/` | [Docs/IR.md](Docs/IR.md) |
-| SBC bytecode | `Byte/` | [Docs/Byte.md](Docs/Byte.md) |
-| VM runtime | `VM/` | [Docs/VM.md](Docs/VM.md) |
-| JIT scaffolding | `VM/include/jit/`, `VM/src/jit/` | [Docs/JIT.md](Docs/JIT.md) |
-| CLI and build stubs | `CLI/` | [Docs/CLI.md](Docs/CLI.md) |
-| LSP/editor support | `LSP/`, `Editor/` | `svm lsp` |
-| Tests and fixtures | `Tests/` | [Tests](#tests) |
+| Language front-end | `source/Lang/` | [docs/Language.md](docs/Language.md) |
+| IR / SIR compiler | `source/IR/` | [docs/IR.md](docs/IR.md) |
+| SBC bytecode | `source/Byte/` | [docs/Byte.md](docs/Byte.md) |
+| VM runtime | `source/VM/` | [docs/VM.md](docs/VM.md) |
+| JIT scaffolding | `source/VM/include/jit/`, `source/VM/src/jit/` | [docs/JIT.md](docs/JIT.md) |
+| CLI and build stubs | `source/CLI/` | [docs/CLI.md](docs/CLI.md) |
+| LSP/editor support | `source/LSP/`, `editor/` | `svm lsp` |
+| Tests and fixtures | `tests/` | [Tests](#tests) |
 
 ---
 
@@ -583,14 +583,14 @@ cmake --build build --target simplevm_tests -j2
 
 | Doc | Contents |
 |---|---|
-| [Docs/Language.md](Docs/Language.md) | Syntax, semantics, imports, artifacts, enums, FFI. |
-| [Docs/VM.md](Docs/VM.md) | Runtime, heap, imports, ABI, execution model. |
-| [Docs/IR.md](Docs/IR.md) | SIR/IR contract. |
-| [Docs/Byte.md](Docs/Byte.md) | SBC bytecode, loader, verifier. |
-| [Docs/CLI.md](Docs/CLI.md) | `svm` and `simple` behavior. |
-| [Docs/JIT.md](Docs/JIT.md) | Optional JIT/tiering behavior. |
-| [Docs/Timeline.md](Docs/Timeline.md) | Native-library roadmap and lower-priority backlog. |
-| [Docs/Standards.md](Docs/Standards.md) | Project coding standards. |
+| [docs/Language.md](docs/Language.md) | Syntax, semantics, imports, artifacts, enums, FFI. |
+| [docs/VM.md](docs/VM.md) | Runtime, heap, imports, ABI, execution model. |
+| [docs/IR.md](docs/IR.md) | SIR/IR contract. |
+| [docs/Byte.md](docs/Byte.md) | SBC bytecode, loader, verifier. |
+| [docs/CLI.md](docs/CLI.md) | `svm` and `simple` behavior. |
+| [docs/JIT.md](docs/JIT.md) | Optional JIT/tiering behavior. |
+| [docs/Timeline.md](docs/Timeline.md) | Native-library roadmap and lower-priority backlog. |
+| [docs/Standards.md](docs/Standards.md) | Project coding standards. |
 
 ---
 
