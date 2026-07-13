@@ -102,19 +102,12 @@ jobs:
             echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> "$GITHUB_ENV"
           fi
 
-      - name: Install LLVM 18 on Windows
-        if: runner.os == 'Windows' && matrix.flavor == 'llvm'
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: "18.1.8"
-          directory: ${{ runner.temp }}/llvm
-
       - name: Cache Windows vcpkg binaries
         if: runner.os == 'Windows'
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/vcpkg-bincache
-          key: vcpkg-${{ runner.os }}-libffi-static-release-v4
+          key: vcpkg-${{ runner.os }}-${{ matrix.flavor }}-llvm18-static-release-v5
 
       - name: Setup Windows vcpkg dependencies
         if: runner.os == 'Windows'
@@ -124,7 +117,7 @@ jobs:
           $binaryCache = Join-Path $env:RUNNER_TEMP "vcpkg-bincache"
           if (Test-Path Env:VCPKG_ROOT) { Remove-Item Env:VCPKG_ROOT }
           git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
-          # Pinned baseline provides a reproducible static libffi port.
+          # Pinned baseline provides LLVM 18.1.6 and reproducible libffi ports.
           git -C $vcpkgRoot checkout f4a2b74e2c6e4e419a3d26c41b5fd6e64a711de9
           & "$vcpkgRoot/bootstrap-vcpkg.bat"
           $env:VCPKG_ROOT = $vcpkgRoot
@@ -133,7 +126,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $binaryCache | Out-Null
           $triplet = "x64-windows-static-release"
           $env:VCPKG_OVERLAY_TRIPLETS = Join-Path $env:GITHUB_WORKSPACE "cmake/platform/triplets"
-          $manifestRoot = Join-Path $env:GITHUB_WORKSPACE "cmake/platform/vcpkg/windows-int"
+          $manifestRoot = Join-Path $env:GITHUB_WORKSPACE "cmake/platform/vcpkg/windows-${{ matrix.flavor }}"
           $installRoot = Join-Path $vcpkgRoot "installed"
           $maxAttempts = 4
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
@@ -148,9 +141,9 @@ jobs:
           }
           "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           if ("${{ matrix.flavor }}" -eq "llvm") {
-            $llvmDir = Join-Path $env:LLVM_PATH "lib/cmake/llvm"
+            $llvmDir = Join-Path $vcpkgRoot "installed/x64-windows-static-release/share/llvm"
             if (-not (Test-Path (Join-Path $llvmDir "LLVMConfig.cmake"))) {
-              throw "installed LLVM CMake package not found at $llvmDir"
+              throw "vcpkg LLVM CMake package not found at $llvmDir"
             }
             "LLVM_DIR=$llvmDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           }
