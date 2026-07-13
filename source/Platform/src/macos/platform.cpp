@@ -4,6 +4,8 @@
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
 
+#include <vector>
+
 namespace Simple::Platform {
 namespace {
 void SetError(std::string* error, const std::string& value) { if (error) *error = value; }
@@ -20,16 +22,16 @@ const char* SharedLibraryExtension() { return ".dylib"; }
 const char* StaticLibraryExtension() { return ".a"; }
 
 std::string ExecutablePath(const char* argv0) {
-  uint32_t size = 0;
-  _NSGetExecutablePath(nullptr, &size);
-  if (size) {
-    std::string path(size, '\0');
-    if (_NSGetExecutablePath(path.data(), &size) == 0) {
-      if (!path.empty() && path.back() == '\0') path.pop_back();
-      std::error_code error;
-      auto canonical = std::filesystem::weakly_canonical(path, error);
-      return error ? path : canonical.string();
-    }
+  std::vector<char> buffer(1024);
+  uint32_t size = static_cast<uint32_t>(buffer.size());
+  if (_NSGetExecutablePath(buffer.data(), &size) != 0) {
+    buffer.resize(size);
+    if (_NSGetExecutablePath(buffer.data(), &size) != 0) buffer.clear();
+  }
+  if (!buffer.empty()) {
+    std::error_code error;
+    auto canonical = std::filesystem::weakly_canonical(buffer.data(), error);
+    return error ? std::string(buffer.data()) : canonical.string();
   }
   if (!argv0 || !*argv0) return {};
   return std::filesystem::absolute(argv0).string();
