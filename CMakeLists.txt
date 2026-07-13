@@ -77,8 +77,12 @@ set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/source/Lang)
 set(SIMPLEVM_LIBRARY_ROOT ${SIMPLEVM_ROOT}/source/Library)
 set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/source/LSP)
 set(SIMPLEVM_CLI_ROOT ${SIMPLEVM_ROOT}/source/CLI)
+set(SIMPLEVM_PLATFORM_ROOT ${SIMPLEVM_ROOT}/source/Platform)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/tests/tests)
+include_directories(${SIMPLEVM_PLATFORM_ROOT}/include)
 set(SIMPLEVM_RUNTIME_SRC
+  ${SIMPLEVM_PLATFORM_ROOT}/src/common/platform_info.cpp
+  ${SIMPLEVM_PLATFORM_SOURCE}
   ${SIMPLEVM_LIBRARY_ROOT}/src/library_catalog.cpp
   ${SIMPLEVM_LIBRARY_ROOT}/src/library_legacy.cpp
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_call.cpp
@@ -173,19 +177,18 @@ set(SIMPLEVM_CORE_SRC
   ${SIMPLEVM_FRONTEND_SRC}
 )
 
-# Cross-platform dynamic-library fixture used by language and FFI tests. Keep
-# the historical .so spelling because Simple fixtures load this exact path.
+# Native-format dynamic-library fixture used by language and FFI tests.
 add_library(simpleffi_test SHARED ${SIMPLEVM_ROOT}/tests/ffi/simple_ffi.c)
 set_target_properties(simpleffi_test PROPERTIES
   OUTPUT_NAME simpleffi
-  PREFIX "lib"
-  SUFFIX ".so"
   WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
+set(SIMPLEVM_TEST_FFI_LIBRARY
+    "tests/ffi/${CMAKE_SHARED_LIBRARY_PREFIX}simpleffi${CMAKE_SHARED_LIBRARY_SUFFIX}")
 add_custom_command(TARGET simpleffi_test POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
           $<TARGET_FILE:simpleffi_test>
-          ${SIMPLEVM_ROOT}/tests/ffi/libsimpleffi.so
+          ${SIMPLEVM_ROOT}/${SIMPLEVM_TEST_FFI_LIBRARY}
 )
 
 add_library(simplevm_core_obj OBJECT
@@ -326,6 +329,7 @@ target_compile_definitions(simplevm PRIVATE
   SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}"
   SIMPLEVM_VERSION="${SIMPLEVM_VERSION}"
   SIMPLEVM_RUNTIME_SHARED_NAME="${SIMPLEVM_RUNTIME_SHARED_NAME}"
+  SIMPLEVM_RUNTIME_STATIC_NAME="${SIMPLEVM_RUNTIME_STATIC_NAME}"
 )
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
@@ -392,7 +396,10 @@ target_include_directories(simplevm_tests PRIVATE
 )
 target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm_tests PRIVATE
+  SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}"
+  SIMPLEVM_TEST_FFI_LIBRARY="${SIMPLEVM_TEST_FFI_LIBRARY}"
   SIMPLEVM_RUNTIME_SHARED_NAME="${SIMPLEVM_RUNTIME_SHARED_NAME}"
+  SIMPLEVM_RUNTIME_STATIC_NAME="${SIMPLEVM_RUNTIME_STATIC_NAME}"
 )
 add_dependencies(simplevm_tests simpleffi_test simplevm_runtime_shared)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
@@ -404,8 +411,10 @@ install(TARGETS simplevm simple_stub simplevm_core_static simplevm_core_shared s
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )
-install(DIRECTORY ${SIMPLEVM_VM_ROOT}/include/ DESTINATION include/simple/VM)
-install(DIRECTORY ${SIMPLEVM_BYTE_ROOT}/include/ DESTINATION include/simple/Byte)
+# Runtime consumers include these headers directly (for example, "vm.h").
+# Keep CMake installs consistent with release-package layout discovery.
+install(DIRECTORY ${SIMPLEVM_VM_ROOT}/include/ DESTINATION include/simplevm)
+install(DIRECTORY ${SIMPLEVM_BYTE_ROOT}/include/ DESTINATION include/simplevm)
 install(DIRECTORY ${SIMPLEVM_IR_ROOT}/include/ DESTINATION include/simple/IR)
 install(DIRECTORY ${SIMPLEVM_LANG_ROOT}/include/ DESTINATION include/simple/Lang)
 install(DIRECTORY ${SIMPLEVM_LIBRARY_ROOT}/include/ DESTINATION include/simple/Library)

@@ -4,47 +4,19 @@
 #include <filesystem>
 #include <fstream>
 #include <system_error>
-#if defined(__linux__)
-#include <unistd.h>
-#endif
+
+#include "platform/platform.h"
 
 namespace Simple::CLI {
-namespace {
-
-std::string QuoteArg(const std::string& arg) {
-  std::string out = "\"";
-  for (char c : arg) {
-    if (c == '"') out += "\\\"";
-    else out += c;
-  }
-  out += "\"";
-  return out;
-}
-
-std::string ExecutablePath(const char* argv0) {
-  namespace fs = std::filesystem;
-#if defined(__linux__)
-  char buf[4096];
-  const ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-  if (n > 0) {
-    buf[n] = '\0';
-    return std::string(buf);
-  }
-#endif
-  if (argv0 && *argv0) {
-    std::error_code ec;
-    fs::path p = fs::weakly_canonical(fs::path(argv0), ec);
-    if (!ec) return p.string();
-    return fs::absolute(fs::path(argv0)).string();
-  }
-  return {};
-}
-
-} // namespace
 
 bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
   if (!out) return false;
   namespace fs = std::filesystem;
+#ifdef SIMPLEVM_RUNTIME_STATIC_NAME
+  const fs::path static_name = SIMPLEVM_RUNTIME_STATIC_NAME;
+#else
+  const fs::path static_name = "libsimplevm_runtime.a";
+#endif
   auto try_source_layout = [&](const fs::path& root) -> bool {
     if (root.empty()) return false;
     const fs::path vm_inc = root / "source" / "VM" / "include";
@@ -52,9 +24,9 @@ bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
     const fs::path root_bin = root / "bin";
     const fs::path build_bin = root / "build" / "bin";
     fs::path lib_dir;
-    if (fs::exists(build_bin / "libsimplevm_runtime.a")) {
+    if (fs::exists(build_bin / static_name)) {
       lib_dir = build_bin;
-    } else if (fs::exists(root_bin / "libsimplevm_runtime.a")) {
+    } else if (fs::exists(root_bin / static_name)) {
       lib_dir = root_bin;
     }
     if (fs::exists(vm_inc / "vm.h") && fs::exists(byte_inc / "sbc_loader.h") &&
@@ -71,7 +43,7 @@ bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
     const fs::path include_dir = prefix / "include" / "simplevm";
     const fs::path lib_dir = prefix / "lib";
     if (fs::exists(include_dir / "vm.h") && fs::exists(include_dir / "sbc_loader.h") &&
-        fs::exists(lib_dir / "libsimplevm_runtime.a")) {
+        fs::exists(lib_dir / static_name)) {
       out->vm_include = include_dir.string();
       out->byte_include = include_dir.string();
       out->lib_dir = lib_dir.string();
@@ -83,7 +55,7 @@ bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
   fs::path configured_root = SIMPLEVM_PROJECT_ROOT;
   if (try_source_layout(configured_root)) return true;
 #endif
-  const std::string exe_text = ExecutablePath(argv0);
+  const std::string exe_text = Simple::Platform::ExecutablePath(argv0);
   if (exe_text.empty()) return false;
   fs::path exe_path = fs::path(exe_text);
   fs::path dir = exe_path.parent_path();
@@ -149,7 +121,8 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
                              bool is_static,
                              std::string* error) {
   namespace fs = std::filesystem;
-  fs::path tmp_dir = fs::temp_directory_path() / ("simple_embed_" + std::to_string(std::rand()));
+  fs::path tmp_dir = Simple::Platform::TempDirectory() /
+                     ("simple_embed_" + std::to_string(std::rand()));
   std::error_code ec;
   fs::create_directories(tmp_dir, ec);
   if (ec) {
@@ -164,12 +137,18 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
   fs::path lib_dir(layout.lib_dir);
   fs::path runtime_lib;
   if (is_static) {
+#ifdef SIMPLEVM_RUNTIME_STATIC_NAME
+    runtime_lib = lib_dir / SIMPLEVM_RUNTIME_STATIC_NAME;
+#else
     runtime_lib = lib_dir / "libsimplevm_runtime.a";
+#endif
   } else {
 #ifdef SIMPLEVM_RUNTIME_SHARED_NAME
     runtime_lib = lib_dir / SIMPLEVM_RUNTIME_SHARED_NAME;
 #else
-    runtime_lib = lib_dir / "libsimplevm_runtime.so";
+    runtime_lib = lib_dir /
+                  (std::string("libsimplevm_runtime") +
+                   Simple::Platform::SharedLibraryExtension());
 #endif
   }
   if (!fs::exists(runtime_lib)) {
@@ -180,28 +159,17 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
     return false;
   }
 
-  std::string cmd = "g++ -std=c++17 -O2 -Wall -Wextra ";
-  cmd += "-I" + QuoteArg(vm_include.string()) + " ";
-  cmd += "-I" + QuoteArg(byte_include.string()) + " ";
-  cmd += QuoteArg(runner_path.string()) + " ";
-  cmd += QuoteArg(runtime_lib.string()) + " ";
-  if (!is_static) cmd += "-Wl,-rpath," + QuoteArg(lib_dir.string()) + " ";
-  cmd += "-ldl ";
-  cmd += "-lffi ";
+  Simple::Platform::NativeBuildRequest request;
+  request.source = runner_path;
+  request.output = out_path;
+  request.include_dirs = {vm_include, byte_include};
+  request.libraries = {runtime_lib};
+  request.runtime_library_dir = lib_dir;
+  request.dynamic_runtime = !is_static;
 #ifdef SIMPLEVM_EMBED_LLVM_LINK_FLAGS
-  if (is_static) {
-    cmd += SIMPLEVM_EMBED_LLVM_LINK_FLAGS;
-    cmd += " ";
-  }
+  if (is_static) request.extra_link_flags = SIMPLEVM_EMBED_LLVM_LINK_FLAGS;
 #endif
-  cmd += "-o " + QuoteArg(out_path);
-
-  int rc = std::system(cmd.c_str());
-  if (rc != 0) {
-    if (error) *error = "failed to compile embedded executable";
-    return false;
-  }
-  return true;
+  return Simple::Platform::BuildNativeExecutable(request, error);
 }
 
 } // namespace Simple::CLI

@@ -11,6 +11,7 @@
 #include "ir_compiler.h"
 #include "ir_lang.h"
 #include "IRE/sir_emitter.h"
+#include "platform/platform.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "vm.h"
@@ -95,6 +96,10 @@ bool CompileSimpleToSbc(const std::string& source,
 } // namespace
 
 int RunSimpleFile(const std::string& path, bool verify) {
+#ifdef SIMPLEVM_TEST_FFI_LIBRARY
+  Simple::Platform::SetEnvironment("SIMPLE_TEST_FFI_LIBRARY",
+                                   SIMPLEVM_TEST_FFI_LIBRARY);
+#endif
   std::string text;
   std::string error;
   if (!ReadFileText(path, &text, &error)) {

@@ -1,3 +1,5 @@
 set(SIMPLEVM_PLATFORM_NAME "linux")
 set(SIMPLEVM_RUNTIME_SHARED_NAME "libsimplevm_runtime.so")
+set(SIMPLEVM_RUNTIME_STATIC_NAME "libsimplevm_runtime.a")
 set(SIMPLEVM_PACKAGE_EXTENSION "tar.gz")
+set(SIMPLEVM_PLATFORM_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/source/Platform/src/linux/platform.cpp")

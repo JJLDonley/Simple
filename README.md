@@ -589,6 +589,7 @@ cmake --build build --target simplevm_tests -j2
 | [docs/Byte.md](docs/Byte.md) | SBC bytecode, loader, verifier. |
 | [docs/CLI.md](docs/CLI.md) | `svm` and `simple` behavior. |
 | [docs/JIT.md](docs/JIT.md) | Optional JIT/tiering behavior. |
+| [docs/Portability.md](docs/Portability.md) | OS/architecture abstraction and porting rules. |
 | [docs/Timeline.md](docs/Timeline.md) | Native-library roadmap and lower-priority backlog. |
 | [docs/Standards.md](docs/Standards.md) | Project coding standards. |
 

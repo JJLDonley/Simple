@@ -1,10 +1,10 @@
 import Standard.FS
 
 main : i32 () {
-  path : string = "/tmp/simple_reserved_fs.txt"
-  copy_path : string = "/tmp/simple_reserved_fs_copy.txt"
-  bytes_path : string = "/tmp/simple_reserved_fs_bytes.bin"
-  dir_path : string = "/tmp/simple_reserved_fs_dir/sub"
+  path : string = "build/simple_reserved_fs.txt"
+  copy_path : string = "build/simple_reserved_fs_copy.txt"
+  bytes_path : string = "build/simple_reserved_fs_bytes.bin"
+  dir_path : string = "build/simple_reserved_fs_dir/sub"
 
   Standard.FS.remove(path)
   Standard.FS.remove(copy_path)
@@ -22,9 +22,9 @@ main : i32 () {
   read : i32[] = Standard.FS.readBytes(bytes_path)
   if (len(read) != 3 || read[0] != 65 || read[2] != 67) { return 0 }
 
-  Standard.FS.remove("/tmp/simple_reserved_fs_dir")
+  Standard.FS.remove("build/simple_reserved_fs_dir")
   if (!Standard.FS.mkdirAll(dir_path)) { return 0 }
-  entries : string[] = Standard.FS.listDir("/tmp/simple_reserved_fs_dir")
+  entries : string[] = Standard.FS.listDir("build/simple_reserved_fs_dir")
   if (len(entries) == 0) { return 0 }
   cwd : string = Standard.FS.cwd()
   if (len(cwd) == 0) { return 0 }

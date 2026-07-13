@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <chrono>
@@ -30,6 +31,7 @@
 #include "native/thread.h"
 #include "native/time.h"
 #include "opcode.h"
+#include "platform/platform.h"
 #include "ir_lang.h"
 #include "ir_builder.h"
 #include "ir_compiler.h"
@@ -15954,7 +15956,10 @@ bool RunNativeEnvModuleTest() {
 
 bool RunFfiDlRuntimeModuleTest() {
   std::string error;
-  if (Simple::VM::Ffi::DlRuntime::Open("/tmp/simple_missing_library.so", &error) != 0) {
+  const auto missing = std::filesystem::temp_directory_path() /
+                       (std::string("simple_missing_library") +
+                        Simple::Platform::SharedLibraryExtension());
+  if (Simple::VM::Ffi::DlRuntime::Open(missing.string(), &error) != 0) {
     return false;
   }
   if (error.empty()) return false;
@@ -15967,9 +15972,10 @@ bool RunFfiDlRuntimeModuleTest() {
 }
 
 bool RunNativeFsModuleTest() {
-  const std::string dir = "/tmp/simple_native_fs_module";
-  const std::string file = dir + "/data.txt";
-  const std::string copy = dir + "/copy.txt";
+  const std::string dir =
+      (std::filesystem::temp_directory_path() / "simple_native_fs_module").string();
+  const std::string file = (std::filesystem::path(dir) / "data.txt").string();
+  const std::string copy = (std::filesystem::path(dir) / "copy.txt").string();
   Simple::VM::Native::Fs::Remove(file);
   Simple::VM::Native::Fs::Remove(copy);
   if (!Simple::VM::Native::Fs::MkdirAll(dir)) return false;
@@ -16072,7 +16078,8 @@ bool RunJitScaffoldModuleTest() {
 }
 
 bool RunNativeLogModuleTest() {
-  const std::string path = "/tmp/simple_native_log_module.txt";
+  const std::string path =
+      (std::filesystem::temp_directory_path() / "simple_native_log_module.txt").string();
   std::remove(path.c_str());
   Simple::VM::Native::Log::SetLevel(3);
   if (!Simple::VM::Native::Log::SetFile(path)) return false;
@@ -16093,11 +16100,13 @@ bool RunNativeOsModuleTest() {
 }
 
 bool RunNativePathModuleTest() {
-  if (Simple::VM::Native::Path::Join("/tmp", "a/../b") != "/tmp/b") return false;
-  if (Simple::VM::Native::Path::Dirname("/tmp/file.txt") != "/tmp") return false;
-  if (Simple::VM::Native::Path::Basename("/tmp/file.txt") != "file.txt") return false;
-  if (Simple::VM::Native::Path::Extension("/tmp/file.txt") != ".txt") return false;
-  if (Simple::VM::Native::Path::Normalize("/tmp/./x") != "/tmp/x") return false;
+  if (Simple::VM::Native::Path::Join("build", "a/../b") !=
+      std::filesystem::path("build/b").make_preferred().string()) return false;
+  if (Simple::VM::Native::Path::Dirname("build/file.txt") != "build") return false;
+  if (Simple::VM::Native::Path::Basename("build/file.txt") != "file.txt") return false;
+  if (Simple::VM::Native::Path::Extension("build/file.txt") != ".txt") return false;
+  if (Simple::VM::Native::Path::Normalize("build/./x") !=
+      std::filesystem::path("build/x").make_preferred().string()) return false;
   return Simple::VM::Native::Path::Exists(".") && Simple::VM::Native::Path::IsDir(".");
 }
 

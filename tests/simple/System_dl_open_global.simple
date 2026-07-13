@@ -1,8 +1,10 @@
 import System.FFI
+import System.Env
 
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
-lib :: i64 = System.FFI.Open("tests/ffi/libsimpleffi.so", ffi)
+lib_path :: string = System.Env.get("SIMPLE_TEST_FFI_LIBRARY")
+lib :: i64 = System.FFI.Open(lib_path, ffi)
 
 AddViaGlobal : i32 (a : i32, b : i32) {
   return lib.simple_add_i32(a, b)

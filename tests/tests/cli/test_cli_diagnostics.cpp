@@ -67,7 +67,8 @@ bool CliMissingInputDiagnostics() {
   stderr_text = RunCliDiagnosticsCaptureStderr(
       "bin/svm check \"" + missing_path.string() + "\"", &exit_code);
   return exit_code == 1 &&
-         stderr_text.find("error[E8001]: failed to open file: " + missing_path.string()) == 0;
+         stderr_text.find("error[E8001]: failed to open file: ") == 0 &&
+         stderr_text.find(missing_path.filename().string()) != std::string::npos;
 }
 
 bool CliSplitDiagnosticsRendersErrorLine() {

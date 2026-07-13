@@ -1706,7 +1706,7 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
 bool LangValidateNativeMetadataReservedFsFdApis() {
   const char* src =
       "import System.FS\n"
-      "main : void () { fd : i32 = System.FS.open(\"/tmp/missing\", 0); System.FS.close(fd); }";
+      "main : void () { fd : i32 = System.FS.open(\"build/missing\", 0); System.FS.close(fd); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -1714,7 +1714,7 @@ bool LangValidateNativeMetadataReservedFsFdApis() {
 bool LangValidateNativeMetadataReservedFsSuggestion() {
   const char* src =
       "import System.FS\n"
-      "main : void () { fd : i32 = System.FS.opne(\"/tmp/missing\", 0); }";
+      "main : void () { fd : i32 = System.FS.opne(\"build/missing\", 0); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'open'") != std::string::npos;
@@ -1723,7 +1723,7 @@ bool LangValidateNativeMetadataReservedFsSuggestion() {
 bool LangRejectStandardFsHandleApis() {
   const char* src =
       "import Standard.FS\n"
-      "main : void () { fd : i32 = Standard.FS.open(\"/tmp/missing\", 0); Standard.FS.close(fd); }";
+      "main : void () { fd : i32 = Standard.FS.open(\"build/missing\", 0); Standard.FS.close(fd); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;

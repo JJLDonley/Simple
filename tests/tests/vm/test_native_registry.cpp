@@ -374,7 +374,7 @@ bool RunNativeRegistryModuleTest() {
                                         : Simple::VM::Native::NativeCallResult{};
   log_level_ctx.args = {0};
   if (log_set_level) (void)log_set_level->handler(log_level_ctx);
-  const uint32_t path_left = make_metadata_string("/tmp");
+  const uint32_t path_left = make_metadata_string("build");
   const uint32_t path_right = make_metadata_string("a/../b.txt");
   Simple::VM::Native::NativeCallContext path_join_ctx;
   path_join_ctx.heap = &metadata_heap;
@@ -644,7 +644,7 @@ bool RunNativeRegistryModuleTest() {
          fs_remove && fs_mkdir && fs_set_cwd &&
          !os_cwd_result.string_value.empty() &&
          !os_format_result.string_value.empty() &&
-         path_join_result.string_value == "/tmp/b.txt" &&
+         path_join_result.string_value == "build/b.txt" &&
          path_basename_result.string_value == "b.txt" &&
          path_normalize_result.string_value == "b.txt" && path_exists_result.value == 1 &&
          fs_write_text_result.value == 1 && fs_read_text_result.string_value == "hello metadata" &&
