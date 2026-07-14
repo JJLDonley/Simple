@@ -64,9 +64,27 @@ Current file, FFI library, JSON value, channel, job, and process resources are o
 
 Borrowed text/byte views last only for one native call. Dynamic symbols last only while their owning FFI library remains open. Resource-returning functions declare transfer-to-caller plus VM-shutdown cleanup metadata, borrowed operations declare input metadata, and close/free operations declare transfer-to-callee plus required cleanup.
 
-`System.Job` handles use the same resource lifecycle. Shutdown cancels and wakes pending jobs, joins worker threads, and releases synchronized promise records. The experimental async API is documented in [Jobs and promises](Async.md).
+`System.Job` handles use the same resource lifecycle. Shutdown cancels and wakes pending jobs, joins worker threads, and releases synchronized promise records. The experimental runtime and target language design are documented in [Jobs, promises, and async design](Async.md).
 
 `System.Process` handles own child processes, standard-stream pipes, and output-drain workers. Explicit close or VM shutdown terminates a running child, reaps it, joins readers, and closes host handles. See [Processes](Process.md) for the API and cross-platform contract.
+
+## Async naming and editor definitions
+
+The target library surface does not encode async behavior in member names and
+does not expose an `await` method. A native asynchronous operation keeps its
+natural name and returns `Promise<T>` (normally
+`Promise<Result<T, DomainError>>`). Source uses the language expression
+`await operation(...)`; LSP metadata marks the operation async and displays the
+full promise type. Explicit blocking counterparts use a `Blocking` suffix only
+when both forms must coexist.
+
+The current `System.Job.await`, raw job handle, copied-string failure state, and
+explicit Promise close behavior are transitional `v0.5.x` runtime APIs. They
+will be replaced by managed `Promise<T>` state during the `v0.7` library
+migration after language-level `await` is stable, rather than retained as
+compatibility facades. Planned read-only editor definitions are described in
+[Library pseudo-sources](library/README.md), with a representative
+[`System.Job`](library/System.Job.md) definition.
 
 ## Migration rule
 

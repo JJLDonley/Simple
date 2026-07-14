@@ -11055,7 +11055,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseStressModule() {
   return module;
 }
 
-std::vector<uint8_t> BuildImportFsWriteClampCountModule() {
+std::vector<uint8_t> BuildImportFsWriteClampCountModule(const std::string& test_path) {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
@@ -11064,8 +11064,7 @@ std::vector<uint8_t> BuildImportFsWriteClampCountModule() {
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
-  uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_write_clamp_count.bin"));
+  uint32_t path_off = static_cast<uint32_t>(AppendStringToPool(const_pool, test_path));
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -18451,7 +18450,10 @@ bool RunImportFsOpenCloseLoopTest() {
 }
 
 bool RunImportFsWriteClampCountTest() {
-  std::vector<uint8_t> module_bytes = BuildImportFsWriteClampCountModule();
+  const std::string test_path = TestTempPath("sbc_fs_write_clamp_count.bin").string();
+  std::error_code remove_error;
+  std::filesystem::remove(test_path, remove_error);
+  std::vector<uint8_t> module_bytes = BuildImportFsWriteClampCountModule(test_path);
   Simple::Byte::LoadResult load;
   if (!LoadAndVerifyModule(module_bytes, &load)) return false;
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);

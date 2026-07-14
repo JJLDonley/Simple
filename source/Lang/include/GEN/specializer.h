@@ -74,5 +74,9 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
                                 const std::vector<GenericSpecializationPlan>& plans,
                                 Simple::Lang::AST::Program* out,
                                 std::string* error);
+bool MaterializeProgramForEmission(const Simple::Lang::AST::Program& source,
+                                   Simple::Lang::AST::Program* out,
+                                   bool* materialized,
+                                   std::string* error);
 
 } // namespace Simple::Lang::GEN

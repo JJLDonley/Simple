@@ -9,10 +9,12 @@ its implementation.
   imports, and FFI.
 - [System library](System.md) — low-level runtime and host-facing modules.
 - [Standard library](Standard.md) — higher-level library modules.
-- [Jobs and promises](Async.md) — experimental async states, ownership, cancellation,
-  blocking, and GC boundaries.
+- [Jobs, promises, and async design](Async.md) — current runtime states plus the
+  target `async`, `await`, Promise, and library naming model.
 - [Processes](Process.md) — process resources, captured streams, async execution, cleanup,
   and cross-platform behavior.
+- [Library pseudo-sources](library/README.md) — planned read-only definitions for
+  documentation and LSP navigation.
 
 ## Toolchain
 

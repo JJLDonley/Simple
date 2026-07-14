@@ -216,19 +216,12 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
   out->sir_text.clear();
   const Simple::Lang::AST::Program* lowering_program = typed.resolved->program;
   Simple::Lang::AST::Program concrete_program;
-  std::vector<Simple::Lang::GEN::GenericSpecializationPlan> generic_plan;
-  if (!Simple::Lang::GEN::BuildSpecializationPlanFromProgram(*typed.resolved->program,
-                                                             &generic_plan,
-                                                             error)) {
+  bool materialized = false;
+  if (!Simple::Lang::GEN::MaterializeProgramForEmission(
+          *typed.resolved->program, &concrete_program, &materialized, error)) {
     return false;
   }
-  if (!generic_plan.empty()) {
-    if (!Simple::Lang::GEN::MaterializeConcreteProgram(*typed.resolved->program,
-                                                       generic_plan,
-                                                       &concrete_program,
-                                                       error)) {
-      return false;
-    }
+  if (materialized) {
     std::string validate_error;
     if (!Simple::Lang::ValidateProgram(concrete_program, &validate_error)) {
       if (error) *error = validate_error;

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "CAST/parser.h"
+#include "GEN/specializer.h"
 #include "lang_reserved.h"
 #include "platform/platform.h"
 #include "RAST/reserved_resolution.h"
@@ -5790,7 +5791,18 @@ bool EmitSir(const Program& program, std::string* out, std::string* error) {
     if (error) *error = validate_error;
     return false;
   }
-  return EmitProgramImpl(program, out, error);
+
+  Program concrete_program;
+  bool materialized = false;
+  if (!GEN::MaterializeProgramForEmission(program, &concrete_program, &materialized, error)) {
+    return false;
+  }
+  if (!materialized) return EmitProgramImpl(program, out, error);
+  if (!ValidateProgram(concrete_program, &validate_error)) {
+    if (error) *error = validate_error;
+    return false;
+  }
+  return EmitProgramImpl(concrete_program, out, error);
 }
 
 bool EmitSirFromString(const std::string& text, std::string* out, std::string* error) {

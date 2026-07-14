@@ -1,0 +1,7 @@
+module Tests.GenericImportMain
+
+import "./generic_library.simple"
+
+main :: i32 () {
+  return identity<i32>(42)
+}

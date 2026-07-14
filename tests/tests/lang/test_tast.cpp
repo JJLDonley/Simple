@@ -379,7 +379,7 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
       plan[0].bindings.size() != 1 || plan[0].bindings[0].parameter_name != "T" ||
       plan[0].bindings[0].type_identity != "i32" || !plan[0].bindings[0].has_concrete_type ||
       plan[0].bindings[0].concrete_type.name != "i32" ||
-      plan[0].specialized_symbol.rfind("Box$g$", 0) != 0) {
+      plan[0].specialized_symbol.rfind("Box__g_", 0) != 0) {
     return false;
   }
 
@@ -667,12 +667,12 @@ bool LangGenMaterializesConcreteProgram() {
   Simple::Lang::IRB::Module module;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   if (module.sir_text.find("func id ") != std::string::npos ||
-      module.sir_text.find("func id$g$") == std::string::npos) {
+      module.sir_text.find("func id__g_") == std::string::npos) {
     return false;
   }
   bool ir_has_specialized_box = false;
   for (const auto& layout : module.ir.artifact_layouts) {
-    if (layout.name.find("Box$g$") != std::string::npos) ir_has_specialized_box = true;
+    if (layout.name.find("Box__g_") != std::string::npos) ir_has_specialized_box = true;
   }
   if (!ir_has_specialized_box) return false;
 

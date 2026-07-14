@@ -1,8 +1,94 @@
-# Jobs and promises
+# Jobs, promises, and async design
 
-`System.Job` and `Standard.Promise` provide the experimental `v0.5.2` asynchronous runtime foundation. They intentionally do not add `async`/`await` language syntax or execute Simple closures on worker threads. Job imports currently force interpreter fallback so async state always belongs to the executing VM's resource registry.
+`System.Job` and `Standard.Promise` provide the experimental `v0.5.2` runtime
+foundation. The tables in this document describe that **current transitional
+API**. It does not yet implement the accepted `v0.6` language syntax, and its
+`await` members and raw `i64` promise handles are not the final public design.
+Job imports currently force interpreter fallback so async state remains owned
+by the executing VM's resource registry.
 
-## State model
+## Target language surface
+
+The accepted language design is:
+
+```simple
+fetchBody :: async Result<string, HttpError> (url : string) {
+  response :: Response = await Standard.HTTP.get(url)?
+  return response.bodyText()
+}
+```
+
+- `async` follows `:` or `::` and precedes the real, unwrapped return type;
+- calling an async function wraps that declared type as `Promise<T>`;
+- prefix `await` unwraps `Promise<T>` and is legal only inside `async` functions;
+- postfix `?` unwraps `Result<T, E>` or `Option<T>`, returning the matching
+  failure/absence shape from the enclosing function immediately;
+- no operation throws, invents a default, or silently discards failure.
+
+See [Language reference](Language.md#async-functions-and-explicit-failure-design)
+for the complete design. This work depends on the same `v0.6` language milestone
+completing concrete generics and closures: generic specialization provides
+`Promise<Result<T,E>>` layouts, while rooted closure environments provide safe
+async bodies and callbacks. Async syntax does not replace either feature.
+
+## Target `Promise<T>` state model
+
+`Promise<T>` is a managed language type, not an `i64` convention or a Result
+alias. It owns three states: `Pending`, `Completed(T)`, and `Cancelled`.
+
+`Completed` means asynchronous production finished; it does not claim the
+operation represented by `T` succeeded. Expected failures belong in `T`, usually
+as `Promise<Result<Value, DomainError>>`. Such a Promise completes with
+`Ok(value)` or `Err(error)`, and user code handles/propagates that Result after
+`await`:
+
+```simple
+response :: Response = await Standard.HTTP.get(url)?
+```
+
+The final Promise design does not carry a separate copied-string
+failed/rejected state. Cancellation is structured asynchronous control rather
+than a domain error:
+
+- awaiting `Completed(value)` produces `value`;
+- awaiting `Pending` suspends the current async frame;
+- awaiting `Cancelled` cancels the enclosing frame's Promise, performs required
+  cleanup, and skips all later statements in that frame.
+
+Cancellation never invents a `T`, becomes an implicit `Err(E)`, or throws. It
+propagates through the active await chain and is observable through Promise
+state/control APIs. Resolution and cancellation race atomically, with exactly
+one terminal winner. Cancellation wakes suspended continuations and is
+idempotent after reaching a terminal state.
+
+Managed promises do not expose public `close`. The VM owns pending state, roots
+continuations and payloads, and releases terminal state when runtime ownership
+and GC reachability allow. The current raw job handle and explicit `close` API
+remain transitional implementation behavior.
+
+## Library naming policy
+
+Final `System.*` and `Standard.*` APIs use natural operation names. Asyncness is
+represented by the signature and metadata, not spelling:
+
+- use `get(...) -> Promise<Result<Response, HttpError>>`, not `getAsync(...)`;
+- use the language expression `await promise`, not `Promise.await(promise)` or
+  `promise.await()`;
+- when a blocking counterpart must coexist, make blocking explicit with a name
+  such as `runBlocking`; do not add an `Async` suffix to the primary operation.
+
+LSP completion, hover, and signature help will display an `async` classification
+and the full `Promise<T>` result. Go-to-definition will open generated,
+read-only library pseudo-source rather than navigating into native C++ backing.
+See [Library pseudo-sources](library/README.md).
+
+The current `System.Job.await`, `Standard.Promise.await`, and
+`Standard.Process.runAsync` names remain documented only so `v0.5.x` behavior
+is accurate. They are scheduled for direct migration during the `v0.7` library
+milestone, after the `v0.6` language syntax is stable; they will not be
+preserved through compatibility aliases.
+
+## Transitional state model
 
 Every job-backed promise is in exactly one state:
 
@@ -15,7 +101,7 @@ Every job-backed promise is in exactly one state:
 
 Completion, failure, and cancellation are terminal. The synchronized promise registry rejects a second completion and keeps a terminal record alive until its owning job handle is closed.
 
-## System.Job
+## Transitional `System.Job`
 
 | Function | Result | Behavior |
 |---|---|---|
@@ -29,7 +115,7 @@ Completion, failure, and cancellation are terminal. The synchronized promise reg
 
 Delays must be between zero and 24 hours. Invalid delays return the null handle (`0`).
 
-## Standard.Promise
+## Transitional `Standard.Promise`
 
 `Standard.Promise` is the ergonomic surface backed by `System.Job`:
 
@@ -82,4 +168,5 @@ The internal promise registry can identify reference payloads for future rooted 
 
 ## Blocking and deadlock rules
 
-`poll` is non-blocking. `await` is blocking and native metadata marks it accordingly. Current workers only wait on a bounded timer or cancellation notification; they do not wait for VM execution, other promises, channels, or callbacks. Consequently, the current API cannot construct a worker-to-VM dependency cycle. Future jobs that compose processes, networking, or channels must preserve explicit cancellation and shutdown wakeups before they become public.
+In the transitional API, `poll` is non-blocking. The `await` library member is
+blocking and native metadata marks it accordingly. Current workers only wait on a bounded timer or cancellation notification; they do not wait for VM execution, other promises, channels, or callbacks. Consequently, the current API cannot construct a worker-to-VM dependency cycle. Future jobs that compose processes, networking, or channels must preserve explicit cancellation and shutdown wakeups before they become public.

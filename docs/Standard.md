@@ -39,9 +39,33 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `Standard.Result` | Result helpers | language `Result<T,E>` |
 | `Standard.Option` | Option helpers | language `Option<T>` |
 
-The current `Standard.Promise` surface wraps runtime-owned `System.Job` handles. It is scalar-only, requires explicit `close`, and does not execute Simple closures on workers. See [Jobs and promises](Async.md).
+The current `Standard.Promise` surface wraps runtime-owned `System.Job` handles. It is scalar-only, requires explicit `close`, and does not execute Simple closures on workers. See [Jobs, promises, and async design](Async.md).
 
-`Standard.Process` provides synchronous exit-status, text, and byte capture plus Promise-backed asynchronous execution. Async process jobs carry only copied host arguments, exit status, errors, cancellation state, and Promise identity across the worker boundary. See [Processes](Process.md).
+`Standard.Process` currently provides synchronous exit-status, text, and byte capture plus the transitional `runAsync` entry point. Async process jobs carry only copied host arguments, exit status, errors, cancellation state, and Promise identity across the worker boundary. See [Processes](Process.md).
+
+## Async naming policy
+
+The final standard library uses natural operation names and typed Promise
+results. Asyncness appears in signatures, generated documentation, completion,
+hover, and signature help; it is not encoded with an `Async` suffix. The
+language keyword performs waiting, so modules do not provide `.await()` or
+`await(promise)` members.
+
+For example, the target HTTP signature is
+`get(url) -> Promise<Result<Response, HttpError>>`, and source writes
+`await Standard.HTTP.get(url)?`. Where a synchronous variant is necessary, its
+name explicitly says `Blocking`; the asynchronous operation remains the
+unmarked primary name.
+
+The current `Standard.Promise.await`, explicit Promise `close`, raw `i64`
+handles, and `Standard.Process.runAsync` member are transitional and will be
+migrated directly during the `v0.7` library milestone, after `v0.6` syntax is
+stable. Final `Promise<T>` owns its Pending/Completed/Cancelled state and is
+managed by the VM; no forwarding aliases will remain. Representative read-only definitions are
+linked from [Library pseudo-sources](library/README.md):
+[`Standard.Promise`](library/Standard.Promise.md),
+[`Standard.Process`](library/Standard.Process.md), and
+[`Standard.HTTP`](library/Standard.HTTP.md).
 
 ## API documentation contract
 

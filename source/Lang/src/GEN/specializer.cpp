@@ -187,6 +187,48 @@ bool CollectFromFunction(const Simple::Lang::AST::FuncDecl& fn,
   return CollectFromStmtList(fn.body, out);
 }
 
+bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
+                                      std::vector<GenericInstantiationRequest>* out) {
+  if (!out) return false;
+  out->clear();
+  for (const auto& decl : program.decls) {
+    switch (decl.kind) {
+      case Simple::Lang::AST::DeclKind::Variable:
+        if (!CollectInstantiationRequestsFromType(decl.var.type, out)) return false;
+        break;
+      case Simple::Lang::AST::DeclKind::Extern:
+        if (!CollectInstantiationRequestsFromType(decl.ext.return_type, out)) return false;
+        for (const auto& param : decl.ext.params) {
+          if (!CollectInstantiationRequestsFromType(param.type, out)) return false;
+        }
+        break;
+      case Simple::Lang::AST::DeclKind::Function:
+        if (decl.func.generics.empty() && !CollectFromFunction(decl.func, out)) return false;
+        break;
+      case Simple::Lang::AST::DeclKind::Artifact:
+        if (!decl.artifact.generics.empty()) break;
+        for (const auto& field : decl.artifact.fields) {
+          if (!CollectInstantiationRequestsFromType(field.type, out)) return false;
+        }
+        for (const auto& method : decl.artifact.methods) {
+          if (method.generics.empty() && !CollectFromFunction(method, out)) return false;
+        }
+        break;
+      case Simple::Lang::AST::DeclKind::Module:
+        for (const auto& var : decl.module.variables) {
+          if (!CollectInstantiationRequestsFromType(var.type, out)) return false;
+        }
+        for (const auto& fn : decl.module.functions) {
+          if (fn.generics.empty() && !CollectFromFunction(fn, out)) return false;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return CollectFromStmtList(program.top_level_stmts, out);
+}
+
 bool ApplySubstitutionToExpr(Simple::Lang::AST::Expr* expr,
                              const Simple::Lang::TAST::GenericSubstitutionMap& substitutions);
 bool ApplySubstitutionToStmt(Simple::Lang::AST::Stmt* stmt,
@@ -456,7 +498,7 @@ std::string InstantiationRequestKey(const GenericInstantiationRequest& request) 
 
 std::string SpecializedSymbolName(const GenericInstantiationRequest& request) {
   const std::string key = InstantiationRequestKey(request);
-  return EscapeSymbolSegment(request.base_name) + "$g$" + Hex64(Fnv1a64(key));
+  return EscapeSymbolSegment(request.base_name) + "__g_" + Hex64(Fnv1a64(key));
 }
 
 bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationRequest>& requests,
@@ -612,6 +654,7 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
 bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& program,
                                         std::vector<GenericSpecializationPlan>* out,
                                         std::string* error) {
+  if (!out) return false;
   std::vector<Simple::Lang::TAST::GenericDeclarationMetadata> declarations;
   if (!Simple::Lang::TAST::CollectGenericDeclarationMetadata(program, &declarations, error)) {
     return false;
@@ -622,18 +665,89 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
                                  ? declaration.name
                                  : declaration.owner_name + "." + declaration.name);
   }
+
+  auto append_declared_requests =
+      [&](const std::vector<GenericInstantiationRequest>& candidates,
+          std::vector<GenericInstantiationRequest>* requests) {
+        for (const auto& request : candidates) {
+          if (declared_generics.find(request.base_name) != declared_generics.end()) {
+            requests->push_back(request);
+          }
+        }
+      };
+
+  std::vector<GenericInstantiationRequest> collected;
+  if (!CollectRootInstantiationRequests(program, &collected)) return false;
   std::vector<GenericInstantiationRequest> requests;
-  if (!CollectInstantiationRequestsFromProgram(program, &requests)) return false;
-  std::vector<GenericInstantiationRequest> declared_requests;
-  declared_requests.reserve(requests.size());
-  for (const auto& request : requests) {
-    if (declared_generics.find(request.base_name) != declared_generics.end()) {
-      declared_requests.push_back(request);
+  append_declared_requests(collected, &requests);
+
+  constexpr size_t kMaximumSpecializations = 4096;
+  for (;;) {
+    std::vector<GenericInstantiationRequest> unique_requests;
+    if (!NormalizeInstantiationRequests(requests, &unique_requests)) {
+      if (error) *error = "conflicting generic instantiation metadata";
+      return false;
     }
+    if (unique_requests.size() > kMaximumSpecializations) {
+      if (error) *error = "generic specialization expansion exceeds safety limit";
+      return false;
+    }
+    std::vector<GenericSpecializationPlan> plans;
+    if (!BuildSpecializationPlan(declarations, unique_requests, &plans, error)) return false;
+
+    const size_t previous_count = unique_requests.size();
+    std::vector<GenericInstantiationRequest> dependencies;
+    for (const auto& plan : plans) {
+      switch (plan.declaration.kind) {
+        case Simple::Lang::TAST::GenericDeclarationKind::Function: {
+          const auto* source = FindFunctionDecl(program, plan.declaration.name);
+          if (!source) {
+            if (error) *error = "missing generic function declaration: " + plan.declaration.name;
+            return false;
+          }
+          Simple::Lang::AST::FuncDecl specialized;
+          if (!SpecializeFunctionDeclaration(*source, plan, &specialized, error) ||
+              !CollectFromFunction(specialized, &dependencies)) {
+            return false;
+          }
+          break;
+        }
+        case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
+        case Simple::Lang::TAST::GenericDeclarationKind::Data: {
+          const auto* source = FindArtifactDecl(program, plan.declaration.name);
+          if (!source) {
+            if (error) *error = "missing generic artifact declaration: " + plan.declaration.name;
+            return false;
+          }
+          Simple::Lang::AST::ArtifactDecl specialized;
+          if (!SpecializeArtifactLayoutDeclaration(*source, plan, &specialized, error)) {
+            return false;
+          }
+          for (const auto& field : specialized.fields) {
+            if (!CollectInstantiationRequestsFromType(field.type, &dependencies)) return false;
+          }
+          for (const auto& method : specialized.methods) {
+            if (!CollectFromFunction(method, &dependencies)) return false;
+          }
+          break;
+        }
+        case Simple::Lang::TAST::GenericDeclarationKind::Method:
+          if (error) *error = "generic method specialization requires receiver specialization";
+          return false;
+      }
+    }
+    requests = std::move(unique_requests);
+    append_declared_requests(dependencies, &requests);
+    std::vector<GenericInstantiationRequest> expanded;
+    if (!NormalizeInstantiationRequests(requests, &expanded)) {
+      if (error) *error = "conflicting generic dependency metadata";
+      return false;
+    }
+    if (expanded.size() == previous_count) {
+      return BuildSpecializationPlan(declarations, expanded, out, error);
+    }
+    requests = std::move(expanded);
   }
-  std::vector<GenericInstantiationRequest> unique_requests;
-  if (!NormalizeInstantiationRequests(declared_requests, &unique_requests)) return false;
-  return BuildSpecializationPlan(declarations, unique_requests, out, error);
 }
 
 bool BuildOrderedSpecializationPlan(
@@ -769,6 +883,12 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   for (const auto& plan : plans) {
     specialized_symbols.emplace(InstantiationRequestKey(plan.request), plan.specialized_symbol);
   }
+  std::unordered_set<std::string> generic_function_names;
+  for (const auto& decl : source.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Function && !decl.func.generics.empty()) {
+      generic_function_names.insert(decl.func.name);
+    }
+  }
 
   auto build_key = [](const std::string& base,
                       const std::vector<Simple::Lang::AST::TypeRef>& args) -> std::string {
@@ -846,16 +966,21 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     for (auto& arg : expr->type_args) {
       if (!rewrite_type_fn(rewrite_type_fn, &arg)) return false;
     }
-    if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->type_args.empty() &&
-        !expr->children.empty()) {
-      const auto it = specialized_symbols.find(build_key(CalleeName(expr->children[0]), expr->type_args));
-      if (it != specialized_symbols.end()) {
-        if (expr->children[0].kind == Simple::Lang::AST::ExprKind::Identifier) {
-          expr->children[0].text = it->second;
-        } else {
-          expr->children[0].text = it->second;
+    if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->children.empty()) {
+      const std::string callee = CalleeName(expr->children[0]);
+      if (expr->type_args.empty() && generic_function_names.find(callee) != generic_function_names.end()) {
+        if (error) {
+          *error = "generic call type inference is not yet available for emission: " + callee +
+                   "; provide explicit type arguments";
         }
-        expr->type_args.clear();
+        return false;
+      }
+      if (!expr->type_args.empty()) {
+        const auto it = specialized_symbols.find(build_key(callee, expr->type_args));
+        if (it != specialized_symbols.end()) {
+          expr->children[0].text = it->second;
+          expr->type_args.clear();
+        }
       }
     }
     for (auto& param : expr->fn_params) {
@@ -930,6 +1055,28 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     if (!rewrite_stmt(rewrite_stmt, rewrite_expr, rewrite_type, &stmt)) return false;
   }
   if (!ValidateMaterializedTopLevelNames(*out, error)) return false;
+  if (error) error->clear();
+  return true;
+}
+
+bool MaterializeProgramForEmission(const Simple::Lang::AST::Program& source,
+                                   Simple::Lang::AST::Program* out,
+                                   bool* materialized,
+                                   std::string* error) {
+  if (!out || !materialized) return false;
+  std::vector<Simple::Lang::TAST::GenericDeclarationMetadata> declarations;
+  if (!Simple::Lang::TAST::CollectGenericDeclarationMetadata(source, &declarations, error)) {
+    return false;
+  }
+  if (declarations.empty()) {
+    *materialized = false;
+    if (error) error->clear();
+    return true;
+  }
+  std::vector<GenericSpecializationPlan> plans;
+  if (!BuildSpecializationPlanFromProgram(source, &plans, error)) return false;
+  if (!MaterializeConcreteProgram(source, plans, out, error)) return false;
+  *materialized = true;
   if (error) error->clear();
   return true;
 }

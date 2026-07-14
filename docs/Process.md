@@ -35,16 +35,28 @@ Processes always use piped stdin and captured stdout/stderr in this API revision
 
 Process handles are generational and VM-owned. Null, stale, wrong-owner, wrong-kind, and closed handles are rejected. Any process left open is terminated and reaped during VM shutdown. Reader threads continuously drain stdout and stderr so a child cannot deadlock merely because its output exceeds a pipe buffer.
 
-## Standard.Process
+## Transitional `Standard.Process`
 
-`Standard.Process` provides:
+The transitional `Standard.Process` surface introduced in `v0.5.3` provides:
 
 - `run(program, arguments) -> i32`;
 - `runText(program, arguments) -> string`;
 - `runBytes(program, arguments) -> i32[]`;
 - `runAsync(program, arguments) -> i64`.
 
-The synchronous helpers close stdin, wait, and clean up automatically. `runText` and `runBytes` return captured stdout. `runAsync` returns a runtime-owned `System.Job` handle that can be awaited, polled, cancelled, and closed with `Standard.Promise`. Its Promise result is the child exit status. Cancellation forcibly terminates and reaps the child.
+The synchronous helpers close stdin, wait, and clean up automatically. `runText` and `runBytes` return captured stdout. `runAsync` returns a runtime-owned `System.Job` handle that can be awaited, polled, cancelled, and closed with the transitional `Standard.Promise` API. Its Promise result is the child exit status. Cancellation forcibly terminates and reaps the child.
+
+The target API removes the `Async` suffix and uses typed results:
+
+```text
+run(program, arguments) -> Promise<Result<ProcessResult, ProcessError>>
+runBlocking(program, arguments) -> Result<ProcessResult, ProcessError>
+```
+
+Source will use `await Standard.Process.run(program, arguments)?`; no process or
+promise module will expose an `await` method. This is a planned `v0.6` language
+and `v0.7` library migration, not the behavior of the current executable. See
+the [`Standard.Process` pseudo-source](library/Standard.Process.md).
 
 ## Portability and security
 

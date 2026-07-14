@@ -609,7 +609,244 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-Generic emission/runtime support is intentionally limited; tests reject unsupported generic emission and specialization paths.
+The experimental `v0.5.4` compiler materializes explicitly requested concrete
+top-level generic function and artifact specializations before SIR emission.
+Specializations have deterministic IR-safe symbols, duplicate requests reuse one
+body/layout, nested generic dependencies are discovered after substitution, and
+concrete scalar, string, procedure, and nested artifact cases execute through
+the normal interpreter/JIT pipeline.
+
+Generic call type-argument inference and generic methods are not emitted yet;
+callers must currently provide explicit type arguments such as `identity<i32>`.
+Quoted source imports participate in explicit specialization. Inferred calls,
+generic methods, fully qualified/module-owned specialization, and canonical
+tagged `Result`/`Option`/`Promise` layouts remain language-completion work.
+
+### `v0.6` generic design
+
+Generics are part of language completion, not deferred library work. Functions,
+data/artifacts, fields, procedure types, and canonical wrappers use the same type
+parameter syntax:
+
+```simple
+identity<T> :: T (value : T) {
+  return value
+}
+
+Box<T> :: artifact {
+  value : T
+}
+```
+
+The `v0.6` implementation model is concrete monomorphization. Every used type
+argument combination produces one deterministic concrete specialization before
+SIR/SBC emission. There is no dynamic `any`, runtime overload guessing, erased
+payload, or implicit coercion between specializations.
+
+Generic completion requires:
+
+- deterministic type identity and symbol mangling;
+- specialization requests from annotations, calls, literals, fields, globals,
+  imports, and native/library signatures;
+- exact substitution through nested types such as
+  `Promise<Result<Option<T>, E>>`;
+- invariant mutable containers and wrappers unless variance is explicitly
+  designed later;
+- rejection of recursive value containment without pointer/ref/handle
+  indirection;
+- complete layout, verifier, interpreter, JIT, GC-root, and diagnostic parity.
+
+`Result<T,E>`, `Option<T>`, and `Promise<T>` are canonical generic language types,
+not unrelated hard-coded exceptions to the generic system.
+
+## `v0.6` language-completion scope
+
+Language completion includes all of the following as one dependency-ordered
+milestone family:
+
+1. concrete generics and canonical tagged generic layouts;
+2. `Result<T,E>`, `Option<T>`, and postfix `?`;
+3. `Promise<T>`, prefix `await`, and `async` functions;
+4. closures with captured lexical state;
+5. deterministic resource cleanup across return, propagation, suspension, and
+   cancellation.
+
+The async/error design below depends on the generic and closure work; it does
+not replace or postpone it.
+
+## Async functions and explicit failure design
+
+> **Design target for `v0.6`:** the syntax and semantics in this section are the
+> accepted language design, not functionality provided by the current `v0.5.4`
+> compiler. The transitional `System.Job` and `Standard.Promise` calls remain
+> documented in [Jobs, promises, and async design](Async.md).
+
+### `async` return modifier
+
+`async` is a prefix modifier on a function's declared return type. It appears
+immediately after the function's `:` or `::` marker, where return-type markers
+already belong:
+
+```simple
+module Example.Fetch
+
+import Standard.HTTP
+
+fetchBody :: async Result<string, HttpError> (url : string) {
+  response :: Response = await Standard.HTTP.get(url)?
+  return response.bodyText()
+}
+```
+
+The written return type is the function body's real result type. It is not
+written as `Promise<Result<string, HttpError>>`. Calling the function produces
+`Promise<Result<string, HttpError>>`; the compiler performs that wrapping as
+part of async lowering.
+
+`async` marks a function as suspendable. It is not part of a library member's
+name and does not create names such as `getAsync`. Both mutable (`:`) and
+immutable (`::`) function declarations may carry the modifier.
+
+### `await`
+
+`await` is a prefix expression keyword. Given `Promise<T>`, it suspends the
+enclosing async function until the promise completes and then produces `T`:
+
+```simple
+value :: Result<Response, HttpError> = await Standard.HTTP.get(url)
+```
+
+`await` is legal only within a function declared `async`. Awaiting a non-promise
+value, or using `await` in an ordinary function, is a compile error. Suspension
+must preserve typed locals, control-flow position, live GC roots, and owned
+resources; it must not block a VM worker thread as an implementation shortcut.
+
+### `Result<T, E>`
+
+`Result<T, E>` represents expected success or failure. The error type is always
+explicit; there is no default error type and no exception path hidden beside
+the return type.
+
+```simple
+readConfig :: Result<string, IoError> () {
+  // Produces Ok(string) or Err(IoError).
+}
+```
+
+Its two states are `Ok(T)` and `Err(E)`. Failure is an ordinary typed return
+value. Nothing throws and no stack unwinds invisibly. A Result-producing
+expression cannot be silently treated as `T`; consuming code must branch,
+propagate with `?`, return/store the Result, or explicitly discard it through a
+future deliberate discard form. An accidental unused Result is a diagnostic.
+
+### `Option<T>`
+
+`Option<T>` represents presence or absence without null:
+
+```simple
+findUser :: Option<User> (id : i32) {
+  // Produces Some(User) or None.
+}
+```
+
+Its two states are `Some(T)` and `None`. `None` carries no hidden default value.
+
+### `?` propagation
+
+`?` is a postfix propagation operator. It resolves a `Result` or `Option`
+immediately at the expression where it appears:
+
+- `Ok(value)?` and `Some(value)?` produce the plain inner value;
+- `Err(error)?` immediately returns `Err(error)` from the enclosing function;
+- `None?` immediately returns `None` from the enclosing function.
+
+Nothing after a propagated failure or absence executes. The value bound after
+`?` is never an unresolved `Result` or `Option`.
+
+For `Result<T, E>`, `?` is legal only when the enclosing function returns
+`Result<U, E>` with the same error type. For `Option<T>`, it is legal only when
+the enclosing function returns `Option<U>`. Using `?` in any other return shape
+is a compile error; there is no implicit conversion, default, or discarded
+error.
+
+### Composition
+
+`await` resolves time and `?` resolves failure. They compose in one expression:
+
+```simple
+response :: Response = await Standard.HTTP.get(url)?
+```
+
+This is equivalent to:
+
+```simple
+response :: Response = (await Standard.HTTP.get(url))?
+```
+
+The call returns `Promise<Result<Response, HttpError>>`; `await` produces the
+`Result`, and `?` either produces `Response` or returns `Err(HttpError)` from
+the enclosing function. The expression grammar must preserve this ordering
+rather than applying `?` to the promise.
+
+Async library APIs use natural operation names and explicit promise result
+types. LSP completion, hover, and signature help will label an operation as
+asynchronous and show `Promise<T>`; APIs will not encode async behavior in
+names such as `runAsync`, nor provide `.await()` library methods. Read-only
+pseudo-source definitions for editor navigation are specified in
+[Library pseudo-sources](library/README.md).
+
+### Promise completion, errors, and cancellation
+
+`Promise<T>` is its own language type and owns its asynchronous completion
+state. Its target states are:
+
+- `Pending`;
+- `Completed(T)`;
+- `Cancelled`.
+
+`Completed` means the producer finished and supplied its declared `T`; it does
+not mean that a domain operation succeeded. A fallible producer uses
+`Promise<Result<Value, Error>>`, which can therefore finish as either
+`Completed(Ok(value))` or `Completed(Err(error))`. The Promise does not inspect,
+catch, or reinterpret that Result.
+
+```simple
+result :: Result<Response, HttpError> = await Standard.HTTP.get(url)
+response :: Response = result?
+```
+
+The usual combined form is `await Standard.HTTP.get(url)?`, equivalent to
+`(await Standard.HTTP.get(url))?`. The user handles a completed `Err` by
+branching on the Result or propagates it with `?`. An async function declared
+`async Result<T,E>` completes its returned Promise with either `Ok(T)` or
+`Err(E)`.
+
+Expected operation failures do not create an untyped failed/rejected Promise
+state. Cancellation is different from a domain error and does not require every
+error enum to add a `Cancelled` variant. A plain `Promise<T>` is appropriate
+only when normal completion is infallible; recoverable producer failures require
+a Result (or another explicit sum type) inside `T`.
+
+When `await` observes `Completed(value)`, it produces `value`. When it observes
+`Pending`, it suspends and registers the continuation. When it observes
+`Cancelled`, it cancels the Promise of the enclosing async function, runs that
+frame's required cleanup, and executes no later statement in the frame. It does
+not synthesize `T`, convert cancellation to `Err(E)`, or throw an exception.
+Cancellation therefore propagates through an await chain as Promise state until
+code explicitly observes or isolates it through Promise control APIs.
+
+Resolution and cancellation race atomically; exactly one terminal state wins.
+Cancellation requests are idempotent, wake suspended continuations, and flow to
+the currently awaited child unless an explicit future shielding/detachment API
+says otherwise. A managed `Promise<T>` does not require public `close`; the VM
+retains it while pending/referenced and releases its runtime state after terminal
+observation and GC reachability permit cleanup.
+
+Resource cleanup remains mandatory across cancellation and suspension. Runtime
+traps are programmer/runtime faults, not expected Promise failures, and remain
+separate from `Result` and structured cancellation.
+
+## Procedure and pointer types
 
 ### Procedure types
 
@@ -1106,7 +1343,7 @@ Short imports such as `IO`, `FS`, `DL`, `Time`, `Buffer`, and `Channel` are reje
 | `System.Path` / `Standard.Path` | low-level and ergonomic path helpers |
 | `System.Random` / `Standard.Random` | raw RNG and high-level random helpers |
 | `System.Thread` | low-level thread helpers |
-| `System.Job` / `Standard.Promise` | experimental scalar jobs with run/spawn, await, poll, cancellation, state queries, and explicit close |
+| `System.Job` / `Standard.Promise` | transitional scalar jobs with run/spawn, library `await`, poll, cancellation, state queries, and explicit close; target `v0.6` uses typed `Promise<T>` plus the language `await` expression |
 | `System.Log` / `Standard.Log` | sink/level/file control and high-level log helpers |
 | `System.Buffer` / `System.Bytes` | low-level mutable buffers and byte helpers |
 | `Standard.Buffer` / `Standard.Bytes` | high-level buffer/byte helper modules, reserved as catalog modules |
@@ -1150,6 +1387,48 @@ Unsupported/rejected procedure cases include:
 - procedure values at extern ABI boundaries
 - procedure values inside unsupported list/array/generic emission paths
 - direct inline invocation of an anonymous function literal
+
+### `v0.6` closure design
+
+Closures are part of language completion because async jobs, callbacks, and
+resource-safe composition require behavior plus captured state. Function
+literals keep the existing `fn` procedure type and lexical body syntax:
+
+```simple
+main :: i32 () {
+  base :: i32 = 40
+  addBase :: fn i32 (value : i32) = (value) {
+    return base + value
+  }
+  return addBase(2)
+}
+```
+
+The target semantics are:
+
+- free lexical bindings referenced by the literal are captured automatically;
+- immutable bindings are captured by value;
+- mutable bindings are captured through a VM-owned rooted cell, so mutations
+  are visible to the defining scope and every closure sharing that binding;
+- an escaping closure extends the lifetime of its environment and mutable
+  cells; it never retains a raw pointer into an expired stack frame;
+- nested closures may capture an outer closure's environment;
+- closure environments participate in precise GC tracing and deterministic
+  cleanup of owned resources;
+- closure values are not implicitly comparable, serializable, or valid at an
+  extern/FFI boundary;
+- host worker threads do not execute closures or access their environments
+  directly; async closure execution resumes on VM-owned scheduler state.
+
+A closure's callable type remains `fn ReturnType (...)`. Capture layout is an
+implementation detail recorded in TAST/SIR/SBC metadata, not part of source type
+identity. Two literals with the same `fn` signature are callable through that
+signature but retain distinct environments.
+
+Closure completion requires tests for immutable and mutable capture, escaping
+lifetimes, nested environments, captures in generic specializations, GC during
+calls/suspension, async callbacks, cancellation, resource cleanup, and
+interpreter/JIT parity.
 
 ## Extern declarations and FFI ABI
 
@@ -1228,8 +1507,10 @@ Common rejected cases covered by tests include:
 
 Current tests intentionally reject or limit:
 
-- full generic function/artifact emission
-- generic specialization naming/emission paths
+- the planned `async` return modifier, `await` expression, and `?` propagation operator
+- language-level `Result<T, E>`, `Option<T>`, and `Promise<T>` execution semantics
+- inferred generic call emission, generic methods, and cross-module specialization
+- canonical tagged generic `Result`, `Option`, and `Promise` layouts
 - closure capture for procedure literals
 - procedure values at extern boundaries
 - procedure values in unsupported containers/generic contexts

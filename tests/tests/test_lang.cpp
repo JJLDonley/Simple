@@ -492,6 +492,14 @@ bool LangSimpleFixtureReservedProcess() {
   return RunSimpleFileExpectExit("tests/simple/reserved_process.simple", 0);
 }
 
+bool LangSimpleFixtureGenericSpecialization() {
+  return RunSimpleFileExpectExit("tests/simple/generic_specialization.simple", 42);
+}
+
+bool LangGenericSpecializationAcrossImport() {
+  return RunCliSvm({"run", "tests/simple_modules/generic_import_main.simple"}) == 42;
+}
+
 bool LangSimpleFixtureReservedIoBuffer() {
   return RunSimpleFileExpectExit("tests/simple/reserved_io_buffer.simple", 0);
 }
@@ -716,7 +724,7 @@ bool LangStressProcedureExternBoundaryRejected() {
   return error.find("extern ABI parameter type is not supported") != std::string::npos;
 }
 
-bool LangStressProcedureGenericEmissionRejected() {
+bool LangStressProcedureGenericEmissionRuns() {
   const char* src =
       "id<T> : T (x : T) { return x }\n"
       "main : i32 () {\n"
@@ -725,28 +733,28 @@ bool LangStressProcedureGenericEmissionRejected() {
       "}";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("generic functions not supported") != std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         RunSirTextExpectExit(sir, 42);
 }
 
-bool LangGenericFunctionEmissionRejected() {
+bool LangGenericFunctionEmissionRuns() {
   const char* src =
       "id<T> : T (x : T) { return x }\n"
       "main : i32 () { return id<i32>(42) }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("generic functions not supported") != std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("id__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
-bool LangGenericArtifactEmissionRejected() {
+bool LangGenericArtifactEmissionRuns() {
   const char* src =
       "Box<T> :: artifact { v : T }\n"
       "main : i32 () { b : Box<i32> = { 42 }; return b.v }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("unsupported type for local 'b'") != std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("Box__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
 bool LangGenericMethodParseRejected() {
@@ -766,27 +774,32 @@ bool LangGenericTypeArgInferenceEmissionRejected() {
   std::string sir;
   std::string error;
   if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("generic functions not supported") != std::string::npos;
+  return error.find("generic call type inference is not yet available for emission") !=
+         std::string::npos;
 }
 
-bool LangGenericSpecializationNamingRejected() {
+bool LangGenericSpecializationNamingRuns() {
   const char* src =
       "id<T> : T (x : T) { return x }\n"
       "main : i32 () { a : i32 = id<i32>(1); b : bool = id<bool>(true); return a }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("generic functions not supported") != std::string::npos;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
+  const size_t first = sir.find("sig id__g_");
+  return first != std::string::npos && sir.find("sig id__g_", first + 1) != std::string::npos &&
+         RunSirTextExpectExit(sir, 1);
 }
 
-bool LangGenericDuplicateSpecializationRejected() {
+bool LangGenericDuplicateSpecializationReusesSymbol() {
   const char* src =
       "id<T> : T (x : T) { return x }\n"
       "main : i32 () { a : i32 = id<i32>(1); b : i32 = id<i32>(2); return a + b }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("generic functions not supported") != std::string::npos;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
+  const size_t first = sir.find("sig id__g_");
+  return first != std::string::npos && sir.find("sig id__g_", first + 1) == std::string::npos &&
+         RunSirTextExpectExit(sir, 3);
 }
 
 bool LangStressProcedureArgTypeStrict() {
@@ -1627,7 +1640,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
       {"docs/Language.md", "## File/module headers", "Name :: namespace { ... }"},
       {"docs/Byte.md", "## Table of contents", "## Verifier contract"},
       {"docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
-      {"docs/Async.md", "# Jobs and promises", "## Async value and GC boundary"},
+      {"docs/Async.md", "# Jobs, promises, and async design", "## Async value and GC boundary"},
       {"docs/JIT.md", "## Table of contents", "## Correctness rule"},
       {"docs/CLI.md", "## Table of contents", "## Input types"},
       {"docs/Standards.md", "# Simple Project Coding Standards", "## 13. Continuous Cleanup Gate"},
@@ -3684,6 +3697,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
   {"lang_simple_fixture_reserved_job_promise", LangSimpleFixtureReservedJobPromise},
   {"lang_simple_fixture_reserved_process", LangSimpleFixtureReservedProcess},
+  {"lang_simple_fixture_generic_specialization", LangSimpleFixtureGenericSpecialization},
+  {"lang_generic_specialization_across_import", LangGenericSpecializationAcrossImport},
   {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
@@ -3697,13 +3712,14 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_nested_closure_rejected", LangStressProcedureNestedClosureRejected},
   {"lang_stress_procedure_list_array_rejected", LangStressProcedureListArrayRejected},
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
-  {"lang_stress_procedure_generic_emission_rejected", LangStressProcedureGenericEmissionRejected},
-  {"lang_generic_function_emission_rejected", LangGenericFunctionEmissionRejected},
-  {"lang_generic_artifact_emission_rejected", LangGenericArtifactEmissionRejected},
+  {"lang_stress_procedure_generic_emission_runs", LangStressProcedureGenericEmissionRuns},
+  {"lang_generic_function_emission_runs", LangGenericFunctionEmissionRuns},
+  {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_method_parse_rejected", LangGenericMethodParseRejected},
   {"lang_generic_type_arg_inference_emission_rejected", LangGenericTypeArgInferenceEmissionRejected},
-  {"lang_generic_specialization_naming_rejected", LangGenericSpecializationNamingRejected},
-  {"lang_generic_duplicate_specialization_rejected", LangGenericDuplicateSpecializationRejected},
+  {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},
+  {"lang_generic_duplicate_specialization_reuses_symbol",
+   LangGenericDuplicateSpecializationReusesSymbol},
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
   {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},
