@@ -188,6 +188,220 @@ bool CollectFromFunction(const Simple::Lang::AST::FuncDecl& fn,
   return CollectFromStmtList(fn.body, out);
 }
 
+const Simple::Lang::AST::ArtifactDecl* FindArtifactForMethodCollection(
+    const Simple::Lang::AST::Program& program,
+    const std::string& name) {
+  for (const auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact && decl.artifact.name == name) {
+      return &decl.artifact;
+    }
+  }
+  return nullptr;
+}
+
+const Simple::Lang::AST::FuncDecl* FindGenericMethodForCollection(
+    const Simple::Lang::AST::ArtifactDecl* artifact,
+    const std::string& name) {
+  if (!artifact) return nullptr;
+  for (const auto& method : artifact->methods) {
+    if (method.name == name && !method.generics.empty()) return &method;
+  }
+  return nullptr;
+}
+
+using MethodTypeScope = std::unordered_map<std::string, Simple::Lang::AST::TypeRef>;
+
+bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
+                             const Simple::Lang::AST::Program& program,
+                             const MethodTypeScope& scope,
+                             const Simple::Lang::AST::ArtifactDecl* current_artifact,
+                             Simple::Lang::AST::TypeRef* out) {
+  if (!out) return false;
+  if (expr.kind == Simple::Lang::AST::ExprKind::Identifier) {
+    if (expr.text == "self" && current_artifact) {
+      out->name = current_artifact->name;
+      out->type_args.clear();
+      for (const auto& generic : current_artifact->generics) {
+        Simple::Lang::AST::TypeRef argument;
+        argument.name = generic;
+        out->type_args.push_back(std::move(argument));
+      }
+      return true;
+    }
+    const auto it = scope.find(expr.text);
+    if (it == scope.end()) return false;
+    return Simple::Lang::TAST::CloneTypeRef(it->second, out);
+  }
+  if (expr.kind == Simple::Lang::AST::ExprKind::Index && !expr.children.empty()) {
+    Simple::Lang::AST::TypeRef container;
+    if (!InferMethodReceiverType(expr.children[0], program, scope, current_artifact, &container) ||
+        container.dims.empty()) {
+      return false;
+    }
+    container.dims.erase(container.dims.begin());
+    return Simple::Lang::TAST::CloneTypeRef(container, out);
+  }
+  if (expr.kind != Simple::Lang::AST::ExprKind::Member || expr.children.empty()) return false;
+  Simple::Lang::AST::TypeRef base_type;
+  if (!InferMethodReceiverType(expr.children[0], program, scope, current_artifact, &base_type)) {
+    return false;
+  }
+  const auto* artifact = FindArtifactForMethodCollection(program, base_type.name);
+  if (!artifact) return false;
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  if (!Simple::Lang::TAST::BuildArtifactTypeParamMap(base_type, artifact, &substitutions, nullptr)) {
+    return false;
+  }
+  for (const auto& field : artifact->fields) {
+    if (field.name == expr.text) {
+      return Simple::Lang::TAST::SubstituteTypeParams(field.type, substitutions, out);
+    }
+  }
+  return false;
+}
+
+bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
+                                   const Simple::Lang::AST::Program& program,
+                                   const MethodTypeScope& scope,
+                                   const Simple::Lang::AST::ArtifactDecl* current_artifact,
+                                   std::vector<GenericInstantiationRequest>* out);
+
+bool CollectMethodRequestsFromStatements(
+    const std::vector<Simple::Lang::AST::Stmt>& statements,
+    const Simple::Lang::AST::Program& program,
+    MethodTypeScope scope,
+    const Simple::Lang::AST::ArtifactDecl* current_artifact,
+    std::vector<GenericInstantiationRequest>* out) {
+  for (const auto& statement : statements) {
+    if (!CollectMethodRequestsFromExpr(statement.expr, program, scope, current_artifact, out) ||
+        !CollectMethodRequestsFromExpr(statement.target, program, scope, current_artifact, out) ||
+        !CollectMethodRequestsFromExpr(statement.if_cond, program, scope, current_artifact, out) ||
+        !CollectMethodRequestsFromExpr(statement.loop_iter, program, scope, current_artifact, out) ||
+        !CollectMethodRequestsFromExpr(statement.loop_cond, program, scope, current_artifact, out) ||
+        !CollectMethodRequestsFromExpr(statement.loop_step, program, scope, current_artifact, out)) {
+      return false;
+    }
+    if (statement.var_decl.has_init_expr &&
+        !CollectMethodRequestsFromExpr(statement.var_decl.init_expr, program, scope,
+                                       current_artifact, out)) {
+      return false;
+    }
+    for (const auto& branch : statement.if_branches) {
+      if (!CollectMethodRequestsFromExpr(branch.first, program, scope, current_artifact, out) ||
+          !CollectMethodRequestsFromStatements(branch.second, program, scope, current_artifact, out)) {
+        return false;
+      }
+    }
+    MethodTypeScope loop_scope = scope;
+    if (statement.has_loop_var_decl) {
+      loop_scope[statement.loop_var_decl.name] = statement.loop_var_decl.type;
+    }
+    if (!CollectMethodRequestsFromStatements(statement.else_branch, program, scope,
+                                              current_artifact, out) ||
+        !CollectMethodRequestsFromStatements(statement.if_then, program, scope,
+                                              current_artifact, out) ||
+        !CollectMethodRequestsFromStatements(statement.if_else, program, scope,
+                                              current_artifact, out) ||
+        !CollectMethodRequestsFromStatements(statement.loop_body, program, std::move(loop_scope),
+                                              current_artifact, out)) {
+      return false;
+    }
+    if (statement.kind == Simple::Lang::AST::StmtKind::VarDecl) {
+      scope[statement.var_decl.name] = statement.var_decl.type;
+    }
+  }
+  return true;
+}
+
+bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
+                                   const Simple::Lang::AST::Program& program,
+                                   const MethodTypeScope& scope,
+                                   const Simple::Lang::AST::ArtifactDecl* current_artifact,
+                                   std::vector<GenericInstantiationRequest>* out) {
+  if (expr.kind == Simple::Lang::AST::ExprKind::Call && !expr.children.empty()) {
+    const auto& callee = expr.children[0];
+    if (callee.kind == Simple::Lang::AST::ExprKind::Member && !callee.children.empty()) {
+      Simple::Lang::AST::TypeRef receiver;
+      if (InferMethodReceiverType(callee.children[0], program, scope, current_artifact, &receiver)) {
+        const auto* artifact = FindArtifactForMethodCollection(program, receiver.name);
+        const auto* method = FindGenericMethodForCollection(artifact, callee.text);
+        if (artifact && method && expr.type_args.size() == method->generics.size()) {
+          GenericInstantiationRequest request;
+          request.base_name = artifact->name + "." + method->name;
+          request.line = callee.line;
+          request.column = callee.column;
+          for (const auto& argument : receiver.type_args) {
+            request.argument_identities.push_back(TypeRefIdentity(argument));
+            request.argument_types.push_back(argument);
+          }
+          for (const auto& argument : expr.type_args) {
+            request.argument_identities.push_back(TypeRefIdentity(argument));
+            request.argument_types.push_back(argument);
+          }
+          out->push_back(std::move(request));
+        }
+      }
+    }
+  }
+  for (const auto& child : expr.children) {
+    if (!CollectMethodRequestsFromExpr(child, program, scope, current_artifact, out)) return false;
+  }
+  for (const auto& argument : expr.args) {
+    if (!CollectMethodRequestsFromExpr(argument, program, scope, current_artifact, out)) return false;
+  }
+  for (const auto& value : expr.field_values) {
+    if (!CollectMethodRequestsFromExpr(value, program, scope, current_artifact, out)) return false;
+  }
+  for (const auto& branch : expr.switch_branches) {
+    if ((!branch.is_default &&
+         !CollectMethodRequestsFromExpr(branch.condition, program, scope, current_artifact, out)) ||
+        (branch.has_inline_value &&
+         !CollectMethodRequestsFromExpr(branch.value, program, scope, current_artifact, out)) ||
+        !CollectMethodRequestsFromStatements(branch.block, program, scope, current_artifact, out)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CollectMethodInstantiationRequests(const Simple::Lang::AST::Program& program,
+                                        std::vector<GenericInstantiationRequest>* out) {
+  MethodTypeScope globals;
+  for (const auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Variable) globals[decl.var.name] = decl.var.type;
+  }
+  for (const auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Function && decl.func.generics.empty()) {
+      MethodTypeScope scope = globals;
+      for (const auto& param : decl.func.params) scope[param.name] = param.type;
+      if (!CollectMethodRequestsFromStatements(decl.func.body, program, std::move(scope), nullptr, out)) {
+        return false;
+      }
+    } else if (decl.kind == Simple::Lang::AST::DeclKind::Artifact &&
+               decl.artifact.generics.empty()) {
+      for (const auto& method : decl.artifact.methods) {
+        if (!method.generics.empty()) continue;
+        MethodTypeScope scope = globals;
+        for (const auto& param : method.params) scope[param.name] = param.type;
+        if (!CollectMethodRequestsFromStatements(method.body, program, std::move(scope),
+                                                  &decl.artifact, out)) {
+          return false;
+        }
+      }
+    } else if (decl.kind == Simple::Lang::AST::DeclKind::Module) {
+      for (const auto& function : decl.module.functions) {
+        if (!function.generics.empty()) continue;
+        MethodTypeScope scope = globals;
+        for (const auto& param : function.params) scope[param.name] = param.type;
+        if (!CollectMethodRequestsFromStatements(function.body, program, std::move(scope), nullptr, out)) {
+          return false;
+        }
+      }
+    }
+  }
+  return CollectMethodRequestsFromStatements(program.top_level_stmts, program, globals, nullptr, out);
+}
+
 bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
                                       std::vector<GenericInstantiationRequest>* out) {
   if (!out) return false;
@@ -227,7 +441,8 @@ bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
         break;
     }
   }
-  return CollectFromStmtList(program.top_level_stmts, out);
+  return CollectFromStmtList(program.top_level_stmts, out) &&
+         CollectMethodInstantiationRequests(program, out);
 }
 
 bool ApplySubstitutionToExpr(Simple::Lang::AST::Expr* expr,
@@ -321,19 +536,12 @@ bool ApplySubstitutionToFunction(Simple::Lang::AST::FuncDecl* fn,
   return true;
 }
 
-bool ArtifactHasGenericMethods(const Simple::Lang::AST::ArtifactDecl& artifact) {
-  for (const auto& method : artifact.methods) {
-    if (!method.generics.empty()) return true;
-  }
-  return false;
-}
-
 bool IsConcreteDeclForMaterialization(const Simple::Lang::AST::Decl& decl) {
   switch (decl.kind) {
     case Simple::Lang::AST::DeclKind::Function:
       return decl.func.generics.empty();
     case Simple::Lang::AST::DeclKind::Artifact:
-      return decl.artifact.generics.empty() && !ArtifactHasGenericMethods(decl.artifact);
+      return decl.artifact.generics.empty();
     default:
       return true;
   }
@@ -755,9 +963,26 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
           }
           break;
         }
-        case Simple::Lang::TAST::GenericDeclarationKind::Method:
-          if (error) *error = "generic method specialization requires receiver specialization";
-          return false;
+        case Simple::Lang::TAST::GenericDeclarationKind::Method: {
+          const auto* artifact = FindArtifactDecl(program, plan.declaration.owner_name);
+          const auto* method = FindGenericMethodForCollection(artifact, plan.declaration.name);
+          if (!artifact || !method) {
+            if (error) {
+              *error = "missing generic method declaration: " + plan.declaration.owner_name +
+                       "." + plan.declaration.name;
+            }
+            return false;
+          }
+          Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+          if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
+          Simple::Lang::AST::FuncDecl specialized = *method;
+          specialized.generics.clear();
+          if (!ApplySubstitutionToFunction(&specialized, substitutions) ||
+              !CollectFromFunction(specialized, &dependencies)) {
+            return false;
+          }
+          break;
+        }
       }
     }
     requests = std::move(unique_requests);
@@ -853,9 +1078,14 @@ bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& 
   for (auto& field : out->fields) {
     if (!ApplySubstitutionToVar(&field, substitutions)) return false;
   }
+  std::vector<Simple::Lang::AST::FuncDecl> concrete_methods;
+  concrete_methods.reserve(out->methods.size());
   for (auto& method : out->methods) {
+    if (!method.generics.empty()) continue;
     if (!ApplySubstitutionToFunction(&method, substitutions)) return false;
+    concrete_methods.push_back(std::move(method));
   }
+  out->methods = std::move(concrete_methods);
   if (error) error->clear();
   return true;
 }
@@ -869,6 +1099,15 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   out->top_level_stmts = source.top_level_stmts;
   for (const auto& decl : source.decls) {
     if (!IsConcreteDeclForMaterialization(decl)) continue;
+    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact) {
+      Simple::Lang::AST::Decl concrete_artifact = decl;
+      concrete_artifact.artifact.methods.clear();
+      for (const auto& method : decl.artifact.methods) {
+        if (method.generics.empty()) concrete_artifact.artifact.methods.push_back(method);
+      }
+      out->decls.push_back(std::move(concrete_artifact));
+      continue;
+    }
     if (decl.kind != Simple::Lang::AST::DeclKind::Module) {
       out->decls.push_back(decl);
       continue;
@@ -928,9 +1167,69 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         out->decls.push_back(std::move(decl));
         break;
       }
-      case Simple::Lang::TAST::GenericDeclarationKind::Method:
-        if (error) *error = "generic method materialization requires receiver specialization";
-        return false;
+      case Simple::Lang::TAST::GenericDeclarationKind::Method: {
+        const auto* source_artifact = FindArtifactDecl(source, plan.declaration.owner_name);
+        const auto* source_method =
+            FindGenericMethodForCollection(source_artifact, plan.declaration.name);
+        if (!source_artifact || !source_method) {
+          if (error) {
+            *error = "missing generic method declaration: " + plan.declaration.owner_name +
+                     "." + plan.declaration.name;
+          }
+          return false;
+        }
+        Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+        if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
+        Simple::Lang::AST::FuncDecl specialized = *source_method;
+        specialized.name = LocalSpecializedSymbol(plan.specialized_symbol);
+        specialized.generics.clear();
+        if (!ApplySubstitutionToFunction(&specialized, substitutions)) return false;
+
+        std::string receiver_name = source_artifact->name;
+        if (!source_artifact->generics.empty()) {
+          GenericInstantiationRequest receiver_request;
+          receiver_request.base_name = source_artifact->name;
+          const size_t receiver_arg_count = source_artifact->generics.size();
+          if (plan.request.argument_types.size() < receiver_arg_count) {
+            if (error) *error = "generic method receiver specialization metadata is incomplete";
+            return false;
+          }
+          receiver_request.argument_types.assign(plan.request.argument_types.begin(),
+                                                 plan.request.argument_types.begin() + receiver_arg_count);
+          receiver_request.argument_identities.assign(plan.request.argument_identities.begin(),
+                                                      plan.request.argument_identities.begin() + receiver_arg_count);
+          const std::string receiver_key = InstantiationRequestKey(receiver_request);
+          bool found_receiver_plan = false;
+          for (const auto& candidate : plans) {
+            if ((candidate.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Artifact ||
+                 candidate.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Data) &&
+                InstantiationRequestKey(candidate.request) == receiver_key) {
+              receiver_name = candidate.specialized_symbol;
+              found_receiver_plan = true;
+              break;
+            }
+          }
+          if (!found_receiver_plan) {
+            if (error) *error = "generic method receiver specialization is missing: " + receiver_key;
+            return false;
+          }
+        }
+
+        bool found_receiver = false;
+        for (auto& output_decl : out->decls) {
+          if (output_decl.kind == Simple::Lang::AST::DeclKind::Artifact &&
+              output_decl.artifact.name == receiver_name) {
+            output_decl.artifact.methods.push_back(std::move(specialized));
+            found_receiver = true;
+            break;
+          }
+        }
+        if (!found_receiver) {
+          if (error) *error = "generic method receiver was not materialized: " + receiver_name;
+          return false;
+        }
+        break;
+      }
     }
   }
   std::unordered_map<std::string, std::string> specialized_symbols;
@@ -970,6 +1269,16 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     }
     return true;
   };
+
+  std::vector<GenericInstantiationRequest> method_rewrite_requests;
+  if (!CollectMethodInstantiationRequests(source, &method_rewrite_requests)) return false;
+  std::unordered_map<uint64_t, std::string> specialized_method_symbols;
+  for (const auto& request : method_rewrite_requests) {
+    const uint64_t location = (static_cast<uint64_t>(request.line) << 32u) |
+                              static_cast<uint64_t>(request.column);
+    specialized_method_symbols[location] =
+        LocalSpecializedSymbol(SpecializedSymbolName(request));
+  }
 
   auto rewrite_var = [&](auto&& rewrite_expr, auto&& rewrite_type_fn,
                          Simple::Lang::AST::VarDecl* var) -> bool {
@@ -1014,7 +1323,18 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     if (!expr) return false;
     bool rewrote_specialized_call = false;
     if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->children.empty() &&
-        !expr->type_args.empty()) {
+        expr->children[0].kind == Simple::Lang::AST::ExprKind::Member) {
+      const uint64_t location = (static_cast<uint64_t>(expr->children[0].line) << 32u) |
+                                static_cast<uint64_t>(expr->children[0].column);
+      const auto method_it = specialized_method_symbols.find(location);
+      if (method_it != specialized_method_symbols.end()) {
+        expr->children[0].text = method_it->second;
+        expr->type_args.clear();
+        rewrote_specialized_call = true;
+      }
+    }
+    if (!rewrote_specialized_call && expr->kind == Simple::Lang::AST::ExprKind::Call &&
+        !expr->children.empty() && !expr->type_args.empty()) {
       const std::string callee = CalleeName(expr->children[0]);
       const auto it = specialized_symbols.find(build_key(callee, expr->type_args));
       if (it != specialized_symbols.end()) {

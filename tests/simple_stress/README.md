@@ -16,6 +16,7 @@ VM, then validates a known result.
 | `self_lexer.simple` | file I/O, string indexing, state machines, EOF tracking |
 | `generic_composition.simple` | nested specialization, inferred calls, generic lists and methods |
 | `module_generic_composition.simple` | namespace-owned generic specialization across collections and artifacts |
+| `generic_methods.simple` | inferred/explicit generic methods, generic receivers, indexed receivers |
 
 Workloads are deliberately bounded so they remain suitable for normal CI while
 still reaching runtime paths that small fixtures miss. Increase loop counts and

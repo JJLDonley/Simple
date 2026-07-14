@@ -1,0 +1,41 @@
+module Tests.Stress.GenericMethods
+
+Box<T> :: artifact {
+  value : T
+
+  choose<U> :: U (other : U) {
+    return other
+  }
+
+  keep<U> :: T (ignored : U) {
+    return self.value
+  }
+}
+
+Router :: artifact {
+  echo<T> :: T (value : T) {
+    return value
+  }
+}
+
+main :: i32 () {
+  box : Box<i32> = { 40 }
+  total : i32 = 0
+  for (i : i32 = 0; i < 1000; i += 1) {
+    total += box.choose(i)
+  }
+  if (total != 499500) { return 1 }
+
+  yes :: bool = box.choose(true)
+  if (!yes) { return 2 }
+
+  boxes : Box<i32>[] = [box]
+  if (boxes[0].choose<i32>(2) != 2) { return 3 }
+
+  router : Router = {}
+  left :: i32 = router.echo(20)
+  right :: i32 = router.echo(22)
+  if (left + right != 42) { return 4 }
+
+  return box.keep(false) + boxes[0].choose<i32>(2) - 42
+}

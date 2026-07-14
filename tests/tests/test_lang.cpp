@@ -612,6 +612,10 @@ bool LangStressModuleGenericComposition() {
   return RunCliSvm({"run", "tests/simple_stress/module_generic_composition.simple"}) == 0;
 }
 
+bool LangStressGenericMethods() {
+  return RunCliSvm({"run", "tests/simple_stress/generic_methods.simple"}) == 0;
+}
+
 bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
@@ -816,14 +820,14 @@ bool LangGenericModuleFunctionEmissionRuns() {
          RunSirTextExpectExit(sir, 42);
 }
 
-bool LangGenericMethodParseRejected() {
+bool LangGenericMethodEmissionRuns() {
   const char* src =
-      "Box :: artifact { get<T> : T (x : T) { return x } }\n"
-      "main : i32 () { return 0 }";
-  Simple::Lang::Program program;
+      "Box<T> :: artifact { value : T; choose<U> :: U (other : U) { return other } }\n"
+      "main : i32 () { box : Box<i32> = { 40 }; return box.choose(42) }";
+  std::string sir;
   std::string error;
-  if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
-  return error.find("expected ':' or '::' after member name") != std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("choose__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
 bool LangGenericTypeArgInferenceEmissionRuns() {
@@ -3781,6 +3785,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_generic_composition", LangStressGenericComposition},
   {"lang_stress_generic_composition_jit", LangStressGenericCompositionJit},
   {"lang_stress_module_generic_composition", LangStressModuleGenericComposition},
+  {"lang_stress_generic_methods", LangStressGenericMethods},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
@@ -3817,7 +3822,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_function_emission_runs", LangGenericFunctionEmissionRuns},
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
-  {"lang_generic_method_parse_rejected", LangGenericMethodParseRejected},
+  {"lang_generic_method_emission_runs", LangGenericMethodEmissionRuns},
   {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},
   {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},
   {"lang_generic_duplicate_specialization_reuses_symbol",
