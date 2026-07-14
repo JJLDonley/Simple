@@ -139,6 +139,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/system_json.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_log.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_os.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/system_process.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/system_random.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/thread.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/time.cpp
@@ -364,6 +365,10 @@ target_include_directories(simple_stub PRIVATE
 )
 target_link_libraries(simple_stub PRIVATE simplevm_core_static)
 
+add_executable(simple_process_fixture
+  ${SIMPLEVM_ROOT}/tests/fixtures/process_child.cpp
+)
+
 add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_audit.cpp
   ${SIMPLEVM_TEST_ROOT}/test_core.cpp
@@ -378,6 +383,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_channel.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_fs.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_job.cpp
+  ${SIMPLEVM_TEST_ROOT}/vm/test_native_process.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_native_registry.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_abi.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_limits.cpp
@@ -416,8 +422,9 @@ target_compile_definitions(simplevm_tests PRIVATE
   SIMPLEVM_TEST_FFI_LIBRARY="${SIMPLEVM_TEST_FFI_LIBRARY}"
   SIMPLEVM_RUNTIME_SHARED_NAME="${SIMPLEVM_RUNTIME_SHARED_NAME}"
   SIMPLEVM_RUNTIME_STATIC_NAME="${SIMPLEVM_RUNTIME_STATIC_NAME}"
+  SIMPLEVM_PROCESS_FIXTURE="$<TARGET_FILE:simple_process_fixture>"
 )
-add_dependencies(simplevm_tests simpleffi_test simplevm_runtime_shared)
+add_dependencies(simplevm_tests simpleffi_test simple_process_fixture simplevm_runtime_shared)
 
 install(TARGETS simplevm simple_stub simplevm_core_static simplevm_core_shared simplevm_runtime_static simplevm_runtime_shared
   RUNTIME DESTINATION bin
@@ -446,6 +453,7 @@ simplevm_apply_warnings(simplevm_runtime_static)
 simplevm_apply_warnings(simplevm_runtime_shared)
 simplevm_apply_warnings(simplevm)
 simplevm_apply_warnings(simple_stub)
+simplevm_apply_warnings(simple_process_fixture)
 simplevm_apply_warnings(simplevm_tests)
 
 enable_testing()

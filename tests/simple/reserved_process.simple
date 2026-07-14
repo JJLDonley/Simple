@@ -1,0 +1,25 @@
+module Tests.Process
+
+import System.Process
+import Standard.Process
+import Standard.Promise
+
+main :: i32 () {
+  arguments : string[] = ["--version"]
+  text : string = Standard.Process.runText("build/bin/svm", arguments)
+  if (len(text) == 0) { return 1 }
+
+  child : i64 = System.Process.spawn("build/bin/svm", arguments)
+  if (child == 0) { return 2 }
+  if (System.Process.wait(child) != 0) { return 3 }
+  output : string = System.Process.stdout(child)
+  if (len(output) == 0) { return 4 }
+  if (System.Process.exitCode(child) != 0) { return 5 }
+  System.Process.close(child)
+
+  promise : i64 = Standard.Process.runAsync("build/bin/svm", arguments)
+  if (promise == 0) { return 6 }
+  if (Standard.Promise.await(promise) != 0) { return 7 }
+  Standard.Promise.close(promise)
+  return 0
+}

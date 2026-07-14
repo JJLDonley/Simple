@@ -41,6 +41,8 @@ There are no public compatibility aliases in the target model. Source imports mu
 
 The current `Standard.Promise` surface wraps runtime-owned `System.Job` handles. It is scalar-only, requires explicit `close`, and does not execute Simple closures on workers. See [Jobs and promises](Async.md).
 
+`Standard.Process` provides synchronous exit-status, text, and byte capture plus Promise-backed asynchronous execution. Async process jobs carry only copied host arguments, exit status, errors, cancellation state, and Promise identity across the worker boundary. See [Processes](Process.md).
+
 ## API documentation contract
 
 Every `Standard.*` API must document:

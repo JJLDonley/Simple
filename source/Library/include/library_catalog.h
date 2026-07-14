@@ -86,7 +86,17 @@ enum class SystemRandomMember { Seed, I32, I64, F64, FillBytes, Range };
 enum class SystemThreadMember { Yield, SleepMs, Sleep, HardwareConcurrency, Spawn, Join, Detach };
 enum class SystemJobMember { Spawn, SpawnFailed, Cancel, Poll, Await, Error, Close };
 enum class SystemChannelMember { NewI32, SendI32, TrySendI32, RecvI32, TryRecvI32, PendingI32, NewI64, SendI64, TrySendI64, RecvI64, TryRecvI64, PendingI64, NewF32, SendF32, TrySendF32, RecvF32, TryRecvF32, PendingF32, NewF64, SendF64, TrySendF64, RecvF64, TryRecvF64, PendingF64, NewBool, SendBool, TrySendBool, RecvBool, TryRecvBool, PendingBool, NewString, SendString, TrySendString, RecvString, TryRecvString, PendingString, NewBytes, SendBytes, TrySendBytes, RecvBytes, TryRecvBytes, PendingBytes, Close };
-enum class SystemProcessMember { Spawn, Wait, Kill, Stdin, Stdout, Stderr };
+enum class SystemProcessMember {
+  Spawn,
+  Wait,
+  Kill,
+  ExitCode,
+  Stdin,
+  CloseStdin,
+  Stdout,
+  Stderr,
+  Close,
+};
 enum class SystemNetMember { TcpConnect, TcpListen, Accept, Send, Recv, Close, UdpOpen, UdpSendTo, UdpRecvFrom };
 enum class SystemHTTPMember { ClientRequest, SetHeader, WriteBody, Send, ResponseStatus, ResponseBody, CloseResponse, ListenHttp, ListenHttps, Accept, WriteResponse, CloseServer };
 enum class SystemTerminalMember { Open, Close, EnterRaw, ExitRaw, EnterAltScreen, ExitAltScreen, Size, Clear, ClearLine, MoveCursor, ShowCursor, HideCursor, Write, WriteAt, Flush, PollEvent, ReadEvent };
@@ -106,7 +116,7 @@ enum class StandardMathMember { PI, Abs, Min, Max, Sqrt, Clamp, Lerp };
 enum class StandardRandomMember { Seed, I32, I64, Range, F64, Bool, Bytes, FillBytes };
 enum class StandardTimeMember { MonoNs, NowNs, SleepMs, FormatWallNs, MonoSnake, WallSnake };
 enum class StandardLogMember { Debug, Info, Warn, Error, SetLevel, SetFile };
-enum class StandardProcessMember { Run, RunText };
+enum class StandardProcessMember { Run, RunText, RunBytes, RunAsync };
 enum class StandardNetMember { Connect, Listen, Read, Write, Close };
 enum class StandardHTTPMember { Get, Post, Put, Delete, Serve };
 enum class StandardHTTPSMember { Get, Post, Serve };
@@ -589,9 +599,12 @@ inline std::string_view ToMember(SystemProcessMember member) {
     case SystemProcessMember::Spawn: return "spawn";
     case SystemProcessMember::Wait: return "wait";
     case SystemProcessMember::Kill: return "kill";
+    case SystemProcessMember::ExitCode: return "exitCode";
     case SystemProcessMember::Stdin: return "stdin";
+    case SystemProcessMember::CloseStdin: return "closeStdin";
     case SystemProcessMember::Stdout: return "stdout";
     case SystemProcessMember::Stderr: return "stderr";
+    case SystemProcessMember::Close: return "close";
   }
   return {};
 }
@@ -863,6 +876,8 @@ inline std::string_view ToMember(StandardProcessMember member) {
   switch (member) {
     case StandardProcessMember::Run: return "run";
     case StandardProcessMember::RunText: return "runText";
+    case StandardProcessMember::RunBytes: return "runBytes";
+    case StandardProcessMember::RunAsync: return "runAsync";
   }
   return {};
 }
@@ -1046,6 +1061,7 @@ inline std::string_view ToNativeModule(SystemModule module) {
     case SystemModule::Thread: return "System.Thread";
     case SystemModule::Job: return "System.Job";
     case SystemModule::Channel: return "System.Channel";
+    case SystemModule::Process: return "System.Process";
     default: return {};
   }
 }
@@ -1122,7 +1138,7 @@ inline std::vector<std::string_view> MemberNames(SystemModule module) {
     case SystemModule::Thread: return {ToMember(SystemThreadMember::Yield), ToMember(SystemThreadMember::SleepMs), ToMember(SystemThreadMember::Sleep), ToMember(SystemThreadMember::HardwareConcurrency), ToMember(SystemThreadMember::Spawn), ToMember(SystemThreadMember::Join), ToMember(SystemThreadMember::Detach)};
     case SystemModule::Job: return {ToMember(SystemJobMember::Spawn), ToMember(SystemJobMember::SpawnFailed), ToMember(SystemJobMember::Cancel), ToMember(SystemJobMember::Poll), ToMember(SystemJobMember::Await), ToMember(SystemJobMember::Error), ToMember(SystemJobMember::Close)};
     case SystemModule::Channel: return {ToMember(SystemChannelMember::NewI32), ToMember(SystemChannelMember::SendI32), ToMember(SystemChannelMember::TrySendI32), ToMember(SystemChannelMember::RecvI32), ToMember(SystemChannelMember::TryRecvI32), ToMember(SystemChannelMember::PendingI32), ToMember(SystemChannelMember::NewI64), ToMember(SystemChannelMember::SendI64), ToMember(SystemChannelMember::TrySendI64), ToMember(SystemChannelMember::RecvI64), ToMember(SystemChannelMember::TryRecvI64), ToMember(SystemChannelMember::PendingI64), ToMember(SystemChannelMember::NewF32), ToMember(SystemChannelMember::SendF32), ToMember(SystemChannelMember::TrySendF32), ToMember(SystemChannelMember::RecvF32), ToMember(SystemChannelMember::TryRecvF32), ToMember(SystemChannelMember::PendingF32), ToMember(SystemChannelMember::NewF64), ToMember(SystemChannelMember::SendF64), ToMember(SystemChannelMember::TrySendF64), ToMember(SystemChannelMember::RecvF64), ToMember(SystemChannelMember::TryRecvF64), ToMember(SystemChannelMember::PendingF64), ToMember(SystemChannelMember::NewBool), ToMember(SystemChannelMember::SendBool), ToMember(SystemChannelMember::TrySendBool), ToMember(SystemChannelMember::RecvBool), ToMember(SystemChannelMember::TryRecvBool), ToMember(SystemChannelMember::PendingBool), ToMember(SystemChannelMember::NewString), ToMember(SystemChannelMember::SendString), ToMember(SystemChannelMember::TrySendString), ToMember(SystemChannelMember::RecvString), ToMember(SystemChannelMember::TryRecvString), ToMember(SystemChannelMember::PendingString), ToMember(SystemChannelMember::NewBytes), ToMember(SystemChannelMember::SendBytes), ToMember(SystemChannelMember::TrySendBytes), ToMember(SystemChannelMember::RecvBytes), ToMember(SystemChannelMember::TryRecvBytes), ToMember(SystemChannelMember::PendingBytes), ToMember(SystemChannelMember::Close)};
-    case SystemModule::Process: return {ToMember(SystemProcessMember::Spawn), ToMember(SystemProcessMember::Wait), ToMember(SystemProcessMember::Kill), ToMember(SystemProcessMember::Stdin), ToMember(SystemProcessMember::Stdout), ToMember(SystemProcessMember::Stderr)};
+    case SystemModule::Process: return {ToMember(SystemProcessMember::Spawn), ToMember(SystemProcessMember::Wait), ToMember(SystemProcessMember::Kill), ToMember(SystemProcessMember::ExitCode), ToMember(SystemProcessMember::Stdin), ToMember(SystemProcessMember::CloseStdin), ToMember(SystemProcessMember::Stdout), ToMember(SystemProcessMember::Stderr), ToMember(SystemProcessMember::Close)};
     case SystemModule::Net: return {ToMember(SystemNetMember::TcpConnect), ToMember(SystemNetMember::TcpListen), ToMember(SystemNetMember::Accept), ToMember(SystemNetMember::Send), ToMember(SystemNetMember::Recv), ToMember(SystemNetMember::Close), ToMember(SystemNetMember::UdpOpen), ToMember(SystemNetMember::UdpSendTo), ToMember(SystemNetMember::UdpRecvFrom)};
     case SystemModule::HTTP: return {ToMember(SystemHTTPMember::ClientRequest), ToMember(SystemHTTPMember::SetHeader), ToMember(SystemHTTPMember::WriteBody), ToMember(SystemHTTPMember::Send), ToMember(SystemHTTPMember::ResponseStatus), ToMember(SystemHTTPMember::ResponseBody), ToMember(SystemHTTPMember::CloseResponse), ToMember(SystemHTTPMember::ListenHttp), ToMember(SystemHTTPMember::ListenHttps), ToMember(SystemHTTPMember::Accept), ToMember(SystemHTTPMember::WriteResponse), ToMember(SystemHTTPMember::CloseServer)};
     case SystemModule::Terminal: return {ToMember(SystemTerminalMember::Open), ToMember(SystemTerminalMember::Close), ToMember(SystemTerminalMember::EnterRaw), ToMember(SystemTerminalMember::ExitRaw), ToMember(SystemTerminalMember::EnterAltScreen), ToMember(SystemTerminalMember::ExitAltScreen), ToMember(SystemTerminalMember::Size), ToMember(SystemTerminalMember::Clear), ToMember(SystemTerminalMember::ClearLine), ToMember(SystemTerminalMember::MoveCursor), ToMember(SystemTerminalMember::ShowCursor), ToMember(SystemTerminalMember::HideCursor), ToMember(SystemTerminalMember::Write), ToMember(SystemTerminalMember::WriteAt), ToMember(SystemTerminalMember::Flush), ToMember(SystemTerminalMember::PollEvent), ToMember(SystemTerminalMember::ReadEvent)};
@@ -1147,7 +1163,7 @@ inline std::vector<std::string_view> MemberNames(StandardModule module) {
     case StandardModule::Random: return {ToMember(StandardRandomMember::Seed), ToMember(StandardRandomMember::I32), ToMember(StandardRandomMember::I64), ToMember(StandardRandomMember::Range), ToMember(StandardRandomMember::F64), ToMember(StandardRandomMember::Bool), ToMember(StandardRandomMember::Bytes), ToMember(StandardRandomMember::FillBytes)};
     case StandardModule::Time: return {ToMember(StandardTimeMember::MonoNs), ToMember(StandardTimeMember::NowNs), ToMember(StandardTimeMember::SleepMs), ToMember(StandardTimeMember::FormatWallNs), ToMember(StandardTimeMember::MonoSnake), ToMember(StandardTimeMember::WallSnake)};
     case StandardModule::Log: return {ToMember(StandardLogMember::Debug), ToMember(StandardLogMember::Info), ToMember(StandardLogMember::Warn), ToMember(StandardLogMember::Error), ToMember(StandardLogMember::SetLevel), ToMember(StandardLogMember::SetFile)};
-    case StandardModule::Process: return {ToMember(StandardProcessMember::Run), ToMember(StandardProcessMember::RunText)};
+    case StandardModule::Process: return {ToMember(StandardProcessMember::Run), ToMember(StandardProcessMember::RunText), ToMember(StandardProcessMember::RunBytes), ToMember(StandardProcessMember::RunAsync)};
     case StandardModule::Net: return {ToMember(StandardNetMember::Connect), ToMember(StandardNetMember::Listen), ToMember(StandardNetMember::Read), ToMember(StandardNetMember::Write), ToMember(StandardNetMember::Close)};
     case StandardModule::HTTP: return {ToMember(StandardHTTPMember::Get), ToMember(StandardHTTPMember::Post), ToMember(StandardHTTPMember::Put), ToMember(StandardHTTPMember::Delete), ToMember(StandardHTTPMember::Serve)};
     case StandardModule::HTTPS: return {ToMember(StandardHTTPSMember::Get), ToMember(StandardHTTPSMember::Post), ToMember(StandardHTTPSMember::Serve)};
@@ -1234,7 +1250,7 @@ inline std::optional<SystemMember> ParseMember(SystemModule module, std::string_
     case SystemModule::Thread: if (auto value = ParseEnumMember<SystemThreadMember>(member, {SystemThreadMember::Yield, SystemThreadMember::SleepMs, SystemThreadMember::Sleep, SystemThreadMember::HardwareConcurrency, SystemThreadMember::Spawn, SystemThreadMember::Join, SystemThreadMember::Detach})) return SystemMember(*value); break;
     case SystemModule::Job: if (auto value = ParseEnumMember<SystemJobMember>(member, {SystemJobMember::Spawn, SystemJobMember::SpawnFailed, SystemJobMember::Cancel, SystemJobMember::Poll, SystemJobMember::Await, SystemJobMember::Error, SystemJobMember::Close})) return SystemMember(*value); break;
     case SystemModule::Channel: if (auto value = ParseEnumMember<SystemChannelMember>(member, {SystemChannelMember::NewI32, SystemChannelMember::SendI32, SystemChannelMember::TrySendI32, SystemChannelMember::RecvI32, SystemChannelMember::TryRecvI32, SystemChannelMember::PendingI32, SystemChannelMember::NewI64, SystemChannelMember::SendI64, SystemChannelMember::TrySendI64, SystemChannelMember::RecvI64, SystemChannelMember::TryRecvI64, SystemChannelMember::PendingI64, SystemChannelMember::NewF32, SystemChannelMember::SendF32, SystemChannelMember::TrySendF32, SystemChannelMember::RecvF32, SystemChannelMember::TryRecvF32, SystemChannelMember::PendingF32, SystemChannelMember::NewF64, SystemChannelMember::SendF64, SystemChannelMember::TrySendF64, SystemChannelMember::RecvF64, SystemChannelMember::TryRecvF64, SystemChannelMember::PendingF64, SystemChannelMember::NewBool, SystemChannelMember::SendBool, SystemChannelMember::TrySendBool, SystemChannelMember::RecvBool, SystemChannelMember::TryRecvBool, SystemChannelMember::PendingBool, SystemChannelMember::NewString, SystemChannelMember::SendString, SystemChannelMember::TrySendString, SystemChannelMember::RecvString, SystemChannelMember::TryRecvString, SystemChannelMember::PendingString, SystemChannelMember::NewBytes, SystemChannelMember::SendBytes, SystemChannelMember::TrySendBytes, SystemChannelMember::RecvBytes, SystemChannelMember::TryRecvBytes, SystemChannelMember::PendingBytes, SystemChannelMember::Close})) return SystemMember(*value); break;
-    case SystemModule::Process: if (auto value = ParseEnumMember<SystemProcessMember>(member, {SystemProcessMember::Spawn, SystemProcessMember::Wait, SystemProcessMember::Kill, SystemProcessMember::Stdin, SystemProcessMember::Stdout, SystemProcessMember::Stderr})) return SystemMember(*value); break;
+    case SystemModule::Process: if (auto value = ParseEnumMember<SystemProcessMember>(member, {SystemProcessMember::Spawn, SystemProcessMember::Wait, SystemProcessMember::Kill, SystemProcessMember::ExitCode, SystemProcessMember::Stdin, SystemProcessMember::CloseStdin, SystemProcessMember::Stdout, SystemProcessMember::Stderr, SystemProcessMember::Close})) return SystemMember(*value); break;
     case SystemModule::Net: if (auto value = ParseEnumMember<SystemNetMember>(member, {SystemNetMember::TcpConnect, SystemNetMember::TcpListen, SystemNetMember::Accept, SystemNetMember::Send, SystemNetMember::Recv, SystemNetMember::Close, SystemNetMember::UdpOpen, SystemNetMember::UdpSendTo, SystemNetMember::UdpRecvFrom})) return SystemMember(*value); break;
     case SystemModule::HTTP: if (auto value = ParseEnumMember<SystemHTTPMember>(member, {SystemHTTPMember::ClientRequest, SystemHTTPMember::SetHeader, SystemHTTPMember::WriteBody, SystemHTTPMember::Send, SystemHTTPMember::ResponseStatus, SystemHTTPMember::ResponseBody, SystemHTTPMember::CloseResponse, SystemHTTPMember::ListenHttp, SystemHTTPMember::ListenHttps, SystemHTTPMember::Accept, SystemHTTPMember::WriteResponse, SystemHTTPMember::CloseServer})) return SystemMember(*value); break;
     case SystemModule::Terminal: if (auto value = ParseEnumMember<SystemTerminalMember>(member, {SystemTerminalMember::Open, SystemTerminalMember::Close, SystemTerminalMember::EnterRaw, SystemTerminalMember::ExitRaw, SystemTerminalMember::EnterAltScreen, SystemTerminalMember::ExitAltScreen, SystemTerminalMember::Size, SystemTerminalMember::Clear, SystemTerminalMember::ClearLine, SystemTerminalMember::MoveCursor, SystemTerminalMember::ShowCursor, SystemTerminalMember::HideCursor, SystemTerminalMember::Write, SystemTerminalMember::WriteAt, SystemTerminalMember::Flush, SystemTerminalMember::PollEvent, SystemTerminalMember::ReadEvent})) return SystemMember(*value); break;
@@ -1259,7 +1275,7 @@ inline std::optional<StandardMember> ParseMember(StandardModule module, std::str
     case StandardModule::Random: if (auto value = ParseEnumMember<StandardRandomMember>(member, {StandardRandomMember::Seed, StandardRandomMember::I32, StandardRandomMember::I64, StandardRandomMember::Range, StandardRandomMember::F64, StandardRandomMember::Bool, StandardRandomMember::Bytes, StandardRandomMember::FillBytes})) return StandardMember(*value); break;
     case StandardModule::Time: if (auto value = ParseEnumMember<StandardTimeMember>(member, {StandardTimeMember::MonoNs, StandardTimeMember::NowNs, StandardTimeMember::SleepMs, StandardTimeMember::FormatWallNs, StandardTimeMember::MonoSnake, StandardTimeMember::WallSnake})) return StandardMember(*value); break;
     case StandardModule::Log: if (auto value = ParseEnumMember<StandardLogMember>(member, {StandardLogMember::Debug, StandardLogMember::Info, StandardLogMember::Warn, StandardLogMember::Error, StandardLogMember::SetLevel, StandardLogMember::SetFile})) return StandardMember(*value); break;
-    case StandardModule::Process: if (auto value = ParseEnumMember<StandardProcessMember>(member, {StandardProcessMember::Run, StandardProcessMember::RunText})) return StandardMember(*value); break;
+    case StandardModule::Process: if (auto value = ParseEnumMember<StandardProcessMember>(member, {StandardProcessMember::Run, StandardProcessMember::RunText, StandardProcessMember::RunBytes, StandardProcessMember::RunAsync})) return StandardMember(*value); break;
     case StandardModule::Net: if (auto value = ParseEnumMember<StandardNetMember>(member, {StandardNetMember::Connect, StandardNetMember::Listen, StandardNetMember::Read, StandardNetMember::Write, StandardNetMember::Close})) return StandardMember(*value); break;
     case StandardModule::HTTP: if (auto value = ParseEnumMember<StandardHTTPMember>(member, {StandardHTTPMember::Get, StandardHTTPMember::Post, StandardHTTPMember::Put, StandardHTTPMember::Delete, StandardHTTPMember::Serve})) return StandardMember(*value); break;
     case StandardModule::HTTPS: if (auto value = ParseEnumMember<StandardHTTPSMember>(member, {StandardHTTPSMember::Get, StandardHTTPSMember::Post, StandardHTTPSMember::Serve})) return StandardMember(*value); break;
@@ -1587,8 +1603,30 @@ inline std::optional<LibrarySignatureSpec> GetSystemLibrarySignature(SystemModul
       }
       return std::nullopt;
     }
+    case SystemModule::Process: {
+      const auto m = std::get<SystemProcessMember>(*parsed);
+      switch (m) {
+        case SystemProcessMember::Spawn:
+          return LibrarySignature({LibraryParam("program", "string"),
+                                   LibraryParam("arguments", "string[]")}, "i64");
+        case SystemProcessMember::Wait:
+        case SystemProcessMember::ExitCode:
+          return LibrarySignature({LibraryParam("process", "i64")}, "i32");
+        case SystemProcessMember::Kill:
+          return LibrarySignature({LibraryParam("process", "i64")}, "bool");
+        case SystemProcessMember::Stdin:
+          return LibrarySignature({LibraryParam("process", "i64"),
+                                   LibraryParam("text", "string")}, "bool");
+        case SystemProcessMember::CloseStdin:
+        case SystemProcessMember::Close:
+          return LibrarySignature({LibraryParam("process", "i64")}, "void");
+        case SystemProcessMember::Stdout:
+        case SystemProcessMember::Stderr:
+          return LibrarySignature({LibraryParam("process", "i64")}, "string");
+      }
+      return std::nullopt;
+    }
     case SystemModule::ASM:
-    case SystemModule::Process:
     case SystemModule::Net:
     case SystemModule::HTTP:
     case SystemModule::Terminal:
@@ -1733,11 +1771,28 @@ inline std::optional<LibrarySignatureSpec> GetStandardLibrarySignature(StandardM
       }
       return std::nullopt;
     }
+    case StandardModule::Process: {
+      const auto m = std::get<StandardProcessMember>(*parsed);
+      switch (m) {
+        case StandardProcessMember::Run:
+          return LibrarySignature({LibraryParam("program", "string"),
+                                   LibraryParam("arguments", "string[]")}, "i32");
+        case StandardProcessMember::RunText:
+          return LibrarySignature({LibraryParam("program", "string"),
+                                   LibraryParam("arguments", "string[]")}, "string");
+        case StandardProcessMember::RunBytes:
+          return LibrarySignature({LibraryParam("program", "string"),
+                                   LibraryParam("arguments", "string[]")}, "i32[]");
+        case StandardProcessMember::RunAsync:
+          return LibrarySignature({LibraryParam("program", "string"),
+                                   LibraryParam("arguments", "string[]")}, "i64");
+      }
+      return std::nullopt;
+    }
     case StandardModule::Console:
     case StandardModule::Buffer:
     case StandardModule::Text:
     case StandardModule::Json:
-    case StandardModule::Process:
     case StandardModule::Net:
     case StandardModule::HTTP:
     case StandardModule::HTTPS:
@@ -1910,8 +1965,8 @@ inline bool IsImplementedSystemMember(SystemModule module, std::string_view memb
       return false;
     case SystemModule::Channel:
     case SystemModule::Job:
-      return true;
     case SystemModule::Process:
+      return true;
     case SystemModule::Net:
     case SystemModule::HTTP:
     case SystemModule::Terminal:

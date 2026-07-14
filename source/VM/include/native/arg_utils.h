@@ -13,6 +13,9 @@ namespace Simple::VM::Native {
 
 HeapObject* NativeArgHeapObject(NativeCallContext& context, size_t index);
 bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value);
+bool ReadStringSequence(NativeCallContext& context,
+                        size_t index,
+                        std::vector<std::string>* out);
 bool ReadByteSequence(NativeCallContext& context, size_t index, std::vector<int32_t>* out);
 Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values);
 void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value);

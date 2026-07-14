@@ -5467,6 +5467,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       !add_catalog_reserved_imports(standard_id(StandardModule::Promise),
                                     reserved_aliases_for_id(standard_id(StandardModule::Promise)))) return false;
 
+  if (has_reserved_module(system_id(SystemModule::Process)) &&
+      !add_catalog_reserved_imports(system_id(SystemModule::Process),
+                                    reserved_aliases_for_id(system_id(SystemModule::Process)))) return false;
+  if (has_reserved_module(standard_id(StandardModule::Process)) &&
+      !add_catalog_reserved_imports(standard_id(StandardModule::Process),
+                                    reserved_aliases_for_id(standard_id(StandardModule::Process)))) return false;
+
   if (has_reserved_module(system_id(SystemModule::Thread)) &&
       !add_catalog_reserved_imports(system_id(SystemModule::Thread),
                                     reserved_aliases_for_id(system_id(SystemModule::Thread)))) return false;

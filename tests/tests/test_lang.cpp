@@ -488,6 +488,10 @@ bool LangSimpleFixtureReservedJobPromise() {
   return RunSimpleFileExpectExit("tests/simple/reserved_job_promise.simple", 0);
 }
 
+bool LangSimpleFixtureReservedProcess() {
+  return RunSimpleFileExpectExit("tests/simple/reserved_process.simple", 0);
+}
+
 bool LangSimpleFixtureReservedIoBuffer() {
   return RunSimpleFileExpectExit("tests/simple/reserved_io_buffer.simple", 0);
 }
@@ -3679,6 +3683,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_reserved_io_buffer", LangSimpleFixtureReservedIoBuffer},
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
   {"lang_simple_fixture_reserved_job_promise", LangSimpleFixtureReservedJobPromise},
+  {"lang_simple_fixture_reserved_process", LangSimpleFixtureReservedProcess},
   {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},

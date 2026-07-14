@@ -11,6 +11,8 @@ its implementation.
 - [Standard library](Standard.md) — higher-level library modules.
 - [Jobs and promises](Async.md) — experimental async states, ownership, cancellation,
   blocking, and GC boundaries.
+- [Processes](Process.md) — process resources, captured streams, async execution, cleanup,
+  and cross-platform behavior.
 
 ## Toolchain
 

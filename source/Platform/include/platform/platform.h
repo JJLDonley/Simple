@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <ctime>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,39 @@ std::string NormalizeFileUriPath(std::string path);
 bool GetEnvironment(const std::string& name, std::string* value);
 bool SetEnvironment(const std::string& name, const std::string& value);
 bool UnsetEnvironment(const std::string& name);
+
+struct ProcessStartRequest {
+  std::string program;
+  std::vector<std::string> arguments;
+};
+
+class Process {
+ public:
+  struct Impl;
+
+  explicit Process(std::unique_ptr<Impl> impl);
+  ~Process();
+  Process(const Process&) = delete;
+  Process& operator=(const Process&) = delete;
+
+  bool Wait(int32_t* exit_code, std::string* error);
+  bool Poll(int32_t* exit_code, bool* exited, std::string* error);
+  bool Kill(std::string* error);
+  bool WriteStdin(const std::string& text, std::string* error);
+  bool CloseStdin(std::string* error);
+  std::string Stdout() const;
+  std::string Stderr() const;
+  bool Close(std::string* error);
+
+ private:
+  std::unique_ptr<Impl> impl_;
+
+  friend std::shared_ptr<Process> SpawnProcess(const ProcessStartRequest& request,
+                                                std::string* error);
+};
+
+std::shared_ptr<Process> SpawnProcess(const ProcessStartRequest& request,
+                                      std::string* error);
 
 int64_t OpenDynamicLibrary(const std::string& path, std::string* error);
 int64_t FindDynamicSymbol(int64_t handle, const std::string& name, std::string* error);

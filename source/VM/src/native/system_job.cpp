@@ -2,6 +2,7 @@
 #include "runtime/values.h"
 
 #include "native/arg_utils.h"
+#include "native/job.h"
 #include "native/spec_builder.h"
 
 #include <atomic>
@@ -16,6 +17,34 @@
 #include <utility>
 
 namespace Simple::VM::Native {
+
+NativeJobResult NativeJobResult::Success(int64_t value) {
+  NativeJobResult result;
+  result.value = value;
+  return result;
+}
+
+NativeJobResult NativeJobResult::Failure(std::string error) {
+  NativeJobResult result;
+  result.succeeded = false;
+  result.error = std::move(error);
+  return result;
+}
+
+bool NativeJobControl::CancellationRequested() const {
+  return cancellation_requested_.load(std::memory_order_acquire);
+}
+
+bool NativeJobControl::WaitFor(std::chrono::milliseconds duration) {
+  std::unique_lock<std::mutex> lock(wait_mutex_);
+  return wake_.wait_for(lock, duration, [this] { return CancellationRequested(); });
+}
+
+void NativeJobControl::RequestCancellation() {
+  cancellation_requested_.store(true, std::memory_order_release);
+  wake_.notify_all();
+}
+
 namespace {
 
 using Simple::VM::Runtime::AbiPromiseId;
@@ -26,25 +55,17 @@ using Simple::VM::Runtime::PromiseStatus;
 
 constexpr int32_t kMaximumJobDelayMs = 24 * 60 * 60 * 1000;
 
-enum class JobCompletion {
-  Resolve,
-  Fail,
-};
-
 struct JobResource {
   std::shared_ptr<PromiseRegistry> promises;
   AbiPromiseId promise;
-  std::atomic<bool> cancellation_requested{false};
+  std::shared_ptr<NativeJobControl> control = std::make_shared<NativeJobControl>();
   std::atomic<bool> released{false};
-  std::mutex wait_mutex;
-  std::condition_variable wake;
   std::thread worker;
 
   ~JobResource() { Shutdown(); }
 
   bool RequestCancel() {
-    cancellation_requested.store(true, std::memory_order_release);
-    wake.notify_all();
+    control->RequestCancellation();
     return promises && promises->Cancel(promise) == PromiseStatus::Ok;
   }
 
@@ -87,13 +108,8 @@ int32_t PromiseStateCode(PromiseState state) {
   return -1;
 }
 
-NativeCallResult StartJob(NativeCallContext& context,
-                          int32_t delay_ms,
-                          JobCompletion completion,
-                          int64_t result,
-                          std::string error) {
-  if (!context.resource_registry || !context.promise_registry || delay_ms < 0 ||
-      delay_ms > kMaximumJobDelayMs) {
+NativeCallResult StartJobTask(NativeCallContext& context, NativeJobTask task) {
+  if (!context.resource_registry || !context.promise_registry || !task) {
     return NativeCallResult::Handle({});
   }
 
@@ -115,20 +131,19 @@ NativeCallResult StartJob(NativeCallContext& context,
   }
 
   try {
-    job->worker = std::thread([job, delay_ms, completion, result,
-                               error = std::move(error)]() mutable {
-      std::unique_lock<std::mutex> lock(job->wait_mutex);
-      const bool canceled = job->wake.wait_for(
-          lock, std::chrono::milliseconds(delay_ms), [&] {
-            return job->cancellation_requested.load(std::memory_order_acquire);
-          });
-      lock.unlock();
-      if (canceled) {
+    job->worker = std::thread([job, task = std::move(task)]() mutable {
+      NativeJobResult outcome;
+      try {
+        outcome = task(*job->control);
+      } catch (const std::exception& exception) {
+        outcome = NativeJobResult::Failure(exception.what());
+      }
+      if (job->control->CancellationRequested()) {
         (void)job->promises->Cancel(job->promise);
-      } else if (completion == JobCompletion::Fail) {
-        (void)job->promises->Fail(job->promise, std::move(error));
+      } else if (!outcome.succeeded) {
+        (void)job->promises->Fail(job->promise, std::move(outcome.error));
       } else {
-        (void)job->promises->Resolve(job->promise, static_cast<uint64_t>(result));
+        (void)job->promises->Resolve(job->promise, static_cast<uint64_t>(outcome.value));
       }
     });
   } catch (const std::exception& exception) {
@@ -143,19 +158,28 @@ NativeCallResult StartJob(NativeCallContext& context,
 NativeCallResult JobSpawn(NativeCallContext& context) {
   int32_t delay_ms = 0;
   int64_t result = 0;
-  if (!context.ArgI32(0, &delay_ms) || !context.ArgI64(1, &result)) {
+  if (!context.ArgI32(0, &delay_ms) || !context.ArgI64(1, &result) || delay_ms < 0 ||
+      delay_ms > kMaximumJobDelayMs) {
     return NativeCallResult::Handle({});
   }
-  return StartJob(context, delay_ms, JobCompletion::Resolve, result, {});
+  return StartJobTask(context, [delay_ms, result](NativeJobControl& control) {
+    (void)control.WaitFor(std::chrono::milliseconds(delay_ms));
+    return NativeJobResult::Success(result);
+  });
 }
 
 NativeCallResult JobSpawnFailed(NativeCallContext& context) {
   int32_t delay_ms = 0;
   std::string error;
-  if (!context.ArgI32(0, &delay_ms) || !context.ArgString(1, &error)) {
+  if (!context.ArgI32(0, &delay_ms) || !context.ArgString(1, &error) || delay_ms < 0 ||
+      delay_ms > kMaximumJobDelayMs) {
     return NativeCallResult::Handle({});
   }
-  return StartJob(context, delay_ms, JobCompletion::Fail, 0, std::move(error));
+  return StartJobTask(
+      context, [delay_ms, error = std::move(error)](NativeJobControl& control) mutable {
+        (void)control.WaitFor(std::chrono::milliseconds(delay_ms));
+        return NativeJobResult::Failure(std::move(error));
+      });
 }
 
 NativeCallResult JobCancel(NativeCallContext& context) {
@@ -306,6 +330,10 @@ void RegisterPromiseSurface(NativeRegistry& registry) {
 }
 
 } // namespace
+
+NativeCallResult StartNativeJob(NativeCallContext& context, NativeJobTask task) {
+  return StartJobTask(context, std::move(task));
+}
 
 void RegisterSystemJob(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;

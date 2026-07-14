@@ -32,7 +32,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `System.Thread` | OS/runtime thread primitives | native `System.Thread` surface |
 | `System.Job` | VM jobs/promises | experimental runtime-owned jobs and synchronized promise registry |
 | `System.Channel` | low-level typed channels | runtime-owned channel handles |
-| `System.Process` | process spawning/control | planned |
+| `System.Process` | process spawning/control | experimental runtime-owned process handles |
 | `System.Net` | sockets/listeners | planned |
 | `System.HTTP` | low-level HTTP client/server handles | planned |
 | `System.Terminal` | terminal/raw mode/events | planned |
@@ -60,11 +60,13 @@ Every public `System.*` native function must declare:
 
 ## Resource lifecycle
 
-Current file, FFI library, JSON value, and channel resources are owned by the executing VM's native resource registry. Packed handles carry slot, generation, and runtime-owner identity. Native dispatch rejects null, foreign-runtime, stale, wrong-kind, and already-closed handles before ordinary input operations. Explicit close/free operations release host state and invalidate the handle; shutdown closes and finalizes any owned resource the program leaves live.
+Current file, FFI library, JSON value, channel, job, and process resources are owned by the executing VM's native resource registry. Packed handles carry slot, generation, and runtime-owner identity. Native dispatch rejects null, foreign-runtime, stale, wrong-kind, and already-closed handles before ordinary input operations. Explicit close/free operations release host state and invalidate the handle; shutdown closes and finalizes any owned resource the program leaves live.
 
 Borrowed text/byte views last only for one native call. Dynamic symbols last only while their owning FFI library remains open. Resource-returning functions declare transfer-to-caller plus VM-shutdown cleanup metadata, borrowed operations declare input metadata, and close/free operations declare transfer-to-callee plus required cleanup.
 
 `System.Job` handles use the same resource lifecycle. Shutdown cancels and wakes pending jobs, joins worker threads, and releases synchronized promise records. The experimental async API is documented in [Jobs and promises](Async.md).
+
+`System.Process` handles own child processes, standard-stream pipes, and output-drain workers. Explicit close or VM shutdown terminates a running child, reaps it, joins readers, and closes host handles. See [Processes](Process.md) for the API and cross-platform contract.
 
 ## Migration rule
 

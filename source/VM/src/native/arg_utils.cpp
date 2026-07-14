@@ -38,6 +38,30 @@ bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_va
   return true;
 }
 
+bool ReadStringSequence(NativeCallContext& context,
+                        size_t index,
+                        std::vector<std::string>* out) {
+  if (!out || !context.heap) return false;
+  HeapObject* sequence = NativeArgHeapObject(context, index);
+  if (!sequence || (sequence->header.kind != ObjectKind::List &&
+                    sequence->header.kind != ObjectKind::Array) ||
+      sequence->payload.size() < 4) {
+    return false;
+  }
+  const uint32_t length = ReadU32(sequence->payload, 0);
+  const size_t base = sequence->header.kind == ObjectKind::List ? 8u : 4u;
+  if (base + static_cast<size_t>(length) * 4u > sequence->payload.size()) return false;
+  out->clear();
+  out->reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    const uint32_t ref = ReadU32(sequence->payload, base + static_cast<size_t>(i) * 4u);
+    const HeapObject* value = context.heap->Get(ref);
+    if (!value || value->header.kind != ObjectKind::String) return false;
+    out->push_back(ReadStringAscii(value));
+  }
+  return true;
+}
+
 bool ReadByteSequence(NativeCallContext& context, size_t index, std::vector<int32_t>* out) {
   if (!out) return false;
   HeapObject* obj = NativeArgHeapObject(context, index);
