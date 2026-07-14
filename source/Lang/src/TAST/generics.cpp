@@ -126,7 +126,7 @@ bool ApplyTypeSubstitution(Simple::Lang::AST::TypeRef* type,
   if (!CloneTypeRef(it->second, &replacement)) return false;
   replacement.pointer_depth += type->pointer_depth;
   if (!type->dims.empty()) {
-    replacement.dims.insert(replacement.dims.end(), type->dims.begin(), type->dims.end());
+    replacement.dims.insert(replacement.dims.begin(), type->dims.begin(), type->dims.end());
   }
   *type = std::move(replacement);
   return true;
@@ -189,26 +189,27 @@ bool UnifyTypeParams(const Simple::Lang::AST::TypeRef& param,
                      GenericSubstitutionMap* mapping) {
   if (!mapping) return false;
   if (type_params.find(param.name) != type_params.end()) {
-    if (!param.dims.empty()) {
-      if (!TypeDimsEqual(param.dims, arg.dims)) return false;
-      Simple::Lang::AST::TypeRef base;
-      if (!CloneTypeRef(arg, &base)) return false;
-      base.dims.clear();
-      auto it = mapping->find(param.name);
-      if (it == mapping->end()) {
-        (*mapping)[param.name] = std::move(base);
-        return true;
-      }
-      return TypeEquals(it->second, base);
+    if (arg.pointer_depth < param.pointer_depth ||
+        arg.dims.size() < param.dims.size()) {
+      return false;
     }
+    for (size_t i = 0; i < param.dims.size(); ++i) {
+      if (param.dims[i].is_list != arg.dims[i].is_list ||
+          param.dims[i].has_size != arg.dims[i].has_size ||
+          (param.dims[i].has_size && param.dims[i].size != arg.dims[i].size)) {
+        return false;
+      }
+    }
+    Simple::Lang::AST::TypeRef base;
+    if (!CloneTypeRef(arg, &base)) return false;
+    base.pointer_depth -= param.pointer_depth;
+    base.dims.erase(base.dims.begin(), base.dims.begin() + param.dims.size());
     auto it = mapping->find(param.name);
     if (it == mapping->end()) {
-      Simple::Lang::AST::TypeRef copy;
-      if (!CloneTypeRef(arg, &copy)) return false;
-      (*mapping)[param.name] = std::move(copy);
+      (*mapping)[param.name] = std::move(base);
       return true;
     }
-    return TypeEquals(it->second, arg);
+    return TypeEquals(it->second, base);
   }
   if (param.pointer_depth != arg.pointer_depth) return false;
   if (param.is_optional_syntax != arg.is_optional_syntax) return false;
@@ -229,35 +230,6 @@ bool UnifyTypeParams(const Simple::Lang::AST::TypeRef& param,
     } else if (param.proc_return || arg.proc_return) {
       return false;
     }
-  }
-  return true;
-}
-
-bool SubstituteGenericTypes(const Simple::Lang::AST::TypeRef& input,
-                            const GenericSubstitutionMap& substitutions,
-                            Simple::Lang::AST::TypeRef* out) {
-  if (!out) return false;
-  auto it = substitutions.find(input.name);
-  if (it != substitutions.end() && input.pointer_depth == 0 && input.dims.empty() &&
-      input.type_args.empty() && !input.is_proc) {
-    *out = it->second;
-    return true;
-  }
-  *out = input;
-  for (auto& arg : out->type_args) {
-    Simple::Lang::AST::TypeRef substituted;
-    if (!SubstituteGenericTypes(arg, substitutions, &substituted)) return false;
-    arg = std::move(substituted);
-  }
-  for (auto& param : out->proc_params) {
-    Simple::Lang::AST::TypeRef substituted;
-    if (!SubstituteGenericTypes(param, substitutions, &substituted)) return false;
-    param = std::move(substituted);
-  }
-  if (out->proc_return) {
-    Simple::Lang::AST::TypeRef substituted;
-    if (!SubstituteGenericTypes(*out->proc_return, substitutions, &substituted)) return false;
-    *out->proc_return = std::move(substituted);
   }
   return true;
 }

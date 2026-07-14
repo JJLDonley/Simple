@@ -823,6 +823,20 @@ bool LangParsesForLoopRange() {
 }
 
 
+bool LangParsesNestedGenericCallTypeArguments() {
+  const char* src =
+      "Box<T> :: artifact { value : T } "
+      "head<T> :: T (values : T[]) { return values[0] } "
+      "main :: Box<i32> () { return head<Box<i32>>([{ 1 }]) }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& call = program.decls[2].func.body[0].expr;
+  return call.kind == Simple::Lang::ExprKind::Call && call.type_args.size() == 1 &&
+         call.type_args[0].name == "Box" && call.type_args[0].type_args.size() == 1 &&
+         call.type_args[0].type_args[0].name == "i32";
+}
+
 bool LangParsesTaggedPatternsAndPropagation() {
   const char* src =
       "main : i32? (candidate : i32?) { value : i32 = candidate?; "
@@ -905,6 +919,7 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_for_loop", LangParsesForLoop},
   {"lang_parse_for_loop_post_inc", LangParsesForLoopPostInc},
   {"lang_parse_for_loop_range", LangParsesForLoopRange},
+  {"lang_parse_nested_generic_call_type_arguments", LangParsesNestedGenericCallTypeArguments},
   {"lang_parse_tagged_patterns_and_propagation", LangParsesTaggedPatternsAndPropagation},
   {"lang_parse_for_loop_range_default_type", LangParsesForLoopRangeDefaultType},
 };

@@ -397,45 +397,6 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
          error.find("duplicate generic parameter: T") != std::string::npos;
 }
 
-bool LangGenBuildsOrderedSpecializationPlan() {
-  using Simple::Lang::GEN::BuildOrderedSpecializationPlan;
-  using Simple::Lang::GEN::GenericInstantiationNode;
-  using Simple::Lang::GEN::GenericInstantiationRequest;
-  using Simple::Lang::GEN::GenericSpecializationPlan;
-  using Simple::Lang::TAST::GenericDeclarationKind;
-  using Simple::Lang::TAST::GenericDeclarationMetadata;
-
-  GenericDeclarationMetadata box;
-  box.kind = GenericDeclarationKind::Data;
-  box.name = "Box";
-  box.type_params = {"T"};
-  GenericDeclarationMetadata list;
-  list.kind = GenericDeclarationKind::Data;
-  list.name = "List";
-  list.type_params = {"T"};
-
-  GenericInstantiationRequest box_i32{"Box", {"i32"}, 0, 0, {}};
-  GenericInstantiationRequest list_box{"List", {"Box<i32>"}, 0, 0, {}};
-  std::vector<GenericInstantiationNode> nodes = {
-      GenericInstantiationNode{list_box, {box_i32}},
-      GenericInstantiationNode{box_i32, {}},
-  };
-  std::vector<GenericSpecializationPlan> plan;
-  std::string error;
-  if (!BuildOrderedSpecializationPlan({box, list}, nodes, &plan, &error) || !error.empty()) {
-    return false;
-  }
-  if (plan.size() != 2 || plan[0].request.base_name != "Box" ||
-      plan[1].request.base_name != "List") {
-    return false;
-  }
-
-  nodes[1].dependencies = {list_box};
-  plan.clear();
-  return !BuildOrderedSpecializationPlan({box, list}, nodes, &plan, &error) &&
-         error.find("generic instantiation cycle") != std::string::npos;
-}
-
 bool LangGenBuildsSpecializationPlan() {
   using Simple::Lang::GEN::BuildGenericSubstitutionMap;
   using Simple::Lang::GEN::BuildSpecializationPlan;
@@ -734,6 +695,22 @@ bool LangIrbRejectsInvalidConcreteSpecialization() {
          error.find("return type mismatch") != std::string::npos;
 }
 
+bool LangGenDistinguishesProcedureTypeIdentities() {
+  Simple::Lang::AST::TypeRef procedure;
+  procedure.is_proc = true;
+  procedure.proc_params.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  procedure.proc_return =
+      std::make_unique<Simple::Lang::AST::TypeRef>(
+          Simple::Lang::TAST::MakeSimpleType("bool"));
+  if (Simple::Lang::GEN::TypeRefIdentity(procedure) != "fn(i32)->bool") return false;
+
+  procedure.proc_return_mutability = Simple::Lang::Mutability::Immutable;
+  if (Simple::Lang::GEN::TypeRefIdentity(procedure) != "fn::(i32)->bool") return false;
+
+  procedure.pointer_depth = 1;
+  return Simple::Lang::GEN::TypeRefIdentity(procedure) == "ptr<fn::(i32)->bool>";
+}
+
 bool LangGenNormalizesConcreteRequestMetadata() {
   using Simple::Lang::GEN::GenericInstantiationRequest;
   using Simple::Lang::GEN::NormalizeInstantiationRequests;
@@ -752,35 +729,6 @@ bool LangGenNormalizesConcreteRequestMetadata() {
   GenericInstantiationRequest conflict{"Box", {"i32"}, 0, 0, {invalid}};
   unique.clear();
   return !NormalizeInstantiationRequests({concrete, conflict}, &unique);
-}
-
-bool LangGenResolvesInstantiationOrder() {
-  using Simple::Lang::GEN::GenericInstantiationNode;
-  using Simple::Lang::GEN::GenericInstantiationRequest;
-  using Simple::Lang::GEN::InstantiationRequestKey;
-  using Simple::Lang::GEN::ResolveInstantiationOrder;
-
-  GenericInstantiationRequest box{"Box", {"i32"}, 0, 0, {}};
-  GenericInstantiationRequest list{"List", {"Box<i32>"}, 0, 0, {}};
-  GenericInstantiationRequest wrapper{"Wrapper", {"List<Box<i32>>"}, 0, 0, {}};
-  std::vector<GenericInstantiationNode> nodes = {
-      GenericInstantiationNode{wrapper, {list}},
-      GenericInstantiationNode{box, {}},
-      GenericInstantiationNode{list, {box}},
-  };
-  std::vector<GenericInstantiationRequest> ordered;
-  std::string error;
-  if (!ResolveInstantiationOrder(nodes, &ordered, &error) || !error.empty()) return false;
-  if (ordered.size() != 3 || InstantiationRequestKey(ordered[0]) != "Box<i32>" ||
-      InstantiationRequestKey(ordered[1]) != "List<Box<i32>>" ||
-      InstantiationRequestKey(ordered[2]) != "Wrapper<List<Box<i32>>>" ) {
-    return false;
-  }
-
-  nodes[1].dependencies = {wrapper};
-  ordered.clear();
-  return !ResolveInstantiationOrder(nodes, &ordered, &error) &&
-         error.find("generic instantiation cycle") != std::string::npos;
 }
 
 bool LangGenCollectsInstantiationRequests() {
@@ -922,7 +870,7 @@ bool LangSplitTastAbiAndGenericsSmoke() {
   Simple::Lang::TAST::GenericSubstitutionMap substitutions;
   substitutions["T"] = replacement;
   Simple::Lang::AST::TypeRef out;
-  return Simple::Lang::TAST::SubstituteGenericTypes(box, substitutions, &out) &&
+  return Simple::Lang::TAST::SubstituteTypeParams(box, substitutions, &out) &&
          out.type_args.size() == 1 && out.type_args[0].name == "string";
 }
 
@@ -1362,7 +1310,7 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
 }
 
 
-bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
+bool LangTastSubstituteTypeParamsRewritesNestedTypes() {
   Simple::Lang::AST::TypeRef input;
   input.name = "Box";
   Simple::Lang::AST::TypeRef inner;
@@ -1375,7 +1323,7 @@ bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
   substitutions["T"] = replacement;
 
   Simple::Lang::AST::TypeRef output;
-  if (!Simple::Lang::TAST::SubstituteGenericTypes(input, substitutions, &output)) return false;
+  if (!Simple::Lang::TAST::SubstituteTypeParams(input, substitutions, &output)) return false;
   if (output.name != "Box" || output.type_args.size() != 1 || output.type_args[0].name != "i32") return false;
 
   Simple::Lang::AST::TypeRef pointer_to_t;
@@ -1409,10 +1357,36 @@ bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
   Simple::Lang::AST::TypeRef array_arg;
   array_arg.name = "string";
   array_arg.dims.push_back({false, true, 2});
+  array_arg.dims.push_back({false, true, 3});
   Simple::Lang::TAST::GenericSubstitutionMap inferred;
   std::unordered_set<std::string> type_params = {"T"};
   if (!Simple::Lang::TAST::UnifyTypeParams(generic_param, array_arg, type_params, &inferred)) return false;
-  return inferred.size() == 1 && inferred["T"].name == "string" && inferred["T"].dims.empty();
+  if (inferred.size() != 1 || inferred["T"].name != "string" ||
+      inferred["T"].dims.size() != 1 || inferred["T"].dims[0].size != 3) {
+    return false;
+  }
+
+  Simple::Lang::AST::TypeRef substituted_array;
+  if (!Simple::Lang::TAST::SubstituteTypeParams(generic_param, inferred,
+                                                &substituted_array)) {
+    return false;
+  }
+  if (substituted_array.dims.size() != 2 || substituted_array.dims[0].size != 2 ||
+      substituted_array.dims[1].size != 3) {
+    return false;
+  }
+
+  Simple::Lang::AST::TypeRef pointer_param;
+  pointer_param.name = "T";
+  pointer_param.pointer_depth = 1;
+  Simple::Lang::AST::TypeRef pointer_arg = Simple::Lang::TAST::MakeSimpleType("i32");
+  pointer_arg.pointer_depth = 2;
+  inferred.clear();
+  if (!Simple::Lang::TAST::UnifyTypeParams(
+          pointer_param, pointer_arg, type_params, &inferred)) {
+    return false;
+  }
+  return inferred["T"].name == "i32" && inferred["T"].pointer_depth == 1;
 }
 
 
@@ -1693,18 +1667,19 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
   {"lang_gen_builds_specialization_plan_from_program", LangGenBuildsSpecializationPlanFromProgram},
-  {"lang_gen_builds_ordered_specialization_plan", LangGenBuildsOrderedSpecializationPlan},
   {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
   {"lang_gen_specializes_concrete_declarations", LangGenSpecializesConcreteDeclarations},
   {"lang_gen_materializes_concrete_program", LangGenMaterializesConcreteProgram},
   {"lang_irb_rejects_invalid_concrete_specialization", LangIrbRejectsInvalidConcreteSpecialization},
+  {"lang_gen_distinguishes_procedure_type_identities",
+   LangGenDistinguishesProcedureTypeIdentities},
   {"lang_gen_normalizes_concrete_request_metadata", LangGenNormalizesConcreteRequestMetadata},
-  {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},
   {"lang_tast_collects_generic_declaration_metadata", LangTastCollectsGenericDeclarationMetadata},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
-  {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
+  {"lang_tast_substitute_type_params_rewrites_nested_types",
+   LangTastSubstituteTypeParamsRewritesNestedTypes},
   {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
   {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
   {"lang_tast_expression_operators_validate_scalar_and_compound_assign", LangTastExpressionOperatorsValidateScalarAndCompoundAssign},

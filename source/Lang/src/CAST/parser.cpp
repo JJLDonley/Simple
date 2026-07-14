@@ -1659,14 +1659,18 @@ bool Parser::LooksLikeTypeArgsForCall() const {
       depth++;
       continue;
     }
-    if (kind == TokenKind::Gt) {
-      depth--;
+    if (kind == TokenKind::Gt || kind == TokenKind::Shr) {
+      depth -= kind == TokenKind::Shr ? 2 : 1;
       if (depth == 0) break;
+      if (depth < 0) return false;
       continue;
     }
     if (kind == TokenKind::End) return false;
   }
-  if (i >= tokens_.size() || tokens_[i].kind != TokenKind::Gt) return false;
+  if (i >= tokens_.size() ||
+      (tokens_[i].kind != TokenKind::Gt && tokens_[i].kind != TokenKind::Shr)) {
+    return false;
+  }
   if (i + 1 >= tokens_.size()) return false;
   return tokens_[i + 1].kind == TokenKind::LParen;
 }

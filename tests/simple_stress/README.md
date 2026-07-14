@@ -18,6 +18,7 @@ VM, then validates a known result.
 | `module_generic_composition.simple` | namespace-owned generic specialization across collections and artifacts |
 | `generic_methods.simple` | inferred/explicit generic methods, generic receivers, indexed receivers |
 | `generic_chains.simple` | temporary generic receivers, namespace factories, chained method calls |
+| `generic_type_system.simple` | globals, nested explicit/inferred types, wrappers, procedure arguments, array/list modifiers, and mutual recursion |
 | `tagged_values.simple` | ZII optional/Result construction, patterns, propagation, nesting, generics, and GC pressure |
 
 Workloads are deliberately bounded so they remain suitable for normal CI while

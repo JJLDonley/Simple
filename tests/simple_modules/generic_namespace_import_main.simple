@@ -3,5 +3,6 @@ module Tests.GenericNamespaceImportMain
 import "./generic_namespace_library.simple"
 
 main :: i32 () {
-  return GenericValues.identity(42)
+  box : Box<i32> = GenericValues.identity(GenericValues.stored)
+  return box.value
 }

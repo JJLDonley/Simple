@@ -1,7 +1,13 @@
 module Tests.GenericNamespaceLibrary
 
+Box<T> :: artifact {
+  value : T
+}
+
 GenericValues :: namespace {
   identity<T> :: T (value : T) {
     return value
   }
+
+  stored : Box<i32> = GenericValues.identity<Box<i32>>({ 42 })
 }

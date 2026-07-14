@@ -239,7 +239,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `T[][]`, `T{N}[]`, etc. | TAST | Nested arrays/lists where supported by lowering/runtime. |
 | ✅ | `fn Ret (params)` | TAST | Procedure/function value type. |
 | ✅ | `T*`, `T**` | TAST | Pointer type surface for supported ABI/member paths. |
-| ◐ | `Name<T, ...>` | CAST/TAST | Generic type syntax is parsed; semantics are limited to supported compiler paths. |
+| ✅ | `Name<T, ...>` | CAST/TAST/IRE | Concrete named generic types and calls are monomorphized before SIR. |
 | ❌ | `i128`, `u128` | CAST/TAST | Not part of the language surface. |
 | ❌ | module value as type | RAST/TAST | Rejected. |
 
@@ -614,34 +614,36 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-The experimental `v0.5.14` compiler materializes concrete top-level and
-namespace-owned generic functions, generic methods, and artifact
-specializations before SIR emission. Type arguments may be
-explicit or inferred from call arguments. Specializations have deterministic
-IR-safe symbols, duplicate requests reuse one body/layout, nested generic
-dependencies are discovered after substitution, and concrete scalar, string,
-procedure, nested artifact, list-wrapped artifact, and quoted-source-import
-cases execute through the normal compiler/runtime pipeline. Nested concrete
-identities are resolved before their inner type arguments are rewritten, so
-compositions such as `Pair<i32, Box<i32>>` retain deterministic specialization
-identity. Managed generic calls that are not yet safe for direct LLVM lowering
-fall back to the interpreter before execution rather than trapping after a
-partial JIT transition. Namespace-owned generic functions preserve ownership
-through materialization and work across quoted imports; their concrete bodies
-remain inside the owning namespace rather than leaking synthetic top-level
-symbols. Generic methods combine receiver and method type arguments into one
-stable specialization identity. Named, member, and indexed receivers support
-inferred or explicit method arguments through the same artifact call-target
-resolution path. Recursive and mutually recursive generic methods discover
-concrete self-call dependencies and rewrite each recursive call to the same
-materialized method identity. Comma-delimited list and artifact elements parse
-strings as ordinary literals, keeping format-expression parsing outside those
-container boundaries and allowing string collections to participate in generic
-specialization. Generic methods can be inferred on temporary receivers returned
-by top-level functions, namespace factories, and artifact methods. Concrete
-artifacts materialize before dependent methods, so chained calls do not depend
-on source request order. The `v0.5.15` implementation materializes optional
-`T?` and `Result<T,E>` as deterministic concrete managed layouts. Optional
+The `v0.5.17` compiler materializes concrete top-level and namespace-owned
+generic functions, generic methods, artifacts/data, fields, globals, module
+variables, nested types, procedure signatures, and quoted-source imports before
+SIR emission. Type arguments may be explicit or inferred from independently
+typed call arguments. A contextual literal or lambda may consume an already
+inferred type, but does not by itself infer a missing type argument; an explicit
+type argument is required when every inference source is contextual.
+
+Specializations have deterministic IR-safe symbols, duplicate requests reuse
+one body/layout, and dependencies are discovered after substitution. Adjacent
+nested call closers are canonical (`head<Box<i32>>(values)`); whitespace is not
+required to distinguish them from the shift operator. Nested concrete
+identities are resolved before inner arguments are rewritten, so compositions
+such as `Pair<i32, Box<i32>>` retain their identity. Procedure identities include
+return mutability and pointer modifiers. Fixed-array/list modifiers introduced
+around a type parameter remain outer modifiers: substituting `T = i32{2}` into
+`T{3}` produces `i32{3}{2}`.
+
+Namespace specializations remain inside their owner. Generic methods combine
+receiver and method arguments into one identity and work on named, indexed,
+temporary, global, and namespace-variable receivers. Generic functions may call
+generic methods, including multiple specializations originating at one source
+location. Recursive and mutually recursive calls reuse concrete bodies;
+recursion that continually grows its type arguments is rejected as
+non-terminating specialization rather than expanding to an arbitrary limit.
+Concrete artifacts materialize before dependent methods, so chained calls do
+not depend on source request order. Managed paths not accepted by direct LLVM
+lowering fall back before execution, never after a partial JIT transition. The
+`v0.5.15` implementation materializes optional `T?` and `Result<T,E>` as
+deterministic concrete managed layouts. Optional
 absence uses the zero reference state; presence stores the substituted payload. Result stores an `i32` tag plus
 substituted value and error payload fields. Nested wrappers, artifacts, lists,
 generic functions, namespaces, and quoted imports compose through the same
@@ -1020,7 +1022,7 @@ fn bool (i32, string)
 fn i32 (a : i32, b : i32)
 ```
 
-Procedure values are supported in local variables, parameters, switch expressions, and artifact members where covered by tests. Procedure values are rejected at extern ABI boundaries and in unsupported generic/list/array contexts.
+Procedure values are supported in local variables, parameters, generic specializations, switch expressions, and artifact members where covered by tests. Procedure values are rejected at extern ABI boundaries and in list/array contexts until callable collection lowering is completed.
 
 ### Pointer types
 

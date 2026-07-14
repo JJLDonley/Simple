@@ -1,0 +1,110 @@
+module Tests.Stress.GenericTypeSystem
+
+Pair<A, B> :: artifact {
+  first : A
+  second : B
+
+  choose<C> :: C (value : C) { return value }
+}
+
+Box<T> :: artifact {
+  value : T
+
+  pair<U> :: Pair<T, U> (other : U) { return { self.value, other } }
+  choose<U> :: U (other : U) { return other }
+}
+
+identity<T> :: T (value : T) { return value }
+
+relayA<T> :: T (value : T, count : i32) {
+  if (count == 0) { return value }
+  return relayB<T>(value, count - 1)
+}
+
+relayB<T> :: T (value : T, count : i32) {
+  if (count == 0) { return value }
+  return relayA<T>(value, count - 1)
+}
+
+invoke<T> :: T (callable : fn T (T), value : T) {
+  return callable(value)
+}
+
+applyMethod<T, U> :: U (box : Box<T>, value : U) {
+  return box.choose(value)
+}
+
+applyFixedMethod<T, V> :: i32 (box : Box<T>, value : i32, unused : V) {
+  return box.choose(value)
+}
+
+fromOptional<T> :: T (value : T?, fallback : T) {
+  return switch (value) {
+    { present } => return present
+    {} => return fallback
+  }
+}
+
+fromResult<T, E> :: T (value : Result<T, E>, fallback : T) {
+  return switch (value) {
+    { .value = present } => return present
+    { .error = error } => return fallback
+  }
+}
+
+chooseOptional<T> :: i32 (value : Box<T>?) {
+  return switch (value) {
+    { box } => return box.choose(12)
+    {} => return 0
+  }
+}
+
+chooseResult<T, E> :: i32 (value : Result<Box<T>, E>) {
+  return switch (value) {
+    { .value = box } => return box.choose(13)
+    { .error = error } => return 0
+  }
+}
+
+firstRow<T> :: T (values : T{3}) { return values[0] }
+head<T> :: T (values : T[]) { return values[0] }
+
+Factory :: namespace {
+  make<T> :: Box<T> (value : T) { return { value } }
+  relay<T> :: T (value : T) { return identity<T>(value) }
+  stored : Box<i32> = identity<Box<i32>>({ 5 })
+}
+
+globalValue : i32 = identity(7)
+globalBox : Box<i32> = { 1 }
+globalMethodValue : i32 = globalBox.choose(6)
+
+main :: i32 () {
+  box : Box<i32> = Factory.make(20)
+  pair : Pair<i32, string> = box.pair("text")
+  nested : Box<Pair<i32, string>> = { pair }
+  values : Box<i32>[] = [{ 1 }, { 2 }]
+  optional : Box<i32>? = { box }
+  result : Result<Box<i32>, string> = { .value = box }
+  optionalValue : Box<i32> = fromOptional(optional, { 1 })
+  resultValue : Box<i32> = fromResult(result, { 2 })
+  patternMethod : i32 = chooseOptional(optional)
+  resultPatternMethod : i32 = chooseResult(result)
+  grid : i32{3}{2} = {{10, 11}, {20, 21}, {30, 31}}
+  row : i32{2} = firstRow(grid)
+  listed : Box<i32> = head<Box<i32>>([{ 3 }, { 4 }])
+  invoked : i32 = invoke((value) { return value + 1 }, pair.first)
+  applied : i32 = applyMethod(box, 8)
+  appliedText : string = applyMethod(box, "generic")
+  textBox : Box<string> = { appliedText }
+  fixedA : i32 = applyFixedMethod(box, 9, 1)
+  fixedRepeat : i32 = applyFixedMethod(box, 11, "unused")
+  fixedB : i32 = applyFixedMethod(textBox, 10, true)
+  relayed : i32 = relayA(invoked, 20)
+  chosen : i32 = nested.value.choose(Factory.stored.value)
+  moduleValue : i32 = Factory.relay(values[1].value)
+  return optionalValue.value + resultValue.value + patternMethod +
+         resultPatternMethod + row[1] + listed.value + invoked + applied + fixedA +
+         fixedRepeat + fixedB + relayed + chosen + moduleValue + globalValue +
+         globalMethodValue - 179
+}

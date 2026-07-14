@@ -16,11 +16,6 @@ struct GenericInstantiationRequest {
   std::vector<Simple::Lang::AST::TypeRef> argument_types;
 };
 
-struct GenericInstantiationNode {
-  GenericInstantiationRequest request;
-  std::vector<GenericInstantiationRequest> dependencies;
-};
-
 struct GenericSpecializationBinding {
   std::string parameter_name;
   std::string type_identity;
@@ -44,9 +39,6 @@ std::string InstantiationRequestKey(const GenericInstantiationRequest& request);
 std::string SpecializedSymbolName(const GenericInstantiationRequest& request);
 bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationRequest>& requests,
                                     std::vector<GenericInstantiationRequest>* unique_requests);
-bool ResolveInstantiationOrder(const std::vector<GenericInstantiationNode>& nodes,
-                               std::vector<GenericInstantiationRequest>* ordered_requests,
-                               std::string* error);
 bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclarationMetadata>& declarations,
                              const std::vector<GenericInstantiationRequest>& requests,
                              std::vector<GenericSpecializationPlan>* out,
@@ -54,11 +46,6 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
 bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& program,
                                         std::vector<GenericSpecializationPlan>* out,
                                         std::string* error);
-bool BuildOrderedSpecializationPlan(
-    const std::vector<Simple::Lang::TAST::GenericDeclarationMetadata>& declarations,
-    const std::vector<GenericInstantiationNode>& nodes,
-    std::vector<GenericSpecializationPlan>* out,
-    std::string* error);
 bool BuildGenericSubstitutionMap(const GenericSpecializationPlan& plan,
                                  Simple::Lang::TAST::GenericSubstitutionMap* out,
                                  std::string* error);

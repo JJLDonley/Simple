@@ -620,6 +620,14 @@ bool LangStressGenericChains() {
   return RunCliSvm({"run", "tests/simple_stress/generic_chains.simple"}) == 0;
 }
 
+bool LangStressGenericTypeSystem() {
+  return RunSimpleFileExpectExit("tests/simple_stress/generic_type_system.simple", 0);
+}
+
+bool LangStressGenericTypeSystemJit() {
+  return RunCliSvm({"run", "tests/simple_stress/generic_type_system.simple"}) == 0;
+}
+
 bool LangStressTaggedValues() {
   return RunCliSvm({"run", "tests/simple_stress/tagged_values.simple"}) == 0;
 }
@@ -929,6 +937,27 @@ bool LangGenericDuplicateSpecializationReusesSymbol() {
   const size_t first = sir.find("sig id__g_");
   return first != std::string::npos && sir.find("sig id__g_", first + 1) == std::string::npos &&
          RunSirTextExpectExit(sir, 3);
+}
+
+bool LangGenericRejectsExpandingSpecializationRecursion() {
+  const char* src =
+      "Box<T> :: artifact { value : T }\n"
+      "grow<T> :: i32 (value : T) { return grow<Box<T>>({ value }) }\n"
+      "main :: i32 () { return grow<i32>(1) }";
+  std::string sir;
+  std::string error;
+  return !Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         error.find("non-terminating generic specialization recursion for grow") !=
+             std::string::npos;
+}
+
+bool LangGenericRejectsContextualFnArgumentMismatch() {
+  const char* src =
+      "take<T> :: T (callable : fn T (T), value : T) { return callable(value) }\n"
+      "main :: i32 () { return take<i32>(() { return 1 }, 5) }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("fn literal parameter count mismatch") != std::string::npos;
 }
 
 bool LangStressProcedureArgTypeStrict() {
@@ -3852,6 +3881,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_module_generic_composition", LangStressModuleGenericComposition},
   {"lang_stress_generic_methods", LangStressGenericMethods},
   {"lang_stress_generic_chains", LangStressGenericChains},
+  {"lang_stress_generic_type_system", LangStressGenericTypeSystem},
+  {"lang_stress_generic_type_system_jit", LangStressGenericTypeSystemJit},
   {"lang_stress_tagged_values", LangStressTaggedValues},
   {"lang_tagged_values_import_runtime", LangTaggedValuesImportRuntime},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
@@ -3898,6 +3929,10 @@ const TestCase kLangTests[] = {
   {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},
   {"lang_generic_duplicate_specialization_reuses_symbol",
    LangGenericDuplicateSpecializationReusesSymbol},
+  {"lang_generic_rejects_expanding_specialization_recursion",
+   LangGenericRejectsExpandingSpecializationRecursion},
+  {"lang_generic_rejects_contextual_fn_argument_mismatch",
+   LangGenericRejectsContextualFnArgumentMismatch},
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
   {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},

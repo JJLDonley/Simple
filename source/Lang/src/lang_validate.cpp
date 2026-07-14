@@ -482,7 +482,7 @@ bool InferTypeArgsFromCall(const std::vector<TypeRef>& param_types,
   if (param_types.size() != call_args.size()) return false;
   for (size_t i = 0; i < param_types.size(); ++i) {
     TypeRef arg_type;
-    if (!InferExprType(call_args[i], ctx, scopes, current_artifact, &arg_type)) return false;
+    if (!InferExprType(call_args[i], ctx, scopes, current_artifact, &arg_type)) continue;
     if (!UnifyTypeParams(param_types[i], arg_type, type_params, out_mapping)) return false;
   }
   for (const auto& name : type_params) {
@@ -1982,13 +1982,14 @@ bool CheckCallArgTypes(const Expr& call_expr,
   for (size_t i = 0; i < info.params.size() && i < call_expr.args.size(); ++i) {
     TypeRef expected;
     if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
-    if (call_expr.args[i].kind == ExprKind::ArtifactLiteral &&
-        !ValidateExprAgainstExpected(
-            call_expr.args[i], expected, ctx, scopes, current_artifact, error)) {
-      return false;
-    }
     TypeRef actual;
-    if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) continue;
+    if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) {
+      if (!ValidateExprAgainstExpected(
+              call_expr.args[i], expected, ctx, scopes, current_artifact, error)) {
+        return false;
+      }
+      continue;
+    }
     if (!CheckTypesCompatibleForExpr(expected, actual, call_expr.args[i],
                                      "call argument type mismatch", error)) return false;
   }

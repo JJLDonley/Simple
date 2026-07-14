@@ -90,6 +90,12 @@ bool CollectFromExpr(const Simple::Lang::AST::Expr& expr,
 bool CollectFromStmt(const Simple::Lang::AST::Stmt& stmt,
                      std::vector<GenericInstantiationRequest>* out);
 
+bool CollectFromVar(const Simple::Lang::AST::VarDecl& var,
+                    std::vector<GenericInstantiationRequest>* out) {
+  return CollectInstantiationRequestsFromType(var.type, out) &&
+         (!var.has_init_expr || CollectFromExpr(var.init_expr, out));
+}
+
 std::string CalleeName(const Simple::Lang::AST::Expr& expr) {
   if (expr.kind == Simple::Lang::AST::ExprKind::Identifier) return expr.text;
   if (expr.kind == Simple::Lang::AST::ExprKind::Member && !expr.children.empty()) {
@@ -157,8 +163,7 @@ bool CollectFromStmt(const Simple::Lang::AST::Stmt& stmt,
   using Simple::Lang::AST::StmtKind;
   switch (stmt.kind) {
     case StmtKind::VarDecl:
-      return CollectInstantiationRequestsFromType(stmt.var_decl.type, out) &&
-             (!stmt.var_decl.has_init_expr || CollectFromExpr(stmt.var_decl.init_expr, out));
+      return CollectFromVar(stmt.var_decl, out);
     case StmtKind::IfStmt:
       return CollectFromExpr(stmt.if_cond, out) && CollectFromStmtList(stmt.if_then, out) &&
              CollectFromStmtList(stmt.if_else, out);
@@ -170,7 +175,7 @@ bool CollectFromStmt(const Simple::Lang::AST::Stmt& stmt,
     case StmtKind::WhileLoop:
       return CollectFromExpr(stmt.loop_cond, out) && CollectFromStmtList(stmt.loop_body, out);
     case StmtKind::ForLoop:
-      return (!stmt.has_loop_var_decl || CollectInstantiationRequestsFromType(stmt.loop_var_decl.type, out)) &&
+      return (!stmt.has_loop_var_decl || CollectFromVar(stmt.loop_var_decl, out)) &&
              CollectFromExpr(stmt.loop_iter, out) && CollectFromExpr(stmt.loop_cond, out) &&
              CollectFromExpr(stmt.loop_step, out) && CollectFromStmtList(stmt.loop_body, out);
     case StmtKind::Return:
@@ -308,6 +313,21 @@ bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
     return Simple::Lang::TAST::CloneTypeRef(container, out);
   }
   if (expr.kind != Simple::Lang::AST::ExprKind::Member || expr.children.empty()) return false;
+  const auto& member_base = expr.children[0];
+  if (member_base.kind == Simple::Lang::AST::ExprKind::Identifier) {
+    for (const auto& decl : program.decls) {
+      if (decl.kind != Simple::Lang::AST::DeclKind::Module ||
+          decl.module.name != member_base.text) {
+        continue;
+      }
+      for (const auto& variable : decl.module.variables) {
+        if (variable.name == expr.text) {
+          return Simple::Lang::TAST::CloneTypeRef(variable.type, out);
+        }
+      }
+      break;
+    }
+  }
   Simple::Lang::AST::TypeRef base_type;
   if (!InferMethodReceiverType(expr.children[0], program, scope, current_artifact, &base_type)) {
     return false;
@@ -379,6 +399,27 @@ bool CollectMethodRequestsFromStatements(
   return true;
 }
 
+bool ResolvePatternBindingType(const Simple::Lang::AST::TypeRef& subject,
+                               const Simple::Lang::AST::SwitchBranch& branch,
+                               Simple::Lang::AST::TypeRef* out) {
+  if (!out || branch.pattern_binding.empty()) return false;
+  if (branch.pattern_kind == Simple::Lang::SwitchPatternKind::Present &&
+      subject.name == Simple::Lang::kOptionalTypeInternalName &&
+      subject.type_args.size() == 1) {
+    return Simple::Lang::TAST::CloneTypeRef(subject.type_args[0], out);
+  }
+  if (branch.pattern_kind == Simple::Lang::SwitchPatternKind::Tagged &&
+      subject.name == "Result" && subject.type_args.size() == 2) {
+    if (branch.pattern_field == "value") {
+      return Simple::Lang::TAST::CloneTypeRef(subject.type_args[0], out);
+    }
+    if (branch.pattern_field == "error") {
+      return Simple::Lang::TAST::CloneTypeRef(subject.type_args[1], out);
+    }
+  }
+  return false;
+}
+
 bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
                                    const Simple::Lang::AST::Program& program,
                                    const MethodTypeScope& scope,
@@ -418,17 +459,40 @@ bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
   for (const auto& value : expr.field_values) {
     if (!CollectMethodRequestsFromExpr(value, program, scope, current_artifact, out)) return false;
   }
+  Simple::Lang::AST::TypeRef switch_subject;
+  const bool has_switch_subject =
+      expr.kind == Simple::Lang::AST::ExprKind::Switch && !expr.children.empty() &&
+      InferMethodReceiverType(
+          expr.children[0], program, scope, current_artifact, &switch_subject);
   for (const auto& branch : expr.switch_branches) {
+    MethodTypeScope branch_scope = scope;
+    Simple::Lang::AST::TypeRef binding_type;
+    if (has_switch_subject && ResolvePatternBindingType(switch_subject, branch, &binding_type)) {
+      branch_scope[branch.pattern_binding] = std::move(binding_type);
+    }
     if ((!branch.is_default &&
          branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
-         !CollectMethodRequestsFromExpr(branch.condition, program, scope, current_artifact, out)) ||
+         !CollectMethodRequestsFromExpr(branch.condition, program, branch_scope,
+                                        current_artifact, out)) ||
         (branch.has_inline_value &&
-         !CollectMethodRequestsFromExpr(branch.value, program, scope, current_artifact, out)) ||
-        !CollectMethodRequestsFromStatements(branch.block, program, scope, current_artifact, out)) {
+         !CollectMethodRequestsFromExpr(branch.value, program, branch_scope,
+                                        current_artifact, out)) ||
+        !CollectMethodRequestsFromStatements(
+            branch.block, program, std::move(branch_scope), current_artifact, out)) {
       return false;
     }
   }
   return true;
+}
+
+bool CollectMethodRequestsFromFunction(
+    const Simple::Lang::AST::FuncDecl& function,
+    const Simple::Lang::AST::Program& program,
+    std::vector<GenericInstantiationRequest>* out) {
+  MethodTypeScope scope;
+  for (const auto& param : function.params) scope[param.name] = param.type;
+  return CollectMethodRequestsFromStatements(
+      function.body, program, std::move(scope), nullptr, out);
 }
 
 bool CollectSpecializedMethodDependencies(
@@ -454,7 +518,13 @@ bool CollectMethodInstantiationRequests(const Simple::Lang::AST::Program& progra
     if (decl.kind == Simple::Lang::AST::DeclKind::Variable) globals[decl.var.name] = decl.var.type;
   }
   for (const auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::AST::DeclKind::Function && decl.func.generics.empty()) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Variable) {
+      if (decl.var.has_init_expr &&
+          !CollectMethodRequestsFromExpr(decl.var.init_expr, program, globals, nullptr, out)) {
+        return false;
+      }
+    } else if (decl.kind == Simple::Lang::AST::DeclKind::Function &&
+               decl.func.generics.empty()) {
       MethodTypeScope scope = globals;
       for (const auto& param : decl.func.params) scope[param.name] = param.type;
       if (!CollectMethodRequestsFromStatements(decl.func.body, program, std::move(scope), nullptr, out)) {
@@ -472,6 +542,12 @@ bool CollectMethodInstantiationRequests(const Simple::Lang::AST::Program& progra
         }
       }
     } else if (decl.kind == Simple::Lang::AST::DeclKind::Module) {
+      for (const auto& variable : decl.module.variables) {
+        if (variable.has_init_expr &&
+            !CollectMethodRequestsFromExpr(variable.init_expr, program, globals, nullptr, out)) {
+          return false;
+        }
+      }
       for (const auto& function : decl.module.functions) {
         if (!function.generics.empty()) continue;
         MethodTypeScope scope = globals;
@@ -492,7 +568,7 @@ bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
   for (const auto& decl : program.decls) {
     switch (decl.kind) {
       case Simple::Lang::AST::DeclKind::Variable:
-        if (!CollectInstantiationRequestsFromType(decl.var.type, out)) return false;
+        if (!CollectFromVar(decl.var, out)) return false;
         break;
       case Simple::Lang::AST::DeclKind::Extern:
         if (!CollectInstantiationRequestsFromType(decl.ext.return_type, out)) return false;
@@ -506,7 +582,7 @@ bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
       case Simple::Lang::AST::DeclKind::Artifact:
         if (!decl.artifact.generics.empty()) break;
         for (const auto& field : decl.artifact.fields) {
-          if (!CollectInstantiationRequestsFromType(field.type, out)) return false;
+          if (!CollectFromVar(field, out)) return false;
         }
         for (const auto& method : decl.artifact.methods) {
           if (method.generics.empty() && !CollectFromFunction(method, out)) return false;
@@ -514,7 +590,7 @@ bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
         break;
       case Simple::Lang::AST::DeclKind::Module:
         for (const auto& var : decl.module.variables) {
-          if (!CollectInstantiationRequestsFromType(var.type, out)) return false;
+          if (!CollectFromVar(var, out)) return false;
         }
         for (const auto& fn : decl.module.functions) {
           if (fn.generics.empty() && !CollectFromFunction(fn, out)) return false;
@@ -799,13 +875,16 @@ std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type) {
     return out;
   }
   if (type.is_proc) {
-    std::string out = "fn(";
+    std::string out;
+    for (uint32_t i = 0; i < type.pointer_depth; ++i) out += "ptr<";
+    out += type.proc_return_mutability == Simple::Lang::Mutability::Mutable ? "fn(" : "fn::(";
     for (size_t i = 0; i < type.proc_params.size(); ++i) {
       if (i != 0) out += ",";
       out += TypeRefIdentity(type.proc_params[i]);
     }
     out += ")->";
     out += type.proc_return ? TypeRefIdentity(*type.proc_return) : "void";
+    for (uint32_t i = 0; i < type.pointer_depth; ++i) out += ">";
     AppendDims(type, &out);
     return out;
   }
@@ -853,7 +932,7 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
   for (const auto& decl : program.decls) {
     switch (decl.kind) {
       case Simple::Lang::AST::DeclKind::Variable:
-        if (!CollectInstantiationRequestsFromType(decl.var.type, out)) return false;
+        if (!CollectFromVar(decl.var, out)) return false;
         break;
       case Simple::Lang::AST::DeclKind::Extern:
         if (!CollectInstantiationRequestsFromType(decl.ext.return_type, out)) return false;
@@ -867,7 +946,7 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
       case Simple::Lang::AST::DeclKind::Artifact:
         if (!decl.artifact.generics.empty()) break;
         for (const auto& field : decl.artifact.fields) {
-          if (!CollectInstantiationRequestsFromType(field.type, out)) return false;
+          if (!CollectFromVar(field, out)) return false;
         }
         for (const auto& method : decl.artifact.methods) {
           if (method.generics.empty() && !CollectFromFunction(method, out)) return false;
@@ -875,7 +954,7 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
         break;
       case Simple::Lang::AST::DeclKind::Module:
         for (const auto& var : decl.module.variables) {
-          if (!CollectInstantiationRequestsFromType(var.type, out)) return false;
+          if (!CollectFromVar(var, out)) return false;
         }
         for (const auto& fn : decl.module.functions) {
           if (fn.generics.empty() && !CollectFromFunction(fn, out)) return false;
@@ -933,52 +1012,6 @@ bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationReques
       }
     }
   }
-  return true;
-}
-
-bool ResolveInstantiationOrder(const std::vector<GenericInstantiationNode>& nodes,
-                               std::vector<GenericInstantiationRequest>* ordered_requests,
-                               std::string* error) {
-  if (!ordered_requests) return false;
-  ordered_requests->clear();
-  enum class VisitState : uint8_t { Unvisited, Visiting, Done };
-  std::unordered_map<std::string, const GenericInstantiationNode*> by_key;
-  std::unordered_map<std::string, VisitState> states;
-  for (const auto& node : nodes) {
-    const std::string key = InstantiationRequestKey(node.request);
-    if (!by_key.emplace(key, &node).second) {
-      if (error) *error = "duplicate instantiation node: " + key;
-      return false;
-    }
-    states.emplace(key, VisitState::Unvisited);
-  }
-
-  auto visit = [&](auto&& self, const GenericInstantiationRequest& request) -> bool {
-    const std::string key = InstantiationRequestKey(request);
-    auto state_it = states.find(key);
-    if (state_it == states.end()) {
-      if (error) *error = "missing instantiation dependency: " + key;
-      return false;
-    }
-    if (state_it->second == VisitState::Visiting) {
-      if (error) *error = "generic instantiation cycle at " + key;
-      return false;
-    }
-    if (state_it->second == VisitState::Done) return true;
-    state_it->second = VisitState::Visiting;
-    const GenericInstantiationNode* node = by_key[key];
-    for (const auto& dependency : node->dependencies) {
-      if (!self(self, dependency)) return false;
-    }
-    state_it->second = VisitState::Done;
-    ordered_requests->push_back(node->request);
-    return true;
-  };
-
-  for (const auto& node : nodes) {
-    if (!visit(visit, node.request)) return false;
-  }
-  if (error) error->clear();
   return true;
 }
 
@@ -1098,6 +1131,11 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
   if (!CollectRootInstantiationRequests(program, &collected)) return false;
   std::vector<GenericInstantiationRequest> requests;
   append_declared_requests(collected, &requests);
+  std::unordered_map<std::string, GenericInstantiationRequest> requests_by_key;
+  for (const auto& request : requests) {
+    requests_by_key.emplace(InstantiationRequestKey(request), request);
+  }
+  std::unordered_map<std::string, std::string> dependency_parent;
 
   constexpr size_t kMaximumSpecializations = 4096;
   for (;;) {
@@ -1116,6 +1154,7 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
     const size_t previous_count = unique_requests.size();
     std::vector<GenericInstantiationRequest> dependencies;
     for (const auto& plan : plans) {
+      const size_t dependency_start = dependencies.size();
       switch (plan.declaration.kind) {
         case Simple::Lang::TAST::GenericDeclarationKind::Function: {
           const auto* source = FindOwnedFunctionDecl(program, plan.declaration);
@@ -1125,7 +1164,8 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
           }
           Simple::Lang::AST::FuncDecl specialized;
           if (!SpecializeFunctionDeclaration(*source, plan, &specialized, error) ||
-              !CollectFromFunction(specialized, &dependencies)) {
+              !CollectFromFunction(specialized, &dependencies) ||
+              !CollectMethodRequestsFromFunction(specialized, program, &dependencies)) {
             return false;
           }
           break;
@@ -1142,7 +1182,7 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
             return false;
           }
           for (const auto& field : specialized.fields) {
-            if (!CollectInstantiationRequestsFromType(field.type, &dependencies)) return false;
+            if (!CollectFromVar(field, &dependencies)) return false;
           }
           for (const auto& method : specialized.methods) {
             if (!CollectFromFunction(method, &dependencies) ||
@@ -1169,6 +1209,36 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
           break;
         }
       }
+
+      const std::string parent_key = InstantiationRequestKey(plan.request);
+      for (size_t i = dependency_start; i < dependencies.size(); ++i) {
+        const auto& dependency = dependencies[i];
+        if (declared_generics.find(dependency.base_name) == declared_generics.end()) continue;
+        const std::string dependency_key = InstantiationRequestKey(dependency);
+        if (requests_by_key.find(dependency_key) != requests_by_key.end()) continue;
+
+        size_t same_declaration_ancestors = 0;
+        std::string ancestor_key = parent_key;
+        while (!ancestor_key.empty()) {
+          const auto ancestor = requests_by_key.find(ancestor_key);
+          if (ancestor == requests_by_key.end()) break;
+          if (ancestor->second.base_name == dependency.base_name &&
+              ancestor_key != dependency_key) {
+            ++same_declaration_ancestors;
+            if (same_declaration_ancestors >= 2) {
+              if (error) {
+                *error = "non-terminating generic specialization recursion for " +
+                         dependency.base_name;
+              }
+              return false;
+            }
+          }
+          const auto parent = dependency_parent.find(ancestor_key);
+          ancestor_key = parent == dependency_parent.end() ? std::string{} : parent->second;
+        }
+        requests_by_key.emplace(dependency_key, dependency);
+        dependency_parent.emplace(dependency_key, parent_key);
+      }
     }
     requests = std::move(unique_requests);
     append_declared_requests(dependencies, &requests);
@@ -1182,16 +1252,6 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
     }
     requests = std::move(expanded);
   }
-}
-
-bool BuildOrderedSpecializationPlan(
-    const std::vector<Simple::Lang::TAST::GenericDeclarationMetadata>& declarations,
-    const std::vector<GenericInstantiationNode>& nodes,
-    std::vector<GenericSpecializationPlan>* out,
-    std::string* error) {
-  std::vector<GenericInstantiationRequest> ordered;
-  if (!ResolveInstantiationOrder(nodes, &ordered, error)) return false;
-  return BuildSpecializationPlan(declarations, ordered, out, error);
 }
 
 bool BuildGenericSubstitutionMap(const GenericSpecializationPlan& plan,
@@ -1337,7 +1397,11 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
           return false;
         }
         Simple::Lang::AST::FuncDecl specialized;
-        if (!SpecializeFunctionDeclaration(*source_fn, plan, &specialized, error)) return false;
+        if (!SpecializeFunctionDeclaration(*source_fn, plan, &specialized, error) ||
+            !CollectMethodRequestsFromFunction(
+                specialized, source, &method_rewrite_requests)) {
+          return false;
+        }
         if (plan.declaration.owner_name.empty()) {
           decl.kind = Simple::Lang::AST::DeclKind::Function;
           decl.func = std::move(specialized);
@@ -1478,13 +1542,30 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     return true;
   };
 
-  std::unordered_map<uint64_t, std::string> specialized_method_symbols;
+  struct MethodRewriteCandidate {
+    std::string base_name;
+    std::vector<std::string> argument_identities;
+    std::string symbol;
+  };
+  std::unordered_map<uint64_t, std::vector<MethodRewriteCandidate>> specialized_method_symbols;
+  std::unordered_map<uint64_t, std::unordered_set<std::string>> method_keys_by_location;
   for (const auto& request : method_rewrite_requests) {
     const uint64_t location = (static_cast<uint64_t>(request.line) << 32u) |
                               static_cast<uint64_t>(request.column);
-    specialized_method_symbols[location] =
-        LocalSpecializedSymbol(SpecializedSymbolName(request));
+    const std::string request_key = InstantiationRequestKey(request);
+    if (!method_keys_by_location[location].insert(request_key).second) continue;
+    specialized_method_symbols[location].push_back(
+        {request.base_name, request.argument_identities,
+         LocalSpecializedSymbol(SpecializedSymbolName(request))});
   }
+
+  MethodTypeScope global_rewrite_scope;
+  for (const auto& decl : source.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Variable) {
+      global_rewrite_scope[decl.var.name] = decl.var.type;
+    }
+  }
+  MethodTypeScope rewrite_scope = global_rewrite_scope;
 
   auto rewrite_var = [&](auto&& rewrite_expr, auto&& rewrite_type_fn,
                          Simple::Lang::AST::VarDecl* var) -> bool {
@@ -1498,43 +1579,104 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     if (!stmt) return false;
     if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->expr)) return false;
     if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->target)) return false;
+    Simple::Lang::AST::TypeRef declared_type;
+    if (stmt->kind == Simple::Lang::AST::StmtKind::VarDecl &&
+        !Simple::Lang::TAST::CloneTypeRef(stmt->var_decl.type, &declared_type)) {
+      return false;
+    }
     if (!rewrite_var(rewrite_expr, rewrite_type_fn, &stmt->var_decl)) return false;
+    if (stmt->kind == Simple::Lang::AST::StmtKind::VarDecl) {
+      rewrite_scope[stmt->var_decl.name] = std::move(declared_type);
+    }
+    const MethodTypeScope scope_before_loop = rewrite_scope;
+    if (stmt->has_loop_var_decl) {
+      rewrite_scope[stmt->loop_var_decl.name] = stmt->loop_var_decl.type;
+    }
+    auto rewrite_nested_scope = [&](std::vector<Simple::Lang::AST::Stmt>* statements) {
+      const MethodTypeScope saved_scope = rewrite_scope;
+      for (auto& nested : *statements) {
+        if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) {
+          rewrite_scope = saved_scope;
+          return false;
+        }
+      }
+      rewrite_scope = saved_scope;
+      return true;
+    };
     for (auto& branch : stmt->if_branches) {
-      if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &branch.first)) return false;
-      for (auto& nested : branch.second) {
-        if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+      if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &branch.first) ||
+          !rewrite_nested_scope(&branch.second)) {
+        return false;
       }
     }
-    for (auto& nested : stmt->else_branch) {
-      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    if (!rewrite_nested_scope(&stmt->else_branch)) return false;
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->if_cond) ||
+        !rewrite_nested_scope(&stmt->if_then) ||
+        !rewrite_nested_scope(&stmt->if_else)) {
+      return false;
     }
-    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->if_cond)) return false;
-    for (auto& nested : stmt->if_then) {
-      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_cond) ||
+        !rewrite_nested_scope(&stmt->loop_body) ||
+        !rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_iter) ||
+        !rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_step)) {
+      return false;
     }
-    for (auto& nested : stmt->if_else) {
-      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    if (stmt->has_loop_var_decl) {
+      if (!rewrite_var(rewrite_expr, rewrite_type_fn, &stmt->loop_var_decl)) return false;
+      rewrite_scope = scope_before_loop;
     }
-    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_cond)) return false;
-    for (auto& nested : stmt->loop_body) {
-      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
-    }
-    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_iter)) return false;
-    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_step)) return false;
-    return !stmt->has_loop_var_decl || rewrite_var(rewrite_expr, rewrite_type_fn, &stmt->loop_var_decl);
+    return true;
   };
 
   auto rewrite_expr = [&](auto&& self, auto&& rewrite_type_fn,
                           Simple::Lang::AST::Expr* expr) -> bool {
     if (!expr) return false;
+    Simple::Lang::AST::TypeRef switch_subject;
+    const bool has_switch_subject =
+        expr->kind == Simple::Lang::AST::ExprKind::Switch && !expr->children.empty() &&
+        InferMethodReceiverType(
+            expr->children[0], source, rewrite_scope, nullptr, &switch_subject);
     bool rewrote_specialized_call = false;
     if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->children.empty() &&
-        expr->children[0].kind == Simple::Lang::AST::ExprKind::Member) {
+        expr->children[0].kind == Simple::Lang::AST::ExprKind::Member &&
+        !expr->type_args.empty()) {
       const uint64_t location = (static_cast<uint64_t>(expr->children[0].line) << 32u) |
                                 static_cast<uint64_t>(expr->children[0].column);
       const auto method_it = specialized_method_symbols.find(location);
       if (method_it != specialized_method_symbols.end()) {
-        expr->children[0].text = method_it->second;
+        Simple::Lang::AST::TypeRef receiver_type;
+        if (!InferMethodReceiverType(expr->children[0].children[0], source,
+                                     rewrite_scope, nullptr, &receiver_type)) {
+          if (error) *error = "cannot resolve generic method receiver during specialization";
+          return false;
+        }
+        std::vector<std::string> expected_arguments;
+        expected_arguments.reserve(receiver_type.type_args.size() + expr->type_args.size());
+        for (const auto& argument : receiver_type.type_args) {
+          expected_arguments.push_back(TypeRefIdentity(argument));
+        }
+        for (const auto& argument : expr->type_args) {
+          expected_arguments.push_back(TypeRefIdentity(argument));
+        }
+        const std::string expected_base =
+            receiver_type.name + "." + expr->children[0].text;
+        const MethodRewriteCandidate* selected = nullptr;
+        for (const auto& candidate : method_it->second) {
+          if (candidate.base_name != expected_base ||
+              candidate.argument_identities != expected_arguments) {
+            continue;
+          }
+          if (selected) {
+            if (error) *error = "ambiguous generic method specialization rewrite";
+            return false;
+          }
+          selected = &candidate;
+        }
+        if (!selected) {
+          if (error) *error = "generic method specialization rewrite is missing";
+          return false;
+        }
+        expr->children[0].text = selected->symbol;
         expr->type_args.clear();
         rewrote_specialized_call = true;
       }
@@ -1569,21 +1711,36 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
       if (!self(self, rewrite_type_fn, &value)) return false;
     }
     for (auto& branch : expr->switch_branches) {
-      if (!branch.is_default &&
-          branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
-          !self(self, rewrite_type_fn, &branch.condition)) {
+      const MethodTypeScope saved_scope = rewrite_scope;
+      Simple::Lang::AST::TypeRef binding_type;
+      if (has_switch_subject &&
+          ResolvePatternBindingType(switch_subject, branch, &binding_type)) {
+        rewrite_scope[branch.pattern_binding] = std::move(binding_type);
+      }
+      if ((!branch.is_default &&
+           branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
+           !self(self, rewrite_type_fn, &branch.condition)) ||
+          (branch.has_inline_value && !self(self, rewrite_type_fn, &branch.value))) {
+        rewrite_scope = saved_scope;
         return false;
       }
-      if (branch.has_inline_value && !self(self, rewrite_type_fn, &branch.value)) return false;
       for (auto& stmt : branch.block) {
-        if (!rewrite_stmt(rewrite_stmt, self, rewrite_type_fn, &stmt)) return false;
+        if (!rewrite_stmt(rewrite_stmt, self, rewrite_type_fn, &stmt)) {
+          rewrite_scope = saved_scope;
+          return false;
+        }
       }
+      rewrite_scope = saved_scope;
     }
     return true;
   };
 
-  auto rewrite_function = [&](Simple::Lang::AST::FuncDecl* fn) -> bool {
+  auto rewrite_function = [&](Simple::Lang::AST::FuncDecl* fn,
+                              const Simple::Lang::AST::TypeRef* self_type) -> bool {
     if (!fn) return false;
+    rewrite_scope = global_rewrite_scope;
+    if (self_type) rewrite_scope["self"] = *self_type;
+    for (const auto& param : fn->params) rewrite_scope[param.name] = param.type;
     if (!rewrite_type(rewrite_type, &fn->return_type)) return false;
     for (auto& param : fn->params) {
       if (!rewrite_type(rewrite_type, &param.type)) return false;
@@ -1591,6 +1748,24 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     for (auto& stmt : fn->body) {
       if (!rewrite_stmt(rewrite_stmt, rewrite_expr, rewrite_type, &stmt)) return false;
     }
+    return true;
+  };
+
+  auto artifact_instance_type = [&](const std::string& materialized_name,
+                                    Simple::Lang::AST::TypeRef* instance) -> bool {
+    if (!instance) return false;
+    for (const auto& plan : plans) {
+      if ((plan.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Artifact ||
+           plan.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Data) &&
+          plan.specialized_symbol == materialized_name) {
+        instance->name = plan.declaration.name;
+        instance->type_args = plan.request.argument_types;
+        return true;
+      }
+    }
+    const auto* artifact = FindArtifactDecl(source, materialized_name);
+    if (!artifact || !artifact->generics.empty()) return false;
+    instance->name = materialized_name;
     return true;
   };
 
@@ -1603,31 +1778,39 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         }
         break;
       case Simple::Lang::AST::DeclKind::Function:
-        if (!rewrite_function(&decl.func)) return false;
+        if (!rewrite_function(&decl.func, nullptr)) return false;
         break;
       case Simple::Lang::AST::DeclKind::Variable:
+        rewrite_scope = global_rewrite_scope;
         if (!rewrite_var(rewrite_expr, rewrite_type, &decl.var)) return false;
         break;
-      case Simple::Lang::AST::DeclKind::Artifact:
+      case Simple::Lang::AST::DeclKind::Artifact: {
+        Simple::Lang::AST::TypeRef self_type;
+        if (!artifact_instance_type(decl.artifact.name, &self_type)) return false;
+        rewrite_scope = global_rewrite_scope;
+        rewrite_scope["self"] = self_type;
         for (auto& field : decl.artifact.fields) {
           if (!rewrite_var(rewrite_expr, rewrite_type, &field)) return false;
         }
         for (auto& method : decl.artifact.methods) {
-          if (!rewrite_function(&method)) return false;
+          if (!rewrite_function(&method, &self_type)) return false;
         }
         break;
+      }
       case Simple::Lang::AST::DeclKind::Module:
+        rewrite_scope = global_rewrite_scope;
         for (auto& var : decl.module.variables) {
           if (!rewrite_var(rewrite_expr, rewrite_type, &var)) return false;
         }
         for (auto& fn : decl.module.functions) {
-          if (!rewrite_function(&fn)) return false;
+          if (!rewrite_function(&fn, nullptr)) return false;
         }
         break;
       default:
         break;
     }
   }
+  rewrite_scope = global_rewrite_scope;
   for (auto& stmt : out->top_level_stmts) {
     if (!rewrite_stmt(rewrite_stmt, rewrite_expr, rewrite_type, &stmt)) return false;
   }
