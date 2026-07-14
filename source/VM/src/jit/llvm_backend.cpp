@@ -1497,12 +1497,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   uint16_t local_count = 0;
   bool saw_ret = false;
   bool saw_call = false;
-  struct UnsafeLoopCallCandidate {
+  struct RuntimeCallCandidate {
     size_t pc = 0;
     OpCode op = OpCode::Nop;
     std::string detail;
+    bool reject_outside_loop = false;
   };
-  std::vector<UnsafeLoopCallCandidate> unsafe_loop_call_candidates;
+  std::vector<RuntimeCallCandidate> runtime_call_candidates;
   std::vector<std::pair<size_t, size_t>> backward_branch_ranges;
   bool saw_backward_branch = false;
   bool saw_branch = false;
@@ -2089,12 +2090,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL_INDIRECT arg count mismatch";
           return false;
         }
-        unsafe_loop_call_candidates.push_back({op_pc,
+        runtime_call_candidates.push_back({op_pc,
                                                op,
                                                sig_is_scalar_loop_call_safe(target_sig)
                                                    ? "category=indirect/procedure reason=unknown-target-effects " + signature_label(target_sig)
                                                    : "category=indirect/procedure reason=non-scalar-or-managed-signature " +
-                                                         signature_label(target_sig)});
+                                                         signature_label(target_sig),
+                                               false});
         break;
       }
       case OpCode::CallImport:
@@ -2137,7 +2139,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                           call_target_label(target_func, false) + " " + signature_label(target_sig);
         }
         if (!unsafe_detail.empty()) {
-          unsafe_loop_call_candidates.push_back({op_pc, op, std::move(unsafe_detail)});
+          const bool reject_outside_loop = !import_like_call && !sig_is_scalar_loop_call_safe(target_sig);
+          runtime_call_candidates.push_back(
+              {op_pc, op, std::move(unsafe_detail), reject_outside_loop});
         }
         if (target_func == func_index && arg_count != param_count) {
           reason = "LLVM JIT self CALL arg count mismatch";
@@ -2323,9 +2327,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       return false;
     }
   }
-  if (saw_backward_branch && !unsafe_loop_call_candidates.empty()) {
-    const UnsafeLoopCallCandidate* loop_call = nullptr;
-    for (const auto& candidate : unsafe_loop_call_candidates) {
+  if (saw_backward_branch && !runtime_call_candidates.empty()) {
+    const RuntimeCallCandidate* loop_call = nullptr;
+    for (const auto& candidate : runtime_call_candidates) {
       for (const auto& range : backward_branch_ranges) {
         if (candidate.pc >= range.first && candidate.pc <= range.second) {
           loop_call = &candidate;
@@ -2348,6 +2352,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                            " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(loop_call->op)) +
                            (loop_call->detail.empty() ? std::string() : " " + loop_call->detail));
     }
+  }
+  for (const auto& call : runtime_call_candidates) {
+    if (!call.reject_outside_loop) continue;
+    return reject_cached("unsupported: managed direct call needs interpreter runtime ABI at pc=" +
+                         std::to_string(call.pc - func.code_offset) +
+                         " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(call.op)) +
+                         (call.detail.empty() ? std::string() : " " + call.detail));
   }
   (void)saw_call;
   (void)saw_branch;

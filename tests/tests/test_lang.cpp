@@ -600,6 +600,10 @@ bool LangStressGenericComposition() {
   return RunSimpleFileExpectExit("tests/simple_stress/generic_composition.simple", 0);
 }
 
+bool LangStressGenericCompositionJit() {
+  return RunCliSvm({"run", "tests/simple_stress/generic_composition.simple"}) == 0;
+}
+
 bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
@@ -3756,6 +3760,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_knapsack", LangStressKnapsack},
   {"lang_stress_self_lexer", LangStressSelfLexer},
   {"lang_stress_generic_composition", LangStressGenericComposition},
+  {"lang_stress_generic_composition_jit", LangStressGenericCompositionJit},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},

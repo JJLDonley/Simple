@@ -45,7 +45,7 @@ main :: i32 () {
   if (pair.first != 11 || pair.second.get() != 42) { return 2 }
 
   inner :: Box<i32> = makeBox(7)
-  nested : Box<Box<i32>> = { inner }
+  nested : Box<Box<i32>> = makeBox(inner)
   unwrapped :: Box<i32> = nested.get()
   if (unwrapped.get() != 7) { return 3 }
   return 0
