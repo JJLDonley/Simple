@@ -54,6 +54,16 @@ bool CollectGenericDeclarationMetadata(const Simple::Lang::AST::Program& program
           }
         }
         break;
+      case Simple::Lang::AST::DeclKind::Module:
+        for (const auto& function : decl.module.functions) {
+          if (!append(GenericDeclarationKind::Function,
+                      decl.module.name,
+                      function.name,
+                      function.generics)) {
+            return false;
+          }
+        }
+        break;
       default:
         break;
     }

@@ -609,8 +609,9 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-The experimental `v0.5.7` compiler materializes concrete top-level generic
-function and artifact specializations before SIR emission. Type arguments may be
+The experimental `v0.5.8` compiler materializes concrete top-level and
+namespace-owned generic function and artifact specializations before SIR
+emission. Type arguments may be
 explicit or inferred from call arguments. Specializations have deterministic
 IR-safe symbols, duplicate requests reuse one body/layout, nested generic
 dependencies are discovered after substitution, and concrete scalar, string,
@@ -620,11 +621,14 @@ identities are resolved before their inner type arguments are rewritten, so
 compositions such as `Pair<i32, Box<i32>>` retain deterministic specialization
 identity. Managed generic calls that are not yet safe for direct LLVM lowering
 fall back to the interpreter before execution rather than trapping after a
-partial JIT transition.
+partial JIT transition. Namespace-owned generic functions preserve ownership
+through materialization and work across quoted imports; their concrete bodies
+remain inside the owning namespace rather than leaking synthetic top-level
+symbols.
 
-Generic methods, fully qualified/module-owned specialization, and executable
-canonical tagged `Result`/`Option`/`Promise` values remain language-completion
-work. `v0.5.7` reserves those three canonical generic type names and validates
+Generic methods and executable canonical tagged `Result`/`Option`/`Promise`
+values remain language-completion work. `v0.5.8` reserves those three canonical
+generic type names and validates
 exact arity (`Result<T,E>`, `Option<T>`, and `Promise<T>`), but does not yet
 provide their constructors, payload operations, or runtime lowering.
 
@@ -683,7 +687,7 @@ not replace or postpone it.
 ## Async functions and explicit failure design
 
 > **Design target for `v0.6`:** the syntax and semantics in this section are the
-> accepted language design, not functionality provided by the current `v0.5.7`
+> accepted language design, not functionality provided by the current `v0.5.8`
 > compiler. The transitional `System.Job` and `Standard.Promise` calls remain
 > documented in [Jobs, promises, and async design](Async.md).
 

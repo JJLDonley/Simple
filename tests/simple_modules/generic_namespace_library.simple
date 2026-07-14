@@ -1,0 +1,7 @@
+module Tests.GenericNamespaceLibrary
+
+GenericValues :: namespace {
+  identity<T> :: T (value : T) {
+    return value
+  }
+}

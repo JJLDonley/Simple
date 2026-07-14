@@ -500,6 +500,10 @@ bool LangGenericSpecializationAcrossImport() {
   return RunCliSvm({"run", "tests/simple_modules/generic_import_main.simple"}) == 42;
 }
 
+bool LangGenericNamespaceSpecializationAcrossImport() {
+  return RunCliSvm({"run", "tests/simple_modules/generic_namespace_import_main.simple"}) == 42;
+}
+
 bool LangSimpleFixtureReservedIoBuffer() {
   return RunSimpleFileExpectExit("tests/simple/reserved_io_buffer.simple", 0);
 }
@@ -602,6 +606,10 @@ bool LangStressGenericComposition() {
 
 bool LangStressGenericCompositionJit() {
   return RunCliSvm({"run", "tests/simple_stress/generic_composition.simple"}) == 0;
+}
+
+bool LangStressModuleGenericComposition() {
+  return RunCliSvm({"run", "tests/simple_stress/module_generic_composition.simple"}) == 0;
 }
 
 bool LangStressEnumAsTypeRuntime() {
@@ -795,6 +803,17 @@ bool LangGenericArtifactEmissionRuns() {
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
          sir.find("Box__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
+}
+
+bool LangGenericModuleFunctionEmissionRuns() {
+  const char* src =
+      "Generic :: namespace { identity<T> :: T (value : T) { return value } }\n"
+      "main : i32 () { return Generic.identity(42) }";
+  std::string sir;
+  std::string error;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("Generic__identity__g_") != std::string::npos &&
+         RunSirTextExpectExit(sir, 42);
 }
 
 bool LangGenericMethodParseRejected() {
@@ -3761,6 +3780,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_self_lexer", LangStressSelfLexer},
   {"lang_stress_generic_composition", LangStressGenericComposition},
   {"lang_stress_generic_composition_jit", LangStressGenericCompositionJit},
+  {"lang_stress_module_generic_composition", LangStressModuleGenericComposition},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
@@ -3778,6 +3798,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_reserved_process", LangSimpleFixtureReservedProcess},
   {"lang_simple_fixture_generic_specialization", LangSimpleFixtureGenericSpecialization},
   {"lang_generic_specialization_across_import", LangGenericSpecializationAcrossImport},
+  {"lang_generic_namespace_specialization_across_import",
+   LangGenericNamespaceSpecializationAcrossImport},
   {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
@@ -3794,6 +3816,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_generic_emission_runs", LangStressProcedureGenericEmissionRuns},
   {"lang_generic_function_emission_runs", LangGenericFunctionEmissionRuns},
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
+  {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
   {"lang_generic_method_parse_rejected", LangGenericMethodParseRejected},
   {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},
   {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},

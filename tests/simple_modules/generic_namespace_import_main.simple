@@ -1,0 +1,7 @@
+module Tests.GenericNamespaceImportMain
+
+import "./generic_namespace_library.simple"
+
+main :: i32 () {
+  return GenericValues.identity(42)
+}

@@ -385,6 +385,29 @@ const Simple::Lang::AST::FuncDecl* FindFunctionDecl(const Simple::Lang::AST::Pro
   return nullptr;
 }
 
+const Simple::Lang::AST::FuncDecl* FindOwnedFunctionDecl(
+    const Simple::Lang::AST::Program& program,
+    const Simple::Lang::TAST::GenericDeclarationMetadata& declaration) {
+  if (declaration.owner_name.empty()) {
+    return FindFunctionDecl(program, declaration.name);
+  }
+  for (const auto& decl : program.decls) {
+    if (decl.kind != Simple::Lang::AST::DeclKind::Module ||
+        decl.module.name != declaration.owner_name) {
+      continue;
+    }
+    for (const auto& function : decl.module.functions) {
+      if (function.name == declaration.name) return &function;
+    }
+  }
+  return nullptr;
+}
+
+std::string LocalSpecializedSymbol(const std::string& symbol) {
+  const size_t separator = symbol.rfind('.');
+  return separator == std::string::npos ? symbol : symbol.substr(separator + 1);
+}
+
 const Simple::Lang::AST::ArtifactDecl* FindArtifactDecl(const Simple::Lang::AST::Program& program,
                                                         const std::string& name) {
   for (const auto& decl : program.decls) {
@@ -701,7 +724,7 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
     for (const auto& plan : plans) {
       switch (plan.declaration.kind) {
         case Simple::Lang::TAST::GenericDeclarationKind::Function: {
-          const auto* source = FindFunctionDecl(program, plan.declaration.name);
+          const auto* source = FindOwnedFunctionDecl(program, plan.declaration);
           if (!source) {
             if (error) *error = "missing generic function declaration: " + plan.declaration.name;
             return false;
@@ -845,20 +868,50 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   out->decls.clear();
   out->top_level_stmts = source.top_level_stmts;
   for (const auto& decl : source.decls) {
-    if (IsConcreteDeclForMaterialization(decl)) out->decls.push_back(decl);
+    if (!IsConcreteDeclForMaterialization(decl)) continue;
+    if (decl.kind != Simple::Lang::AST::DeclKind::Module) {
+      out->decls.push_back(decl);
+      continue;
+    }
+    Simple::Lang::AST::Decl concrete_module = decl;
+    concrete_module.module.functions.clear();
+    for (const auto& function : decl.module.functions) {
+      if (function.generics.empty()) concrete_module.module.functions.push_back(function);
+    }
+    out->decls.push_back(std::move(concrete_module));
   }
   for (const auto& plan : plans) {
     Simple::Lang::AST::Decl decl;
     switch (plan.declaration.kind) {
       case Simple::Lang::TAST::GenericDeclarationKind::Function: {
-        const auto* source_fn = FindFunctionDecl(source, plan.declaration.name);
+        const auto* source_fn = FindOwnedFunctionDecl(source, plan.declaration);
         if (!source_fn) {
           if (error) *error = "missing generic function declaration: " + plan.declaration.name;
           return false;
         }
-        decl.kind = Simple::Lang::AST::DeclKind::Function;
-        if (!SpecializeFunctionDeclaration(*source_fn, plan, &decl.func, error)) return false;
-        out->decls.push_back(std::move(decl));
+        Simple::Lang::AST::FuncDecl specialized;
+        if (!SpecializeFunctionDeclaration(*source_fn, plan, &specialized, error)) return false;
+        if (plan.declaration.owner_name.empty()) {
+          decl.kind = Simple::Lang::AST::DeclKind::Function;
+          decl.func = std::move(specialized);
+          out->decls.push_back(std::move(decl));
+          break;
+        }
+        bool found_owner = false;
+        for (auto& output_decl : out->decls) {
+          if (output_decl.kind != Simple::Lang::AST::DeclKind::Module ||
+              output_decl.module.name != plan.declaration.owner_name) {
+            continue;
+          }
+          specialized.name = LocalSpecializedSymbol(plan.specialized_symbol);
+          output_decl.module.functions.push_back(std::move(specialized));
+          found_owner = true;
+          break;
+        }
+        if (!found_owner) {
+          if (error) *error = "missing generic function owner module: " + plan.declaration.owner_name;
+          return false;
+        }
         break;
       }
       case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
@@ -965,7 +1018,9 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
       const std::string callee = CalleeName(expr->children[0]);
       const auto it = specialized_symbols.find(build_key(callee, expr->type_args));
       if (it != specialized_symbols.end()) {
-        expr->children[0].text = it->second;
+        expr->children[0].text = expr->children[0].kind == Simple::Lang::AST::ExprKind::Member
+                                     ? LocalSpecializedSymbol(it->second)
+                                     : it->second;
         expr->type_args.clear();
         rewrote_specialized_call = true;
       }

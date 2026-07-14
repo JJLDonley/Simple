@@ -778,6 +778,11 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
   }
   Advance();
 
+  std::vector<std::string> generics;
+  if (Match(TokenKind::Lt)) {
+    if (!ParseGenerics(&generics)) return false;
+  }
+
   Mutability mut = Mutability::Mutable;
   if (Match(TokenKind::Colon)) {
     mut = Mutability::Mutable;
@@ -794,12 +799,18 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
   if (Match(TokenKind::LParen)) {
     FuncDecl fn;
     fn.name = name_tok.text;
+    fn.generics = std::move(generics);
     fn.return_mutability = mut;
     fn.return_type = std::move(type);
     if (!ParseParamList(&fn.params)) return false;
     if (!ParseBlockStmts(&fn.body)) return false;
     if (out) out->functions.push_back(std::move(fn));
     return true;
+  }
+
+  if (!generics.empty()) {
+    error_ = "module variables do not support generic parameters";
+    return false;
   }
 
   VarDecl var;
