@@ -17,6 +17,7 @@ VM, then validates a known result.
 | `generic_composition.simple` | nested specialization, inferred calls, generic lists and methods |
 | `module_generic_composition.simple` | namespace-owned generic specialization across collections and artifacts |
 | `generic_methods.simple` | inferred/explicit generic methods, generic receivers, indexed receivers |
+| `generic_chains.simple` | temporary generic receivers, namespace factories, chained method calls |
 
 Workloads are deliberately bounded so they remain suitable for normal CI while
 still reaching runtime paths that small fixtures miss. Increase loop counts and

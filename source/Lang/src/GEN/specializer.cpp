@@ -3,6 +3,7 @@
 #include "TAST/type_checker.h"
 #include "TAST/types.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
@@ -231,6 +232,68 @@ bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
     const auto it = scope.find(expr.text);
     if (it == scope.end()) return false;
     return Simple::Lang::TAST::CloneTypeRef(it->second, out);
+  }
+  if (expr.kind == Simple::Lang::AST::ExprKind::Call && !expr.children.empty()) {
+    const auto& callee = expr.children[0];
+    const Simple::Lang::AST::FuncDecl* function = nullptr;
+    Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+    if (callee.kind == Simple::Lang::AST::ExprKind::Identifier) {
+      for (const auto& decl : program.decls) {
+        if (decl.kind == Simple::Lang::AST::DeclKind::Function &&
+            decl.func.name == callee.text) {
+          function = &decl.func;
+          break;
+        }
+      }
+    } else if (callee.kind == Simple::Lang::AST::ExprKind::Member &&
+               !callee.children.empty()) {
+      const auto& base = callee.children[0];
+      if (base.kind == Simple::Lang::AST::ExprKind::Identifier) {
+        for (const auto& decl : program.decls) {
+          if (decl.kind != Simple::Lang::AST::DeclKind::Module ||
+              decl.module.name != base.text) {
+            continue;
+          }
+          for (const auto& candidate : decl.module.functions) {
+            if (candidate.name == callee.text) {
+              function = &candidate;
+              break;
+            }
+          }
+          break;
+        }
+      }
+      if (!function) {
+        Simple::Lang::AST::TypeRef receiver;
+        if (InferMethodReceiverType(base, program, scope, current_artifact, &receiver)) {
+          const auto* artifact = FindArtifactForMethodCollection(program, receiver.name);
+          if (artifact &&
+              Simple::Lang::TAST::BuildArtifactTypeParamMap(receiver, artifact,
+                                                            &substitutions, nullptr)) {
+            for (const auto& candidate : artifact->methods) {
+              if (candidate.name == callee.text) {
+                function = &candidate;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (function) {
+      if (!function->generics.empty()) {
+        Simple::Lang::TAST::GenericSubstitutionMap call_substitutions;
+        if (!Simple::Lang::TAST::BuildExplicitTypeArgMap(function->generics, expr.type_args,
+                                                         &call_substitutions, nullptr)) {
+          return false;
+        }
+        for (auto& [name, type] : call_substitutions) {
+          substitutions[name] = std::move(type);
+        }
+      }
+      return Simple::Lang::TAST::SubstituteTypeParams(function->return_type,
+                                                       substitutions, out);
+    }
   }
   if (expr.kind == Simple::Lang::AST::ExprKind::Index && !expr.children.empty()) {
     Simple::Lang::AST::TypeRef container;
@@ -1177,7 +1240,28 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     }
     out->decls.push_back(std::move(concrete_module));
   }
-  for (const auto& plan : plans) {
+  std::vector<const GenericSpecializationPlan*> materialization_order;
+  materialization_order.reserve(plans.size());
+  for (const auto& plan : plans) materialization_order.push_back(&plan);
+  auto materialization_priority = [](Simple::Lang::TAST::GenericDeclarationKind kind) {
+    switch (kind) {
+      case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
+      case Simple::Lang::TAST::GenericDeclarationKind::Data:
+        return 0;
+      case Simple::Lang::TAST::GenericDeclarationKind::Function:
+        return 1;
+      case Simple::Lang::TAST::GenericDeclarationKind::Method:
+        return 2;
+    }
+    return 3;
+  };
+  std::stable_sort(materialization_order.begin(), materialization_order.end(),
+                   [&](const auto* a, const auto* b) {
+                     return materialization_priority(a->declaration.kind) <
+                            materialization_priority(b->declaration.kind);
+                   });
+  for (const auto* plan_ptr : materialization_order) {
+    const auto& plan = *plan_ptr;
     Simple::Lang::AST::Decl decl;
     switch (plan.declaration.kind) {
       case Simple::Lang::TAST::GenericDeclarationKind::Function: {

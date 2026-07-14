@@ -616,6 +616,10 @@ bool LangStressGenericMethods() {
   return RunCliSvm({"run", "tests/simple_stress/generic_methods.simple"}) == 0;
 }
 
+bool LangStressGenericChains() {
+  return RunCliSvm({"run", "tests/simple_stress/generic_chains.simple"}) == 0;
+}
+
 bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
@@ -827,6 +831,18 @@ bool LangGenericMethodEmissionRuns() {
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("choose__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
+}
+
+bool LangGenericTemporaryReceiverEmissionRuns() {
+  const char* src =
+      "Box<T> :: artifact { value : T; choose<U> :: U (other : U) { return other } }\n"
+      "Factory :: namespace { make<T> :: Box<T> (value : T) { return { value } } }\n"
+      "main : i32 () { return Factory.make(1).choose(42) }";
+  std::string sir;
+  std::string error;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("Factory__make__g_") != std::string::npos &&
          sir.find("choose__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
@@ -3806,6 +3822,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_generic_composition_jit", LangStressGenericCompositionJit},
   {"lang_stress_module_generic_composition", LangStressModuleGenericComposition},
   {"lang_stress_generic_methods", LangStressGenericMethods},
+  {"lang_stress_generic_chains", LangStressGenericChains},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
@@ -3843,6 +3860,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
   {"lang_generic_method_emission_runs", LangGenericMethodEmissionRuns},
+  {"lang_generic_temporary_receiver_emission_runs", LangGenericTemporaryReceiverEmissionRuns},
   {"lang_generic_recursive_method_emission_runs", LangGenericRecursiveMethodEmissionRuns},
   {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},
   {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},
