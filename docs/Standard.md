@@ -8,7 +8,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 
 - Provide user-facing convenience APIs without bypassing `System.*` resource ownership, capability checks, or ABI rules.
 - Prefer source-level Simple modules where possible.
-- Use `Result<T,E>` and `Option<T>` for expected failures/absence once the language surface is complete.
+- Use `Result<T,E>` for expected failures and optional `T?` for absence once the language surface is complete.
 - Document which `System.*` APIs each Standard API wraps.
 - Keep unsafe/host-control behavior in `System.*`; Standard composes and owns ergonomics.
 
@@ -36,8 +36,13 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `Standard.Promise` | experimental run/await/poll/cancel/state helpers | `System.Job` |
 | `Standard.Channel` | generic channel wrappers | `System.Channel` |
 | `Standard.Collections` | List/Map/Set/Queue/Stack | source-level generics |
-| `Standard.Result` | Result helpers | language `Result<T,E>` |
-| `Standard.Option` | Option helpers | language `Option<T>` |
+| `Standard.Result` | Result helpers that do not duplicate language syntax | language `Result<T,E>` |
+
+There is no `Standard.Option` module in the final surface. Optional `T?`,
+contextual literals, exhaustive patterns, and expression `?` are language
+features; a library alias or constructor helper would duplicate the type
+system. The current catalog reservation is experimental and is removed directly
+when `T?` lands.
 
 The current `Standard.Promise` surface wraps runtime-owned `System.Job` handles. It is scalar-only, requires explicit `close`, and does not execute Simple closures on workers. See [Jobs, promises, and async design](Async.md).
 
@@ -75,7 +80,7 @@ Every `Standard.*` API must document:
 - which `System.*` functions it wraps
 - allocation behavior
 - blocking behavior
-- returned `Result`/`Option` shape
+- returned `Result<T,E>` or optional `T?` shape
 - cleanup behavior
 - examples
 - tests

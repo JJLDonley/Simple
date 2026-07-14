@@ -9,8 +9,9 @@ There are no public compatibility aliases in the target model. Source imports mu
 - Expose host/runtime control without hiding resource, blocking, allocation, GC, or capability behavior.
 - Back every API by native metadata shared by interpreter, JIT, future AOT, docs, and LSP.
 - Use generational opaque handles for host resources; never expose raw platform handles or VM internals directly.
-- Return `Result<T,E>` or `Option<T>` for expected host failures once language support is complete.
+- Return `Result<T,E>` for expected host failures and optional `T?` for absence once language support is complete.
 - Keep dynamic/native calls metadata-driven. No library-specific shims and no ABI guessing.
+- Use the frozen `v0.6` external-C contract for `usize`/`isize`, `T*`, nullable `T*?`, function pointers, provenance, mutability, ownership, and lifetime; never expose pointers as `i64`.
 
 ## Required modules
 

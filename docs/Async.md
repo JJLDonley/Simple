@@ -21,26 +21,67 @@ fetchBody :: async Result<string, HttpError> (url : string) {
 - `async` follows `:` or `::` and precedes the real, unwrapped return type;
 - calling an async function wraps that declared type as `Promise<T>`;
 - prefix `await` unwraps `Promise<T>` and is legal only inside `async` functions;
-- postfix `?` unwraps `Result<T, E>` or `Option<T>`, returning the matching
-  failure/absence shape from the enclosing function immediately;
-- no operation throws, invents a default, or silently discards failure.
+- postfix type `T?` represents ZII absence with `{}` absent and `{ value }` present;
+- postfix expression `expr?` unwraps `Result<T,E>` or optional `T?`, returning the
+  matching failure/absence shape from the enclosing function immediately;
+- no operation throws, invents a default, exposes an inactive zeroed payload, or
+  silently discards failure.
 
 See [Language reference](Language.md#async-functions-and-explicit-failure-design)
 for the complete design. This work depends on the same `v0.6` language milestone
-completing concrete generics and closures: generic specialization provides
-`Promise<Result<T,E>>` layouts, while rooted closure environments provide safe
-async bodies and callbacks. Async syntax does not replace either feature.
+completing concrete generics, lambdas, and closures: generic specialization
+provides `Promise<Result<T,E>>` layouts, while rooted closure environments
+provide safe async bodies and callbacks. Async syntax does not replace any of
+those features. Optional `T?` directly replaces experimental `Option<T>` with
+no alias. Native/standard library expansion does not begin until the language,
+external-FFI pointer contract, and conformance burn-in are complete.
+
+An async optional pipeline uses both postfix roles without ambiguity:
+
+```simple
+getDataFromAlgo :: async i32? () {
+  if (!algorithmHasResult()) { return {} }
+  return { calculateResult() }
+}
+
+consumeData :: async i32? () {
+  result :: i32? = await getDataFromAlgo()
+  value :: i32 = result?
+  return { value * 2 }
+}
+```
+
+The declaration `i32?` is a type. The expression `result?` produces `i32` when
+present and completes `consumeData` with absence otherwise. The combined form
+`value :: i32 = await getDataFromAlgo()?` means
+`(await getDataFromAlgo())?`.
 
 ## Target `Promise<T>` state model
 
 `Promise<T>` is a managed language type, not an `i64` convention or a Result
 alias. It owns three states: `Pending`, `Completed(T)`, and `Cancelled`.
 
+Under ZII, an all-zero Promise is terminal `Cancelled` with no producer or
+active payload. The runtime explicitly initializes Pending state, and only an
+atomic producer transition activates Completed state. Zeroed payload bytes are
+never interpreted while Pending or Cancelled.
+
+For example, `Promise<i32?>` distinguishes all outcomes:
+
+| State | `await` behavior |
+|---|---|
+| Pending | suspend and produce nothing |
+| Cancelled | propagate cancellation and run cleanup |
+| Completed with `{}` | produce absent `i32?` |
+| Completed with `{ 0 }` | produce present integer zero |
+
 `Completed` means asynchronous production finished; it does not claim the
 operation represented by `T` succeeded. Expected failures belong in `T`, usually
-as `Promise<Result<Value, DomainError>>`. Such a Promise completes with
-`Ok(value)` or `Err(error)`, and user code handles/propagates that Result after
-`await`:
+as `Promise<Result<Value, DomainError>>`. Such a Promise completes with a Result
+carrying either its success payload or typed error payload, and user code
+handles or propagates that Result after `await`. Result construction and
+matching use contextual `.value`/`.error` literals and structural patterns, not
+constructor names:
 
 ```simple
 response :: Response = await Standard.HTTP.get(url)?
@@ -55,8 +96,8 @@ than a domain error:
 - awaiting `Cancelled` cancels the enclosing frame's Promise, performs required
   cleanup, and skips all later statements in that frame.
 
-Cancellation never invents a `T`, becomes an implicit `Err(E)`, or throws. It
-propagates through the active await chain and is observable through Promise
+Cancellation never invents a `T`, becomes absence, becomes an implicit Result
+error, or throws. It propagates through the active await chain and is observable through Promise
 state/control APIs. Resolution and cancellation race atomically, with exactly
 one terminal winner. Cancellation wakes suspended continuations and is
 idempotent after reaching a terminal state.

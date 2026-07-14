@@ -162,6 +162,12 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 | ✅ | `option<T>` | `Option` / `24` | ref/value | optional metadata via `kind=option` |
 | ✅ | `vec<T,N>` | `Vector` / `25` | vector | SIMD/vector metadata via `kind=vector` |
 
+The current `option<T>` spelling is experimental IR metadata, not final source
+syntax. The `v0.6` SIR/SBC revision replaces it with
+`optional<T>`/`Optional` metadata emitted from source `T?`, removes the old
+identity in the same change, and updates the compatibility version without an
+alias.
+
 ## Operand and literal grammar
 
 | Status | Operand | Syntax | Accepted forms | Notes |

@@ -112,6 +112,11 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `24` | `Option` | `option<T>` | optional value metadata |
 | ✅ | `25` | `Vector` | `vec<T,N>` | SIMD/vector metadata |
 
+Row `24` records the current experimental implementation. The `v0.6` SBC
+revision renames its metadata identity to `Optional`/`optional<T>` behind source
+syntax `T?`, removes `Option` source/runtime naming directly, and bumps the SBC
+compatibility version rather than retaining an alias.
+
 ## Binary row schemas
 
 | Status | Row | Fields |

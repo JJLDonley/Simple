@@ -24,6 +24,26 @@ or code-generation behavior should live in a dedicated ABI/JIT component and
 switch on `Platform::Architecture`; it must not create combined identities such
 as `WindowsX64`.
 
+## External ABI portability
+
+The `v0.6` language contract keeps portable SBC values separate from host C ABI
+marshaling. `usize`/`isize` carry pointer-width ABI intent and are range-checked
+when lowered for the host; pointers are never represented in source as
+`i64`/`u64`. Fixed-width Simple integers map only to matching fixed-width C
+integers.
+
+External nullable pointers use source `T*?`. The marshaler maps absent to C
+address zero and nonzero C addresses to present pointers without exposing a
+source null type. General tagged `T?`, Result, Promise, managed references, and
+closures have no implicit external-C representation. Calling conventions,
+aggregate layout, callback pointers, alignment, pointee mutability, provenance,
+ownership, and lifetime must be validated for the selected host ABI before a
+call executes.
+
+Portable SBC does not encode a host address as a distributable constant. Raw
+external pointers are runtime-local borrowed values and cannot survive artifact
+serialization, process transfer, or migration to a different host ABI.
+
 ## Build rules
 
 Platform CMake modules define generated-artifact names. Code must not assume

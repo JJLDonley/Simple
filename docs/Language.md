@@ -496,10 +496,16 @@ Immutable variable:
 limit :: i32 = 10
 ```
 
-A variable declaration may omit an initializer; it is zero/default-initialized when the type supports that path.
+A variable declaration may omit an initializer. The current compiler supports
+zero/default initialization on implemented paths; the `v0.6` ZII contract makes
+the zero state deterministic for every type and forbids uninitialized bytes.
+A defined zero state is not permission to perform an invalid operation: for
+example, a zero raw pointer is non-dereferenceable and an inactive tagged
+payload is unreadable.
 
 ```simple
-x : i32
+x : i32      // zero
+missing : i32? // absent in the v0.6 design
 ```
 
 ### Functions
@@ -635,14 +641,19 @@ container boundaries and allowing string collections to participate in generic
 specialization. Generic methods can be inferred on temporary receivers returned
 by top-level functions, namespace factories, and artifact methods. Concrete
 artifacts materialize before dependent methods, so chained calls do not depend
-on source request order. Concrete `Option<T>` and `Result<T,E>` requests now
-materialize deterministic managed layouts with an `i32` tag and substituted
-payload fields. These layouts compose through nested generic
-artifacts and lists without exposing synthetic declarations as source APIs.
+on source request order. The current `v0.5.14` implementation materializes
+experimental `Option<T>` and `Result<T,E>` requests as deterministic managed
+layouts with an `i32` tag and substituted payload fields. These layouts compose
+through nested generic artifacts and lists without exposing synthetic
+declarations as source APIs.
 
-Canonical constructors, state checks, payload operations, `Promise<T>` runtime
-layout, and propagation remain language-completion work. `v0.5.14` reserves all
-three canonical generic type names and validates exact arity.
+The `v0.6` source contract directly replaces experimental `Option<T>` with
+postfix optional type syntax `T?`; no alias or compatibility lowering remains.
+Source-level Result lowering, payload operations, `Promise<T>` runtime layout,
+and propagation remain language-completion work. Result uses contextual
+`.value`/`.error` literals and structural patterns rather than constructor
+names. `v0.5.14` behavior is implementation history, not the frozen optional
+syntax.
 
 ### `v0.6` generic design
 
@@ -671,37 +682,52 @@ Generic completion requires:
 - specialization requests from annotations, calls, literals, fields, globals,
   imports, and native/library signatures;
 - exact substitution through nested types such as
-  `Promise<Result<Option<T>, E>>`;
+  `Promise<Result<T?, E>>`;
 - invariant mutable containers and wrappers unless variance is explicitly
   designed later;
 - rejection of recursive value containment without pointer/ref/handle
   indirection;
 - complete layout, verifier, interpreter, JIT, GC-root, and diagnostic parity.
 
-`Result<T,E>`, `Option<T>`, and `Promise<T>` are canonical generic language types,
-not unrelated hard-coded exceptions to the generic system.
+`Result<T,E>` and `Promise<T>` are canonical generic language types. Optional
+`T?` is a canonical postfix type constructor implemented by the same concrete
+specialization/layout machinery, not a public `Option<T>` generic or an ad hoc
+backend exception.
 
 ## `v0.6` language-completion scope
 
 Language completion includes all of the following as one dependency-ordered
 milestone family:
 
-1. concrete generics and canonical tagged generic layouts;
-2. `Result<T,E>`, `Option<T>`, and postfix `?`;
-3. `Promise<T>`, prefix `await`, and `async` functions;
-4. closures with captured lexical state;
-5. deterministic resource cleanup across return, propagation, suspension, and
-   cancellation.
+1. complete concrete generics across every supported language boundary;
+2. complete lambda expressions, callable typing, and generic lambda behavior;
+3. complete closures with captured lexical state, escaping lifetimes, mutable
+   sharing, and precise GC rooting;
+4. ZII, `Result<T,E>`, optional type `T?`, postfix expression `expr?`,
+   exhaustive optional patterns, and deterministic cleanup;
+5. `Promise<T>`, prefix `await`, `async` functions, and resumable execution;
+6. external-C ABI types, raw/optional/function pointers, provenance, ownership,
+   and lifetime rules;
+7. a conformance burn-in that resolves known parser, type-system, lowering,
+   verifier, interpreter, JIT, GC-root, and diagnostic discrepancies before the
+   syntax contract is frozen.
 
-The async/error design below depends on the generic and closure work; it does
-not replace or postpone it.
+The async/error design below depends on complete generic, lambda, and closure
+work; it does not replace or postpone it. Native and standard library expansion
+starts only after these language gates pass, so later releases do not need to
+redesign ordinary source syntax.
 
 ## Async functions and explicit failure design
 
-> **Design target for `v0.6`:** the syntax and semantics in this section are the
-> accepted language design, not functionality provided by the current `v0.5.14`
-> compiler. The transitional `System.Job` and `Standard.Promise` calls remain
-> documented in [Jobs, promises, and async design](Async.md).
+> **Design target for `v0.6`:** the `async`, `await`, and `?` placement and
+> semantics in this section are accepted language design, not functionality
+> provided by the current `v0.5.14` compiler. Optional `T?`, its contextual
+> literals and exhaustive patterns, and expression `expr?` are now the accepted
+> absence design. Result uses contextual `{ .value = expression }` and
+> `{ .error = expression }` literals with matching exhaustive patterns; no
+> constructor names are implied. The transitional `System.Job` and
+> `Standard.Promise` calls remain documented in
+> [Jobs, promises, and async design](Async.md).
 
 ### `async` return modifier
 
@@ -751,49 +777,138 @@ the return type.
 
 ```simple
 readConfig :: Result<string, IoError> () {
-  // Produces Ok(string) or Err(IoError).
+  // Produces either a success payload or an error payload.
 }
 ```
 
-Its two states are `Ok(T)` and `Err(E)`. Failure is an ordinary typed return
-value. Nothing throws and no stack unwinds invisibly. A Result-producing
-expression cannot be silently treated as `T`; consuming code must branch,
-propagate with `?`, return/store the Result, or explicitly discard it through a
-future deliberate discard form. An accidental unused Result is a diagnostic.
-
-### `Option<T>`
-
-`Option<T>` represents presence or absence without null:
+Its two semantic states carry `T` in `.value` on success and `E` in `.error` on
+failure. Construction and exhaustive handling reuse contextual named literals
+and structural patterns:
 
 ```simple
-findUser :: Option<User> (id : i32) {
-  // Produces Some(User) or None.
+success : Result<i32, IoError> = { .value = 42 }
+failure : Result<i32, IoError> = { .error = ioError }
+
+switch (success) {
+  { .value = value } => use(value)
+  { .error = error } => handle(error)
 }
 ```
 
-Its two states are `Some(T)` and `None`. `None` carries no hidden default value.
+Under ZII, the all-zero Result state is `{ .value = zero(T) }`; `.error` is
+inactive. This value default is not evidence that an asynchronous producer
+completed: an enclosing Promise state controls whether any Result payload is
+active. Missing function returns remain diagnostics.
 
-### `?` propagation
+Result has no constructor names. Failure is an ordinary typed return value.
+Nothing throws and no stack unwinds invisibly. A Result-producing expression cannot be silently
+treated as `T`; consuming code must branch, propagate with `?`, return/store the
+Result, or explicitly discard it through a deliberate discard form. An
+accidental unused Result is a diagnostic.
 
-`?` is a postfix propagation operator. It resolves a `Result` or `Option`
-immediately at the expression where it appears:
+### ZII and optional `T?`
 
-- `Ok(value)?` and `Some(value)?` produce the plain inner value;
-- `Err(error)?` immediately returns `Err(error)` from the enclosing function;
-- `None?` immediately returns `None` from the enclosing function.
+Simple uses Zero Is Initialization (ZII): every storage location is fully
+zero-initialized and every type defines a deterministic zero state. Zeroed
+bytes belonging to an inactive tagged payload are storage, not an active value;
+they are never read, traced, compared, or cleaned up as that payload.
 
-Nothing after a propagated failure or absence executes. The value bound after
-`?` is never an unresolved `Result` or `Option`.
+Postfix type `T?` represents either absence or one present `T`. There is no
+public `Option<T>` type, null type, null literal, or constructor-name API. The
+`v0.6` grammar separates type and expression postfix contexts:
 
-For `Result<T, E>`, `?` is legal only when the enclosing function returns
-`Result<U, E>` with the same error type. For `Option<T>`, it is legal only when
-the enclosing function returns `Option<U>`. Using `?` in any other return shape
-is a compile error; there is no implicit conversion, default, or discarded
-error.
+```ebnf
+postfix-type     = primary-type { pointer-suffix | dimension-suffix | "?" } ;
+postfix-expr     = primary-expr { call | member | index | "?" } ;
+optional-literal = "{" [ expr ] "}" ;
+optional-pattern = "{" [ ident ] "}" ;
+```
+
+The all-zero optional state is absent. A separate discriminator makes present
+`zero(T)` distinct from absence:
+
+```simple
+missing : i32?             // absent by ZII
+alsoMissing : i32? = {}    // explicit absence
+presentZero : i32? = { 0 } // present i32 zero
+present : i32? = { 42 }
+```
+
+Contextual optional literals are explicit: `{}` constructs absence and
+`{ expression }` constructs presence. Simple does not implicitly convert `T`
+to `T?`.
+
+Postfix type modifiers apply in written order:
+
+```simple
+values : i32?[]  // list of optional i32 values
+maybeValues : i32[]? // optional list of i32 values
+outerMissing : i32?? = {}
+innerMissing : i32?? = { {} }
+presentZero : i32?? = { { 0 } }
+```
+
+Every `?` contributes its own discriminator, so the three nested examples are
+distinct.
+
+Optional values use exhaustive structural patterns rather than named
+constructors:
+
+```simple
+findUser :: User? (id : i32) {
+  if (!userExists(id)) { return {} }
+  return { loadUser(id) }
+}
+
+userName :: string (candidate : User?) {
+  switch (candidate) {
+    { user } => return user.name
+    {} => return "missing"
+  }
+}
+```
+
+The `{ binding }` branch handles presence and binds `T`; the `{}` branch handles
+absence. Missing or duplicate states are diagnostics.
+
+### Expression `expr?` propagation
+
+A postfix `?` in expression context resolves optional `T?` or `Result<T,E>` at
+the expression where it appears. Type `T?` and expression `expr?` are distinct
+parser contexts.
+
+- a present `T?` produces its `T` payload;
+- an absent `T?` immediately returns absence from an enclosing `U?` function;
+- a successful Result produces its value payload;
+- a Result error immediately returns the same typed error state from an
+  enclosing `Result<U,E>` with the same `E`.
+
+```simple
+getDataFromAlgo :: async i32? () {
+  if (!algorithmHasResult()) { return {} }
+  return { calculateResult() }
+}
+
+doubleData :: async i32? () {
+  result :: i32? = await getDataFromAlgo()
+  value :: i32 = result?
+  return { value * 2 }
+}
+```
+
+If `result` is absent, `doubleData` completes with absence and executes no later
+statement. If it is `{ 0 }`, `value` is the legitimate integer zero. Extraction
+does not mutate the optional value.
+
+Using optional `expr?` in a function returning plain `U`, or Result `expr?` in a
+function with a different error type, is a compile error. Callers that cannot
+propagate must branch exhaustively. There is no implicit conversion, invented
+default, or discarded error.
 
 ### Composition
 
-`await` resolves time and `?` resolves failure. They compose in one expression:
+`await` resolves asynchronous completion and expression `?` resolves failure or
+absence. They compose in one expression:
 
 ```simple
 response :: Response = await Standard.HTTP.get(url)?
@@ -806,9 +921,9 @@ response :: Response = (await Standard.HTTP.get(url))?
 ```
 
 The call returns `Promise<Result<Response, HttpError>>`; `await` produces the
-`Result`, and `?` either produces `Response` or returns `Err(HttpError)` from
-the enclosing function. The expression grammar must preserve this ordering
-rather than applying `?` to the promise.
+`Result`, and `?` either produces `Response` or returns the same typed
+`HttpError` state from the enclosing function. The expression grammar must
+preserve this ordering rather than applying `?` to the promise.
 
 Async library APIs use natural operation names and explicit promise result
 types. LSP completion, hover, and signature help will label an operation as
@@ -826,11 +941,27 @@ state. Its target states are:
 - `Completed(T)`;
 - `Cancelled`.
 
+The all-zero `Promise<T>` state is terminal `Cancelled`: it has no producer and
+no active payload. The runtime explicitly initializes a live Pending promise,
+and only an atomic producer transition may activate `Completed(T)`. Pending and
+Cancelled payload bytes remain inactive even though ZII has zeroed their
+storage.
+
+Consequently, for `Promise<i32?>`, no completion, completed absence, and
+completed present zero remain distinct:
+
+| Promise state | Result of `await` |
+|---|---|
+| Pending | suspend; produce no value |
+| Cancelled | propagate structured cancellation |
+| Completed with `{}` | produce absent `i32?` |
+| Completed with `{ 0 }` | produce present integer zero |
+
 `Completed` means the producer finished and supplied its declared `T`; it does
 not mean that a domain operation succeeded. A fallible producer uses
-`Promise<Result<Value, Error>>`, which can therefore finish as either
-`Completed(Ok(value))` or `Completed(Err(error))`. The Promise does not inspect,
-catch, or reinterpret that Result.
+`Promise<Result<Value, Error>>`, which can therefore finish with either the
+Result's success payload or its typed error payload. The Promise does not
+inspect, catch, or reinterpret that Result.
 
 ```simple
 result :: Result<Response, HttpError> = await Standard.HTTP.get(url)
@@ -838,10 +969,10 @@ response :: Response = result?
 ```
 
 The usual combined form is `await Standard.HTTP.get(url)?`, equivalent to
-`(await Standard.HTTP.get(url))?`. The user handles a completed `Err` by
-branching on the Result or propagates it with `?`. An async function declared
-`async Result<T,E>` completes its returned Promise with either `Ok(T)` or
-`Err(E)`.
+`(await Standard.HTTP.get(url))?`. The user handles a completed error state by
+exhaustively branching on the Result or propagates it with `?`. An async
+function declared `async Result<T,E>` completes its returned Promise with an
+ordinary Result carrying either `T` or `E`.
 
 Expected operation failures do not create an untyped failed/rejected Promise
 state. Cancellation is different from a domain error and does not require every
@@ -850,10 +981,12 @@ only when normal completion is infallible; recoverable producer failures require
 a Result (or another explicit sum type) inside `T`.
 
 When `await` observes `Completed(value)`, it produces `value`. When it observes
-`Pending`, it suspends and registers the continuation. When it observes
+`Pending`, it suspends and registers the continuation; it never reads the
+zeroed inactive payload as a completed value. When it observes
 `Cancelled`, it cancels the Promise of the enclosing async function, runs that
 frame's required cleanup, and executes no later statement in the frame. It does
-not synthesize `T`, convert cancellation to `Err(E)`, or throw an exception.
+not synthesize `T`, convert cancellation to a Result error state, or throw an
+exception.
 Cancellation therefore propagates through an await chain as Promise state until
 code explicitly observes or isolates it through Promise control APIs.
 
@@ -885,9 +1018,14 @@ Procedure values are supported in local variables, parameters, switch expression
 ```simple
 i32*
 void**
+i32*?                 // optional raw pointer
+fn i32 (i32)*?        // optional external function pointer
 ```
 
-Pointer member access uses `->`. Pointer mutability is validated so immutable pointees cannot be mutated through aliases.
+The current compiler parses `T*`/`T**` and validates supported `->` paths. The
+complete ZII, nullability, provenance, ownership, lifetime, callback, and
+external-C rules are the `v0.6` design specified under
+[Pointers and member access](#pointers-and-member-access).
 
 ## Literals
 
@@ -1410,7 +1548,15 @@ Unsupported/rejected procedure cases include:
 - procedure values inside unsupported list/array/generic emission paths
 - direct inline invocation of an anonymous function literal
 
-### `v0.6` closure design
+### `v0.6` lambda and closure design
+
+Lambda expressions are the existing anonymous function literals, not a future
+second syntax. Language completion freezes one `(parameters) { body }` grammar
+and completes contextual and explicit typing, direct invocation, nesting,
+arguments, returns, fields, supported collections, generic specialization, and
+all other contexts where an `fn` value is valid. Generic lambda behavior is
+finished with the rest of concrete generics; no runtime-erased callable or
+library-specific lambda syntax is introduced.
 
 Closures are part of language completion because async jobs, callbacks, and
 resource-safe composition require behavior plus captured state. Function
@@ -1447,24 +1593,20 @@ implementation detail recorded in TAST/SIR/SBC metadata, not part of source type
 identity. Two literals with the same `fn` signature are callable through that
 signature but retain distinct environments.
 
-Closure completion requires tests for immutable and mutable capture, escaping
-lifetimes, nested environments, captures in generic specializations, GC during
+Lambda and closure completion requires tests for contextual/explicit typing,
+direct invocation, immutable and mutable capture, escaping lifetimes, nested
+and shared environments, generic lambdas and captures, GC during
 calls/suspension, async callbacks, cancellation, resource cleanup, and
-interpreter/JIT parity.
+interpreter/JIT parity. These are release gates for `v0.6.0`; native library
+work cannot defer any of them.
 
 ## Extern declarations and FFI ABI
 
-Extern declarations describe imported host or dynamic-library functions:
+Extern declarations describe imported host or dynamic-library functions. Extern
+names may be module-qualified, and calls are checked for argument count, exact
+types, calling convention, and supported ABI layout.
 
-```simple
-extern puts : i32 (s : string)
-extern Ray.InitWindow : void (w : i32, h : i32)
-extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
-```
-
-Extern names may be module-qualified. Calls are checked for argument count and type compatibility.
-
-Dynamic-library usage is exposed through the canonical `System.FFI` runtime API. Example shape from fixtures:
+The current `v0.5.14` dynamic-library shape remains transitional:
 
 ```simple
 module Examples.Reference
@@ -1480,24 +1622,151 @@ main :: i32 () {
 }
 ```
 
-ABI restrictions are strict. Unsupported ABI types and recursive artifact ABI are rejected.
+The raw `i64` library handle and managed `string` declarations accepted by
+specific transitional paths are not the final external-C type model.
+
+### `v0.6` ABI boundary
+
+VM-native calls and external-C calls are different ABIs. VM-native metadata may
+name rooted managed values. An external-C declaration may never reinterpret a
+VM reference, managed string, list, artifact, closure, Result, Promise, or
+general optional value as a host pointer.
+
+External-C scalar mappings are exact:
+
+| Simple type | External-C meaning |
+|---|---|
+| `i8`/`u8` through `i64`/`u64` | matching fixed-width C integer |
+| `f32`/`f64` | C `float`/`double` of matching ABI |
+| `bool` | C `_Bool` only when the ABI metadata confirms that mapping |
+| `usize`/`isize` | host pointer-width unsigned/signed ABI integer |
+| enum | its explicitly declared fixed-width underlying integer |
+| `char` | no implicit C `char` mapping; Simple `char` is a Unicode scalar |
+
+`usize` and `isize` have checked portable SBC representation and explicit
+host-width marshaling. Platform-dependent C `char`, `short`, `int`, `long`,
+enums, bitfields, variadics, and calling conventions are rejected unless the
+extern metadata fixes their ABI meaning. The compiler never silently treats a
+pointer or `size_t` as `i64`/`u64`.
+
+Stable no-reference `data` values may cross by value when their computed field
+layout, alignment, padding, and calling convention match. Managed artifacts,
+recursive values, and data containing VM references do not.
 
 ## Pointers and member access
 
-Pointer types use `*` suffixes:
+Raw pointer types use postfix `*`:
 
 ```simple
-i32*
-void**
+i32*                  // pointer to i32
+i32**                 // pointer to pointer to i32
+void*                 // opaque untyped address
+i32*?                 // optional pointer to i32
+fn i32 (i32)*         // external-C function pointer
+fn i32 (i32)*?        // optional external-C function pointer
 ```
 
-Pointer member access uses `->`:
+A plain `fn Return(params)` is a VM callable and may carry a closure
+environment. `fn Return(params)*` is an external function pointer with no Simple
+capture environment. The two representations are never implicitly converted.
+
+### ZII pointer states and C nullability
+
+ZII initializes raw pointer storage to address zero. For non-optional `T*`, that
+is a deterministic but non-dereferenceable zero state. Definite-state analysis
+rejects dereference, member access, callback invocation, or passage to a
+non-null extern parameter until a usable pointer has been assigned. Runtime and
+JIT guards trap if an external boundary violates a declared non-null result.
+There is still no source `null` type or null literal.
+
+A C pointer that may be address zero is declared `T*?`. At an external-C
+boundary only, optional-pointer lowering uses the C null niche:
+
+- absent `{}` marshals as address zero;
+- present `{ pointer }` requires a nonzero usable pointer and marshals as that address;
+- a C address-zero result becomes absent;
+- a nonzero C result becomes present.
+
+This exception does not pass Simple's general tagged optional layout to C.
+Scalar `i32?`, aggregate `Data?`, Result, Promise, and other tagged values remain
+invalid in direct external-C signatures unless an explicit stable C struct ABI
+is declared.
+
+Postfix modifiers apply in written order. `T*?` is an optional pointer, while
+`T?*` is a pointer to a Simple optional representation and is not generally
+external-C-compatible. Parenthesized type grouping expresses deeper shapes,
+such as `(T*?)*` for a pointer to a nullable pointer. Each accepted level must
+have an exact ABI layout.
+
+### Pointer operations and mutability
+
+Address-of produces a borrowed pointer with source provenance:
 
 ```simple
-node->value
+value : i32 = 42
+pointer :: i32* = &value
 ```
 
-The validator tracks mutability through pointer-like access and rejects mutation through immutable values.
+The final pointer surface includes guarded unary dereference, typed indexing
+when a proven extent exists, and `->` as member access through a pointer:
+
+```simple
+value = *pointer
+field = node->value
+byte = buffer[index]
+```
+
+Raw pointer arithmetic, ordering, and implicit pointer/integer conversion are
+not part of the stable language. Equality is allowed only between compatible
+pointer forms. Casts use explicit `@Target(pointer)` syntax and preserve
+optionality and mutability; only ABI-compatible typed-pointer/`void*`
+conversions are accepted.
+
+Declaration markers carry pointer mutability into provenance and extern
+metadata. An immutable `::` pointer parameter is an input/read-only pointee
+view; mutable `:` permits the declared output or in/out access:
+
+```simple
+extern ffi.findByte : u8*? (
+  data :: u8*,
+  count :: usize,
+  needle :: u8
+)
+
+extern ffi.copyBytes : void (
+  destination : u8*,
+  source :: u8*,
+  count :: usize
+)
+```
+
+The compiler rejects writes through immutable provenance even if a later alias
+uses a mutable binding.
+
+### Pointer lifetime and ownership
+
+Raw pointers never become GC roots and never own host memory implicitly.
+Address-of VM locals and fields is call-scoped by default. Such pointers cannot
+escape through a return, global, heap field, closure, worker thread, callback,
+or async suspension unless explicit pin/static/owner metadata proves the full
+lifetime. Moving managed storage cannot be addressed without pinning.
+
+External pointer results are borrowed by default. Retaining, transferring, or
+freeing one requires metadata naming its owner, lifetime, and deallocator.
+Long-lived host resources use typed generational handles rather than untracked
+raw pointers. Pointer-to-pointer outputs require mutable destination provenance
+and the same ownership/nullability validation for the pointer written by C.
+
+Managed `string` never converts implicitly to `u8*` or a C string. C strings,
+borrowed string views, and byte views require explicit ABI wrapper/conversion
+metadata with encoding, terminator, extent, and call-duration lifetime. A
+native function retaining a view must copy it into owned storage.
+
+Dereference, indexing, and `->` require provenance and sufficient known extent.
+An unbounded foreign pointer is pass/compare/round-trip only. External C remains
+capability-gated because a lying host ABI cannot be made memory-safe by source
+types, but malformed declarations and known lifetime/nullability violations are
+rejected before execution.
 
 ## Diagnostics
 
@@ -1530,7 +1799,8 @@ Common rejected cases covered by tests include:
 Current tests intentionally reject or limit:
 
 - the planned `async` return modifier, `await` expression, and `?` propagation operator
-- canonical `Result`/`Option` constructors, state checks, payload extraction, and propagation
+- optional `T?`, contextual optional literals/patterns, Result state operations,
+  and expression propagation
 - language-level `Promise<T>` layout and execution semantics
 - closure capture for procedure literals
 - procedure values at extern boundaries
