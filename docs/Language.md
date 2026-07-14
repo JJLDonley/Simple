@@ -609,18 +609,19 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-The experimental `v0.5.4` compiler materializes explicitly requested concrete
-top-level generic function and artifact specializations before SIR emission.
-Specializations have deterministic IR-safe symbols, duplicate requests reuse one
-body/layout, nested generic dependencies are discovered after substitution, and
-concrete scalar, string, procedure, and nested artifact cases execute through
-the normal interpreter/JIT pipeline.
+The experimental `v0.5.5` compiler materializes concrete top-level generic
+function and artifact specializations before SIR emission. Type arguments may be
+explicit or inferred from call arguments. Specializations have deterministic
+IR-safe symbols, duplicate requests reuse one body/layout, nested generic
+dependencies are discovered after substitution, and concrete scalar, string,
+procedure, nested artifact, and quoted-source-import cases execute through the
+normal interpreter/JIT pipeline.
 
-Generic call type-argument inference and generic methods are not emitted yet;
-callers must currently provide explicit type arguments such as `identity<i32>`.
-Quoted source imports participate in explicit specialization. Inferred calls,
-generic methods, fully qualified/module-owned specialization, and canonical
-tagged `Result`/`Option`/`Promise` layouts remain language-completion work.
+Generic methods, fully qualified/module-owned specialization, and executable
+canonical tagged `Result`/`Option`/`Promise` values remain language-completion
+work. `v0.5.5` reserves those three canonical generic type names and validates
+exact arity (`Result<T,E>`, `Option<T>`, and `Promise<T>`), but does not yet
+provide their constructors, payload operations, or runtime lowering.
 
 ### `v0.6` generic design
 
@@ -677,7 +678,7 @@ not replace or postpone it.
 ## Async functions and explicit failure design
 
 > **Design target for `v0.6`:** the syntax and semantics in this section are the
-> accepted language design, not functionality provided by the current `v0.5.4`
+> accepted language design, not functionality provided by the current `v0.5.5`
 > compiler. The transitional `System.Job` and `Standard.Promise` calls remain
 > documented in [Jobs, promises, and async design](Async.md).
 
@@ -1509,8 +1510,8 @@ Current tests intentionally reject or limit:
 
 - the planned `async` return modifier, `await` expression, and `?` propagation operator
 - language-level `Result<T, E>`, `Option<T>`, and `Promise<T>` execution semantics
-- inferred generic call emission, generic methods, and cross-module specialization
-- canonical tagged generic `Result`, `Option`, and `Promise` layouts
+- generic methods and fully qualified/module-owned specialization
+- executable canonical tagged generic `Result`, `Option`, and `Promise` values
 - closure capture for procedure literals
 - procedure values at extern boundaries
 - procedure values in unsupported containers/generic contexts

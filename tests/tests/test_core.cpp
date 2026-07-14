@@ -69,6 +69,12 @@ using Simple::Byte::sbc::BuildModuleWithFunctionsAndSigs;
 using Simple::Byte::sbc::SectionData;
 using Simple::Byte::sbc::SigSpec;
 
+uint32_t AppendTestPathToPool(std::vector<uint8_t>& const_pool,
+                              const std::string& name) {
+  return static_cast<uint32_t>(
+      AppendStringToPool(const_pool, TestTempPath(name).string()));
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -7287,7 +7293,7 @@ std::vector<uint8_t> BuildImportFsRoundTripModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_roundtrip.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_roundtrip.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -7545,7 +7551,7 @@ std::vector<uint8_t> BuildImportFsReadClampModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_read_clamp.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_read_clamp.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -7811,7 +7817,7 @@ std::vector<uint8_t> BuildImportFsWriteNullBufModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_null_buf.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_null_buf.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -7999,7 +8005,7 @@ std::vector<uint8_t> BuildImportFsReadNonArrayBufModule() {
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_bad_buf.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_bad_buf.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -8223,7 +8229,7 @@ std::vector<uint8_t> BuildImportFsWriteClampModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_write_clamp.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_write_clamp.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -8433,7 +8439,7 @@ std::vector<uint8_t> BuildImportFsCloseTwiceModule() {
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_close_twice.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_close_twice.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -8615,7 +8621,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_zero_len.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_zero_len.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -8882,7 +8888,7 @@ std::vector<uint8_t> BuildImportFsReadAfterCloseModule() {
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_read_after_close.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_read_after_close.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -9078,7 +9084,7 @@ std::vector<uint8_t> BuildImportFsWriteAfterCloseModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_write_after_close.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_write_after_close.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -9280,7 +9286,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseReopenModule() {
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_reopen.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_reopen.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -9468,7 +9474,7 @@ std::vector<uint8_t> BuildImportFsWriteZeroLenModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_write_zero.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_write_zero.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -9740,7 +9746,7 @@ std::vector<uint8_t> BuildImportFsReadZeroBufModule() {
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_read_zero_buf.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_read_zero_buf.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -9960,7 +9966,7 @@ std::vector<uint8_t> BuildImportFsWriteZeroBufModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_write_zero_buf.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_write_zero_buf.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -10157,7 +10163,7 @@ std::vector<uint8_t> BuildImportFsReadClampNoOverwriteModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_read_no_overwrite.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_read_no_overwrite.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -10452,7 +10458,7 @@ std::vector<uint8_t> BuildImportFsWriteAfterReadOnlyOpenModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_readonly.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_readonly.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -10691,7 +10697,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseLoopModule() {
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_open_close_loop.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_open_close_loop.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -10877,7 +10883,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseStressModule() {
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_open_close_stress.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_open_close_stress.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -11349,7 +11355,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenPreserveModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_read_zero_preserve.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_read_zero_preserve.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -11617,7 +11623,7 @@ std::vector<uint8_t> BuildImportFsWriteReadPersistModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_persist.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_persist.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -11896,7 +11902,7 @@ std::vector<uint8_t> BuildImportFsReadWriteReopenCycleModule() {
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_rw_cycle.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_rw_cycle.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -12283,7 +12289,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenNonEmptyBufModule() {
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
-      static_cast<uint32_t>(AppendStringToPool(const_pool, "tests/bin/sbc_fs_read_zero_nonempty.bin"));
+      AppendTestPathToPool(const_pool, "sbc_fs_read_zero_nonempty.bin");
   uint32_t path_const = 0;
   AppendConstString(const_pool, path_off, &path_const);
 
@@ -18656,7 +18662,9 @@ bool RunImportFsRoundTripTest() {
   std::vector<uint8_t> module_bytes = BuildImportFsRoundTripModule();
   Simple::Byte::LoadResult load;
   if (!LoadAndVerifyModule(module_bytes, &load)) return false;
-  std::remove("tests/bin/sbc_fs_roundtrip.bin");
+  const auto test_path = TestTempPath("sbc_fs_roundtrip.bin");
+  std::error_code remove_error;
+  std::filesystem::remove(test_path, remove_error);
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
   if (exec.status != Simple::VM::ExecStatus::Halted) {
     std::cerr << "exec failed status " << static_cast<int>(exec.status);
@@ -18666,7 +18674,7 @@ bool RunImportFsRoundTripTest() {
     std::cerr << "\n";
     return false;
   }
-  std::remove("tests/bin/sbc_fs_roundtrip.bin");
+  std::filesystem::remove(test_path, remove_error);
   if (exec.exit_code != 1) {
     std::cerr << "expected 1, got " << exec.exit_code << "\n";
     return false;

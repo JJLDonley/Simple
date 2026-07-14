@@ -38,6 +38,7 @@ bool IsBoolTypeName(const std::string& name);
 bool IsStringTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
 bool IsListMethodName(const std::string& name);
+bool CanonicalGenericTypeArity(const std::string& name, size_t* out_arity);
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type);
 bool CheckKnownTypeName(const Simple::Lang::AST::TypeRef& type,
                         bool is_primitive,

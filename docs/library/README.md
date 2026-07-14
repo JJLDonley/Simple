@@ -5,7 +5,7 @@ ordinary Simple source even when an implementation is native, generated, or
 composed from several runtime layers.
 
 This directory records the target pseudo-source presentation. These files are
-design documents, not inputs accepted by the current `v0.5.4` compiler.
+design documents, not inputs accepted by the current `v0.5.5` compiler.
 
 ## Editor behavior
 

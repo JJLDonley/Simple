@@ -767,15 +767,14 @@ bool LangGenericMethodParseRejected() {
   return error.find("expected ':' or '::' after member name") != std::string::npos;
 }
 
-bool LangGenericTypeArgInferenceEmissionRejected() {
+bool LangGenericTypeArgInferenceEmissionRuns() {
   const char* src =
       "id<T> : T (x : T) { return x }\n"
-      "main : i32 () { return id(42) }";
+      "main : i32 () { value : i32 = 42; return id(value) }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("generic call type inference is not yet available for emission") !=
-         std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("id__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
 bool LangGenericSpecializationNamingRuns() {
@@ -2328,6 +2327,36 @@ bool LangValidatePrimitiveTypeArgs() {
   return true;
 }
 
+bool LangValidateCanonicalGenericTypes() {
+  const char* src =
+      "main : i32 () { value : Promise<Result<Option<i32>, string>>; "
+      "nested : Promise<Option<Option<i32>>>; return 0; }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateCanonicalGenericTypeArity() {
+  for (const char* src : {
+           "main : i32 () { value : Result<i32>; return 0; }",
+           "main : i32 () { value : Option<i32, string>; return 0; }",
+           "main : i32 () { value : Promise; return 0; }",
+       }) {
+    std::string error;
+    if (Simple::Lang::ValidateProgramFromString(src, &error) ||
+        error.find("generic type argument count mismatch") == std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool LangValidateCanonicalGenericTypeRedeclaration() {
+  const char* src = "Result :: artifact { value : i32 }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("cannot redeclare canonical generic type: Result") != std::string::npos;
+}
+
 bool LangValidateTypeParamOk() {
   const char* src = "id<T> : T (v : T) { return v; }";
   std::string error;
@@ -3716,7 +3745,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_function_emission_runs", LangGenericFunctionEmissionRuns},
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_method_parse_rejected", LangGenericMethodParseRejected},
-  {"lang_generic_type_arg_inference_emission_rejected", LangGenericTypeArgInferenceEmissionRejected},
+  {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},
   {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},
   {"lang_generic_duplicate_specialization_reuses_symbol",
    LangGenericDuplicateSpecializationReusesSymbol},
@@ -3847,6 +3876,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_void_value_type", LangValidateVoidValueType},
   {"lang_validate_void_param_type", LangValidateVoidParamType},
   {"lang_validate_primitive_type_args", LangValidatePrimitiveTypeArgs},
+  {"lang_validate_canonical_generic_types", LangValidateCanonicalGenericTypes},
+  {"lang_validate_canonical_generic_type_arity", LangValidateCanonicalGenericTypeArity},
+  {"lang_validate_canonical_generic_type_redeclaration",
+   LangValidateCanonicalGenericTypeRedeclaration},
   {"lang_validate_type_param_ok", LangValidateTypeParamOk},
   {"lang_validate_type_param_with_args", LangValidateTypeParamWithArgs},
   {"lang_validate_immutable_var_assign", LangValidateImmutableVarAssign},

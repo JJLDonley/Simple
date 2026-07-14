@@ -1,5 +1,6 @@
 #include "GEN/specializer.h"
 
+#include "TAST/type_checker.h"
 #include "TAST/types.h"
 
 #include <iomanip>
@@ -883,12 +884,6 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   for (const auto& plan : plans) {
     specialized_symbols.emplace(InstantiationRequestKey(plan.request), plan.specialized_symbol);
   }
-  std::unordered_set<std::string> generic_function_names;
-  for (const auto& decl : source.decls) {
-    if (decl.kind == Simple::Lang::AST::DeclKind::Function && !decl.func.generics.empty()) {
-      generic_function_names.insert(decl.func.name);
-    }
-  }
 
   auto build_key = [](const std::string& base,
                       const std::vector<Simple::Lang::AST::TypeRef>& args) -> std::string {
@@ -968,13 +963,6 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     }
     if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->children.empty()) {
       const std::string callee = CalleeName(expr->children[0]);
-      if (expr->type_args.empty() && generic_function_names.find(callee) != generic_function_names.end()) {
-        if (error) {
-          *error = "generic call type inference is not yet available for emission: " + callee +
-                   "; provide explicit type arguments";
-        }
-        return false;
-      }
       if (!expr->type_args.empty()) {
         const auto it = specialized_symbols.find(build_key(callee, expr->type_args));
         if (it != specialized_symbols.end()) {
@@ -1073,9 +1061,13 @@ bool MaterializeProgramForEmission(const Simple::Lang::AST::Program& source,
     if (error) error->clear();
     return true;
   }
+  Simple::Lang::AST::Program annotated = source;
+  if (!Simple::Lang::TAST::AnnotateInferredGenericCallTypeArguments(&annotated, error)) {
+    return false;
+  }
   std::vector<GenericSpecializationPlan> plans;
-  if (!BuildSpecializationPlanFromProgram(source, &plans, error)) return false;
-  if (!MaterializeConcreteProgram(source, plans, out, error)) return false;
+  if (!BuildSpecializationPlanFromProgram(annotated, &plans, error)) return false;
+  if (!MaterializeConcreteProgram(annotated, plans, out, error)) return false;
   *materialized = true;
   if (error) error->clear();
   return true;

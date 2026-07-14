@@ -1932,6 +1932,19 @@ bool Parser::ParseBracketExprList(std::vector<Expr>* out) {
   return true;
 }
 
+bool Parser::MatchTypeArgumentClose() {
+  if (pending_type_argument_closes_ > 0) {
+    --pending_type_argument_closes_;
+    return true;
+  }
+  if (Match(TokenKind::Gt)) return true;
+  if (Match(TokenKind::Shr)) {
+    pending_type_argument_closes_ = 1;
+    return true;
+  }
+  return false;
+}
+
 bool Parser::ParseTypeArgs(std::vector<TypeRef>* out) {
   if (!out) return false;
   if (Match(TokenKind::Gt)) {
@@ -1945,9 +1958,7 @@ bool Parser::ParseTypeArgs(std::vector<TypeRef>* out) {
     if (Match(TokenKind::Comma)) {
       continue;
     }
-    if (Match(TokenKind::Gt)) {
-      break;
-    }
+    if (MatchTypeArgumentClose()) break;
     error_ = "expected ',' or '>' in type arguments";
     return false;
   }

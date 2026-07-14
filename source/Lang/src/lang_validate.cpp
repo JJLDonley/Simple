@@ -43,6 +43,7 @@ struct ValidateContext {
   std::unordered_set<std::string> using_reserved_modules;
   std::unordered_set<std::string> using_modules;
   std::unordered_set<std::string> imported_modules;
+  std::unordered_map<const Expr*, std::vector<TypeRef>>* inferred_generic_calls = nullptr;
 };
 
 struct LocalInfo {
@@ -478,6 +479,9 @@ bool CheckTypeRef(const TypeRef& type,
 
   const bool is_primitive = IsPrimitiveTypeName(type.name);
   const bool is_type_param = type_params.find(type.name) != type_params.end();
+  size_t canonical_generic_arity = 0;
+  const bool is_canonical_generic =
+      TAST::CanonicalGenericTypeArity(type.name, &canonical_generic_arity);
   const bool is_user_type = ctx.top_level.find(type.name) != ctx.top_level.end();
 
   if (IsReservedModuleEnabled(ctx, type.name)) {
@@ -486,12 +490,23 @@ bool CheckTypeRef(const TypeRef& type,
     return false;
   }
 
-  if (!CheckKnownTypeName(type, is_primitive, is_type_param, is_user_type, error)) {
+  if (!CheckKnownTypeName(type, is_primitive, is_type_param,
+                          is_user_type || is_canonical_generic, error)) {
     PrefixErrorLocation(type.line, type.column, error);
     return false;
   }
 
-  if (is_user_type && !is_type_param) {
+  if (is_canonical_generic) {
+    if (!CheckTypeArgumentRules(type,
+                                false,
+                                false,
+                                false,
+                                &canonical_generic_arity,
+                                error)) {
+      PrefixErrorLocation(type.line, type.column, error);
+      return false;
+    }
+  } else if (is_user_type && !is_type_param) {
     if (ctx.modules.find(type.name) != ctx.modules.end()) {
       if (error) *error = "module is not a type: " + type.name;
       PrefixErrorLocation(type.line, type.column, error);
@@ -1625,6 +1640,18 @@ bool CheckCallArgTypes(const Expr& call_expr,
                                  ctx, scopes, current_artifact, &mapping)) {
         if (error) *error = "cannot infer type arguments for call";
         return false;
+      }
+      if (ctx.inferred_generic_calls) {
+        std::vector<TypeRef> inferred;
+        inferred.reserve(info.type_params.size());
+        for (const auto& name : info.type_params) {
+          auto inferred_it = mapping.find(name);
+          if (inferred_it == mapping.end()) return false;
+          TypeRef copy;
+          if (!CloneTypeRef(inferred_it->second, &copy)) return false;
+          inferred.push_back(std::move(copy));
+        }
+        (*ctx.inferred_generic_calls)[&call_expr] = std::move(inferred);
       }
     }
   }
@@ -2998,8 +3025,12 @@ bool CheckFunctionBody(const FuncDecl& fn,
 
 } // namespace
 
-bool ValidateProgram(const Program& program, std::string* error) {
+static bool ValidateProgramImpl(
+    const Program& program,
+    std::unordered_map<const Expr*, std::vector<TypeRef>>* inferred_generic_calls,
+    std::string* error) {
   ValidateContext ctx;
+  ctx.inferred_generic_calls = inferred_generic_calls;
   std::vector<std::unordered_map<std::string, LocalInfo>> empty_scopes;
   empty_scopes.emplace_back();
   if (!CheckProgramHasDeclarationsOrTopLevelStatements(program, error)) return false;
@@ -3121,11 +3152,18 @@ bool ValidateProgram(const Program& program, std::string* error) {
         }
         break;
     }
-    if (name_ptr && !CheckUniqueNamedMember(*name_ptr,
-                                            &ctx.top_level,
-                                            "duplicate top-level declaration: ",
-                                            error)) {
-      return false;
+    if (name_ptr) {
+      size_t canonical_generic_arity = 0;
+      if (TAST::CanonicalGenericTypeArity(*name_ptr, &canonical_generic_arity)) {
+        if (error) *error = "cannot redeclare canonical generic type: " + *name_ptr;
+        return false;
+      }
+      if (!CheckUniqueNamedMember(*name_ptr,
+                                  &ctx.top_level,
+                                  "duplicate top-level declaration: ",
+                                  error)) {
+        return false;
+      }
     }
   }
 
@@ -3316,6 +3354,23 @@ bool ValidateProgram(const Program& program, std::string* error) {
     }
   }
 
+  return true;
+}
+
+bool ValidateProgram(const Program& program, std::string* error) {
+  return ValidateProgramImpl(program, nullptr, error);
+}
+
+bool TAST::AnnotateInferredGenericCallTypeArguments(Program* program,
+                                                    std::string* error) {
+  if (!program) return false;
+  std::unordered_map<const Expr*, std::vector<TypeRef>> inferred_generic_calls;
+  if (!ValidateProgramImpl(*program, &inferred_generic_calls, error)) return false;
+  for (auto& entry : inferred_generic_calls) {
+    auto* expression = const_cast<Expr*>(entry.first);
+    expression->type_args = std::move(entry.second);
+  }
+  if (error) error->clear();
   return true;
 }
 

@@ -22,5 +22,7 @@ namespace Simple::Lang::TAST {
 bool CheckResolvedProgram(const Simple::Lang::RAST::ResolvedProgram& resolved,
                           TypedProgram* out,
                           std::string* error);
+bool AnnotateInferredGenericCallTypeArguments(Simple::Lang::Program* program,
+                                              std::string* error);
 
 } // namespace Simple::Lang::TAST

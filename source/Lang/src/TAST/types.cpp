@@ -205,6 +205,19 @@ bool IsListMethodName(const std::string& name) {
          name == "insert" || name == "remove" || name == "clear";
 }
 
+bool CanonicalGenericTypeArity(const std::string& name, size_t* out_arity) {
+  if (!out_arity) return false;
+  if (name == "Result") {
+    *out_arity = 2;
+    return true;
+  }
+  if (name == "Option" || name == "Promise") {
+    *out_arity = 1;
+    return true;
+  }
+  return false;
+}
+
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type) {
   return type.pointer_depth == 0 &&
          !type.is_proc &&

@@ -27,6 +27,7 @@ private:
 
   bool ParseTypeInner(TypeRef* out);
   bool ParseTypeArgs(std::vector<TypeRef>* out);
+  bool MatchTypeArgumentClose();
   bool ParseTypeDims(TypeRef* out);
   bool ParseDecl(Decl* out);
   bool ParseGenerics(std::vector<std::string>* out);
@@ -75,6 +76,7 @@ private:
   bool allow_format_expr_ = true;
   uint32_t expression_depth_ = 0;
   size_t expression_budget_ = 0;
+  uint32_t pending_type_argument_closes_ = 0;
 };
 
 bool ParseTypeFromString(const std::string& text, TypeRef* out, std::string* error);
