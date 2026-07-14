@@ -38,11 +38,11 @@ main :: i32 () {
   }
   if (total != 499500) { return 1 }
 
-  values : i32[] = [11, 12]
-  head :: i32 = headValue(values)
+  names : string[] = ["alpha", "beta"]
+  head :: string = headValue(names)
   answerBox :: Box<i32> = makeBox(42)
-  pair : Pair<i32, Box<i32>> = { head, answerBox }
-  if (pair.first != 11 || pair.second.get() != 42) { return 2 }
+  pair : Pair<string, Box<i32>> = { head, answerBox }
+  if (pair.first != "alpha" || pair.second.get() != 42) { return 2 }
 
   inner :: Box<i32> = makeBox(7)
   nested : Box<Box<i32>> = makeBox(inner)

@@ -52,6 +52,7 @@ private:
   bool ParseWhile(Stmt* out);
   bool ParseFor(Stmt* out);
   bool ParseExpr(Expr* out);
+  bool ParseNonFormatExpr(Expr* out);
   bool ParseAssignmentExpr(Expr* out);
   bool ParseBinaryExpr(int min_prec, Expr* out);
   bool ParseUnaryExpr(Expr* out);

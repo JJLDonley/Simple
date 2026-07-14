@@ -572,6 +572,33 @@ bool LangParsesArrayListAndIndex() {
 }
 
 
+bool LangParsesDelimitedStringLiterals() {
+  const char* src =
+      "Pair :: artifact { left : string; right : string }\n"
+      "main : void () { values : string[] = [\"alpha\", \"beta\"]; "
+      "pair : Pair = { \"gamma\", \"delta\" }; "
+      "named : Pair = { .left = \"epsilon\", .right = \"zeta\" }; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 2 || program.decls[1].func.body.size() != 3) return false;
+  const auto& list = program.decls[1].func.body[0].var_decl.init_expr;
+  const auto& artifact = program.decls[1].func.body[1].var_decl.init_expr;
+  const auto& named = program.decls[1].func.body[2].var_decl.init_expr;
+  if (list.kind != Simple::Lang::ExprKind::ListLiteral || list.children.size() != 2) return false;
+  if (artifact.kind != Simple::Lang::ExprKind::ArtifactLiteral || artifact.children.size() != 2) {
+    return false;
+  }
+  return list.children[0].kind == Simple::Lang::ExprKind::Literal &&
+         list.children[1].kind == Simple::Lang::ExprKind::Literal &&
+         artifact.children[0].kind == Simple::Lang::ExprKind::Literal &&
+         artifact.children[1].kind == Simple::Lang::ExprKind::Literal &&
+         named.field_values.size() == 2 &&
+         named.field_values[0].kind == Simple::Lang::ExprKind::Literal &&
+         named.field_values[1].kind == Simple::Lang::ExprKind::Literal;
+}
+
+
 bool LangParsesArtifactLiteral() {
   const char* src = "main : void () { foo({ .x = 1, .y = 2 }); }";
   Simple::Lang::Program program;
@@ -796,6 +823,7 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_bitwise_precedence", LangParsesBitwisePrecedence},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
+  {"lang_parse_delimited_string_literals", LangParsesDelimitedStringLiterals},
   {"lang_parse_fn_literal", LangParsesFnLiteral},
   {"lang_parse_fn_shorthand_literal_binding", LangParsesFnShorthandLiteralBinding},
   {"lang_parse_assignments", LangParsesAssignments},

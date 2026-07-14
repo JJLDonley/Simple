@@ -1385,6 +1385,14 @@ bool Parser::ParseExpr(Expr* out) {
   return ParseAssignmentExpr(out);
 }
 
+bool Parser::ParseNonFormatExpr(Expr* out) {
+  const bool previous = allow_format_expr_;
+  allow_format_expr_ = false;
+  const bool parsed = ParseExpr(out);
+  allow_format_expr_ = previous;
+  return parsed;
+}
+
 bool Parser::ParseAssignmentExpr(Expr* out) {
   size_t save = index_;
   Expr target;
@@ -1734,7 +1742,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
           return false;
         }
         Expr value;
-        if (!ParseExpr(&value)) return false;
+        if (!ParseNonFormatExpr(&value)) return false;
         expr.field_names.push_back(field_tok.text);
         expr.field_values.push_back(std::move(value));
         seen_named = true;
@@ -1746,7 +1754,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
         Token field_tok = Advance();
         Advance(); // ':'
         Expr value;
-        if (!ParseExpr(&value)) return false;
+        if (!ParseNonFormatExpr(&value)) return false;
         expr.field_names.push_back(field_tok.text);
         expr.field_values.push_back(std::move(value));
         seen_named = true;
@@ -1756,7 +1764,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
           return false;
         }
         Expr value;
-        if (!ParseExpr(&value)) return false;
+        if (!ParseNonFormatExpr(&value)) return false;
         expr.children.push_back(std::move(value));
         seen_positional = true;
       }
@@ -1921,11 +1929,7 @@ bool Parser::ParseCallArgs(std::vector<Expr>* out) {
       return false;
     }
     Expr arg;
-    const bool prev_allow_format = allow_format_expr_;
-    allow_format_expr_ = false;
-    const bool parsed = ParseExpr(&arg);
-    allow_format_expr_ = prev_allow_format;
-    if (!parsed) return false;
+    if (!ParseNonFormatExpr(&arg)) return false;
     if (out) out->push_back(std::move(arg));
     if (Match(TokenKind::Comma)) continue;
     if (Match(TokenKind::RParen)) break;
@@ -1944,7 +1948,7 @@ bool Parser::ParseBracketExprList(std::vector<Expr>* out) {
   if (Match(TokenKind::RBracket)) return true;
   for (;;) {
     Expr element;
-    if (!ParseExpr(&element)) return false;
+    if (!ParseNonFormatExpr(&element)) return false;
     if (out) out->push_back(std::move(element));
     if (Match(TokenKind::Comma)) continue;
     if (Match(TokenKind::RBracket)) break;

@@ -609,7 +609,7 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-The experimental `v0.5.11` compiler materializes concrete top-level and
+The experimental `v0.5.12` compiler materializes concrete top-level and
 namespace-owned generic functions, generic methods, and artifact
 specializations before SIR emission. Type arguments may be
 explicit or inferred from call arguments. Specializations have deterministic
@@ -629,10 +629,13 @@ stable specialization identity. Named, member, and indexed receivers support
 inferred or explicit method arguments through the same artifact call-target
 resolution path. Recursive and mutually recursive generic methods discover
 concrete self-call dependencies and rewrite each recursive call to the same
-materialized method identity.
+materialized method identity. Comma-delimited list and artifact elements parse
+strings as ordinary literals, keeping format-expression parsing outside those
+container boundaries and allowing string collections to participate in generic
+specialization.
 
 Executable canonical tagged `Result`/`Option`/`Promise` values remain
-language-completion work. `v0.5.11` reserves those three canonical generic type
+language-completion work. `v0.5.12` reserves those three canonical generic type
 names and validates
 exact arity (`Result<T,E>`, `Option<T>`, and `Promise<T>`), but does not yet
 provide their constructors, payload operations, or runtime lowering.
@@ -692,7 +695,7 @@ not replace or postpone it.
 ## Async functions and explicit failure design
 
 > **Design target for `v0.6`:** the syntax and semantics in this section are the
-> accepted language design, not functionality provided by the current `v0.5.11`
+> accepted language design, not functionality provided by the current `v0.5.12`
 > compiler. The transitional `System.Job` and `Standard.Promise` calls remain
 > documented in [Jobs, promises, and async design](Async.md).
 
