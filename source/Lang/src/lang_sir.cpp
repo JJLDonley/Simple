@@ -1518,8 +1518,12 @@ bool InferExprType(const Expr& expr,
       }
       TypeRef container;
       if (!InferExprType(expr.children[0], st, &container, error)) return false;
+      if (container.name == "string" && container.dims.empty()) {
+        out->name = "char";
+        return true;
+      }
       if (container.dims.empty()) {
-        if (error) *error = "indexing is only valid on arrays and lists";
+        if (error) *error = "indexing is only valid on arrays, lists, and strings";
         return false;
       }
       if (!CloneElementType(container, out)) {
@@ -3915,12 +3919,15 @@ bool EmitExpr(EmitState& st,
       }
       TypeRef container_type;
       if (!InferExprType(expr.children[0], st, &container_type, error)) return false;
-      if (container_type.dims.empty()) {
-        if (error) *error = "indexing is only valid on arrays and lists";
+      const bool is_string = container_type.name == "string" && container_type.dims.empty();
+      if (container_type.dims.empty() && !is_string) {
+        if (error) *error = "indexing is only valid on arrays, lists, and strings";
         return false;
       }
       TypeRef element_type;
-      if (!CloneElementType(container_type, &element_type)) {
+      if (is_string) {
+        element_type.name = "char";
+      } else if (!CloneElementType(container_type, &element_type)) {
         if (error) *error = "failed to resolve index element type";
         return false;
       }
@@ -3933,7 +3940,9 @@ bool EmitExpr(EmitState& st,
       TypeRef index_type;
       index_type.name = "i32";
       if (!EmitExpr(st, expr.children[1], &index_type, error)) return false;
-      if (container_type.dims.front().is_list) {
+      if (is_string) {
+        (*st.out) << "  string.get.char\n";
+      } else if (container_type.dims.front().is_list) {
         (*st.out) << "  list.get " << op_suffix << "\n";
       } else {
         (*st.out) << "  array.get " << op_suffix << "\n";

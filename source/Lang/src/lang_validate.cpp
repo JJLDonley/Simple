@@ -737,6 +737,10 @@ bool InferExprType(const Expr& expr,
     case ExprKind::Index: {
       TypeRef base_type;
       if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) return false;
+      if (base_type.name == "string" && base_type.dims.empty()) {
+        out->name = "char";
+        return true;
+      }
       if (base_type.dims.empty()) return false;
       TypeRef result;
       if (!CloneTypeRef(base_type, &result)) return false;
@@ -2939,12 +2943,12 @@ bool CheckExpr(const Expr& expr,
       {
         TypeRef base_type;
         if (InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) {
-          if (base_type.dims.empty()) {
-            if (error) *error = "indexing is only valid on arrays and lists";
+          if (base_type.dims.empty() && base_type.name != "string") {
+            if (error) *error = "indexing is only valid on arrays, lists, and strings";
             return false;
           }
         } else if (expr.children[0].kind == ExprKind::Literal) {
-          if (error) *error = "indexing is only valid on arrays and lists";
+          if (error) *error = "indexing is only valid on arrays, lists, and strings";
           return false;
         }
       }

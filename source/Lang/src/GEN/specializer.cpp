@@ -898,6 +898,14 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
 
   auto rewrite_type = [&](auto&& self, Simple::Lang::AST::TypeRef* type) -> bool {
     if (!type) return false;
+    if (!type->name.empty() && !type->type_args.empty() && type->pointer_depth == 0) {
+      const auto it = specialized_symbols.find(build_key(type->name, type->type_args));
+      if (it != specialized_symbols.end()) {
+        type->name = it->second;
+        type->type_args.clear();
+        return true;
+      }
+    }
     for (auto& arg : type->type_args) {
       if (!self(self, &arg)) return false;
     }
@@ -906,13 +914,6 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         if (!self(self, &param)) return false;
       }
       if (type->proc_return && !self(self, type->proc_return.get())) return false;
-    }
-    if (!type->name.empty() && !type->type_args.empty() && type->pointer_depth == 0 && type->dims.empty()) {
-      const auto it = specialized_symbols.find(build_key(type->name, type->type_args));
-      if (it != specialized_symbols.end()) {
-        type->name = it->second;
-        type->type_args.clear();
-      }
     }
     return true;
   };
@@ -958,17 +959,20 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   auto rewrite_expr = [&](auto&& self, auto&& rewrite_type_fn,
                           Simple::Lang::AST::Expr* expr) -> bool {
     if (!expr) return false;
-    for (auto& arg : expr->type_args) {
-      if (!rewrite_type_fn(rewrite_type_fn, &arg)) return false;
-    }
-    if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->children.empty()) {
+    bool rewrote_specialized_call = false;
+    if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->children.empty() &&
+        !expr->type_args.empty()) {
       const std::string callee = CalleeName(expr->children[0]);
-      if (!expr->type_args.empty()) {
-        const auto it = specialized_symbols.find(build_key(callee, expr->type_args));
-        if (it != specialized_symbols.end()) {
-          expr->children[0].text = it->second;
-          expr->type_args.clear();
-        }
+      const auto it = specialized_symbols.find(build_key(callee, expr->type_args));
+      if (it != specialized_symbols.end()) {
+        expr->children[0].text = it->second;
+        expr->type_args.clear();
+        rewrote_specialized_call = true;
+      }
+    }
+    if (!rewrote_specialized_call) {
+      for (auto& arg : expr->type_args) {
+        if (!rewrite_type_fn(rewrite_type_fn, &arg)) return false;
       }
     }
     for (auto& param : expr->fn_params) {

@@ -1676,10 +1676,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (IsNullRef(v)) return Trap("LOAD_FIELD on non-ref");
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("LOAD_FIELD on non-object");
-        uint32_t offset = module.fields[field_id].offset;
-        if (offset + 4 > obj->payload.size()) return Trap("LOAD_FIELD out of bounds");
-        int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
-        Push(stack, PackI32(value));
+        const auto& field = module.fields[field_id];
+        if (field.type_id >= module.types.size()) return Trap("LOAD_FIELD bad field type");
+        uint32_t offset = field.offset;
+        const uint32_t width = module.types[field.type_id].size;
+        if (width == 8) {
+          if (offset + 8 > obj->payload.size()) return Trap("LOAD_FIELD out of bounds");
+          Push(stack, ReadU64Payload(obj->payload, offset));
+        } else {
+          if (width == 0 || width > 4 || offset + 4 > obj->payload.size()) {
+            return Trap("LOAD_FIELD unsupported field width");
+          }
+          Push(stack, static_cast<uint64_t>(ReadU32Payload(obj->payload, offset)));
+        }
         break;
       }
       case OpCode::StoreField: {
@@ -1690,9 +1699,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (IsNullRef(v)) return Trap("STORE_FIELD on non-ref");
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("STORE_FIELD on non-object");
-        uint32_t offset = module.fields[field_id].offset;
-        if (offset + 4 > obj->payload.size()) return Trap("STORE_FIELD out of bounds");
-        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
+        const auto& field = module.fields[field_id];
+        if (field.type_id >= module.types.size()) return Trap("STORE_FIELD bad field type");
+        uint32_t offset = field.offset;
+        const uint32_t width = module.types[field.type_id].size;
+        if (width == 8) {
+          if (offset + 8 > obj->payload.size()) return Trap("STORE_FIELD out of bounds");
+          WriteU64Payload(obj->payload, offset, value);
+        } else {
+          if (width == 0 || width > 4 || offset + 4 > obj->payload.size()) {
+            return Trap("STORE_FIELD unsupported field width");
+          }
+          WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value));
+        }
         break;
       }
       case OpCode::IsNull: {

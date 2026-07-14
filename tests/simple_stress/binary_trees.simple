@@ -1,0 +1,36 @@
+module Tests.Stress.BinaryTrees
+
+Node :: artifact {
+  left : i32
+  right : i32
+  item : i32
+}
+
+makeTree :: i32 (nodes : Node[], depth : i32) {
+  index :: i32 = nodes.len()
+  nodes.push({ -1, -1, 1 })
+  if (depth > 0) {
+    nodes[index].left = makeTree(nodes, depth - 1)
+    nodes[index].right = makeTree(nodes, depth - 1)
+  }
+  return index
+}
+
+checkTree :: i32 (nodes : Node[], index : i32) {
+  if (nodes[index].left < 0) { return nodes[index].item }
+  return nodes[index].item + checkTree(nodes, nodes[index].left) +
+    checkTree(nodes, nodes[index].right)
+}
+
+main :: i32 () {
+  total : i32 = 0
+  for (iteration : i32 = 0; iteration < 8; iteration += 1) {
+    nodes : Node[] = []
+    root :: i32 = makeTree(nodes, 11)
+    if (nodes.len() != 4095) { return 1 }
+    total += checkTree(nodes, root)
+    nodes.clear()
+  }
+  if (total != 32760) { return 2 }
+  return 0
+}

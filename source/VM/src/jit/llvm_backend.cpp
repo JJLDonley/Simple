@@ -253,6 +253,26 @@ extern "C" void SimpleVmLlvmStoreField32(uint64_t ref_slot, uint32_t offset, uin
   Simple::VM::WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value_slot));
 }
 
+extern "C" uint64_t SimpleVmLlvmLoadField64(uint64_t ref_slot, uint32_t offset) {
+  if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return 0; }
+  Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || offset + 8u > obj->payload.size()) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  return Simple::VM::ReadU64Payload(obj->payload, offset);
+}
+
+extern "C" void SimpleVmLlvmStoreField64(uint64_t ref_slot, uint32_t offset, uint64_t value_slot) {
+  if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return; }
+  Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || offset + 8u > obj->payload.size()) {
+    g_llvm_trap = true;
+    return;
+  }
+  Simple::VM::WriteU64Payload(obj->payload, offset, value_slot);
+}
+
 extern "C" uint64_t SimpleVmLlvmTypeOf(uint64_t ref_slot) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return 0; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
@@ -2410,6 +2430,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmLoadField32), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmStoreField32")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmStoreField32), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmLoadField64")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmLoadField64), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmStoreField64")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmStoreField64), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmTypeOf")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmTypeOf), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmCheckedRef")] = llvm::orc::ExecutorSymbolDef(
@@ -2544,6 +2568,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::FunctionCallee new_object_helper = ir_module->getOrInsertFunction("SimpleVmLlvmNewObject", new_object_type);
   llvm::FunctionCallee load_field_helper = ir_module->getOrInsertFunction("SimpleVmLlvmLoadField32", load_field_type);
   llvm::FunctionCallee store_field_helper = ir_module->getOrInsertFunction("SimpleVmLlvmStoreField32", store_field_type);
+  llvm::FunctionCallee load_field64_helper = ir_module->getOrInsertFunction("SimpleVmLlvmLoadField64", load_field_type);
+  llvm::FunctionCallee store_field64_helper = ir_module->getOrInsertFunction("SimpleVmLlvmStoreField64", store_field_type);
   llvm::FunctionCallee type_of_helper = ir_module->getOrInsertFunction("SimpleVmLlvmTypeOf", array_len_type);
   llvm::FunctionCallee checked_ref_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCheckedRef", array_len_type);
   llvm::FunctionCallee clone_object_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCloneObject", array_len_type);
@@ -4516,8 +4542,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         if (field_id >= module.fields.size()) { reason = "LLVM JIT LOAD_FIELD bad field id"; return false; }
         if (stack.empty()) { reason = "LLVM JIT LOAD_FIELD underflow"; return false; }
         llvm::Value* ref = to_slot(stack.back()); stack.pop_back();
-        stack.push_back(builder.CreateCall(load_field_helper,
-                                           {ref, builder.getInt32(module.fields[field_id].offset)}));
+        const auto& field = module.fields[field_id];
+        if (field.type_id >= module.types.size()) { reason = "LLVM JIT LOAD_FIELD invalid field type"; return false; }
+        const uint32_t width = module.types[field.type_id].size;
+        if (width == 0 || width > 8) { reason = "LLVM JIT LOAD_FIELD unsupported field width"; return false; }
+        stack.push_back(builder.CreateCall(width == 8 ? load_field64_helper : load_field_helper,
+                                           {ref, builder.getInt32(field.offset)}));
         break;
       }
       case OpCode::StoreField: {
@@ -4527,7 +4557,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         if (stack.size() < 2) { reason = "LLVM JIT STORE_FIELD underflow"; return false; }
         llvm::Value* value = to_slot(stack.back()); stack.pop_back();
         llvm::Value* ref = to_slot(stack.back()); stack.pop_back();
-        builder.CreateCall(store_field_helper, {ref, builder.getInt32(module.fields[field_id].offset), value});
+        const auto& field = module.fields[field_id];
+        if (field.type_id >= module.types.size()) { reason = "LLVM JIT STORE_FIELD invalid field type"; return false; }
+        const uint32_t width = module.types[field.type_id].size;
+        if (width == 0 || width > 8) { reason = "LLVM JIT STORE_FIELD unsupported field width"; return false; }
+        builder.CreateCall(width == 8 ? store_field64_helper : store_field_helper,
+                           {ref, builder.getInt32(field.offset), value});
         break;
       }
       case OpCode::NewArray:

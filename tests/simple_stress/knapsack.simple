@@ -1,0 +1,21 @@
+module Tests.Stress.Knapsack
+
+main :: i32 () {
+  capacity :: i32 = 200
+  best : i32[] = []
+  for (i : i32 = 0; i <= capacity; i += 1) { best.push(0) }
+
+  for (item : i32 = 0; item < 64; item += 1) {
+    weight :: i32 = (item % 15) + 1
+    value :: i32 = ((item * 7) % 31) + 1
+    remaining : i32 = capacity
+    while (remaining >= weight) {
+      candidate :: i32 = best[remaining - weight] + value
+      if (candidate > best[remaining]) { best[remaining] = candidate }
+      remaining -= 1
+    }
+  }
+
+  if (best[capacity] != 715) { return 1 }
+  return 0
+}

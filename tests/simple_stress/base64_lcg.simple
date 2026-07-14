@@ -1,0 +1,46 @@
+module Tests.Stress.Base64Lcg
+
+encode :: i32[] (input : i32[]) {
+  output : i32[] = []
+  i : i32 = 0
+  while (i < input.len()) {
+    bits :: i32 = (input[i] << 16) | (input[i + 1] << 8) | input[i + 2]
+    output.push((bits >> 18) & 63)
+    output.push((bits >> 12) & 63)
+    output.push((bits >> 6) & 63)
+    output.push(bits & 63)
+    i += 3
+  }
+  return output
+}
+
+decode :: i32[] (input : i32[]) {
+  output : i32[] = []
+  i : i32 = 0
+  while (i < input.len()) {
+    bits :: i32 = (input[i] << 18) | (input[i + 1] << 12) |
+      (input[i + 2] << 6) | input[i + 3]
+    output.push((bits >> 16) & 255)
+    output.push((bits >> 8) & 255)
+    output.push(bits & 255)
+    i += 4
+  }
+  return output
+}
+
+main :: i32 () {
+  bytes : i32[] = []
+  state : i32 = 17
+  for (i : i32 = 0; i < 12000; i += 1) {
+    state = (state * 25173 + 13849) % 65521
+    bytes.push(state & 255)
+  }
+  encoded :: i32[] = encode(bytes)
+  if (encoded.len() != 16000) { return 1 }
+  decoded :: i32[] = decode(encoded)
+  if (decoded.len() != bytes.len()) { return 2 }
+  for (i : i32 = 0; i < bytes.len(); i += 1) {
+    if (decoded[i] != bytes[i]) { return 3 }
+  }
+  return 0
+}

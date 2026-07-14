@@ -564,6 +564,42 @@ bool LangSimpleFixtureStressRaylibLike() {
   return RunCliSvm({"run", "tests/simple_modules/stress_raylib_like_main.simple"}) == 16;
 }
 
+bool LangStressGabrielTak() {
+  return RunSimpleFileExpectExit("tests/simple_stress/gabriel_tak.simple", 0);
+}
+
+bool LangStressVectorMatrix() {
+  return RunSimpleFileExpectExit("tests/simple_stress/vector_matrix.simple", 0);
+}
+
+bool LangStressBinaryTrees() {
+  return RunSimpleFileExpectExit("tests/simple_stress/binary_trees.simple", 0);
+}
+
+bool LangStressSpectralNorm() {
+  return RunSimpleFileExpectExit("tests/simple_stress/spectral_norm.simple", 0);
+}
+
+bool LangStressNBody() {
+  return RunSimpleFileExpectExit("tests/simple_stress/nbody.simple", 0);
+}
+
+bool LangStressBase64Lcg() {
+  return RunSimpleFileExpectExit("tests/simple_stress/base64_lcg.simple", 0);
+}
+
+bool LangStressKnapsack() {
+  return RunSimpleFileExpectExit("tests/simple_stress/knapsack.simple", 0);
+}
+
+bool LangStressSelfLexer() {
+  return RunSimpleFileExpectExit("tests/simple_stress/self_lexer.simple", 0);
+}
+
+bool LangStressGenericComposition() {
+  return RunSimpleFileExpectExit("tests/simple_stress/generic_composition.simple", 0);
+}
+
 bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
@@ -3711,6 +3747,15 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_cast_i8_to_i32", LangSimpleFixtureCastI8ToI32},
   {"lang_simple_fixture_stress_lang_features", LangSimpleFixtureStressLangFeatures},
   {"lang_simple_fixture_stress_raylib_like", LangSimpleFixtureStressRaylibLike},
+  {"lang_stress_gabriel_tak", LangStressGabrielTak},
+  {"lang_stress_vector_matrix", LangStressVectorMatrix},
+  {"lang_stress_binary_trees", LangStressBinaryTrees},
+  {"lang_stress_spectral_norm", LangStressSpectralNorm},
+  {"lang_stress_nbody", LangStressNBody},
+  {"lang_stress_base64_lcg", LangStressBase64Lcg},
+  {"lang_stress_knapsack", LangStressKnapsack},
+  {"lang_stress_self_lexer", LangStressSelfLexer},
+  {"lang_stress_generic_composition", LangStressGenericComposition},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},

@@ -1,0 +1,52 @@
+module Tests.Stress.GenericComposition
+
+Box<T> :: artifact {
+  value : T
+
+  get :: T () {
+    return self.value
+  }
+}
+
+Pair<A, B> :: artifact {
+  first : A
+  second : B
+}
+
+identity<T> :: T (value : T) {
+  return value
+}
+
+makeBox<T> :: Box<T> (value : T) {
+  return { identity(value) }
+}
+
+headValue<T> :: T (values : T[]) {
+  return values[0]
+}
+
+main :: i32 () {
+  boxes : Box<i32>[] = []
+  for (i : i32 = 0; i < 1000; i += 1) {
+    box : Box<i32> = { i }
+    boxes.push(box)
+  }
+
+  total : i32 = 0
+  for (i : i32 = 0; i < boxes.len(); i += 1) {
+    total += boxes[i].get()
+  }
+  if (total != 499500) { return 1 }
+
+  values : i32[] = [11, 12]
+  head :: i32 = headValue(values)
+  answerBox :: Box<i32> = makeBox(42)
+  pair : Pair<i32, Box<i32>> = { head, answerBox }
+  if (pair.first != 11 || pair.second.get() != 42) { return 2 }
+
+  inner :: Box<i32> = makeBox(7)
+  nested : Box<Box<i32>> = { inner }
+  unwrapped :: Box<i32> = nested.get()
+  if (unwrapped.get() != 7) { return 3 }
+  return 0
+}

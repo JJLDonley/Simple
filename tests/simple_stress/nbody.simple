@@ -1,0 +1,54 @@
+module Tests.Stress.NBody
+
+import Standard.Math
+
+Body :: artifact {
+  x : f64
+  y : f64
+  z : f64
+  vx : f64
+  vy : f64
+  vz : f64
+  mass : f64
+}
+
+advance :: void (bodies : Body[], dt : f64) {
+  for (i : i32 = 0; i < bodies.len(); i += 1) {
+    for (j : i32 = i + 1; j < bodies.len(); j += 1) {
+      dx :: f64 = bodies[i].x - bodies[j].x
+      dy :: f64 = bodies[i].y - bodies[j].y
+      dz :: f64 = bodies[i].z - bodies[j].z
+      distanceSquared :: f64 = dx * dx + dy * dy + dz * dz
+      magnitude :: f64 = dt / (distanceSquared * Standard.Math.sqrt(distanceSquared))
+      bodies[i].vx -= dx * bodies[j].mass * magnitude
+      bodies[i].vy -= dy * bodies[j].mass * magnitude
+      bodies[i].vz -= dz * bodies[j].mass * magnitude
+      bodies[j].vx += dx * bodies[i].mass * magnitude
+      bodies[j].vy += dy * bodies[i].mass * magnitude
+      bodies[j].vz += dz * bodies[i].mass * magnitude
+    }
+  }
+  for (i : i32 = 0; i < bodies.len(); i += 1) {
+    bodies[i].x += dt * bodies[i].vx
+    bodies[i].y += dt * bodies[i].vy
+    bodies[i].z += dt * bodies[i].vz
+  }
+}
+
+main :: i32 () {
+  bodies : Body[] = [
+    { -1.0, 0.0, 0.0, 0.0, -0.1, 0.0, 1.0 },
+    { 1.0, 0.0, 0.0, 0.0, 0.1, 0.0, 1.0 }
+  ]
+  for (step : i32 = 0; step < 10000; step += 1) {
+    advance(bodies, 0.0001)
+  }
+  if (bodies[0].x + bodies[1].x < -0.0000001 ||
+      bodies[0].x + bodies[1].x > 0.0000001) { return 1 }
+  if (bodies[0].y + bodies[1].y < -0.0000001 ||
+      bodies[0].y + bodies[1].y > 0.0000001) { return 2 }
+  if (bodies[0].vx + bodies[1].vx < -0.0000001 ||
+      bodies[0].vx + bodies[1].vx > 0.0000001) { return 3 }
+  if (bodies[0].x >= 0.0 || bodies[1].x <= 0.0) { return 4 }
+  return 0
+}

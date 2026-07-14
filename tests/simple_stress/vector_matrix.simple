@@ -1,0 +1,65 @@
+module Tests.Stress.VectorMatrix
+
+import Standard.Math
+
+Vector3 :: artifact {
+  x : f64
+  y : f64
+  z : f64
+}
+
+dot :: f64 (a : Vector3, b : Vector3) {
+  return a.x * b.x + a.y * b.y + a.z * b.z
+}
+
+cross :: Vector3 (a : Vector3, b : Vector3) {
+  return {
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x
+  }
+}
+
+normalize :: Vector3 (v : Vector3) {
+  length :: f64 = Standard.Math.sqrt(dot(v, v))
+  if (length == 0.0) { return { 0.0, 0.0, 0.0 } }
+  return { v.x / length, v.y / length, v.z / length }
+}
+
+multiply :: f64{4} (m : f64{4}{4}, v : f64{4}) {
+  out : f64{4} = { 0.0, 0.0, 0.0, 0.0 }
+  for (row : i32 = 0; row < 4; row += 1) {
+    for (column : i32 = 0; column < 4; column += 1) {
+      out[row] += m[row][column] * v[column]
+    }
+  }
+  return out
+}
+
+main :: i32 () {
+  a : Vector3 = { 1.0, 2.0, 3.0 }
+  b : Vector3 = { 4.0, 5.0, 6.0 }
+  if (dot(a, b) != 32.0) { return 1 }
+  c :: Vector3 = cross(a, b)
+  if (c.x != -3.0 || c.y != 6.0 || c.z != -3.0) { return 2 }
+  zero :: Vector3 = normalize({ 0.0, 0.0, 0.0 })
+  if (dot(zero, zero) != 0.0) { return 3 }
+  unit :: Vector3 = normalize({ 3.0, 4.0, 0.0 })
+  if (unit.x < 0.5999 || unit.x > 0.6001) { return 4 }
+
+  matrix : f64{4}{4} = {
+    { 1.0, 2.0, 3.0, 4.0 },
+    { 0.0, 1.0, 0.0, 0.0 },
+    { 0.0, 0.0, 1.0, 0.0 },
+    { 0.0, 0.0, 0.0, 1.0 }
+  }
+  value : f64{4} = { 1.0, 2.0, 3.0, 1.0 }
+  for (iteration : i32 = 0; iteration < 10000; iteration += 1) {
+    value = multiply(matrix, value)
+    value[0] -= 17.0
+  }
+  if (value[0] != 1.0 || value[1] != 2.0 || value[2] != 3.0 || value[3] != 1.0) {
+    return 5
+  }
+  return 0
+}

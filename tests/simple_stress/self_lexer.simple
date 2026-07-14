@@ -1,0 +1,118 @@
+module Tests.Stress.SelfLexer
+
+import System.FS
+
+ScanResult :: artifact {
+  tokens : i32
+  line : i32
+  column : i32
+  error : i32
+}
+
+isIdentifier :: bool (source : string, index : i32) {
+  c :: char = source[index]
+  if (c >= 'a') { if (c <= 'z') { return true } }
+  if (c >= 'A') { if (c <= 'Z') { return true } }
+  if (c >= '0') { if (c <= '9') { return true } }
+  if (c == '_') { return true }
+  return false
+}
+
+scan :: ScanResult (source : string) {
+  result : ScanResult = { 0, 1, 1, 0 }
+  index : i32 = 0
+  while (index < len(source)) {
+    c :: char = source[index]
+    if (c == ' ' || c == '\t' || c == '\r') {
+      index += 1
+      result.column += 1
+    } else if (c == '\n') {
+      index += 1
+      result.line += 1
+      result.column = 1
+    } else if (c == '/' && index + 1 < len(source) && source[index + 1] == '*') {
+      index += 2
+      result.column += 2
+      closed : bool = false
+      while (index < len(source)) {
+        if (source[index] == '*' && index + 1 < len(source) && source[index + 1] == '/') {
+          index += 2
+          result.column += 2
+          closed = true
+          break
+        }
+        if (source[index] == '\n') {
+          result.line += 1
+          result.column = 1
+        } else {
+          result.column += 1
+        }
+        index += 1
+      }
+      if (!closed) {
+        result.error = 2
+        return result
+      }
+    } else if (c == '"') {
+      result.tokens += 1
+      index += 1
+      result.column += 1
+      closed : bool = false
+      while (index < len(source)) {
+        if (source[index] == '\\') {
+          if (index + 1 >= len(source)) {
+            result.error = 1
+            return result
+          }
+          index += 2
+          result.column += 2
+        } else if (source[index] == '"') {
+          index += 1
+          result.column += 1
+          closed = true
+          break
+        } else {
+          if (source[index] == '\n') {
+            result.line += 1
+            result.column = 1
+          } else {
+            result.column += 1
+          }
+          index += 1
+        }
+      }
+      if (!closed) {
+        result.error = 1
+        return result
+      }
+    } else if (isIdentifier(source, index)) {
+      result.tokens += 1
+      while (index < len(source) && isIdentifier(source, index)) {
+        index += 1
+        result.column += 1
+      }
+    } else {
+      result.tokens += 1
+      index += 1
+      result.column += 1
+    }
+  }
+  return result
+}
+
+main :: i32 () {
+  source :: string = System.FS.readText("tests/simple_stress/self_lexer.simple")
+  if (len(source) < 1000) { return 1 }
+  own :: ScanResult = scan(source)
+  if (own.error != 0 || own.tokens < 300 || own.line < 80) { return 2 }
+
+  comment :: ScanResult = scan("alpha /* first line\nsecond line */ omega")
+  if (comment.error != 0 || comment.tokens != 2 || comment.line != 2) { return 3 }
+
+  escaped :: ScanResult = scan("\"line\\nquoted: \\\"ok\\\"\"")
+  if (escaped.error != 0 || escaped.tokens != 1) { return 4 }
+
+  unfinished :: ScanResult = scan("value = \"unexpected eof")
+  if (unfinished.error != 1 || unfinished.line != 1) { return 5 }
+  return 0
+}
