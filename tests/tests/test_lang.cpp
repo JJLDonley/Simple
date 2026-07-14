@@ -620,6 +620,10 @@ bool LangStressGenericChains() {
   return RunCliSvm({"run", "tests/simple_stress/generic_chains.simple"}) == 0;
 }
 
+bool LangStressTaggedLayouts() {
+  return RunCliSvm({"run", "tests/simple_stress/tagged_layouts.simple"}) == 0;
+}
+
 bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
@@ -832,6 +836,22 @@ bool LangGenericMethodEmissionRuns() {
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
          sir.find("choose__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
+}
+
+bool LangCanonicalTaggedLayoutEmissionRuns() {
+  const char* src =
+      "main : i32 () { option : Option<i32>; result : Result<i32, string>; "
+      "nested : Option<Result<i32, string>>; wide : Result<f64, i32>; return 0 }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
+  const size_t first_option = sir.find("type Option__g_");
+  const size_t second_option =
+      first_option == std::string::npos ? std::string::npos
+                                        : sir.find("type Option__g_", first_option + 1);
+  return first_option != std::string::npos && second_option != std::string::npos &&
+         sir.find("type Result__g_") != std::string::npos &&
+         sir.find("field tag i32") != std::string::npos && RunSirTextExpectExit(sir, 0);
 }
 
 bool LangGenericTemporaryReceiverEmissionRuns() {
@@ -3823,6 +3843,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_module_generic_composition", LangStressModuleGenericComposition},
   {"lang_stress_generic_methods", LangStressGenericMethods},
   {"lang_stress_generic_chains", LangStressGenericChains},
+  {"lang_stress_tagged_layouts", LangStressTaggedLayouts},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
@@ -3860,6 +3881,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
   {"lang_generic_method_emission_runs", LangGenericMethodEmissionRuns},
+  {"lang_canonical_tagged_layout_emission_runs", LangCanonicalTaggedLayoutEmissionRuns},
   {"lang_generic_temporary_receiver_emission_runs", LangGenericTemporaryReceiverEmissionRuns},
   {"lang_generic_recursive_method_emission_runs", LangGenericRecursiveMethodEmissionRuns},
   {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},

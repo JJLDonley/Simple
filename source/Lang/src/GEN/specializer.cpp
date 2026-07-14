@@ -746,6 +746,38 @@ const Simple::Lang::AST::ArtifactDecl* FindArtifactDecl(const Simple::Lang::AST:
   return nullptr;
 }
 
+void AppendCanonicalTaggedLayouts(Simple::Lang::AST::Program* program) {
+  if (!program) return;
+  auto make_type = [](const std::string& name) {
+    Simple::Lang::AST::TypeRef type;
+    type.name = name;
+    return type;
+  };
+  auto make_field = [&](const std::string& name, const std::string& type_name) {
+    Simple::Lang::AST::VarDecl field;
+    field.name = name;
+    field.type = make_type(type_name);
+    return field;
+  };
+
+  Simple::Lang::AST::Decl option;
+  option.kind = Simple::Lang::AST::DeclKind::Artifact;
+  option.artifact.name = "Option";
+  option.artifact.generics = {"T"};
+  option.artifact.fields.push_back(make_field("tag", "i32"));
+  option.artifact.fields.push_back(make_field("value", "T"));
+  program->decls.push_back(std::move(option));
+
+  Simple::Lang::AST::Decl result;
+  result.kind = Simple::Lang::AST::DeclKind::Artifact;
+  result.artifact.name = "Result";
+  result.artifact.generics = {"T", "E"};
+  result.artifact.fields.push_back(make_field("tag", "i32"));
+  result.artifact.fields.push_back(make_field("value", "T"));
+  result.artifact.fields.push_back(make_field("error", "E"));
+  program->decls.push_back(std::move(result));
+}
+
 } // namespace
 
 std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type) {
@@ -1574,7 +1606,16 @@ bool MaterializeProgramForEmission(const Simple::Lang::AST::Program& source,
   if (!Simple::Lang::TAST::CollectGenericDeclarationMetadata(source, &declarations, error)) {
     return false;
   }
-  if (declarations.empty()) {
+  std::vector<GenericInstantiationRequest> source_requests;
+  if (!CollectInstantiationRequestsFromProgram(source, &source_requests)) return false;
+  bool uses_canonical_tagged_layout = false;
+  for (const auto& request : source_requests) {
+    if (request.base_name == "Option" || request.base_name == "Result") {
+      uses_canonical_tagged_layout = true;
+      break;
+    }
+  }
+  if (declarations.empty() && !uses_canonical_tagged_layout) {
     *materialized = false;
     if (error) error->clear();
     return true;
@@ -1583,6 +1624,7 @@ bool MaterializeProgramForEmission(const Simple::Lang::AST::Program& source,
   if (!Simple::Lang::TAST::AnnotateInferredGenericCallTypeArguments(&annotated, error)) {
     return false;
   }
+  if (uses_canonical_tagged_layout) AppendCanonicalTaggedLayouts(&annotated);
   std::vector<GenericSpecializationPlan> plans;
   if (!BuildSpecializationPlanFromProgram(annotated, &plans, error)) return false;
   if (!MaterializeConcreteProgram(annotated, plans, out, error)) return false;

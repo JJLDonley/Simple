@@ -145,6 +145,21 @@ bool LangParsesTypeLiterals() {
   if (generic.type_args[0].name != "string") return false;
   if (generic.type_args[1].name != "i32") return false;
 
+  Simple::Lang::TypeRef nested_generic_list;
+  if (!Simple::Lang::CAST::ParseTypeFromString(
+          "Holder<Option<string>>[]", &nested_generic_list, &error)) {
+    return false;
+  }
+  if (nested_generic_list.name != "Holder" || nested_generic_list.dims.size() != 1 ||
+      !nested_generic_list.dims[0].is_list || nested_generic_list.type_args.size() != 1) {
+    return false;
+  }
+  const auto& nested_option = nested_generic_list.type_args[0];
+  if (nested_option.name != "Option" || !nested_option.dims.empty() ||
+      nested_option.type_args.size() != 1 || nested_option.type_args[0].name != "string") {
+    return false;
+  }
+
   Simple::Lang::TypeRef proc;
   if (!Simple::Lang::CAST::ParseTypeFromString("fn bool (i32, string)", &proc, &error)) return false;
   if (!proc.is_proc) return false;

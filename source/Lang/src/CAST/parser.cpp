@@ -213,7 +213,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
       }
     }
 
-    if (!ParseTypeDims(&proc)) return false;
+    if (pending_type_argument_closes_ == 0 && !ParseTypeDims(&proc)) return false;
     while (Match(TokenKind::Star)) {
       ++proc.pointer_depth;
     }
@@ -242,7 +242,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     if (!ParseTypeArgs(&out->type_args)) return false;
   }
 
-  if (!ParseTypeDims(out)) return false;
+  if (pending_type_argument_closes_ == 0 && !ParseTypeDims(out)) return false;
   while (Match(TokenKind::Star)) {
     ++out->pointer_depth;
   }

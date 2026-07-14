@@ -609,7 +609,7 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-The experimental `v0.5.13` compiler materializes concrete top-level and
+The experimental `v0.5.14` compiler materializes concrete top-level and
 namespace-owned generic functions, generic methods, and artifact
 specializations before SIR emission. Type arguments may be
 explicit or inferred from call arguments. Specializations have deterministic
@@ -635,13 +635,14 @@ container boundaries and allowing string collections to participate in generic
 specialization. Generic methods can be inferred on temporary receivers returned
 by top-level functions, namespace factories, and artifact methods. Concrete
 artifacts materialize before dependent methods, so chained calls do not depend
-on source request order.
+on source request order. Concrete `Option<T>` and `Result<T,E>` requests now
+materialize deterministic managed layouts with an `i32` tag and substituted
+payload fields. These layouts compose through nested generic
+artifacts and lists without exposing synthetic declarations as source APIs.
 
-Executable canonical tagged `Result`/`Option`/`Promise` values remain
-language-completion work. `v0.5.13` reserves those three canonical generic type
-names and validates
-exact arity (`Result<T,E>`, `Option<T>`, and `Promise<T>`), but does not yet
-provide their constructors, payload operations, or runtime lowering.
+Canonical constructors, state checks, payload operations, `Promise<T>` runtime
+layout, and propagation remain language-completion work. `v0.5.14` reserves all
+three canonical generic type names and validates exact arity.
 
 ### `v0.6` generic design
 
@@ -698,7 +699,7 @@ not replace or postpone it.
 ## Async functions and explicit failure design
 
 > **Design target for `v0.6`:** the syntax and semantics in this section are the
-> accepted language design, not functionality provided by the current `v0.5.13`
+> accepted language design, not functionality provided by the current `v0.5.14`
 > compiler. The transitional `System.Job` and `Standard.Promise` calls remain
 > documented in [Jobs, promises, and async design](Async.md).
 
@@ -1529,8 +1530,8 @@ Common rejected cases covered by tests include:
 Current tests intentionally reject or limit:
 
 - the planned `async` return modifier, `await` expression, and `?` propagation operator
-- language-level `Result<T, E>`, `Option<T>`, and `Promise<T>` execution semantics
-- executable canonical tagged generic `Result`, `Option`, and `Promise` values
+- canonical `Result`/`Option` constructors, state checks, payload extraction, and propagation
+- language-level `Promise<T>` layout and execution semantics
 - closure capture for procedure literals
 - procedure values at extern boundaries
 - procedure values in unsupported containers/generic contexts
