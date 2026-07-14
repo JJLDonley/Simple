@@ -830,6 +830,26 @@ bool LangGenericMethodEmissionRuns() {
          sir.find("choose__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
+bool LangGenericRecursiveMethodEmissionRuns() {
+  const char* src =
+      "Relay :: artifact {\n"
+      "  ping<T> :: T (value : T, count : i32) {\n"
+      "    if (count == 0) { return value }\n"
+      "    return self.pong(value, count - 1)\n"
+      "  }\n"
+      "  pong<T> :: T (value : T, count : i32) {\n"
+      "    if (count == 0) { return value }\n"
+      "    return self.ping(value, count - 1)\n"
+      "  }\n"
+      "}\n"
+      "main : i32 () { relay : Relay = {}; return relay.ping(42, 20) }";
+  std::string sir;
+  std::string error;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         sir.find("ping__g_") != std::string::npos &&
+         sir.find("pong__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
+}
+
 bool LangGenericTypeArgInferenceEmissionRuns() {
   const char* src =
       "id<T> : T (x : T) { return x }\n"
@@ -3823,6 +3843,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
   {"lang_generic_method_emission_runs", LangGenericMethodEmissionRuns},
+  {"lang_generic_recursive_method_emission_runs", LangGenericRecursiveMethodEmissionRuns},
   {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},
   {"lang_generic_specialization_naming_runs", LangGenericSpecializationNamingRuns},
   {"lang_generic_duplicate_specialization_reuses_symbol",

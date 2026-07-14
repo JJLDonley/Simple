@@ -364,6 +364,22 @@ bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
   return true;
 }
 
+bool CollectSpecializedMethodDependencies(
+    const Simple::Lang::AST::FuncDecl& function,
+    const Simple::Lang::AST::ArtifactDecl& artifact,
+    const std::vector<Simple::Lang::AST::TypeRef>& receiver_arguments,
+    const Simple::Lang::AST::Program& program,
+    std::vector<GenericInstantiationRequest>* out) {
+  if (receiver_arguments.size() != artifact.generics.size()) return false;
+  MethodTypeScope scope;
+  Simple::Lang::AST::TypeRef receiver;
+  receiver.name = artifact.name;
+  receiver.type_args = receiver_arguments;
+  scope.emplace("self", std::move(receiver));
+  for (const auto& param : function.params) scope[param.name] = param.type;
+  return CollectMethodRequestsFromStatements(function.body, program, std::move(scope), nullptr, out);
+}
+
 bool CollectMethodInstantiationRequests(const Simple::Lang::AST::Program& program,
                                         std::vector<GenericInstantiationRequest>* out) {
   MethodTypeScope globals;
@@ -533,6 +549,47 @@ bool ApplySubstitutionToFunction(Simple::Lang::AST::FuncDecl* fn,
   for (auto& stmt : fn->body) {
     if (!ApplySubstitutionToStmt(&stmt, substitutions)) return false;
   }
+  return true;
+}
+
+const Simple::Lang::AST::ArtifactDecl* FindArtifactDecl(
+    const Simple::Lang::AST::Program& program,
+    const std::string& name);
+
+bool ResolveSpecializedMethod(
+    const Simple::Lang::AST::Program& program,
+    const GenericSpecializationPlan& plan,
+    const Simple::Lang::AST::ArtifactDecl** out_artifact,
+    Simple::Lang::AST::FuncDecl* out_method,
+    std::vector<Simple::Lang::AST::TypeRef>* out_receiver_arguments,
+    std::string* error) {
+  if (!out_artifact || !out_method || !out_receiver_arguments ||
+      plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Method) {
+    return false;
+  }
+  const auto* artifact = FindArtifactDecl(program, plan.declaration.owner_name);
+  const auto* method = FindGenericMethodForCollection(artifact, plan.declaration.name);
+  if (!artifact || !method) {
+    if (error) {
+      *error = "missing generic method declaration: " + plan.declaration.owner_name +
+               "." + plan.declaration.name;
+    }
+    return false;
+  }
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
+  *out_method = *method;
+  out_method->generics.clear();
+  if (!ApplySubstitutionToFunction(out_method, substitutions)) return false;
+  const size_t receiver_argument_count = artifact->generics.size();
+  if (plan.request.argument_types.size() < receiver_argument_count) {
+    if (error) *error = "generic method receiver specialization metadata is incomplete";
+    return false;
+  }
+  out_receiver_arguments->assign(
+      plan.request.argument_types.begin(),
+      plan.request.argument_types.begin() + receiver_argument_count);
+  *out_artifact = artifact;
   return true;
 }
 
@@ -959,26 +1016,25 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
             if (!CollectInstantiationRequestsFromType(field.type, &dependencies)) return false;
           }
           for (const auto& method : specialized.methods) {
-            if (!CollectFromFunction(method, &dependencies)) return false;
+            if (!CollectFromFunction(method, &dependencies) ||
+                !CollectSpecializedMethodDependencies(method, *source,
+                                                      plan.request.argument_types,
+                                                      program, &dependencies)) {
+              return false;
+            }
           }
           break;
         }
         case Simple::Lang::TAST::GenericDeclarationKind::Method: {
-          const auto* artifact = FindArtifactDecl(program, plan.declaration.owner_name);
-          const auto* method = FindGenericMethodForCollection(artifact, plan.declaration.name);
-          if (!artifact || !method) {
-            if (error) {
-              *error = "missing generic method declaration: " + plan.declaration.owner_name +
-                       "." + plan.declaration.name;
-            }
-            return false;
-          }
-          Simple::Lang::TAST::GenericSubstitutionMap substitutions;
-          if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
-          Simple::Lang::AST::FuncDecl specialized = *method;
-          specialized.generics.clear();
-          if (!ApplySubstitutionToFunction(&specialized, substitutions) ||
-              !CollectFromFunction(specialized, &dependencies)) {
+          const Simple::Lang::AST::ArtifactDecl* artifact = nullptr;
+          Simple::Lang::AST::FuncDecl specialized;
+          std::vector<Simple::Lang::AST::TypeRef> receiver_arguments;
+          if (!ResolveSpecializedMethod(program, plan, &artifact, &specialized,
+                                        &receiver_arguments, error) ||
+              !CollectFromFunction(specialized, &dependencies) ||
+              !CollectSpecializedMethodDependencies(specialized, *artifact,
+                                                    receiver_arguments, program,
+                                                    &dependencies)) {
             return false;
           }
           break;
@@ -1097,6 +1153,8 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   if (!out) return false;
   out->decls.clear();
   out->top_level_stmts = source.top_level_stmts;
+  std::vector<GenericInstantiationRequest> method_rewrite_requests;
+  if (!CollectMethodInstantiationRequests(source, &method_rewrite_requests)) return false;
   for (const auto& decl : source.decls) {
     if (!IsConcreteDeclForMaterialization(decl)) continue;
     if (decl.kind == Simple::Lang::AST::DeclKind::Artifact) {
@@ -1164,40 +1222,39 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         if (!SpecializeArtifactLayoutDeclaration(*source_artifact, plan, &decl.artifact, error)) {
           return false;
         }
+        for (const auto& method : decl.artifact.methods) {
+          if (!CollectSpecializedMethodDependencies(method, *source_artifact,
+                                                    plan.request.argument_types, source,
+                                                    &method_rewrite_requests)) {
+            return false;
+          }
+        }
         out->decls.push_back(std::move(decl));
         break;
       }
       case Simple::Lang::TAST::GenericDeclarationKind::Method: {
-        const auto* source_artifact = FindArtifactDecl(source, plan.declaration.owner_name);
-        const auto* source_method =
-            FindGenericMethodForCollection(source_artifact, plan.declaration.name);
-        if (!source_artifact || !source_method) {
-          if (error) {
-            *error = "missing generic method declaration: " + plan.declaration.owner_name +
-                     "." + plan.declaration.name;
-          }
+        const Simple::Lang::AST::ArtifactDecl* source_artifact = nullptr;
+        Simple::Lang::AST::FuncDecl specialized;
+        std::vector<Simple::Lang::AST::TypeRef> receiver_arguments;
+        if (!ResolveSpecializedMethod(source, plan, &source_artifact, &specialized,
+                                      &receiver_arguments, error)) {
           return false;
         }
-        Simple::Lang::TAST::GenericSubstitutionMap substitutions;
-        if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
-        Simple::Lang::AST::FuncDecl specialized = *source_method;
         specialized.name = LocalSpecializedSymbol(plan.specialized_symbol);
-        specialized.generics.clear();
-        if (!ApplySubstitutionToFunction(&specialized, substitutions)) return false;
+        if (!CollectSpecializedMethodDependencies(specialized, *source_artifact,
+                                                  receiver_arguments, source,
+                                                  &method_rewrite_requests)) {
+          return false;
+        }
 
         std::string receiver_name = source_artifact->name;
-        if (!source_artifact->generics.empty()) {
+        if (!receiver_arguments.empty()) {
           GenericInstantiationRequest receiver_request;
           receiver_request.base_name = source_artifact->name;
-          const size_t receiver_arg_count = source_artifact->generics.size();
-          if (plan.request.argument_types.size() < receiver_arg_count) {
-            if (error) *error = "generic method receiver specialization metadata is incomplete";
-            return false;
+          receiver_request.argument_types = receiver_arguments;
+          for (const auto& argument : receiver_arguments) {
+            receiver_request.argument_identities.push_back(TypeRefIdentity(argument));
           }
-          receiver_request.argument_types.assign(plan.request.argument_types.begin(),
-                                                 plan.request.argument_types.begin() + receiver_arg_count);
-          receiver_request.argument_identities.assign(plan.request.argument_identities.begin(),
-                                                      plan.request.argument_identities.begin() + receiver_arg_count);
           const std::string receiver_key = InstantiationRequestKey(receiver_request);
           bool found_receiver_plan = false;
           for (const auto& candidate : plans) {
@@ -1270,8 +1327,6 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     return true;
   };
 
-  std::vector<GenericInstantiationRequest> method_rewrite_requests;
-  if (!CollectMethodInstantiationRequests(source, &method_rewrite_requests)) return false;
   std::unordered_map<uint64_t, std::string> specialized_method_symbols;
   for (const auto& request : method_rewrite_requests) {
     const uint64_t location = (static_cast<uint64_t>(request.line) << 32u) |
