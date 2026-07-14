@@ -97,8 +97,8 @@ inline bool WritePipe(int fd, const std::string& text, std::string* error) {
     break;
   }
   if (write_error == EPIPE && !was_pending) {
-    struct timespec no_wait {};
-    (void)sigtimedwait(&blocked, nullptr, &no_wait);
+    int consumed_signal = 0;
+    (void)sigwait(&blocked, &consumed_signal);
   }
   (void)pthread_sigmask(SIG_SETMASK, &previous, nullptr);
   if (write_error == 0) {
@@ -344,7 +344,7 @@ std::shared_ptr<Process> SpawnProcess(const ProcessStartRequest& request,
   bool actions_ready = add_pipe_actions(STDIN_FILENO, stdin_pipe[1], stdin_pipe[0]) &&
                        add_pipe_actions(STDOUT_FILENO, stdout_pipe[0], stdout_pipe[1]) &&
                        add_pipe_actions(STDERR_FILENO, stderr_pipe[0], stderr_pipe[1]);
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(SIMPLE_POSIX_HAS_SPAWN_CLOSEFROM)
   actions_ready = actions_ready && posix_spawn_file_actions_addclosefrom_np(&actions, 3) == 0;
 #endif
   if (!actions_ready) {

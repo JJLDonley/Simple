@@ -9,6 +9,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <exception>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <process.h>
@@ -29,6 +30,24 @@ std::string WindowsError(const char* fallback) {
   if (text) LocalFree(text);
   return result;
 }
+bool Utf8ToWide(const std::string& text, std::wstring* out) {
+  if (!out) return false;
+  out->clear();
+  if (text.empty()) return true;
+  if (text.size() > static_cast<size_t>((std::numeric_limits<int>::max)())) {
+    SetLastError(ERROR_INVALID_PARAMETER);
+    return false;
+  }
+  const int input_size = static_cast<int>(text.size());
+  const int required =
+      MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), input_size, nullptr, 0);
+  if (required <= 0) return false;
+  out->resize(static_cast<size_t>(required));
+  return MultiByteToWideChar(
+             CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), input_size, out->data(), required) ==
+         required;
+}
+
 std::wstring QuoteWindowsArgument(const std::wstring& argument) {
   std::wstring quoted = L"\"";
   size_t backslashes = 0;
@@ -351,10 +370,22 @@ std::shared_ptr<Process> SpawnProcess(const ProcessStartRequest& request,
     return {};
   }
 
-  std::wstring command_line = QuoteWindowsArgument(Utf8ToWide(request.program));
+  std::wstring wide_program;
+  if (!Utf8ToWide(request.program, &wide_program)) {
+    SetError(error, WindowsError("process program is not valid UTF-8"));
+    close_all();
+    return {};
+  }
+  std::wstring command_line = QuoteWindowsArgument(wide_program);
   for (const auto& argument : request.arguments) {
+    std::wstring wide_argument;
+    if (!Utf8ToWide(argument, &wide_argument)) {
+      SetError(error, WindowsError("process argument is not valid UTF-8"));
+      close_all();
+      return {};
+    }
     command_line.push_back(L' ');
-    command_line += QuoteWindowsArgument(Utf8ToWide(argument));
+    command_line += QuoteWindowsArgument(wide_argument);
   }
   std::vector<wchar_t> mutable_command(command_line.begin(), command_line.end());
   mutable_command.push_back(L'\0');

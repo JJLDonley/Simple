@@ -3449,8 +3449,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           case Simple::Byte::ExtendedOpCode::CheckedDivI32:
           case Simple::Byte::ExtendedOpCode::CheckedModI32: {
             llvm::Value* div_zero = builder.CreateICmpEQ(rhs, builder.getInt32(0));
-            llvm::Value* overflow = builder.CreateAnd(builder.CreateICmpEQ(lhs, builder.getInt32(INT32_MIN)),
-                                                      builder.CreateICmpEQ(rhs, builder.getInt32(-1)));
+            llvm::Value* overflow = builder.CreateAnd(
+                builder.CreateICmpEQ(lhs, builder.getInt32(static_cast<uint32_t>(INT32_MIN))),
+                builder.CreateICmpEQ(rhs, builder.getInt32(UINT32_MAX)));
             emit_trap_if(builder.CreateOr(div_zero, overflow), "checked.divmod.i32");
             result = (static_cast<Simple::Byte::ExtendedOpCode>(ext) == Simple::Byte::ExtendedOpCode::CheckedDivI32)
                          ? builder.CreateSDiv(lhs, rhs)

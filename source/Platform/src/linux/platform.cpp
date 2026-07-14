@@ -1,5 +1,8 @@
 #include "platform/platform.h"
+
+#define SIMPLE_POSIX_HAS_SPAWN_CLOSEFROM 1
 #include "../common/posix_process.h"
+#undef SIMPLE_POSIX_HAS_SPAWN_CLOSEFROM
 
 #include <cstdlib>
 #include <dlfcn.h>
