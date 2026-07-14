@@ -9,7 +9,7 @@
 namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
-constexpr uint16_t kSbcVersion = 0x0001u;
+constexpr uint16_t kSbcVersion = 0x0002u;
 constexpr size_t kSbcHeaderSize = 32u;
 constexpr size_t kSbcSectionRowSize = 16u;
 constexpr size_t kSbcHeaderMagicOffset = 0x00u;
@@ -91,7 +91,7 @@ enum class TypeKind : uint8_t {
   List = 21,
   Function = 22,
   Result = 23,
-  Option = 24,
+  Optional = 24,
   Vector = 25,
 };
 

@@ -14,6 +14,7 @@
 #include "CAST/parser.h"
 #include "GEN/specializer.h"
 #include "lang_reserved.h"
+#include "lang_version.h"
 #include "platform/platform.h"
 #include "RAST/reserved_resolution.h"
 #include "TAST/type_checker.h"
@@ -670,6 +671,7 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
     out->type_args.push_back(std::move(cloned));
   }
   out->dims = src.dims;
+  out->is_optional_syntax = src.is_optional_syntax;
   out->is_proc = src.is_proc;
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
@@ -1309,6 +1311,7 @@ bool EmitExpr(EmitState& st,
               const TypeRef* expected,
               std::string* error);
 bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error);
+bool EmitInactivePayload(EmitState& st, const TypeRef& type, std::string* error);
 
 bool InferLiteralType(const Expr& expr, TypeRef* out) {
   switch (expr.literal_kind) {
@@ -1333,6 +1336,7 @@ bool InferLiteralType(const Expr& expr, TypeRef* out) {
 
 bool TypeEquals(const TypeRef& a, const TypeRef& b) {
   if (a.pointer_depth != b.pointer_depth) return false;
+  if (a.is_optional_syntax != b.is_optional_syntax) return false;
   if (a.is_proc != b.is_proc) return false;
   if (a.is_proc) {
     if (a.proc_params.size() != b.proc_params.size()) return false;
@@ -1358,6 +1362,56 @@ bool TypeEquals(const TypeRef& a, const TypeRef& b) {
     if (a.dims[i].has_size && a.dims[i].size != b.dims[i].size) return false;
   }
   return true;
+}
+
+struct TaggedTypeInfo {
+  TaggedArtifactKind kind = TaggedArtifactKind::None;
+  const TypeRef* value_type = nullptr;
+  const TypeRef* error_type = nullptr;
+  const ArtifactDecl* artifact = nullptr;
+};
+
+const TypeRef* FindArtifactFieldType(const ArtifactDecl& artifact,
+                                     const std::string& name) {
+  for (const auto& field : artifact.fields) {
+    if (field.name == name) return &field.type;
+  }
+  return nullptr;
+}
+
+bool ResolveTaggedType(const TypeRef& type,
+                       const EmitState& st,
+                       TaggedTypeInfo* out) {
+  if (!out || type.pointer_depth != 0 || !type.dims.empty() || type.is_proc) return false;
+  *out = {};
+  if (TAST::IsOptionalType(type)) {
+    out->kind = TaggedArtifactKind::Optional;
+    out->value_type = TAST::OptionalValueType(type);
+    return out->value_type != nullptr;
+  }
+  if (type.name == "Result" && type.type_args.size() == 2) {
+    out->kind = TaggedArtifactKind::Result;
+    out->value_type = &type.type_args[0];
+    out->error_type = &type.type_args[1];
+    return true;
+  }
+  const auto artifact_it = st.artifacts.find(type.name);
+  if (artifact_it == st.artifacts.end() ||
+      artifact_it->second->tagged_kind == TaggedArtifactKind::None) {
+    return false;
+  }
+  out->artifact = artifact_it->second;
+  out->kind = out->artifact->tagged_kind;
+  out->value_type = FindArtifactFieldType(*out->artifact, "value");
+  if (out->kind == TaggedArtifactKind::Result) {
+    out->error_type = FindArtifactFieldType(*out->artifact, "error");
+  }
+  return out->value_type &&
+         (out->kind != TaggedArtifactKind::Result || out->error_type);
+}
+
+bool IsSwitchPattern(const SwitchBranch& branch) {
+  return branch.pattern_kind != SwitchPatternKind::None;
 }
 
 bool GetSwitchBranchValueExpr(const SwitchBranch& branch,
@@ -1398,11 +1452,35 @@ bool InferSwitchExprType(const Expr& expr,
     if (error) *error = "switch requires at least one branch";
     return false;
   }
+  TaggedTypeInfo subject_tagged;
+  const bool tagged_subject = ResolveTaggedType(subject_type, st, &subject_tagged);
+  bool uses_patterns = false;
+  for (const auto& branch : expr.switch_branches) {
+    uses_patterns = uses_patterns || IsSwitchPattern(branch);
+  }
+  if (uses_patterns && !tagged_subject) {
+    if (error) *error = "structural switch patterns require optional or Result subject";
+    return false;
+  }
   size_t default_count = 0;
   bool has_type = false;
   TypeRef common;
   for (const auto& branch : expr.switch_branches) {
-    if (branch.is_default) {
+    const TypeRef* binding_type = nullptr;
+    if (uses_patterns) {
+      if (!IsSwitchPattern(branch)) {
+        if (error) *error = "cannot mix structural patterns with switch conditions";
+        return false;
+      }
+      if (subject_tagged.kind == TaggedArtifactKind::Optional &&
+          branch.pattern_kind == SwitchPatternKind::Present) {
+        binding_type = subject_tagged.value_type;
+      } else if (subject_tagged.kind == TaggedArtifactKind::Result &&
+                 branch.pattern_kind == SwitchPatternKind::Tagged) {
+        if (branch.pattern_field == "value") binding_type = subject_tagged.value_type;
+        if (branch.pattern_field == "error") binding_type = subject_tagged.error_type;
+      }
+    } else if (branch.is_default) {
       default_count++;
     } else {
       TypeRef cond_type;
@@ -1415,6 +1493,11 @@ bool InferSwitchExprType(const Expr& expr,
     const Expr* value_expr = nullptr;
     if (!GetSwitchBranchValueExpr(branch, &value_expr, error)) return false;
     EmitState branch_st = st;
+    if (binding_type) {
+      TypeRef cloned;
+      if (!CloneTypeRef(*binding_type, &cloned)) return false;
+      branch_st.local_types[branch.pattern_binding] = std::move(cloned);
+    }
     if (branch.is_block) {
       for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
         const Stmt& prefix = branch.block[stmt_index];
@@ -1434,7 +1517,7 @@ bool InferSwitchExprType(const Expr& expr,
       return false;
     }
   }
-  if (default_count != 1) {
+  if (!uses_patterns && default_count != 1) {
     if (error) *error = "switch must have exactly one default branch";
     return false;
   }
@@ -1474,7 +1557,17 @@ bool InferExprType(const Expr& expr,
         if (error) *error = "unary missing operand";
         return false;
       }
-      return InferExprType(expr.children[0], st, out, error);
+      TypeRef operand;
+      if (!InferExprType(expr.children[0], st, &operand, error)) return false;
+      if (expr.op == "post?") {
+        TaggedTypeInfo tagged;
+        if (!ResolveTaggedType(operand, st, &tagged) || !tagged.value_type) {
+          if (error) *error = "operator '?' requires optional or Result operand";
+          return false;
+        }
+        return CloneTypeRef(*tagged.value_type, out);
+      }
+      return CloneTypeRef(operand, out);
     }
     case ExprKind::Binary: {
       if (expr.children.size() < 2) {
@@ -2259,6 +2352,90 @@ bool EmitUnary(EmitState& st,
   }
   TypeRef operand_type;
   if (!InferExprType(expr.children[0], st, &operand_type, error)) return false;
+  if (expr.op == "post?") {
+    TaggedTypeInfo operand_tagged;
+    if (!ResolveTaggedType(operand_type, st, &operand_tagged) || !operand_tagged.value_type) {
+      if (error) *error = "operator '?' requires optional or Result operand";
+      return false;
+    }
+    auto return_it = st.func_returns.find(st.current_func);
+    if (return_it == st.func_returns.end()) {
+      if (error) *error = "operator '?' requires an enclosing function";
+      return false;
+    }
+    TaggedTypeInfo return_tagged;
+    if (!ResolveTaggedType(return_it->second, st, &return_tagged) ||
+        return_tagged.kind != operand_tagged.kind) {
+      if (error) *error = "operator '?' return type is incompatible with operand";
+      return false;
+    }
+
+    std::string temp_name;
+    uint16_t temp_index = 0;
+    if (!AllocateTempLocal(st, operand_type, &temp_name, &temp_index, error)) return false;
+    if (!EmitExpr(st, expr.children[0], &operand_type, error)) return false;
+    (*st.out) << "  stloc " << temp_index << "\n";
+    PopStack(st, 1);
+    const std::string value_label = NewLabel(st, "propagate_value_");
+
+    if (operand_tagged.kind == TaggedArtifactKind::Optional) {
+      (*st.out) << "  ldloc " << temp_index << "\n";
+      PushStack(st, 1);
+      (*st.out) << "  isnull\n";
+      (*st.out) << "  jmp.false " << value_label << "\n";
+      PopStack(st, 1);
+      (*st.out) << "  const null\n";
+      PushStack(st, 1);
+      (*st.out) << "  ret\n";
+      st.stack_cur = 0;
+      (*st.out) << value_label << ":\n";
+      (*st.out) << "  ldloc " << temp_index << "\n";
+      PushStack(st, 1);
+      (*st.out) << "  ldfld " << operand_type.name << ".value\n";
+      return true;
+    }
+
+    (*st.out) << "  ldloc " << temp_index << "\n";
+    PushStack(st, 1);
+    (*st.out) << "  ldfld " << operand_type.name << ".tag\n";
+    (*st.out) << "  const i32 0\n";
+    PushStack(st, 1);
+    (*st.out) << "  cmp.eq i32\n";
+    PopStack(st, 1);
+    (*st.out) << "  jmp.true " << value_label << "\n";
+    PopStack(st, 1);
+
+    const auto return_layout_it = st.artifact_layouts.find(return_it->second.name);
+    if (return_layout_it == st.artifact_layouts.end()) {
+      if (error) *error = "missing Result return layout for propagation";
+      return false;
+    }
+    (*st.out) << "  newobj " << return_it->second.name << "\n";
+    PushStack(st, 1);
+    for (const auto& field : return_layout_it->second.fields) {
+      (*st.out) << "  dup\n";
+      PushStack(st, 1);
+      if (field.name == "tag") {
+        (*st.out) << "  const i32 1\n";
+        PushStack(st, 1);
+      } else if (field.name == "error") {
+        (*st.out) << "  ldloc " << temp_index << "\n";
+        PushStack(st, 1);
+        (*st.out) << "  ldfld " << operand_type.name << ".error\n";
+      } else if (!EmitInactivePayload(st, field.type, error)) {
+        return false;
+      }
+      (*st.out) << "  stfld " << return_it->second.name << "." << field.name << "\n";
+      PopStack(st, 2);
+    }
+    (*st.out) << "  ret\n";
+    st.stack_cur = 0;
+    (*st.out) << value_label << ":\n";
+    (*st.out) << "  ldloc " << temp_index << "\n";
+    PushStack(st, 1);
+    (*st.out) << "  ldfld " << operand_type.name << ".value\n";
+    return true;
+  }
   const TypeRef* use_type = expected ? expected : &operand_type;
   if (expr.op == "++" || expr.op == "--") {
     const char* op_name = expr.op == "++" ? IncOpForType(use_type->name) : DecOpForType(use_type->name);
@@ -2649,6 +2826,114 @@ bool EmitSwitchExpr(EmitState& st,
   } else {
     if (!InferExprType(expr, st, &switch_type, error)) return false;
   }
+  TypeRef subject_type;
+  if (!InferExprType(expr.children[0], st, &subject_type, error)) return false;
+  bool uses_patterns = false;
+  for (const auto& branch : expr.switch_branches) {
+    uses_patterns = uses_patterns || IsSwitchPattern(branch);
+  }
+  if (uses_patterns) {
+    TaggedTypeInfo tagged;
+    if (!ResolveTaggedType(subject_type, st, &tagged)) {
+      if (error) *error = "structural switch patterns require optional or Result subject";
+      return false;
+    }
+    std::string subject_temp_name;
+    uint16_t subject_temp_index = 0;
+    if (!AllocateTempLocal(
+            st, subject_type, &subject_temp_name, &subject_temp_index, error)) {
+      return false;
+    }
+    if (!EmitExpr(st, expr.children[0], &subject_type, error)) return false;
+    (*st.out) << "  stloc " << subject_temp_index << "\n";
+    PopStack(st, 1);
+    const uint32_t branch_stack_base = st.stack_cur;
+    const std::string end_label = NewLabel(st, "switch_end_");
+    for (size_t branch_index = 0; branch_index < expr.switch_branches.size();
+         ++branch_index) {
+      const auto& branch = expr.switch_branches[branch_index];
+      const bool has_next_branch = branch_index + 1 < expr.switch_branches.size();
+      const std::string next_label =
+          has_next_branch ? NewLabel(st, "switch_next_") : std::string();
+      if (has_next_branch && tagged.kind == TaggedArtifactKind::Optional) {
+        (*st.out) << "  ldloc " << subject_temp_index << "\n";
+        PushStack(st, 1);
+        (*st.out) << "  isnull\n";
+        if (branch.pattern_kind == SwitchPatternKind::Absent) {
+          (*st.out) << "  jmp.false " << next_label << "\n";
+        } else {
+          (*st.out) << "  jmp.true " << next_label << "\n";
+        }
+        PopStack(st, 1);
+      } else if (has_next_branch) {
+        const int tag = branch.pattern_field == "error" ? 1 : 0;
+        (*st.out) << "  ldloc " << subject_temp_index << "\n";
+        PushStack(st, 1);
+        (*st.out) << "  ldfld " << subject_type.name << ".tag\n";
+        (*st.out) << "  const i32 " << tag << "\n";
+        PushStack(st, 1);
+        (*st.out) << "  cmp.eq i32\n";
+        PopStack(st, 1);
+        (*st.out) << "  jmp.false " << next_label << "\n";
+        PopStack(st, 1);
+      }
+
+      auto branch_scope = SaveLocalScope(st);
+      const TypeRef* binding_type = nullptr;
+      std::string binding_field;
+      if (branch.pattern_kind == SwitchPatternKind::Present) {
+        binding_type = tagged.value_type;
+        binding_field = "value";
+      } else if (branch.pattern_kind == SwitchPatternKind::Tagged) {
+        binding_field = branch.pattern_field;
+        binding_type = binding_field == "error" ? tagged.error_type : tagged.value_type;
+      }
+      if (binding_type) {
+        if (st.local_indices.find(branch.pattern_binding) != st.local_indices.end()) {
+          st.local_indices.erase(branch.pattern_binding);
+          st.local_types.erase(branch.pattern_binding);
+        }
+        const uint16_t binding_index = st.next_local++;
+        st.local_indices[branch.pattern_binding] = binding_index;
+        TypeRef binding_copy;
+        if (!CloneTypeRef(*binding_type, &binding_copy)) return false;
+        st.local_types[branch.pattern_binding] = std::move(binding_copy);
+        (*st.out) << "  ldloc " << subject_temp_index << "\n";
+        PushStack(st, 1);
+        (*st.out) << "  ldfld " << subject_type.name << "." << binding_field << "\n";
+        (*st.out) << "  stloc " << binding_index << "\n";
+        PopStack(st, 1);
+      }
+
+      if (branch.is_block) {
+        if (branch.block.empty() ||
+            branch.block.back().kind != StmtKind::Return ||
+            !branch.block.back().has_return_expr) {
+          if (error) *error = "switch branch block must end with a return value";
+          return false;
+        }
+        for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
+          if (!EmitStmt(st, branch.block[stmt_index], error)) return false;
+        }
+        if (!EmitExpr(st, branch.block.back().expr, &switch_type, error)) return false;
+      } else {
+        if (!branch.has_inline_value) {
+          if (error) *error = "switch branch requires a value";
+          return false;
+        }
+        if (!EmitExpr(st, branch.value, &switch_type, error)) return false;
+      }
+      (*st.out) << "  jmp " << end_label << "\n";
+      RestoreLocalScope(st, std::move(branch_scope));
+      st.stack_cur = branch_stack_base;
+      if (has_next_branch) (*st.out) << next_label << ":\n";
+    }
+    (*st.out) << end_label << ":\n";
+    st.stack_cur = branch_stack_base + 1;
+    st.stack_max = std::max(st.stack_max, st.stack_cur);
+    return true;
+  }
+
   if (!EmitExpr(st, expr.children[0], nullptr, error)) return false;
   (*st.out) << "  pop\n";
   PopStack(st, 1);
@@ -3997,6 +4282,63 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "artifact literal requires expected type";
         return false;
       }
+      TaggedTypeInfo tagged;
+      if (ResolveTaggedType(*expected, st, &tagged)) {
+        auto tagged_layout_it = st.artifact_layouts.find(expected->name);
+        if (tagged_layout_it == st.artifact_layouts.end()) {
+          if (error) *error = "tagged literal expects materialized tagged type";
+          return false;
+        }
+        if (tagged.kind == TaggedArtifactKind::Optional) {
+          if (!expr.field_names.empty() || !expr.field_values.empty() ||
+              expr.children.size() > 1) {
+            if (error) *error = "optional literal must be '{}' or '{ value }'";
+            return false;
+          }
+          if (expr.children.empty()) {
+            (*st.out) << "  const null\n";
+            return PushStack(st, 1);
+          }
+          (*st.out) << "  newobj " << expected->name << "\n";
+          PushStack(st, 1);
+          (*st.out) << "  dup\n";
+          PushStack(st, 1);
+          if (!EmitExpr(st, expr.children[0], tagged.value_type, error)) return false;
+          (*st.out) << "  stfld " << expected->name << ".value\n";
+          PopStack(st, 2);
+          return true;
+        }
+        if (expr.children.size() != 0 || expr.field_names.size() != 1 ||
+            expr.field_values.size() != 1) {
+          if (error) {
+            *error = "Result literal requires exactly one '.value' or '.error' payload";
+          }
+          return false;
+        }
+        const bool is_error = expr.field_names[0] == "error";
+        if (!is_error && expr.field_names[0] != "value") {
+          if (error) *error = "Result literal field must be '.value' or '.error'";
+          return false;
+        }
+        (*st.out) << "  newobj " << expected->name << "\n";
+        PushStack(st, 1);
+        for (const auto& field : tagged_layout_it->second.fields) {
+          (*st.out) << "  dup\n";
+          PushStack(st, 1);
+          if (field.name == "tag") {
+            (*st.out) << "  const i32 " << (is_error ? 1 : 0) << "\n";
+            PushStack(st, 1);
+          } else if ((field.name == "value" && !is_error) ||
+                     (field.name == "error" && is_error)) {
+            if (!EmitExpr(st, expr.field_values[0], &field.type, error)) return false;
+          } else if (!EmitInactivePayload(st, field.type, error)) {
+            return false;
+          }
+          (*st.out) << "  stfld " << expected->name << "." << field.name << "\n";
+          PopStack(st, 2);
+        }
+        return true;
+      }
       auto layout_it = st.artifact_layouts.find(expected->name);
       if (layout_it == st.artifact_layouts.end()) {
         if (error) *error = "artifact literal expects artifact type";
@@ -4220,6 +4562,26 @@ bool EmitExpr(EmitState& st,
   }
 }
 
+bool EmitInactivePayload(EmitState& st, const TypeRef& type, std::string* error) {
+  const char* suffix = VmOpSuffixForType(type, st);
+  if (!suffix) {
+    if (error) *error = "unsupported inactive payload type";
+    return false;
+  }
+  if (std::string(suffix) == "ref") {
+    (*st.out) << "  const null\n";
+    return PushStack(st, 1);
+  }
+  return EmitDefaultInit(st, type, error);
+}
+
+bool NeedsRuntimeDefaultInitialization(const EmitState& st, const TypeRef& type) {
+  if (!type.dims.empty()) return true;
+  const auto artifact_it = st.artifacts.find(type.name);
+  return artifact_it != st.artifacts.end() &&
+         artifact_it->second->tagged_kind == TaggedArtifactKind::Result;
+}
+
 bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   if (!IsSupportedType(type) || type.name == "void") {
     if (error) *error = "unsupported default init type '" + type.name + "'";
@@ -4229,9 +4591,31 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
     (*st.out) << "  const null\n";
     return PushStack(st, 1);
   }
-  if (st.artifacts.find(type.name) != st.artifacts.end()) {
-    (*st.out) << "  const null\n";
-    return PushStack(st, 1);
+  const auto artifact_it = st.artifacts.find(type.name);
+  if (artifact_it != st.artifacts.end()) {
+    if (artifact_it->second->tagged_kind != TaggedArtifactKind::Result) {
+      (*st.out) << "  const null\n";
+      return PushStack(st, 1);
+    }
+    const auto layout_it = st.artifact_layouts.find(type.name);
+    if (layout_it == st.artifact_layouts.end()) {
+      if (error) *error = "missing Result layout for default initialization";
+      return false;
+    }
+    (*st.out) << "  newobj " << type.name << "\n";
+    PushStack(st, 1);
+    for (const auto& field : layout_it->second.fields) {
+      (*st.out) << "  dup\n";
+      PushStack(st, 1);
+      const bool inactive_error = field.name == "error";
+      if (inactive_error ? !EmitInactivePayload(st, field.type, error)
+                         : !EmitDefaultInit(st, field.type, error)) {
+        return false;
+      }
+      (*st.out) << "  stfld " << type.name << "." << field.name << "\n";
+      PopStack(st, 2);
+    }
+    return true;
   }
   if (st.enum_values.find(type.name) != st.enum_values.end()) {
     (*st.out) << "  const i32 0\n";
@@ -4723,7 +5107,9 @@ bool EmitFunction(EmitState& st,
 
   if (!st.global_init_func_name.empty() && emit_name == st.global_init_func_name) {
     for (const auto* glob : st.global_decls) {
-      if (!glob->has_init_expr && glob->type.dims.empty()) continue;
+      if (!glob->has_init_expr && !NeedsRuntimeDefaultInitialization(st, glob->type)) {
+        continue;
+      }
       if (glob->has_init_expr) {
         if (!EmitExpr(st, glob->init_expr, &glob->type, error)) return false;
       } else {
@@ -4928,7 +5314,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.global_decls = globals;
     bool has_global_init = false;
     for (const auto* g : globals) {
-      if (g->has_init_expr || !g->type.dims.empty()) {
+      if (g->has_init_expr || NeedsRuntimeDefaultInitialization(st, g->type)) {
         has_global_init = true;
         break;
       }
@@ -5634,13 +6020,20 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   }
 
   std::ostringstream result;
+  result << "sir version " << kSirVersionMajor << "." << kSirVersionMinor << "\n";
   if (!artifacts.empty() || !enums.empty()) {
     result << "types:\n";
     for (const auto* artifact : artifacts) {
       auto it = st.artifact_layouts.find(artifact->name);
       if (it == st.artifact_layouts.end()) return false;
       const auto& layout = it->second;
-      result << "  type " << artifact->name << " size=" << layout.size << " kind=" << (artifact->is_data ? "data" : "artifact") << "\n";
+      const char* kind = artifact->tagged_kind == TaggedArtifactKind::Optional
+                             ? "optional"
+                             : (artifact->tagged_kind == TaggedArtifactKind::Result
+                                    ? "result"
+                                    : (artifact->is_data ? "data" : "artifact"));
+      result << "  type " << artifact->name << " size=" << layout.size
+             << " kind=" << kind << "\n";
       for (const auto& field : layout.fields) {
         result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
       }

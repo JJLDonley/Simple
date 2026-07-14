@@ -27,8 +27,8 @@ std::string CanonicalAggregateTypeIdentity(const AbiAggregateLayout& layout);
 std::string CanonicalInstantiatedTypeIdentity(const std::string& base_type_identity,
                                              const std::vector<std::string>& argument_identities);
 std::string CanonicalPromiseTypeIdentity(const std::string& value_type_identity);
-std::string CanonicalOptionTypeIdentity(const std::string& value_type_identity);
-std::string CanonicalResultTypeIdentity(const std::string& ok_type_identity,
+std::string CanonicalOptionalTypeIdentity(const std::string& value_type_identity);
+std::string CanonicalResultTypeIdentity(const std::string& value_type_identity,
                                         const std::string& error_type_identity);
 std::string HumanGenericSymbolName(const std::string& base_symbol,
                                    const std::vector<std::string>& argument_identities);

@@ -1,0 +1,22 @@
+module Tests.TaggedValuesLibrary
+
+RemoteFailure :: enum {
+  Rejected = 1
+}
+
+RemoteTagged :: namespace {
+  choose<T> :: T? (accept : bool, value : T) {
+    if (accept) { return { value } }
+    return {}
+  }
+
+  load :: Result<i32, RemoteFailure> (accept : bool) {
+    if (accept) { return { .value = 40 } }
+    return { .error = RemoteFailure.Rejected }
+  }
+
+  forwarded :: Result<i32, RemoteFailure> (accept : bool) {
+    value : i32 = RemoteTagged.load(accept)?
+    return { .value = value + 2 }
+  }
+}

@@ -142,7 +142,10 @@ bool CollectFromExpr(const Simple::Lang::AST::Expr& expr,
     if (!CollectFromExpr(value, out)) return false;
   }
   for (const auto& branch : expr.switch_branches) {
-    if (!branch.is_default && !CollectFromExpr(branch.condition, out)) return false;
+    if (!branch.is_default && branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
+        !CollectFromExpr(branch.condition, out)) {
+      return false;
+    }
     if (branch.has_inline_value && !CollectFromExpr(branch.value, out)) return false;
     if (!CollectFromStmtList(branch.block, out)) return false;
   }
@@ -417,6 +420,7 @@ bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
   }
   for (const auto& branch : expr.switch_branches) {
     if ((!branch.is_default &&
+         branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
          !CollectMethodRequestsFromExpr(branch.condition, program, scope, current_artifact, out)) ||
         (branch.has_inline_value &&
          !CollectMethodRequestsFromExpr(branch.value, program, scope, current_artifact, out)) ||
@@ -555,7 +559,10 @@ bool ApplySubstitutionToExpr(Simple::Lang::AST::Expr* expr,
     if (!ApplySubstitutionToExpr(&value, substitutions)) return false;
   }
   for (auto& branch : expr->switch_branches) {
-    if (!branch.is_default && !ApplySubstitutionToExpr(&branch.condition, substitutions)) return false;
+    if (!branch.is_default && branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
+        !ApplySubstitutionToExpr(&branch.condition, substitutions)) {
+      return false;
+    }
     if (branch.has_inline_value && !ApplySubstitutionToExpr(&branch.value, substitutions)) return false;
     for (auto& stmt : branch.block) {
       if (!ApplySubstitutionToStmt(&stmt, substitutions)) return false;
@@ -760,18 +767,19 @@ void AppendCanonicalTaggedLayouts(Simple::Lang::AST::Program* program) {
     return field;
   };
 
-  Simple::Lang::AST::Decl option;
-  option.kind = Simple::Lang::AST::DeclKind::Artifact;
-  option.artifact.name = "Option";
-  option.artifact.generics = {"T"};
-  option.artifact.fields.push_back(make_field("tag", "i32"));
-  option.artifact.fields.push_back(make_field("value", "T"));
-  program->decls.push_back(std::move(option));
+  Simple::Lang::AST::Decl optional;
+  optional.kind = Simple::Lang::AST::DeclKind::Artifact;
+  optional.artifact.name = Simple::Lang::kOptionalTypeInternalName;
+  optional.artifact.generics = {"T"};
+  optional.artifact.tagged_kind = Simple::Lang::TaggedArtifactKind::Optional;
+  optional.artifact.fields.push_back(make_field("value", "T"));
+  program->decls.push_back(std::move(optional));
 
   Simple::Lang::AST::Decl result;
   result.kind = Simple::Lang::AST::DeclKind::Artifact;
   result.artifact.name = "Result";
   result.artifact.generics = {"T", "E"};
+  result.artifact.tagged_kind = Simple::Lang::TaggedArtifactKind::Result;
   result.artifact.fields.push_back(make_field("tag", "i32"));
   result.artifact.fields.push_back(make_field("value", "T"));
   result.artifact.fields.push_back(make_field("error", "E"));
@@ -781,6 +789,15 @@ void AppendCanonicalTaggedLayouts(Simple::Lang::AST::Program* program) {
 } // namespace
 
 std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type) {
+  if (type.name == Simple::Lang::kOptionalTypeInternalName &&
+      type.is_optional_syntax && type.type_args.size() == 1 && !type.is_proc) {
+    std::string out;
+    for (uint32_t i = 0; i < type.pointer_depth; ++i) out += "ptr<";
+    out += TypeRefIdentity(type.type_args[0]) + "?";
+    for (uint32_t i = 0; i < type.pointer_depth; ++i) out += ">";
+    AppendDims(type, &out);
+    return out;
+  }
   if (type.is_proc) {
     std::string out = "fn(";
     for (size_t i = 0; i < type.proc_params.size(); ++i) {
@@ -845,14 +862,15 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
         }
         break;
       case Simple::Lang::AST::DeclKind::Function:
-        if (!CollectFromFunction(decl.func, out)) return false;
+        if (decl.func.generics.empty() && !CollectFromFunction(decl.func, out)) return false;
         break;
       case Simple::Lang::AST::DeclKind::Artifact:
+        if (!decl.artifact.generics.empty()) break;
         for (const auto& field : decl.artifact.fields) {
           if (!CollectInstantiationRequestsFromType(field.type, out)) return false;
         }
         for (const auto& method : decl.artifact.methods) {
-          if (!CollectFromFunction(method, out)) return false;
+          if (method.generics.empty() && !CollectFromFunction(method, out)) return false;
         }
         break;
       case Simple::Lang::AST::DeclKind::Module:
@@ -860,7 +878,7 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
           if (!CollectInstantiationRequestsFromType(var.type, out)) return false;
         }
         for (const auto& fn : decl.module.functions) {
-          if (!CollectFromFunction(fn, out)) return false;
+          if (fn.generics.empty() && !CollectFromFunction(fn, out)) return false;
         }
         break;
       default:
@@ -871,6 +889,10 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
 }
 
 std::string InstantiationRequestKey(const GenericInstantiationRequest& request) {
+  if (request.base_name == Simple::Lang::kOptionalTypeInternalName &&
+      request.argument_identities.size() == 1) {
+    return request.argument_identities[0] + "?";
+  }
   std::string key = request.base_name + "<";
   for (size_t i = 0; i < request.argument_identities.size(); ++i) {
     if (i != 0) key += ",";
@@ -995,12 +1017,24 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
       }
       return false;
     }
-    for (const std::string& argument : request.argument_identities) {
-      if (ContainsTypeParameterToken(argument, it->second->type_params)) {
-        if (error) {
-          *error = "generic specialization is not concrete for " + request.base_name;
+    const auto reject_nonconcrete = [&]() {
+      if (error) {
+        *error = "generic specialization is not concrete for " + request.base_name;
+      }
+      return false;
+    };
+    if (!request.argument_types.empty()) {
+      for (const auto& argument : request.argument_types) {
+        if (ContainsTypeParameterToken(TypeRefIdentity(argument),
+                                       it->second->type_params)) {
+          return reject_nonconcrete();
         }
-        return false;
+      }
+    } else {
+      for (const std::string& argument : request.argument_identities) {
+        if (ContainsTypeParameterToken(argument, it->second->type_params)) {
+          return reject_nonconcrete();
+        }
       }
     }
     GenericSpecializationPlan plan;
@@ -1412,22 +1446,23 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
 
   auto build_key = [](const std::string& base,
                       const std::vector<Simple::Lang::AST::TypeRef>& args) -> std::string {
-    std::string key = base + "<";
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i != 0) key += ",";
-      key += TypeRefIdentity(args[i]);
+    GenericInstantiationRequest request;
+    request.base_name = base;
+    request.argument_identities.reserve(args.size());
+    for (const auto& argument : args) {
+      request.argument_identities.push_back(TypeRefIdentity(argument));
     }
-    key += ">";
-    return key;
+    return InstantiationRequestKey(request);
   };
 
   auto rewrite_type = [&](auto&& self, Simple::Lang::AST::TypeRef* type) -> bool {
     if (!type) return false;
-    if (!type->name.empty() && !type->type_args.empty() && type->pointer_depth == 0) {
+    if (!type->name.empty() && !type->type_args.empty()) {
       const auto it = specialized_symbols.find(build_key(type->name, type->type_args));
       if (it != specialized_symbols.end()) {
         type->name = it->second;
         type->type_args.clear();
+        type->is_optional_syntax = false;
         return true;
       }
     }
@@ -1534,7 +1569,11 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
       if (!self(self, rewrite_type_fn, &value)) return false;
     }
     for (auto& branch : expr->switch_branches) {
-      if (!branch.is_default && !self(self, rewrite_type_fn, &branch.condition)) return false;
+      if (!branch.is_default &&
+          branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
+          !self(self, rewrite_type_fn, &branch.condition)) {
+        return false;
+      }
       if (branch.has_inline_value && !self(self, rewrite_type_fn, &branch.value)) return false;
       for (auto& stmt : branch.block) {
         if (!rewrite_stmt(rewrite_stmt, self, rewrite_type_fn, &stmt)) return false;
@@ -1610,7 +1649,8 @@ bool MaterializeProgramForEmission(const Simple::Lang::AST::Program& source,
   if (!CollectInstantiationRequestsFromProgram(source, &source_requests)) return false;
   bool uses_canonical_tagged_layout = false;
   for (const auto& request : source_requests) {
-    if (request.base_name == "Option" || request.base_name == "Result") {
+    if (request.base_name == Simple::Lang::kOptionalTypeInternalName ||
+        request.base_name == "Result") {
       uses_canonical_tagged_layout = true;
       break;
     }

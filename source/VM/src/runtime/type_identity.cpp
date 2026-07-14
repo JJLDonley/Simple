@@ -64,7 +64,7 @@ std::string CanonicalPrimitiveTypeIdentity(Simple::Byte::TypeKind kind) {
     case TypeKind::List: return "list";
     case TypeKind::Function: return "function";
     case TypeKind::Result: return "result";
-    case TypeKind::Option: return "option";
+    case TypeKind::Optional: return "optional";
     case TypeKind::Vector: return "vector";
     case TypeKind::Unspecified: return "unspecified";
   }
@@ -134,13 +134,13 @@ std::string CanonicalPromiseTypeIdentity(const std::string& value_type_identity)
   return "promise<" + value_type_identity + ">";
 }
 
-std::string CanonicalOptionTypeIdentity(const std::string& value_type_identity) {
-  return "option<" + value_type_identity + ">";
+std::string CanonicalOptionalTypeIdentity(const std::string& value_type_identity) {
+  return "optional<" + value_type_identity + ">";
 }
 
-std::string CanonicalResultTypeIdentity(const std::string& ok_type_identity,
+std::string CanonicalResultTypeIdentity(const std::string& value_type_identity,
                                         const std::string& error_type_identity) {
-  return "result<" + ok_type_identity + "," + error_type_identity + ">";
+  return "result<" + value_type_identity + "," + error_type_identity + ">";
 }
 
 std::string HumanGenericSymbolName(const std::string& base_symbol,

@@ -290,7 +290,9 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
   for (const auto& value : expr.field_values) ResolveExprMemberRefs(out, value, current_artifact, types);
   if (expr.kind == ExprKind::Switch) {
     for (const auto& branch : expr.switch_branches) {
-      if (!branch.is_default) ResolveExprMemberRefs(out, branch.condition, current_artifact, types);
+      if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None) {
+        ResolveExprMemberRefs(out, branch.condition, current_artifact, types);
+      }
       if (branch.has_inline_value) ResolveExprMemberRefs(out, branch.value, current_artifact, types);
       ResolveStmtBlockMemberRefs(out, branch.block, current_artifact, types);
     }

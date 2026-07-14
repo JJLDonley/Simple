@@ -67,8 +67,6 @@ enum class StandardModule {
   Promise,
   Channel,
   Collections,
-  Result,
-  Option,
 };
 
 enum class SystemIOMember { Stdin, Stdout, Stderr, Write, WriteText, Flush, BufferNew, BufferLen, BufferFill, BufferCopy };
@@ -135,8 +133,6 @@ enum class StandardPromiseMember {
 };
 enum class StandardChannelMember { New, Send, TrySend, Recv, TryRecv, Close };
 enum class StandardCollectionsMember { List, Map, Set, Queue, Stack };
-enum class StandardResultMember { Ok, Err, IsOk, Unwrap };
-enum class StandardOptionMember { Some, None, IsSome, Unwrap };
 
 enum class SystemBufferMember { New, Len, Get, Set, Slice, Copy, ReadU16LE, ReadU32LE, ReadU64LE, WriteU16LE, WriteU32LE, WriteU64LE };
 
@@ -154,8 +150,7 @@ using StandardMember = std::variant<StandardIOMember, StandardConsoleMember, Sta
                                     StandardRandomMember, StandardTimeMember, StandardLogMember,
                                     StandardProcessMember, StandardNetMember, StandardHTTPMember,
                                     StandardHTTPSMember, StandardTerminalMember, StandardPromiseMember,
-                                    StandardChannelMember, StandardCollectionsMember, StandardResultMember,
-                                    StandardOptionMember>;
+                                    StandardChannelMember, StandardCollectionsMember>;
 
 struct LibraryModuleId {
   LibraryRoot root;
@@ -214,7 +209,7 @@ inline constexpr std::array<SystemModule, 23> kSystemModules = {{
     SystemModule::Debug,
 }};
 
-inline constexpr std::array<StandardModule, 22> kStandardModules = {{
+inline constexpr std::array<StandardModule, 20> kStandardModules = {{
     StandardModule::IO,
     StandardModule::Console,
     StandardModule::FS,
@@ -235,8 +230,6 @@ inline constexpr std::array<StandardModule, 22> kStandardModules = {{
     StandardModule::Promise,
     StandardModule::Channel,
     StandardModule::Collections,
-    StandardModule::Result,
-    StandardModule::Option,
 }};
 
 inline constexpr std::array<SystemBufferMember, 12> kSystemBufferMembers = {{
@@ -305,8 +298,6 @@ inline std::string_view ToImportPath(StandardModule module) {
     case StandardModule::Promise: return "Standard.Promise";
     case StandardModule::Channel: return "Standard.Channel";
     case StandardModule::Collections: return "Standard.Collections";
-    case StandardModule::Result: return "Standard.Result";
-    case StandardModule::Option: return "Standard.Option";
   }
   return {};
 }
@@ -968,26 +959,6 @@ inline std::string_view ToMember(StandardCollectionsMember member) {
   return {};
 }
 
-inline std::string_view ToMember(StandardResultMember member) {
-  switch (member) {
-    case StandardResultMember::Ok: return "ok";
-    case StandardResultMember::Err: return "err";
-    case StandardResultMember::IsOk: return "isOk";
-    case StandardResultMember::Unwrap: return "unwrap";
-  }
-  return {};
-}
-
-inline std::string_view ToMember(StandardOptionMember member) {
-  switch (member) {
-    case StandardOptionMember::Some: return "some";
-    case StandardOptionMember::None: return "none";
-    case StandardOptionMember::IsSome: return "isSome";
-    case StandardOptionMember::Unwrap: return "unwrap";
-  }
-  return {};
-}
-
 inline std::string_view ToMember(SystemBufferMember member) {
   switch (member) {
     case SystemBufferMember::New: return "new";
@@ -1037,8 +1008,6 @@ inline std::optional<SystemModule> NativeBackingModule(StandardModule module) {
     case StandardModule::Text:
     case StandardModule::Math:
     case StandardModule::Collections:
-    case StandardModule::Result:
-    case StandardModule::Option:
       return std::nullopt;
   }
   return std::nullopt;
@@ -1171,8 +1140,6 @@ inline std::vector<std::string_view> MemberNames(StandardModule module) {
     case StandardModule::Promise: return {ToMember(StandardPromiseMember::Run), ToMember(StandardPromiseMember::RunFailed), ToMember(StandardPromiseMember::Await), ToMember(StandardPromiseMember::Poll), ToMember(StandardPromiseMember::Cancel), ToMember(StandardPromiseMember::IsDone), ToMember(StandardPromiseMember::IsFailed), ToMember(StandardPromiseMember::IsCancelled), ToMember(StandardPromiseMember::Error), ToMember(StandardPromiseMember::Close)};
     case StandardModule::Channel: return {ToMember(StandardChannelMember::New), ToMember(StandardChannelMember::Send), ToMember(StandardChannelMember::TrySend), ToMember(StandardChannelMember::Recv), ToMember(StandardChannelMember::TryRecv), ToMember(StandardChannelMember::Close)};
     case StandardModule::Collections: return {ToMember(StandardCollectionsMember::List), ToMember(StandardCollectionsMember::Map), ToMember(StandardCollectionsMember::Set), ToMember(StandardCollectionsMember::Queue), ToMember(StandardCollectionsMember::Stack)};
-    case StandardModule::Result: return {ToMember(StandardResultMember::Ok), ToMember(StandardResultMember::Err), ToMember(StandardResultMember::IsOk), ToMember(StandardResultMember::Unwrap)};
-    case StandardModule::Option: return {ToMember(StandardOptionMember::Some), ToMember(StandardOptionMember::None), ToMember(StandardOptionMember::IsSome), ToMember(StandardOptionMember::Unwrap)};
   }
   return {};
 }
@@ -1283,8 +1250,6 @@ inline std::optional<StandardMember> ParseMember(StandardModule module, std::str
     case StandardModule::Promise: if (auto value = ParseEnumMember<StandardPromiseMember>(member, {StandardPromiseMember::Run, StandardPromiseMember::RunFailed, StandardPromiseMember::Await, StandardPromiseMember::Poll, StandardPromiseMember::Cancel, StandardPromiseMember::IsDone, StandardPromiseMember::IsFailed, StandardPromiseMember::IsCancelled, StandardPromiseMember::Error, StandardPromiseMember::Close})) return StandardMember(*value); break;
     case StandardModule::Channel: if (auto value = ParseEnumMember<StandardChannelMember>(member, {StandardChannelMember::New, StandardChannelMember::Send, StandardChannelMember::TrySend, StandardChannelMember::Recv, StandardChannelMember::TryRecv, StandardChannelMember::Close})) return StandardMember(*value); break;
     case StandardModule::Collections: if (auto value = ParseEnumMember<StandardCollectionsMember>(member, {StandardCollectionsMember::List, StandardCollectionsMember::Map, StandardCollectionsMember::Set, StandardCollectionsMember::Queue, StandardCollectionsMember::Stack})) return StandardMember(*value); break;
-    case StandardModule::Result: if (auto value = ParseEnumMember<StandardResultMember>(member, {StandardResultMember::Ok, StandardResultMember::Err, StandardResultMember::IsOk, StandardResultMember::Unwrap})) return StandardMember(*value); break;
-    case StandardModule::Option: if (auto value = ParseEnumMember<StandardOptionMember>(member, {StandardOptionMember::Some, StandardOptionMember::None, StandardOptionMember::IsSome, StandardOptionMember::Unwrap})) return StandardMember(*value); break;
   }
   return std::nullopt;
 }
@@ -1798,9 +1763,7 @@ inline std::optional<LibrarySignatureSpec> GetStandardLibrarySignature(StandardM
     case StandardModule::HTTPS:
     case StandardModule::Terminal:
     case StandardModule::Channel:
-    case StandardModule::Collections:
-    case StandardModule::Result:
-    case StandardModule::Option: return std::nullopt;
+    case StandardModule::Collections: return std::nullopt;
   }
   return std::nullopt;
 }
@@ -2116,8 +2079,6 @@ inline bool IsImplementedStandardMember(StandardModule module, std::string_view 
     case StandardModule::Terminal:
     case StandardModule::Channel:
     case StandardModule::Collections:
-    case StandardModule::Result:
-    case StandardModule::Option:
       return false;
   }
   return false;

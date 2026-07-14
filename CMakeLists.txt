@@ -99,6 +99,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_LIBRARY_ROOT}/src/library_legacy.cpp
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_call.cpp
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_runtime.cpp
+  ${SIMPLEVM_VM_ROOT}/src/gc/artifact_trace.cpp
   ${SIMPLEVM_VM_ROOT}/src/gc/root_tracer.cpp
   ${SIMPLEVM_VM_ROOT}/src/gc/stack_map_collection.cpp
   ${SIMPLEVM_VM_ROOT}/src/heap.cpp

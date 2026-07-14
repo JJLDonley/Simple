@@ -1013,7 +1013,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   out->capabilities_bytes.clear();
   out->debug_bytes.clear();
   out->entry_method_id = text.entry_index;
-  if (text.has_version && (text.version_major != 1 || text.version_minor != 0)) {
+  if (text.has_version && (text.version_major != 2 || text.version_minor != 0)) {
     if (error) *error = "unsupported SIR version: " + std::to_string(text.version_major) + "." + std::to_string(text.version_minor);
     return false;
   }
@@ -1130,8 +1130,16 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind == "array") { *out_kind = Simple::Byte::TypeKind::Array; return true; }
     if (kind == "list") { *out_kind = Simple::Byte::TypeKind::List; return true; }
     if (kind == "function" || kind == "fn") { *out_kind = Simple::Byte::TypeKind::Function; return true; }
-    if (kind == "result") { *out_kind = Simple::Byte::TypeKind::Result; return true; }
-    if (kind == "option") { *out_kind = Simple::Byte::TypeKind::Option; return true; }
+    if (kind == "result") {
+      *out_kind = Simple::Byte::TypeKind::Result;
+      *out_flags = Simple::Byte::kTypeFlagManagedArtifact;
+      return true;
+    }
+    if (kind == "optional") {
+      *out_kind = Simple::Byte::TypeKind::Optional;
+      *out_flags = Simple::Byte::kTypeFlagManagedArtifact;
+      return true;
+    }
     if (kind == "vector" || kind == "vec") { *out_kind = Simple::Byte::TypeKind::Vector; return true; }
     if (kind == "artifact" || kind == "object" || kind == "struct" || kind == "unspecified") {
       *out_kind = Simple::Byte::TypeKind::Unspecified;
@@ -1178,7 +1186,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       case Simple::Byte::TypeKind::Function:
         return types[type_id].size == 0 ? 4 : types[type_id].size;
       case Simple::Byte::TypeKind::Result:
-      case Simple::Byte::TypeKind::Option:
+      case Simple::Byte::TypeKind::Optional:
       case Simple::Byte::TypeKind::Vector:
         return types[type_id].size;
       case Simple::Byte::TypeKind::Unspecified:
@@ -2362,33 +2370,6 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         ParseUint(case_token, &case_id);
         builder.EmitConstI32(static_cast<int32_t>(case_id));
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::VariantMake);
-        continue;
-      }
-      if (parse_marker_type("result.ok", &marker_type)) {
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultOk);
-        continue;
-      }
-      if (parse_marker_type("result.err", &marker_type)) {
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultErr);
-        continue;
-      }
-      if (parse_marker_type("result.unwrap", &marker_type)) {
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultUnwrap);
-        continue;
-      }
-      if (op == "result.propagate.err") {
-        if (!args.empty()) return fail("result.propagate.err expects no operands");
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultPropagateErr);
-        continue;
-      }
-      if (op == "result.is.ok") {
-        if (!args.empty()) return fail("result.is.ok expects no operands");
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultIsOk);
-        continue;
-      }
-      if (op == "result.is.err") {
-        if (!args.empty()) return fail("result.is.err expects no operands");
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultIsErr);
         continue;
       }
       if (parse_marker_type("range.new.step", &marker_type)) {

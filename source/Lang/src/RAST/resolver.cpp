@@ -109,8 +109,18 @@ bool AddExprBlockSymbols(ResolvedProgram* out,
   if (expr.kind == ExprKind::Switch) {
     for (size_t i = 0; i < expr.switch_branches.size(); ++i) {
       const auto& branch = expr.switch_branches[i];
-      if (!branch.is_default &&
+      if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None &&
           !AddExprBlockSymbols(out, branch.condition, owner, parent, path + ".switch" + std::to_string(i) + ".cond", error)) {
+        return false;
+      }
+      if (!branch.pattern_binding.empty() &&
+          !AddSymbol(out,
+                     SymbolKind::Local,
+                     branch.pattern_binding,
+                     owner + "::" + path + ".switch" + std::to_string(i) +
+                         ".pattern:" + branch.pattern_binding,
+                     parent,
+                     error)) {
         return false;
       }
       if (branch.is_block &&

@@ -30,9 +30,18 @@ struct HeapObject {
   std::vector<uint8_t> payload;
 };
 
+struct ArtifactTraceDescriptor {
+  bool configured = false;
+  uint32_t tag_offset = 0;
+  bool branch_on_tag = false;
+  std::vector<uint32_t> refs;
+  std::vector<uint32_t> zero_tag_refs;
+  std::vector<uint32_t> nonzero_tag_refs;
+};
+
 namespace HeapLayout {
 
-constexpr uint32_t kNullRef = 0xFFFFFFFFu;
+constexpr uint32_t kNullRef = 0u;
 
 constexpr std::size_t kStringLengthOffset = 0;
 constexpr std::size_t kStringDataOffset = 4;
@@ -114,6 +123,7 @@ std::vector<uint8_t> ReadBytes(const HeapObject* obj);
 class Heap {
  public:
   void SetLimits(uint32_t max_objects, uint64_t max_bytes);
+  void SetArtifactTraceDescriptors(std::vector<ArtifactTraceDescriptor> descriptors);
   uint32_t Allocate(ObjectKind kind, uint32_t type_id, uint32_t size);
   HeapObject* Get(uint32_t handle);
   const HeapObject* Get(uint32_t handle) const;
@@ -128,6 +138,7 @@ class Heap {
   uint64_t max_bytes_ = 0;
   uint32_t live_objects_ = 0;
   uint64_t live_bytes_ = 0;
+  std::vector<ArtifactTraceDescriptor> artifact_trace_descriptors_;
 };
 
 } // namespace Simple::VM

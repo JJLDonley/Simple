@@ -170,6 +170,33 @@ bool Parser::ParseBlock(std::vector<Stmt>* out) {
   return !had_error_;
 }
 
+bool Parser::ParseTypeSuffixes(TypeRef* out) {
+  if (!out) return false;
+  while (pending_type_argument_closes_ == 0) {
+    if (Peek().kind == TokenKind::LBracket || Peek().kind == TokenKind::LBrace) {
+      if (!ParseTypeDims(out)) return false;
+      continue;
+    }
+    if (Match(TokenKind::Star)) {
+      ++out->pointer_depth;
+      continue;
+    }
+    if (Match(TokenKind::Question)) {
+      TypeRef inner = std::move(*out);
+      TypeRef optional;
+      optional.name = kOptionalTypeInternalName;
+      optional.is_optional_syntax = true;
+      optional.line = inner.line;
+      optional.column = inner.column;
+      optional.type_args.push_back(std::move(inner));
+      *out = std::move(optional);
+      continue;
+    }
+    break;
+  }
+  return true;
+}
+
 bool Parser::ParseTypeInner(TypeRef* out) {
   if (!out) return false;
 
@@ -213,10 +240,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
       }
     }
 
-    if (pending_type_argument_closes_ == 0 && !ParseTypeDims(&proc)) return false;
-    while (Match(TokenKind::Star)) {
-      ++proc.pointer_depth;
-    }
+    if (!ParseTypeSuffixes(&proc)) return false;
     *out = std::move(proc);
     return true;
   }
@@ -228,6 +252,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
   }
   out->type_args.clear();
   out->dims.clear();
+  out->is_optional_syntax = false;
   out->is_proc = false;
   out->proc_params.clear();
   out->proc_return.reset();
@@ -242,11 +267,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     if (!ParseTypeArgs(&out->type_args)) return false;
   }
 
-  if (pending_type_argument_closes_ == 0 && !ParseTypeDims(out)) return false;
-  while (Match(TokenKind::Star)) {
-    ++out->pointer_depth;
-  }
-  return true;
+  return ParseTypeSuffixes(out);
 }
 
 bool Parser::ParseDecl(Decl* out) {
@@ -1611,6 +1632,17 @@ bool Parser::ParsePostfixExpr(Expr* out) {
       expr = std::move(unary);
       continue;
     }
+    if (Match(TokenKind::Question)) {
+      const Token& question = tokens_[index_ - 1];
+      Expr propagation;
+      propagation.kind = ExprKind::Unary;
+      propagation.op = "post?";
+      propagation.line = question.line;
+      propagation.column = question.column;
+      propagation.children.push_back(std::move(expr));
+      expr = std::move(propagation);
+      continue;
+    }
     break;
   }
   if (out) *out = std::move(expr);
@@ -1804,6 +1836,47 @@ bool Parser::ParseSwitchExpr(Expr* out) {
     SwitchBranch branch;
     if (Match(TokenKind::KwDefault)) {
       branch.is_default = true;
+    } else if (Match(TokenKind::LBrace)) {
+      if (Match(TokenKind::RBrace)) {
+        branch.pattern_kind = SwitchPatternKind::Absent;
+      } else if (Match(TokenKind::Dot)) {
+        const Token& field = Peek();
+        if (field.kind != TokenKind::Identifier) {
+          error_ = "expected tagged field name after '.' in switch pattern";
+          return false;
+        }
+        Advance();
+        if (!Match(TokenKind::Assign)) {
+          error_ = "expected '=' after tagged field name in switch pattern";
+          return false;
+        }
+        const Token& binding = Peek();
+        if (binding.kind != TokenKind::Identifier) {
+          error_ = "expected binding name in tagged switch pattern";
+          return false;
+        }
+        Advance();
+        if (!Match(TokenKind::RBrace)) {
+          error_ = "expected '}' after tagged switch pattern";
+          return false;
+        }
+        branch.pattern_kind = SwitchPatternKind::Tagged;
+        branch.pattern_field = field.text;
+        branch.pattern_binding = binding.text;
+      } else {
+        const Token& binding = Peek();
+        if (binding.kind != TokenKind::Identifier) {
+          error_ = "expected binding name or '}' in optional switch pattern";
+          return false;
+        }
+        Advance();
+        if (!Match(TokenKind::RBrace)) {
+          error_ = "expected '}' after optional switch pattern";
+          return false;
+        }
+        branch.pattern_kind = SwitchPatternKind::Present;
+        branch.pattern_binding = binding.text;
+      }
     } else {
       Expr cond;
       if (!ParseExpr(&cond)) return false;

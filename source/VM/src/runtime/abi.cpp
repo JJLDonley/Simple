@@ -75,7 +75,7 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
     case TypeKind::Ptr:
       return AbiTypeInfo{AbiClass::Scalar, 8, 8, true, true};
     case TypeKind::Result:
-    case TypeKind::Option:
+    case TypeKind::Optional:
       return AbiTypeInfo{AbiClass::Variant, 16, 8, true, false};
     case TypeKind::Vector:
       return AbiTypeInfo{AbiClass::Aggregate, 16, 16, true, false};
@@ -97,6 +97,9 @@ AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout) {
 AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row) {
   if (Simple::Byte::IsOpaqueHandleType(row)) {
     return AbiTypeInfo{AbiClass::Handle, 8, 8, true, false};
+  }
+  if (Simple::Byte::IsManagedArtifactType(row)) {
+    return AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
   }
   return GetPrimitiveAbiTypeInfo(static_cast<Simple::Byte::TypeKind>(row.kind));
 }
@@ -289,20 +292,20 @@ bool IsValidBorrowedBytesView(const SimpleBytesView& view) {
   return view.data != nullptr || view.size == 0;
 }
 
-AbiVariantValue MakeAbiOptionNone() {
-  return AbiVariantValue{AbiVariantTag::None, 0, 0};
+AbiVariantValue MakeAbiOptionalAbsent() {
+  return AbiVariantValue{AbiVariantTag::Absent, 0, 0};
 }
 
-AbiVariantValue MakeAbiOptionSome(uint64_t payload) {
-  return AbiVariantValue{AbiVariantTag::Some, 0, payload};
+AbiVariantValue MakeAbiOptionalPresent(uint64_t payload) {
+  return AbiVariantValue{AbiVariantTag::Present, 0, payload};
 }
 
-AbiVariantValue MakeAbiResultOk(uint64_t payload) {
-  return AbiVariantValue{AbiVariantTag::Ok, 0, payload};
+AbiVariantValue MakeAbiResultValue(uint64_t payload) {
+  return AbiVariantValue{AbiVariantTag::Value, 0, payload};
 }
 
-AbiVariantValue MakeAbiResultErr(uint64_t payload) {
-  return AbiVariantValue{AbiVariantTag::Err, 0, payload};
+AbiVariantValue MakeAbiResultError(uint64_t payload) {
+  return AbiVariantValue{AbiVariantTag::Error, 0, payload};
 }
 
 uint64_t PackAbiPromiseId(AbiPromiseId promise) {
@@ -316,16 +319,16 @@ AbiPromiseId UnpackAbiPromiseId(uint64_t value) {
   return promise;
 }
 
-bool IsAbiOptionSome(const AbiVariantValue& value) {
-  return value.tag == AbiVariantTag::Some;
+bool IsAbiOptionalPresent(const AbiVariantValue& value) {
+  return value.tag == AbiVariantTag::Present;
 }
 
-bool IsAbiResultOk(const AbiVariantValue& value) {
-  return value.tag == AbiVariantTag::Ok;
+bool IsAbiResultValue(const AbiVariantValue& value) {
+  return value.tag == AbiVariantTag::Value;
 }
 
-bool IsAbiResultErr(const AbiVariantValue& value) {
-  return value.tag == AbiVariantTag::Err;
+bool IsAbiResultError(const AbiVariantValue& value) {
+  return value.tag == AbiVariantTag::Error;
 }
 
 const char* TypeKindAbiName(Simple::Byte::TypeKind kind) {
@@ -352,7 +355,7 @@ const char* TypeKindAbiName(Simple::Byte::TypeKind kind) {
     case TypeKind::Ptr: return "ptr";
     case TypeKind::Function: return "function";
     case TypeKind::Result: return "result";
-    case TypeKind::Option: return "option";
+    case TypeKind::Optional: return "optional";
     case TypeKind::Vector: return "vector";
     case TypeKind::Never: return "never";
     default: return "unknown";

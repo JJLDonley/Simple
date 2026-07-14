@@ -3518,7 +3518,7 @@ bool RunIrTextCompoundMetadataTypesTest() {
       "  type L kind=list size=4\n"
       "  type F kind=function size=4\n"
       "  type R kind=result size=8\n"
-      "  type O kind=option size=4\n"
+      "  type O kind=optional size=4\n"
       "  type V kind=vector size=16\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -3535,18 +3535,22 @@ bool RunIrTextCompoundMetadataTypesTest() {
   bool saw_list = false;
   bool saw_function = false;
   bool saw_result = false;
-  bool saw_option = false;
+  bool saw_optional = false;
   bool saw_vector = false;
   for (const auto& type : load.module.types) {
     saw_ptr = saw_ptr || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Ptr);
     saw_array = saw_array || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Array);
     saw_list = saw_list || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::List);
     saw_function = saw_function || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Function);
-    saw_result = saw_result || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Result);
-    saw_option = saw_option || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Option);
+    saw_result = saw_result ||
+                 (type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Result) &&
+                  Simple::Byte::IsManagedArtifactType(type));
+    saw_optional = saw_optional ||
+                   (type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Optional) &&
+                    Simple::Byte::IsManagedArtifactType(type));
     saw_vector = saw_vector || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Vector);
   }
-  return saw_ptr && saw_array && saw_list && saw_function && saw_result && saw_option && saw_vector &&
+  return saw_ptr && saw_array && saw_list && saw_function && saw_result && saw_optional && saw_vector &&
          RunExpectExit(bytes, 7);
 }
 
@@ -3620,7 +3624,7 @@ bool RunIrTextDuplicateExportFailsTest() {
 
 bool RunIrTextSirVersionDirectiveTest() {
   const char* text =
-      "sir version 1.0\n"
+      "sir version 2.0\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 10\n"
@@ -3634,7 +3638,7 @@ bool RunIrTextSirVersionDirectiveTest() {
 
 bool RunIrTextSirVersionUnsupportedTest() {
   const char* text =
-      "sir version 2.0\n"
+      "sir version 1.0\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 0\n"
@@ -3880,33 +3884,16 @@ bool RunIrTextPointerMemoryOpBadTest() {
   return RunIrTextExpectFail(text, "ir_text_pointer_memory_op_bad");
 }
 
-bool RunIrTextSumTypeResultOpsTest() {
+bool RunIrTextRemovedResultMarkerRejectedTest() {
   const char* text =
-      "func main locals=0 stack=12\n"
+      "func main locals=0 stack=2\n"
       "  enter 0\n"
       "  const i32 42\n"
-      "  enum.make.i32 1\n"
-      "  enum.payload.i32 1\n"
-      "  result.ok.i32\n"
-      "  result.unwrap.i32\n"
-      "  const i32 7\n"
-      "  variant.make i32 2\n"
-      "  variant.tag\n"
-      "  pop\n"
-      "  const i32 9\n"
-      "  result.err.i32\n"
-      "  result.is.err\n"
-      "  jmp.true ok\n"
-      "  pop\n"
-      "  const i32 0\n"
-      "  ret\n"
-      "ok:\n"
+      "  result." "ok.i32\n"
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_sum_type_result_ops");
-  if (module.empty()) return false;
-  return RunExpectExit(module, 42);
+  return RunIrTextExpectFail(text, "ir_text_removed_result_marker_rejected");
 }
 
 bool RunIrTextSumTypeResultOpBadTest() {
@@ -9289,7 +9276,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_vector_ops", RunIrTextVectorOpsTest},
   {"ir_text_pointer_memory_ops", RunIrTextPointerMemoryOpsTest},
   {"ir_text_pointer_memory_op_bad", RunIrTextPointerMemoryOpBadTest},
-  {"ir_text_sum_type_result_ops", RunIrTextSumTypeResultOpsTest},
+  {"ir_text_removed_result_marker_rejected", RunIrTextRemovedResultMarkerRejectedTest},
   {"ir_text_sum_type_result_op_bad", RunIrTextSumTypeResultOpBadTest},
   {"ir_text_range_iterator_ops", RunIrTextRangeIteratorOpsTest},
   {"ir_text_range_iterator_op_bad", RunIrTextRangeIteratorOpBadTest},

@@ -46,6 +46,7 @@ bool CloneTypeRef(const Simple::Lang::AST::TypeRef& src,
   out->pointer_depth = src.pointer_depth;
   out->type_args.clear();
   out->dims = src.dims;
+  out->is_optional_syntax = src.is_optional_syntax;
   out->is_proc = src.is_proc;
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
@@ -115,6 +116,7 @@ bool TypeArgsEqual(const std::vector<Simple::Lang::AST::TypeRef>& a,
 bool TypeEquals(const Simple::Lang::AST::TypeRef& a,
                 const Simple::Lang::AST::TypeRef& b) {
   if (a.pointer_depth != b.pointer_depth) return false;
+  if (a.is_optional_syntax != b.is_optional_syntax) return false;
   if (a.is_proc != b.is_proc) return false;
   if (a.is_proc) {
     if (a.proc_return_mutability != b.proc_return_mutability) return false;
@@ -211,11 +213,22 @@ bool CanonicalGenericTypeArity(const std::string& name, size_t* out_arity) {
     *out_arity = 2;
     return true;
   }
-  if (name == "Option" || name == "Promise") {
+  if (name == kOptionalTypeInternalName || name == "Promise") {
     *out_arity = 1;
     return true;
   }
   return false;
+}
+
+bool IsOptionalType(const Simple::Lang::AST::TypeRef& type) {
+  return type.name == kOptionalTypeInternalName && type.is_optional_syntax &&
+         type.pointer_depth == 0 && type.dims.empty() && !type.is_proc &&
+         type.type_args.size() == 1;
+}
+
+const Simple::Lang::AST::TypeRef* OptionalValueType(
+    const Simple::Lang::AST::TypeRef& type) {
+  return IsOptionalType(type) ? &type.type_args[0] : nullptr;
 }
 
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type) {

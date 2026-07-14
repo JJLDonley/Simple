@@ -104,14 +104,14 @@ struct SimpleBytesView {
 };
 
 enum class AbiVariantTag : uint32_t {
-  None = 0,
-  Some = 1,
-  Ok = 1,
-  Err = 2,
+  Absent = 0,
+  Value = 0,
+  Present = 1,
+  Error = 1,
 };
 
 struct AbiVariantValue {
-  AbiVariantTag tag = AbiVariantTag::None;
+  AbiVariantTag tag = AbiVariantTag::Absent;
   uint32_t reserved = 0;
   uint64_t payload = 0;
 };
@@ -144,15 +144,15 @@ bool IsSmallAbiAggregate(uint32_t size, bool contains_references);
 bool IsValidAbiScalarValue(Simple::Byte::TypeKind kind, uint64_t value);
 bool IsValidBorrowedStringView(const SimpleStringView& view);
 bool IsValidBorrowedBytesView(const SimpleBytesView& view);
-AbiVariantValue MakeAbiOptionNone();
-AbiVariantValue MakeAbiOptionSome(uint64_t payload);
-AbiVariantValue MakeAbiResultOk(uint64_t payload);
-AbiVariantValue MakeAbiResultErr(uint64_t payload);
+AbiVariantValue MakeAbiOptionalAbsent();
+AbiVariantValue MakeAbiOptionalPresent(uint64_t payload);
+AbiVariantValue MakeAbiResultValue(uint64_t payload);
+AbiVariantValue MakeAbiResultError(uint64_t payload);
 uint64_t PackAbiPromiseId(AbiPromiseId promise);
 AbiPromiseId UnpackAbiPromiseId(uint64_t value);
-bool IsAbiOptionSome(const AbiVariantValue& value);
-bool IsAbiResultOk(const AbiVariantValue& value);
-bool IsAbiResultErr(const AbiVariantValue& value);
+bool IsAbiOptionalPresent(const AbiVariantValue& value);
+bool IsAbiResultValue(const AbiVariantValue& value);
+bool IsAbiResultError(const AbiVariantValue& value);
 uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
 AbiAggregateLayout ComputeStableDataLayout(const AbiDataDeclaration& declaration);

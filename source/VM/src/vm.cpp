@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "ffi/dl_runtime.h"
+#include "gc/artifact_trace.h"
 #include "gc/root_tracer.h"
 #include "gc/stack_map_collection.h"
 #include "heap.h"
@@ -91,7 +92,7 @@ using Simple::VM::Runtime::UnpackI64;
 using Simple::VM::Runtime::UnpackRef;
 using Simple::VM::Runtime::UnpackU32Bits;
 using Simple::VM::Runtime::UnpackU64Bits;
-constexpr uint32_t kNullRef = 0xFFFFFFFFu;
+constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
 
 bool CheckedMulOverflowI64(int64_t a, int64_t b, int64_t* out) {
   if (a > 0) {
@@ -174,6 +175,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
   Heap heap;
   heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
+  if (have_meta) {
+    heap.SetArtifactTraceDescriptors(Gc::BuildArtifactTraceDescriptors(module));
+  }
   ScratchArena scratch_arena;
   scratch_arena.SetRequireScope(true);
   Simple::VM::Interpreter::InterpreterState interpreter_state =
@@ -821,7 +825,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               }
               std::u16string text = ReadString(obj);
               uint32_t handle = CreateString(heap, text.substr(static_cast<size_t>(start), static_cast<size_t>(end_idx - start)));
-              if (handle == 0xFFFFFFFFu) return Trap("CHECKED_STRING_SLICE allocation failed");
+              if (handle == kNullRef) return Trap("CHECKED_STRING_SLICE allocation failed");
               Push(stack, PackRef(handle));
               break;
             }
@@ -953,7 +957,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
                 text.push_back(static_cast<char16_t>(ReadU32Payload(list->payload, 8 + static_cast<size_t>(i) * 4) & 0xFFu));
               }
               uint32_t handle = CreateString(heap, text);
-              if (handle == 0xFFFFFFFFu) return Trap("BYTES_TO_STRING allocation failed");
+              if (handle == kNullRef) return Trap("BYTES_TO_STRING allocation failed");
               Push(stack, PackRef(handle));
               break;
             }
@@ -1225,20 +1229,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               (void)Pop(stack);
               Slot value = Pop(stack);
               Push(stack, value);
-              break;
-            }
-            case Simple::Byte::ExtendedOpCode::ResultOk:
-            case Simple::Byte::ExtendedOpCode::ResultErr:
-            case Simple::Byte::ExtendedOpCode::ResultUnwrap:
-            case Simple::Byte::ExtendedOpCode::ResultPropagateErr: {
-              Slot value = Pop(stack);
-              Push(stack, value);
-              break;
-            }
-            case Simple::Byte::ExtendedOpCode::ResultIsOk:
-            case Simple::Byte::ExtendedOpCode::ResultIsErr: {
-              (void)Pop(stack);
-              Push(stack, PackI32(1));
               break;
             }
             case Simple::Byte::ExtendedOpCode::RangeNew: {
@@ -1574,7 +1564,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
         }
         uint32_t handle = CreateString(heap, text);
-        if (handle == 0xFFFFFFFFu) return Trap("CONST_STRING allocation failed");
+        if (handle == kNullRef) return Trap("CONST_STRING allocation failed");
         Push(stack, PackRef(handle));
         break;
       }
@@ -2582,7 +2572,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         std::u16string sb = ReadString(obj_b);
         std::u16string combined = sa + sb;
         uint32_t handle = CreateString(heap, combined);
-        if (handle == 0xFFFFFFFFu) return Trap("STRING_CONCAT allocation failed");
+        if (handle == kNullRef) return Trap("STRING_CONCAT allocation failed");
         Push(stack, PackRef(handle));
         break;
       }
@@ -2643,7 +2633,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         std::u16string text = ReadString(obj);
         std::u16string slice = text.substr(static_cast<size_t>(start), static_cast<size_t>(end_idx - start));
         uint32_t handle = CreateString(heap, slice);
-        if (handle == 0xFFFFFFFFu) return Trap("STRING_SLICE allocation failed");
+        if (handle == kNullRef) return Trap("STRING_SLICE allocation failed");
         Push(stack, PackRef(handle));
         break;
       }
@@ -2695,7 +2685,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           trace << "\nfunc#" << it->func_index << ":" << it->line << ":" << it->column;
         }
         uint32_t handle = CreateString(heap, AsciiToU16(trace.str()));
-        if (handle == 0xFFFFFFFFu) return Trap("STACKTRACE allocation failed");
+        if (handle == kNullRef) return Trap("STACKTRACE allocation failed");
         Push(stack, PackRef(handle));
         break;
       }
@@ -2730,7 +2720,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         const uint32_t size = obj->header.size;
         const std::vector<uint8_t> payload = obj->payload;
         uint32_t handle = heap.Allocate(kind, type_id, size);
-        if (handle == 0xFFFFFFFFu) return Trap("CLONE_OBJECT allocation failed");
+        if (handle == kNullRef) return Trap("CLONE_OBJECT allocation failed");
         HeapObject* clone = heap.Get(handle);
         if (!clone) return Trap("CLONE_OBJECT allocation invalid");
         clone->payload = payload;
@@ -2868,7 +2858,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_i32 stack underflow");
             int32_t value = UnpackI32(Pop(stack));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_i32 allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_i32 allocation failed");
             Push(stack, PackRef(handle));
             break;
           }
@@ -2876,7 +2866,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_i64 stack underflow");
             int64_t value = UnpackI64(Pop(stack));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_i64 allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_i64 allocation failed");
             Push(stack, PackRef(handle));
             break;
           }
@@ -2884,7 +2874,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_u32 stack underflow");
             uint32_t value = static_cast<uint32_t>(UnpackI32(Pop(stack)));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_u32 allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_u32 allocation failed");
             Push(stack, PackRef(handle));
             break;
           }
@@ -2892,7 +2882,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_u64 stack underflow");
             uint64_t value = static_cast<uint64_t>(UnpackI64(Pop(stack)));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_u64 allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_u64 allocation failed");
             Push(stack, PackRef(handle));
             break;
           }
@@ -2900,7 +2890,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_f32 stack underflow");
             float value = UnpackF32(Pop(stack));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_f32 allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_f32 allocation failed");
             Push(stack, PackRef(handle));
             break;
           }
@@ -2908,7 +2898,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_f64 stack underflow");
             double value = UnpackF64(Pop(stack));
             uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_f64 allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_f64 allocation failed");
             Push(stack, PackRef(handle));
             break;
           }
@@ -2916,7 +2906,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.empty()) return Trap("INTRINSIC str_bool stack underflow");
             bool value = UnpackI32(Pop(stack)) != 0;
             uint32_t handle = CreateString(heap, AsciiToU16(value ? "true" : "false"));
-            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_bool allocation failed");
+            if (handle == kNullRef) return Trap("INTRINSIC str_bool allocation failed");
             Push(stack, PackRef(handle));
             break;
           }

@@ -45,7 +45,7 @@ bool NativeTypeMatchesLibraryType(Simple::Byte::TypeKind native_type,
     case TypeKind::Never: return library_type == "never";
     case TypeKind::Function: return library_type == "function";
     case TypeKind::Result: return library_type == "result";
-    case TypeKind::Option: return library_type == "option";
+    case TypeKind::Optional: return library_type == "optional";
     case TypeKind::Vector: return library_type == "vector";
   }
   return false;

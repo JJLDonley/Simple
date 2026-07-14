@@ -92,6 +92,7 @@ enum class TokenKind : uint8_t {
 
   PipeGt,
   At,
+  Question,
 };
 
 struct Token {

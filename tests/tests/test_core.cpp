@@ -5949,7 +5949,7 @@ std::vector<uint8_t> BuildBadHeaderVersionLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> module = BuildModule(code, 0, 0);
-  WriteU16(module, 0x04, 0x0002u);
+  WriteU16(module, 0x04, 0x0003u);
   return module;
 }
 
@@ -5960,7 +5960,7 @@ std::vector<uint8_t> BuildPastHeaderVersionLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> module = BuildModule(code, 0, 0);
-  WriteU16(module, 0x04, 0x0000u);
+  WriteU16(module, 0x04, 0x0001u);
   return module;
 }
 
@@ -6707,7 +6707,7 @@ std::vector<uint8_t> BuildImportArgsGetCharEqModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -6834,7 +6834,7 @@ std::vector<uint8_t> BuildImportEnvGetCharEqModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -6956,7 +6956,7 @@ std::vector<uint8_t> BuildImportEnvGetMissingModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -7076,7 +7076,7 @@ std::vector<uint8_t> BuildImportArgsGetIsNullModule(int32_t index_value) {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -7189,7 +7189,7 @@ std::vector<uint8_t> BuildImportFsModule(const std::string& symbol,
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -7512,7 +7512,7 @@ std::vector<uint8_t> BuildImportFsRoundTripModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -7762,7 +7762,7 @@ std::vector<uint8_t> BuildImportFsReadClampModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -7967,7 +7967,7 @@ std::vector<uint8_t> BuildImportFsWriteNullBufModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -8158,7 +8158,7 @@ std::vector<uint8_t> BuildImportFsReadNonArrayBufModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -8402,7 +8402,7 @@ std::vector<uint8_t> BuildImportFsWriteClampModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -8567,7 +8567,7 @@ std::vector<uint8_t> BuildImportFsCloseTwiceModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -8850,7 +8850,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -9046,7 +9046,7 @@ std::vector<uint8_t> BuildImportFsReadAfterCloseModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -9249,7 +9249,7 @@ std::vector<uint8_t> BuildImportFsWriteAfterCloseModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -9435,7 +9435,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseReopenModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -9708,7 +9708,7 @@ std::vector<uint8_t> BuildImportFsWriteZeroLenModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -9928,7 +9928,7 @@ std::vector<uint8_t> BuildImportFsReadZeroBufModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -10124,7 +10124,7 @@ std::vector<uint8_t> BuildImportFsWriteZeroBufModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -10420,7 +10420,7 @@ std::vector<uint8_t> BuildImportFsReadClampNoOverwriteModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -10660,7 +10660,7 @@ std::vector<uint8_t> BuildImportFsWriteAfterReadOnlyOpenModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -10846,7 +10846,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseLoopModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -11032,7 +11032,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseStressModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -11316,7 +11316,7 @@ std::vector<uint8_t> BuildImportFsWriteClampCountModule(const std::string& test_
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -11584,7 +11584,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenPreserveModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -11863,7 +11863,7 @@ std::vector<uint8_t> BuildImportFsWriteReadPersistModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -12251,7 +12251,7 @@ std::vector<uint8_t> BuildImportFsReadWriteReopenCycleModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -12492,7 +12492,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenNonEmptyBufModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -12636,7 +12636,7 @@ std::vector<uint8_t> BuildImportCoreLogModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -13065,7 +13065,7 @@ std::vector<uint8_t> BuildMissingCodeSectionLoadModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -13151,7 +13151,7 @@ std::vector<uint8_t> BuildMissingFunctionsSectionLoadModule() {
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u);
-  WriteU16(module, 0x04, 0x0001u);
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   WriteU8(module, 0x06, 1);
   WriteU8(module, 0x07, 0);
   WriteU32(module, 0x08, section_count);
@@ -15791,7 +15791,7 @@ bool RunHeapLayoutHelpersTest() {
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::List)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Artifact)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Closure)) return false;
-  return Simple::VM::HeapLayout::kNullRef == 0xFFFFFFFFu;
+  return Simple::VM::HeapLayout::kNullRef == 0u;
 }
 
 std::vector<uint8_t> BuildHotNoopModule() {
@@ -16152,16 +16152,16 @@ bool RunNativeTimeModuleTest() {
 }
 
 bool RunCompatibilityVersionConstantsTest() {
-  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 1);
-  static_assert(Simple::Lang::kSirVersionMajor == 1);
-  static_assert(Simple::Lang::kStdlibVersionMajor == 1);
-  static_assert(Simple::Byte::kSbcVersion == 0x0001u);
-  static_assert(Simple::Byte::kOpcodeMetadataVersion == 1);
+  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 2);
+  static_assert(Simple::Lang::kSirVersionMajor == 2);
+  static_assert(Simple::Lang::kStdlibVersionMajor == 2);
+  static_assert(Simple::Byte::kSbcVersion == 0x0002u);
+  static_assert(Simple::Byte::kOpcodeMetadataVersion == 2);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
   return Simple::Lang::kLangSyntaxVersionMinor == 0 &&
          Simple::Lang::kSirVersionMinor == 0 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 1;
+         Simple::VM::kRuntimeAbiVersionMinor == 2;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {

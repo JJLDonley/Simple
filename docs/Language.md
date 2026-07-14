@@ -496,16 +496,15 @@ Immutable variable:
 limit :: i32 = 10
 ```
 
-A variable declaration may omit an initializer. The current compiler supports
-zero/default initialization on implemented paths; the `v0.6` ZII contract makes
-the zero state deterministic for every type and forbids uninitialized bytes.
-A defined zero state is not permission to perform an invalid operation: for
-example, a zero raw pointer is non-dereferenceable and an inactive tagged
-payload is unreadable.
+A variable declaration may omit an initializer. `v0.5.15` applies deterministic
+ZII defaults to supported types, including global/local optional and Result
+storage, and forbids reading inactive tagged payloads. A defined zero state is
+not permission to perform an invalid operation: for example, a zero raw pointer
+is non-dereferenceable and an inactive tagged payload is unreadable.
 
 ```simple
 x : i32      // zero
-missing : i32? // absent in the v0.6 design
+missing : i32? // absent
 ```
 
 ### Functions
@@ -641,19 +640,24 @@ container boundaries and allowing string collections to participate in generic
 specialization. Generic methods can be inferred on temporary receivers returned
 by top-level functions, namespace factories, and artifact methods. Concrete
 artifacts materialize before dependent methods, so chained calls do not depend
-on source request order. The current `v0.5.14` implementation materializes
-experimental `Option<T>` and `Result<T,E>` requests as deterministic managed
-layouts with an `i32` tag and substituted payload fields. These layouts compose
-through nested generic artifacts and lists without exposing synthetic
-declarations as source APIs.
+on source request order. The `v0.5.15` implementation materializes optional
+`T?` and `Result<T,E>` as deterministic concrete managed layouts. Optional
+absence uses the zero reference state; presence stores the substituted payload. Result stores an `i32` tag plus
+substituted value and error payload fields. Nested wrappers, artifacts, lists,
+generic functions, namespaces, and quoted imports compose through the same
+specialization pipeline.
 
-The `v0.6` source contract directly replaces experimental `Option<T>` with
-postfix optional type syntax `T?`; no alias or compatibility lowering remains.
-Source-level Result lowering, payload operations, `Promise<T>` runtime layout,
-and propagation remain language-completion work. Result uses contextual
-`.value`/`.error` literals and structural patterns rather than constructor
-names. `v0.5.14` behavior is implementation history, not the frozen optional
-syntax.
+Postfix `T?` directly replaces the experimental generic optional name; no alias
+or compatibility lowering remains. Contextual optional and Result literals,
+exhaustive structural patterns, and postfix propagation are implemented across
+validation, specialization, SIR/SBC emission, verification, the interpreter,
+and LLVM JIT fallback. `Promise<T>`, `async`, and `await` remain
+language-completion work.
+
+This breaking transition sets language syntax to 2.0, SIR to 2.0, SBC and
+opcode metadata to version 2, runtime ABI to 1.2, and the standard-library
+catalog to 2.0. Versioned old inputs are rejected; no translation shim or alias
+is retained.
 
 ### `v0.6` generic design
 
@@ -719,14 +723,11 @@ redesign ordinary source syntax.
 
 ## Async functions and explicit failure design
 
-> **Design target for `v0.6`:** the `async`, `await`, and `?` placement and
-> semantics in this section are accepted language design, not functionality
-> provided by the current `v0.5.14` compiler. Optional `T?`, its contextual
-> literals and exhaustive patterns, and expression `expr?` are now the accepted
-> absence design. Result uses contextual `{ .value = expression }` and
-> `{ .error = expression }` literals with matching exhaustive patterns; no
-> constructor names are implied. The transitional `System.Job` and
-> `Standard.Promise` calls remain documented in
+> **Completion status:** optional `T?`, Result contextual literals/patterns,
+> and postfix propagation are implemented in `v0.5.15`. The `async` and `await`
+> placement and semantics in this section remain the accepted `v0.6` design
+> target, not current functionality. No constructor names are implied. The
+> transitional `System.Job` and `Standard.Promise` calls remain documented in
 > [Jobs, promises, and async design](Async.md).
 
 ### `async` return modifier
@@ -800,11 +801,13 @@ inactive. This value default is not evidence that an asynchronous producer
 completed: an enclosing Promise state controls whether any Result payload is
 active. Missing function returns remain diagnostics.
 
-Result has no constructor names. Failure is an ordinary typed return value.
-Nothing throws and no stack unwinds invisibly. A Result-producing expression cannot be silently
-treated as `T`; consuming code must branch, propagate with `?`, return/store the
-Result, or explicitly discard it through a deliberate discard form. An
-accidental unused Result is a diagnostic.
+Result has no constructor names. The `.value` and `.error` labels are contextual
+literal/pattern metadata, not unchecked member access; payloads become ordinary
+values only through an exhaustive pattern or `?`. Failure is an ordinary typed
+return value. Nothing throws and no stack unwinds invisibly. A Result-producing
+expression cannot be silently treated as `T`; consuming code must branch, propagate with `?`, return/store the
+Result. A Result used as a bare expression statement is a diagnostic; the
+language currently has no implicit or silent discard path.
 
 ### ZII and optional `T?`
 
@@ -869,7 +872,10 @@ userName :: string (candidate : User?) {
 ```
 
 The `{ binding }` branch handles presence and binds `T`; the `{}` branch handles
-absence. Missing or duplicate states are diagnostics.
+absence. Missing or duplicate states are diagnostics. Direct wrapper payload
+member access is rejected so an inactive payload cannot be observed. Tagged
+wrappers do not define implicit whole-value equality; branch on the state and
+compare an active payload using that payload type's ordinary operations.
 
 ### Expression `expr?` propagation
 
@@ -903,7 +909,10 @@ does not mutate the optional value.
 Using optional `expr?` in a function returning plain `U`, or Result `expr?` in a
 function with a different error type, is a compile error. Callers that cannot
 propagate must branch exhaustively. There is no implicit conversion, invented
-default, or discarded error.
+default, or discarded error. Propagation uses ordinary immediate return control
+flow and preserves managed roots; it does not introduce exceptions or a hidden
+unwind path. The current source language has no user-defined destructor, so no
+separate destructor order is invented for `?`.
 
 ### Composition
 
@@ -1606,7 +1615,7 @@ Extern declarations describe imported host or dynamic-library functions. Extern
 names may be module-qualified, and calls are checked for argument count, exact
 types, calling convention, and supported ABI layout.
 
-The current `v0.5.14` dynamic-library shape remains transitional:
+The current `v0.5.15` dynamic-library shape remains transitional:
 
 ```simple
 module Examples.Reference
@@ -1798,9 +1807,7 @@ Common rejected cases covered by tests include:
 
 Current tests intentionally reject or limit:
 
-- the planned `async` return modifier, `await` expression, and `?` propagation operator
-- optional `T?`, contextual optional literals/patterns, Result state operations,
-  and expression propagation
+- the planned `async` return modifier and `await` expression
 - language-level `Promise<T>` layout and execution semantics
 - closure capture for procedure literals
 - procedure values at extern boundaries

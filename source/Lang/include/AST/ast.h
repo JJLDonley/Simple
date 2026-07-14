@@ -9,6 +9,8 @@
 
 namespace Simple::Lang {
 
+inline constexpr const char* kOptionalTypeInternalName = "__SimpleOptional";
+
 enum class Mutability : uint8_t {
   Mutable,
   Immutable,
@@ -25,6 +27,7 @@ struct TypeRef {
   uint32_t pointer_depth = 0;
   std::vector<TypeRef> type_args;
   std::vector<TypeDim> dims;
+  bool is_optional_syntax = false;
   bool is_proc = false;
   Mutability proc_return_mutability = Mutability::Mutable;
   std::vector<TypeRef> proc_params;
@@ -38,6 +41,7 @@ struct TypeRef {
         pointer_depth(other.pointer_depth),
         type_args(other.type_args),
         dims(other.dims),
+        is_optional_syntax(other.is_optional_syntax),
         is_proc(other.is_proc),
         proc_return_mutability(other.proc_return_mutability),
         proc_params(other.proc_params),
@@ -53,6 +57,7 @@ struct TypeRef {
     pointer_depth = other.pointer_depth;
     type_args = other.type_args;
     dims = other.dims;
+    is_optional_syntax = other.is_optional_syntax;
     is_proc = other.is_proc;
     proc_return_mutability = other.proc_return_mutability;
     proc_params = other.proc_params;
@@ -160,8 +165,18 @@ struct Stmt {
   VarDecl loop_var_decl;
 };
 
+enum class SwitchPatternKind : uint8_t {
+  None,
+  Absent,
+  Present,
+  Tagged,
+};
+
 struct SwitchBranch {
   bool is_default = false;
+  SwitchPatternKind pattern_kind = SwitchPatternKind::None;
+  std::string pattern_field;
+  std::string pattern_binding;
   bool is_block = false;
   bool has_inline_value = false;
   bool is_explicit_return = false;
@@ -179,10 +194,17 @@ struct FuncDecl {
   std::vector<Stmt> body;
 };
 
+enum class TaggedArtifactKind : uint8_t {
+  None,
+  Optional,
+  Result,
+};
+
 struct ArtifactDecl {
   std::string name;
   std::vector<std::string> generics;
   bool is_data = false;
+  TaggedArtifactKind tagged_kind = TaggedArtifactKind::None;
   std::vector<VarDecl> fields;
   std::vector<FuncDecl> methods;
 };
@@ -267,8 +289,10 @@ using Expr = Simple::Lang::Expr;
 using VarDecl = Simple::Lang::VarDecl;
 using StmtKind = Simple::Lang::StmtKind;
 using Stmt = Simple::Lang::Stmt;
+using SwitchPatternKind = Simple::Lang::SwitchPatternKind;
 using SwitchBranch = Simple::Lang::SwitchBranch;
 using FuncDecl = Simple::Lang::FuncDecl;
+using TaggedArtifactKind = Simple::Lang::TaggedArtifactKind;
 using ArtifactDecl = Simple::Lang::ArtifactDecl;
 using ModuleDecl = Simple::Lang::ModuleDecl;
 using EnumMember = Simple::Lang::EnumMember;
@@ -334,6 +358,9 @@ struct NormalizedBranchFlow {
 
 struct NormalizedSwitchBranch {
   bool is_default = false;
+  SwitchPatternKind pattern_kind = SwitchPatternKind::None;
+  std::string pattern_field;
+  std::string pattern_binding;
   bool is_block = false;
   bool has_inline_value = false;
   bool is_explicit_return = false;

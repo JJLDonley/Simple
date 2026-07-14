@@ -142,7 +142,7 @@ extern "C" uint64_t SimpleVmLlvmConstString(uint32_t const_id) {
     text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
   }
   uint32_t handle = Simple::VM::CreateString(*g_llvm_heap, text);
-  if (handle == 0xFFFFFFFFu) { g_llvm_trap = true; return 0; }
+  if (handle == Simple::VM::HeapLayout::kNullRef) { g_llvm_trap = true; return 0; }
   return Simple::VM::Runtime::PackRef(handle);
 }
 
@@ -156,7 +156,7 @@ extern "C" uint64_t SimpleVmLlvmStringLen(uint64_t ref_slot) {
 extern "C" uint64_t SimpleVmLlvmStackTrace() {
   if (!g_llvm_heap) { g_llvm_trap = true; return 0; }
   uint32_t handle = Simple::VM::CreateString(*g_llvm_heap, Simple::VM::AsciiToU16("<llvm-jit>"));
-  if (handle == 0xFFFFFFFFu) { g_llvm_trap = true; return 0; }
+  if (handle == Simple::VM::HeapLayout::kNullRef) { g_llvm_trap = true; return 0; }
   return Simple::VM::Runtime::PackRef(handle);
 }
 
@@ -169,7 +169,7 @@ extern "C" uint64_t SimpleVmLlvmStringConcat(uint64_t lhs_slot, uint64_t rhs_slo
   std::u16string r = Simple::VM::ReadString(rhs);
   text.insert(text.end(), r.begin(), r.end());
   uint32_t handle = Simple::VM::CreateString(*g_llvm_heap, text);
-  if (handle == 0xFFFFFFFFu) { g_llvm_trap = true; return 0; }
+  if (handle == Simple::VM::HeapLayout::kNullRef) { g_llvm_trap = true; return 0; }
   return Simple::VM::Runtime::PackRef(handle);
 }
 
@@ -206,7 +206,7 @@ extern "C" uint64_t SimpleVmLlvmStringSlice(uint64_t ref_slot, uint64_t start_sl
   int32_t end = Simple::VM::Runtime::UnpackI32(end_slot);
   if (start < 0 || end < start || static_cast<size_t>(end) > text.size()) { g_llvm_trap = true; return 0; }
   uint32_t handle = Simple::VM::CreateString(*g_llvm_heap, text.substr(static_cast<size_t>(start), static_cast<size_t>(end - start)));
-  if (handle == 0xFFFFFFFFu) { g_llvm_trap = true; return 0; }
+  if (handle == Simple::VM::HeapLayout::kNullRef) { g_llvm_trap = true; return 0; }
   return Simple::VM::Runtime::PackRef(handle);
 }
 
@@ -1304,7 +1304,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       case Simple::Byte::TypeKind::List: return "list";
       case Simple::Byte::TypeKind::Function: return "function";
       case Simple::Byte::TypeKind::Result: return "result";
-      case Simple::Byte::TypeKind::Option: return "option";
+      case Simple::Byte::TypeKind::Optional: return "optional";
       case Simple::Byte::TypeKind::Vector: return "vector";
     }
     return "kind#" + std::to_string(static_cast<uint8_t>(kind));
@@ -1889,12 +1889,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           case Simple::Byte::ExtendedOpCode::EnumMake:
           case Simple::Byte::ExtendedOpCode::VariantPayload:
           case Simple::Byte::ExtendedOpCode::VariantMake:
-          case Simple::Byte::ExtendedOpCode::ResultOk:
-          case Simple::Byte::ExtendedOpCode::ResultErr:
-          case Simple::Byte::ExtendedOpCode::ResultIsOk:
-          case Simple::Byte::ExtendedOpCode::ResultIsErr:
-          case Simple::Byte::ExtendedOpCode::ResultUnwrap:
-          case Simple::Byte::ExtendedOpCode::ResultPropagateErr:
           case Simple::Byte::ExtendedOpCode::RangeNew:
           case Simple::Byte::ExtendedOpCode::RangeNewStep:
           case Simple::Byte::ExtendedOpCode::RangeNext:
@@ -3177,8 +3171,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
             stack.push_back(builder.getInt32(0));
             break;
           }
-          case Simple::Byte::ExtendedOpCode::ResultIsOk:
-          case Simple::Byte::ExtendedOpCode::ResultIsErr:
           case Simple::Byte::ExtendedOpCode::TryLock: {
             if (stack.empty()) { reason = "LLVM JIT true pseudo op underflow"; return false; }
             stack.pop_back();
@@ -3207,10 +3199,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
             stack.push_back(start);
             break;
           }
-          case Simple::Byte::ExtendedOpCode::ResultOk:
-          case Simple::Byte::ExtendedOpCode::ResultErr:
-          case Simple::Byte::ExtendedOpCode::ResultUnwrap:
-          case Simple::Byte::ExtendedOpCode::ResultPropagateErr:
           case Simple::Byte::ExtendedOpCode::IteratorValue:
           case Simple::Byte::ExtendedOpCode::Join:
           case Simple::Byte::ExtendedOpCode::Await:

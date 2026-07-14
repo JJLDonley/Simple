@@ -121,6 +121,7 @@ const char* ToString(TokenKind kind) {
     case TokenKind::ShrEq: return ">>=";
     case TokenKind::PipeGt: return "|>";
     case TokenKind::At: return "@";
+    case TokenKind::Question: return "?";
   }
   return "unknown";
 }
@@ -299,6 +300,9 @@ bool Lexer::Lex() {
         break;
       case '@':
         AddSimpleToken(TokenKind::At);
+        break;
+      case '?':
+        AddSimpleToken(TokenKind::Question);
         break;
       default:
         SetErrorHere("unexpected character '" + std::string(1, c) + "'");

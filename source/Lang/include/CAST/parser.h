@@ -26,6 +26,7 @@ private:
   bool IsAtEnd() const;
 
   bool ParseTypeInner(TypeRef* out);
+  bool ParseTypeSuffixes(TypeRef* out);
   bool ParseTypeArgs(std::vector<TypeRef>* out);
   bool MatchTypeArgumentClose();
   bool ParseTypeDims(TypeRef* out);

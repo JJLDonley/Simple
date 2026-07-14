@@ -282,6 +282,32 @@ bool LspDidOpenEmptyDocumentClearsDiagnostics() {
          out_contents.find("\"code\":\"E0001\"") == std::string::npos;
 }
 
+bool LspDidOpenAcceptsTaggedValues() {
+  const std::string session_name = "simple_lsp_tagged_values";
+  const std::string uri = "file:///workspace/tagged_values.simple";
+  const std::string init_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"Failure :: enum { Bad = 1 }\\n"
+      "read :: Result<i32, Failure> () { return { .value = 42 } }\\n"
+      "main :: i32 () { value : i32? = { 42 }; return switch (value) { "
+      "{ present } => return present; {} => return 0 } }\"}}}";
+  const std::string shutdown_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input = BuildLspFrame(init_req) + BuildLspFrame(open_req) +
+                            BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
+  return err_contents.empty() &&
+         out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
+         out_contents.find("\"diagnostics\":[]") != std::string::npos;
+}
+
 bool LspDidOpenResolvesLocalFileImport() {
   namespace fs = std::filesystem;
   const fs::path base_dir = TestTempPath("simple_lsp_local_import_case");
@@ -4150,6 +4176,7 @@ const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
   {"lsp_did_open_empty_document_clears_diagnostics", LspDidOpenEmptyDocumentClearsDiagnostics},
+  {"lsp_did_open_accepts_tagged_values", LspDidOpenAcceptsTaggedValues},
   {"lsp_did_open_resolves_local_file_import", LspDidOpenResolvesLocalFileImport},
   {"lsp_diagnostics_strip_wrapped_context_and_use_inner_range",
    LspDiagnosticsStripWrappedContextAndUseInnerRange},

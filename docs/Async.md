@@ -9,6 +9,9 @@ by the executing VM's resource registry.
 
 ## Target language surface
 
+`v0.5.15` implements the optional/Result/ZII and postfix-propagation pieces
+below. `Promise<T>`, `async`, `await`, and suspension remain target behavior.
+
 The accepted language design is:
 
 ```simple

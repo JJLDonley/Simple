@@ -129,6 +129,38 @@ bool LangParsesTypeLiterals() {
   if (!list2_type.dims[0].is_list) return false;
   if (!list2_type.dims[1].is_list) return false;
 
+  Simple::Lang::TypeRef optional_elements;
+  if (!Simple::Lang::CAST::ParseTypeFromString("i32?[]", &optional_elements, &error)) {
+    return false;
+  }
+  if (optional_elements.name != Simple::Lang::kOptionalTypeInternalName ||
+      !optional_elements.is_optional_syntax || optional_elements.type_args.size() != 1 ||
+      optional_elements.type_args[0].name != "i32" || optional_elements.dims.size() != 1 ||
+      !optional_elements.dims[0].is_list) {
+    return false;
+  }
+
+  Simple::Lang::TypeRef optional_list;
+  if (!Simple::Lang::CAST::ParseTypeFromString("i32[]?", &optional_list, &error)) {
+    return false;
+  }
+  if (optional_list.name != Simple::Lang::kOptionalTypeInternalName ||
+      !optional_list.is_optional_syntax || !optional_list.dims.empty() ||
+      optional_list.type_args.size() != 1 || optional_list.type_args[0].dims.size() != 1 ||
+      !optional_list.type_args[0].dims[0].is_list) {
+    return false;
+  }
+
+  Simple::Lang::TypeRef nested_optional;
+  if (!Simple::Lang::CAST::ParseTypeFromString("i32??", &nested_optional, &error)) {
+    return false;
+  }
+  if (nested_optional.type_args.size() != 1 ||
+      nested_optional.type_args[0].name != Simple::Lang::kOptionalTypeInternalName ||
+      !nested_optional.type_args[0].is_optional_syntax) {
+    return false;
+  }
+
   Simple::Lang::TypeRef hex_arr;
   if (!Simple::Lang::CAST::ParseTypeFromString("i32{0x10}", &hex_arr, &error)) return false;
   if (hex_arr.dims.size() != 1) return false;
@@ -147,16 +179,16 @@ bool LangParsesTypeLiterals() {
 
   Simple::Lang::TypeRef nested_generic_list;
   if (!Simple::Lang::CAST::ParseTypeFromString(
-          "Holder<Option<string>>[]", &nested_generic_list, &error)) {
+          "Holder<Box<string>>[]", &nested_generic_list, &error)) {
     return false;
   }
   if (nested_generic_list.name != "Holder" || nested_generic_list.dims.size() != 1 ||
       !nested_generic_list.dims[0].is_list || nested_generic_list.type_args.size() != 1) {
     return false;
   }
-  const auto& nested_option = nested_generic_list.type_args[0];
-  if (nested_option.name != "Option" || !nested_option.dims.empty() ||
-      nested_option.type_args.size() != 1 || nested_option.type_args[0].name != "string") {
+  const auto& nested_box = nested_generic_list.type_args[0];
+  if (nested_box.name != "Box" || !nested_box.dims.empty() ||
+      nested_box.type_args.size() != 1 || nested_box.type_args[0].name != "string") {
     return false;
   }
 
@@ -791,6 +823,28 @@ bool LangParsesForLoopRange() {
 }
 
 
+bool LangParsesTaggedPatternsAndPropagation() {
+  const char* src =
+      "main : i32? (candidate : i32?) { value : i32 = candidate?; "
+      "return switch (candidate) { { present } => return { present }; "
+      "{} => return {} } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& body = program.decls[0].func.body;
+  if (body.size() != 2 || body[0].var_decl.init_expr.kind != Simple::Lang::ExprKind::Unary ||
+      body[0].var_decl.init_expr.op != "post?" ||
+      body[1].expr.kind != Simple::Lang::ExprKind::Switch ||
+      body[1].expr.switch_branches.size() != 2) {
+    return false;
+  }
+  const auto& present = body[1].expr.switch_branches[0];
+  const auto& absent = body[1].expr.switch_branches[1];
+  return present.pattern_kind == Simple::Lang::SwitchPatternKind::Present &&
+         present.pattern_binding == "present" &&
+         absent.pattern_kind == Simple::Lang::SwitchPatternKind::Absent;
+}
+
 bool LangParsesForLoopRangeDefaultType() {
   const char* src = "main : void () { for (i; i < 10; i += 1) { skip; } }";
   Simple::Lang::Program program;
@@ -851,6 +905,7 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_for_loop", LangParsesForLoop},
   {"lang_parse_for_loop_post_inc", LangParsesForLoopPostInc},
   {"lang_parse_for_loop_range", LangParsesForLoopRange},
+  {"lang_parse_tagged_patterns_and_propagation", LangParsesTaggedPatternsAndPropagation},
   {"lang_parse_for_loop_range_default_type", LangParsesForLoopRangeDefaultType},
 };
 

@@ -1,6 +1,7 @@
 #include "heap.h"
 
 #include <cstddef>
+#include <utility>
 
 namespace Simple::VM {
 
@@ -141,10 +142,23 @@ void Heap::SetLimits(uint32_t max_objects, uint64_t max_bytes) {
   max_bytes_ = max_bytes;
 }
 
+void Heap::SetArtifactTraceDescriptors(std::vector<ArtifactTraceDescriptor> descriptors) {
+  artifact_trace_descriptors_ = std::move(descriptors);
+}
+
 uint32_t Heap::Allocate(ObjectKind kind, uint32_t type_id, uint32_t size) {
   if (max_objects_ != 0 && live_objects_ >= max_objects_) return HeapLayout::kNullRef;
   if (max_bytes_ != 0 && (live_bytes_ > max_bytes_ || static_cast<uint64_t>(size) > max_bytes_ - live_bytes_)) {
     return HeapLayout::kNullRef;
+  }
+  if (objects_.empty()) {
+    HeapObject null_object;
+    null_object.header.kind = ObjectKind::String;
+    null_object.header.size = 0;
+    null_object.header.type_id = 0;
+    null_object.header.marked = 0;
+    null_object.header.alive = 0;
+    objects_.push_back(std::move(null_object));
   }
   if (!free_list_.empty()) {
     uint32_t handle = free_list_.back();
@@ -210,9 +224,29 @@ void Heap::Mark(uint32_t handle) {
     case ObjectKind::List:
       if (obj->header.type_id != 0) mark_payload_refs(HeapLayout::kListDataOffset, obj->payload.size());
       return;
-    case ObjectKind::Artifact:
-      mark_payload_refs(0, obj->payload.size());
+    case ObjectKind::Artifact: {
+      if (obj->header.type_id >= artifact_trace_descriptors_.size() ||
+          !artifact_trace_descriptors_[obj->header.type_id].configured) {
+        mark_payload_refs(0, obj->payload.size());
+        return;
+      }
+      const ArtifactTraceDescriptor& descriptor =
+          artifact_trace_descriptors_[obj->header.type_id];
+      auto mark_offsets = [&](const std::vector<uint32_t>& offsets) {
+        for (uint32_t offset : offsets) {
+          if (static_cast<std::size_t>(offset) + 4 > obj->payload.size()) continue;
+          const uint32_t ref = ReadU32Payload(obj->payload, offset);
+          if (ref != HeapLayout::kNullRef) Mark(ref);
+        }
+      };
+      mark_offsets(descriptor.refs);
+      if (descriptor.branch_on_tag &&
+          static_cast<std::size_t>(descriptor.tag_offset) + 4 <= obj->payload.size()) {
+        const uint32_t tag = ReadU32Payload(obj->payload, descriptor.tag_offset);
+        mark_offsets(tag == 0 ? descriptor.zero_tag_refs : descriptor.nonzero_tag_refs);
+      }
       return;
+    }
     case ObjectKind::Closure: {
       if (obj->payload.size() < HeapLayout::kClosureUpvalueDataOffset) return;
       uint32_t upvalue_count = ReadU32Payload(obj->payload, HeapLayout::kClosureUpvalueCountOffset);

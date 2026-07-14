@@ -34,6 +34,7 @@ using Simple::Byte::sbc::BuildModuleWithTables;
 using Simple::Byte::sbc::BuildModuleWithFunctionsAndSigs;
 using Simple::Byte::sbc::SigSpec;
 using Simple::Byte::sbc::SectionData;
+using Simple::Byte::sbc::WriteU16;
 using Simple::Byte::sbc::WriteU32;
 
 extern "C" int32_t SimpleVmLlvmTestAddOneI32(int32_t value) {
@@ -192,8 +193,7 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSigsWithTables(
 
   std::vector<uint8_t> module(cursor, 0);
   WriteU32(module, 0x00, 0x30434253u);
-  module[0x04] = 0x01;
-  module[0x05] = 0x00;
+  WriteU16(module, 0x04, Simple::Byte::kSbcVersion);
   module[0x06] = 1;
   module[0x07] = 0;
   WriteU32(module, 0x08, section_count);
@@ -7559,7 +7559,7 @@ bool RunLlvmJitNullRefSmokeTest() {
   AppendU8(code, static_cast<uint8_t>(OpCode::IsNull));
   AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
-  AppendU64(code, 0x00000001FFFFFFFFull);
+  AppendU64(code, 0x0000000100000000ull);
   AppendU8(code, static_cast<uint8_t>(OpCode::IsNull));
   AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
@@ -8340,7 +8340,6 @@ bool RunLlvmJitPseudoExtendedOpsSmokeTest() {
   AppendI32(code, 40);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 7);
-  AppendExtendedOpcode(code, ExtendedOpCode::ResultOk);
   AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 5);

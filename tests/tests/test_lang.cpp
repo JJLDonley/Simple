@@ -620,8 +620,12 @@ bool LangStressGenericChains() {
   return RunCliSvm({"run", "tests/simple_stress/generic_chains.simple"}) == 0;
 }
 
-bool LangStressTaggedLayouts() {
-  return RunCliSvm({"run", "tests/simple_stress/tagged_layouts.simple"}) == 0;
+bool LangStressTaggedValues() {
+  return RunCliSvm({"run", "tests/simple_stress/tagged_values.simple"}) == 0;
+}
+
+bool LangTaggedValuesImportRuntime() {
+  return RunCliSvm({"run", "tests/simple_modules/tagged_values_import_main.simple"}) == 42;
 }
 
 bool LangStressEnumAsTypeRuntime() {
@@ -838,20 +842,27 @@ bool LangGenericMethodEmissionRuns() {
          sir.find("choose__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
-bool LangCanonicalTaggedLayoutEmissionRuns() {
+bool LangTaggedValueEmissionRuns() {
   const char* src =
-      "main : i32 () { option : Option<i32>; result : Result<i32, string>; "
-      "nested : Option<Result<i32, string>>; wide : Result<f64, i32>; return 0 }";
+      "Error :: enum { Bad = 1 }\n"
+      "forward : Result<i32, Error> (good : bool) { "
+      "if (good) { return { .value = 42 } } return { .error = Error.Bad } }\n"
+      "unwrap : Result<i32, Error> (good : bool) { value : i32 = forward(good)?; "
+      "return { .value = value } }\n"
+      "main : i32 () { maybe : i32? = { 42 }; missing : i32?; "
+      "result : Result<i32, Error> = unwrap(true); "
+      "a : i32 = switch (maybe) { { value } => return value; {} => return 0 }; "
+      "b : i32 = switch (missing) { { value } => return value; {} => return 0 }; "
+      "c : i32 = switch (result) { { .value = value } => return value; "
+      "{ .error = error } => return 0 }; return a + b + c - 42 }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  const size_t first_option = sir.find("type Option__g_");
-  const size_t second_option =
-      first_option == std::string::npos ? std::string::npos
-                                        : sir.find("type Option__g_", first_option + 1);
-  return first_option != std::string::npos && second_option != std::string::npos &&
-         sir.find("type Result__g_") != std::string::npos &&
-         sir.find("field tag i32") != std::string::npos && RunSirTextExpectExit(sir, 0);
+  return sir.rfind("sir version 2.0\n", 0) == 0 &&
+         sir.find("kind=optional") != std::string::npos &&
+         sir.find("kind=result") != std::string::npos &&
+         sir.find("propagate_value_") != std::string::npos &&
+         RunSirTextExpectExit(sir, 42);
 }
 
 bool LangGenericTemporaryReceiverEmissionRuns() {
@@ -2448,8 +2459,8 @@ bool LangValidatePrimitiveTypeArgs() {
 
 bool LangValidateCanonicalGenericTypes() {
   const char* src =
-      "main : i32 () { value : Promise<Result<Option<i32>, string>>; "
-      "nested : Promise<Option<Option<i32>>>; return 0; }";
+      "main : i32 () { value : Promise<Result<i32?, string>>; "
+      "nested : Promise<i32? ?>; return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2457,7 +2468,6 @@ bool LangValidateCanonicalGenericTypes() {
 bool LangValidateCanonicalGenericTypeArity() {
   for (const char* src : {
            "main : i32 () { value : Result<i32>; return 0; }",
-           "main : i32 () { value : Option<i32, string>; return 0; }",
            "main : i32 () { value : Promise; return 0; }",
        }) {
     std::string error;
@@ -2550,7 +2560,7 @@ bool LangValidateAssignToModuleFunctionFail() {
 
 bool LangLibraryCatalogCoversAllModulesAndMembers() {
   using namespace Simple::Lang;
-  if (kSystemModules.size() != 23 || kStandardModules.size() != 22) return false;
+  if (kSystemModules.size() != 23 || kStandardModules.size() != 20) return false;
   if (AllLibraryImportPaths().size() != kSystemModules.size() + kStandardModules.size()) return false;
   if (ToImportPath(SystemModule::Buffer) != "System.Buffer") return false;
   if (ToImportPath(StandardModule::Buffer) != "Standard.Buffer") return false;
@@ -2670,7 +2680,6 @@ bool LangValidateAllPlannedSystemStandardImports() {
     "import Standard.Text\nimport Standard.Json\nimport Standard.Math\nimport Standard.Random\nimport Standard.Time\n"
     "import Standard.Log\nimport Standard.Process\nimport Standard.Net\nimport Standard.HTTP\nimport Standard.HTTPS\n"
     "import Standard.Terminal\nimport Standard.Promise\nimport Standard.Channel\nimport Standard.Collections\n"
-    "import Standard.Result\nimport Standard.Option\n"
     "main : void () { }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -3843,7 +3852,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_module_generic_composition", LangStressModuleGenericComposition},
   {"lang_stress_generic_methods", LangStressGenericMethods},
   {"lang_stress_generic_chains", LangStressGenericChains},
-  {"lang_stress_tagged_layouts", LangStressTaggedLayouts},
+  {"lang_stress_tagged_values", LangStressTaggedValues},
+  {"lang_tagged_values_import_runtime", LangTaggedValuesImportRuntime},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
@@ -3881,7 +3891,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
   {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
   {"lang_generic_method_emission_runs", LangGenericMethodEmissionRuns},
-  {"lang_canonical_tagged_layout_emission_runs", LangCanonicalTaggedLayoutEmissionRuns},
+  {"lang_tagged_value_emission_runs", LangTaggedValueEmissionRuns},
   {"lang_generic_temporary_receiver_emission_runs", LangGenericTemporaryReceiverEmissionRuns},
   {"lang_generic_recursive_method_emission_runs", LangGenericRecursiveMethodEmissionRuns},
   {"lang_generic_type_arg_inference_emission_runs", LangGenericTypeArgInferenceEmissionRuns},

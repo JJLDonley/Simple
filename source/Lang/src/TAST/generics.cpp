@@ -211,6 +211,7 @@ bool UnifyTypeParams(const Simple::Lang::AST::TypeRef& param,
     return TypeEquals(it->second, arg);
   }
   if (param.pointer_depth != arg.pointer_depth) return false;
+  if (param.is_optional_syntax != arg.is_optional_syntax) return false;
   if (param.is_proc != arg.is_proc) return false;
   if (!TypeDimsEqual(param.dims, arg.dims)) return false;
   if (param.name != arg.name) return false;

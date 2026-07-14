@@ -116,6 +116,7 @@ bool CheckUnaryOpTypeRules(const std::string& expr_op,
     }
     return true;
   }
+  if (op == "?") return true;
   if (!RequireScalar(operand, expr_op, error)) return false;
   if (op == "!") {
     if (!IsBoolTypeName(operand.name)) {

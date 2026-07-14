@@ -268,8 +268,7 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
   std::vector<uint8_t> module(cursor, 0);
 
   WriteU32(module, 0x00, 0x30434253u); // magic
-  module[0x04] = 0x01;                 // version (low byte)
-  module[0x05] = 0x00;                 // version (high byte)
+  WriteU16(module, 0x04, kSbcVersion); // version
   module[0x06] = 1;                    // endian
   module[0x07] = 0;                    // flags
   WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
@@ -310,7 +309,7 @@ inline std::vector<uint8_t> BuildModuleFromSections(const std::vector<SectionDat
 
   std::vector<uint8_t> module(cursor, 0);
   WriteU32(module, 0x00, 0x30434253u); // magic
-  WriteU16(module, 0x04, 0x0001u);     // version
+  WriteU16(module, 0x04, kSbcVersion);  // version
   WriteU8(module, 0x06, 1);            // endian
   WriteU8(module, 0x07, 0);            // flags
   WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
@@ -442,8 +441,7 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSigAndDebug(const std::vecto
 
   std::vector<uint8_t> module(cursor, 0);
   WriteU32(module, 0x00, 0x30434253u);
-  module[0x04] = 0x01;
-  module[0x05] = 0x00;
+  WriteU16(module, 0x04, kSbcVersion);
   module[0x06] = 1;
   module[0x07] = 0;
   WriteU32(module, kSbcHeaderSectionCountOffset, section_count);
@@ -552,8 +550,7 @@ inline std::vector<uint8_t> BuildModuleWithFunctionsAndSigs(const std::vector<st
 
   std::vector<uint8_t> module(cursor, 0);
   WriteU32(module, 0x00, 0x30434253u); // magic
-  module[0x04] = 0x01;
-  module[0x05] = 0x00;
+  WriteU16(module, 0x04, kSbcVersion);
   module[0x06] = 1;
   module[0x07] = 0;
   WriteU32(module, kSbcHeaderSectionCountOffset, section_count);

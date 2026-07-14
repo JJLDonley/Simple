@@ -175,6 +175,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
         return ValType::F64;
       case TypeKind::Ref:
       case TypeKind::String:
+      case TypeKind::Result:
+      case TypeKind::Optional:
         return ValType::Ref;
       case TypeKind::Unspecified:
         if (IsOpaqueHandleType(row)) return ValType::I64;
@@ -1114,22 +1116,6 @@ VerifyResult VerifyModule(const SbcModule& module) {
             VerifyResult r = check_type(case_id, ValType::I32, "SUM_TYPE case id mismatch");
             if (!r.ok) return r;
             push_type(value);
-            pc = next;
-            continue;
-          }
-          case Simple::Byte::ExtendedOpCode::ResultOk:
-          case Simple::Byte::ExtendedOpCode::ResultErr:
-          case Simple::Byte::ExtendedOpCode::ResultUnwrap:
-          case Simple::Byte::ExtendedOpCode::ResultPropagateErr: {
-            ValType value = pop_type();
-            push_type(value);
-            pc = next;
-            continue;
-          }
-          case Simple::Byte::ExtendedOpCode::ResultIsOk:
-          case Simple::Byte::ExtendedOpCode::ResultIsErr: {
-            (void)pop_type();
-            push_type(ValType::Bool);
             pc = next;
             continue;
           }

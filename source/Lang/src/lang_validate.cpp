@@ -61,6 +61,56 @@ struct CallTargetInfo {
   bool is_proc = false;
 };
 
+struct TaggedTypeInfo {
+  TaggedArtifactKind kind = TaggedArtifactKind::None;
+  const TypeRef* value_type = nullptr;
+  const TypeRef* error_type = nullptr;
+  const ArtifactDecl* artifact = nullptr;
+};
+
+const TypeRef* FindArtifactFieldType(const ArtifactDecl& artifact,
+                                     const std::string& name) {
+  for (const auto& field : artifact.fields) {
+    if (field.name == name) return &field.type;
+  }
+  return nullptr;
+}
+
+bool ResolveTaggedType(const TypeRef& type,
+                       const ValidateContext& ctx,
+                       TaggedTypeInfo* out) {
+  if (!out || type.pointer_depth != 0 || !type.dims.empty() || type.is_proc) return false;
+  *out = {};
+  if (TAST::IsOptionalType(type)) {
+    out->kind = TaggedArtifactKind::Optional;
+    out->value_type = TAST::OptionalValueType(type);
+    return out->value_type != nullptr;
+  }
+  if (type.name == "Result" && type.type_args.size() == 2) {
+    out->kind = TaggedArtifactKind::Result;
+    out->value_type = &type.type_args[0];
+    out->error_type = &type.type_args[1];
+    return true;
+  }
+  const auto artifact_it = ctx.artifacts.find(type.name);
+  if (artifact_it == ctx.artifacts.end() ||
+      artifact_it->second->tagged_kind == TaggedArtifactKind::None) {
+    return false;
+  }
+  out->artifact = artifact_it->second;
+  out->kind = out->artifact->tagged_kind;
+  out->value_type = FindArtifactFieldType(*out->artifact, "value");
+  if (out->kind == TaggedArtifactKind::Result) {
+    out->error_type = FindArtifactFieldType(*out->artifact, "error");
+  }
+  return out->value_type &&
+         (out->kind != TaggedArtifactKind::Result || out->error_type);
+}
+
+bool IsSwitchPattern(const SwitchBranch& branch) {
+  return branch.pattern_kind != SwitchPatternKind::None;
+}
+
 void PrefixErrorLocation(uint32_t line, uint32_t column, std::string* error) {
   if (!error || error->empty() || line == 0) return;
   *error = std::to_string(line) + ":" + std::to_string(column) + ": " + *error;
@@ -94,6 +144,13 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        const TypeRef* expected_return = nullptr,
                        bool return_is_void = false,
                        int loop_depth = 0);
+bool ValidateExprAgainstExpected(
+    const Expr& expr,
+    const TypeRef& expected,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    std::string* error);
 bool ValidateVarInitExpr(const VarDecl& var,
                          const ValidateContext& ctx,
                          const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -477,6 +534,12 @@ bool CheckTypeRef(const TypeRef& type,
     return true;
   }
 
+  if (type.name == kOptionalTypeInternalName && !type.is_optional_syntax) {
+    if (error) *error = "internal optional type must use postfix '?' syntax";
+    PrefixErrorLocation(type.line, type.column, error);
+    return false;
+  }
+
   const bool is_primitive = IsPrimitiveTypeName(type.name);
   const bool is_type_param = type_params.find(type.name) != type_params.end();
   size_t canonical_generic_arity = 0;
@@ -761,6 +824,11 @@ bool InferExprType(const Expr& expr,
         result.pointer_depth += 1;
         return CloneTypeRef(result, out);
       }
+      if (op == "?") {
+        TaggedTypeInfo tagged;
+        if (!ResolveTaggedType(operand, ctx, &tagged) || !tagged.value_type) return false;
+        return CloneTypeRef(*tagged.value_type, out);
+      }
       if (!IsScalarType(operand)) return false;
       if (op == "!") {
         if (!IsBoolTypeName(operand.name)) return false;
@@ -833,6 +901,299 @@ bool InferExprType(const Expr& expr,
     default:
       return false;
   }
+}
+
+bool ValidatePropagationStmt(
+    const Stmt& stmt,
+    const TypeRef* expected_return,
+    const ValidateContext& ctx,
+    std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    bool recurse_blocks,
+    std::string* error);
+
+bool ValidatePropagationBlock(
+    const std::vector<Stmt>& body,
+    const TypeRef* expected_return,
+    const ValidateContext& ctx,
+    std::vector<std::unordered_map<std::string, LocalInfo>> scopes,
+    const ArtifactDecl* current_artifact,
+    std::string* error);
+
+bool ValidatePropagationExpr(
+    const Expr& expr,
+    const TypeRef* expected_return,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    std::string* error) {
+  if (expr.kind == ExprKind::Unary && expr.op == "post?") {
+    if (expr.children.size() != 1) {
+      if (error) *error = "propagation operator expects one operand";
+      return false;
+    }
+    TypeRef operand;
+    if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) {
+      if (error) *error = "cannot resolve propagation operand type";
+      PrefixErrorLocation(expr.line, expr.column, error);
+      return false;
+    }
+    TaggedTypeInfo operand_tagged;
+    if (!ResolveTaggedType(operand, ctx, &operand_tagged)) {
+      if (error) *error = "operator '?' requires optional or Result operand";
+      PrefixErrorLocation(expr.line, expr.column, error);
+      return false;
+    }
+    if (!expected_return) {
+      if (error) *error = "operator '?' requires an enclosing function";
+      PrefixErrorLocation(expr.line, expr.column, error);
+      return false;
+    }
+    TaggedTypeInfo return_tagged;
+    if (!ResolveTaggedType(*expected_return, ctx, &return_tagged) ||
+        return_tagged.kind != operand_tagged.kind) {
+      if (error) {
+        *error = operand_tagged.kind == TaggedArtifactKind::Optional
+                     ? "optional propagation requires an optional return type"
+                     : "Result propagation requires a Result return type";
+      }
+      PrefixErrorLocation(expr.line, expr.column, error);
+      return false;
+    }
+    if (operand_tagged.kind == TaggedArtifactKind::Optional &&
+        (!operand_tagged.value_type || !return_tagged.value_type ||
+         !TypeEquals(*operand_tagged.value_type, *return_tagged.value_type))) {
+      if (error) *error = "optional propagation requires the same payload type";
+      PrefixErrorLocation(expr.line, expr.column, error);
+      return false;
+    }
+    if (operand_tagged.kind == TaggedArtifactKind::Result &&
+        (!operand_tagged.error_type || !return_tagged.error_type ||
+         !TypeEquals(*operand_tagged.error_type, *return_tagged.error_type))) {
+      if (error) *error = "Result propagation requires the same error type";
+      PrefixErrorLocation(expr.line, expr.column, error);
+      return false;
+    }
+  }
+  for (const auto& child : expr.children) {
+    if (!ValidatePropagationExpr(child, expected_return, ctx, scopes, current_artifact, error)) {
+      return false;
+    }
+  }
+  for (const auto& arg : expr.args) {
+    if (!ValidatePropagationExpr(arg, expected_return, ctx, scopes, current_artifact, error)) {
+      return false;
+    }
+  }
+  for (const auto& value : expr.field_values) {
+    if (!ValidatePropagationExpr(value, expected_return, ctx, scopes, current_artifact, error)) {
+      return false;
+    }
+  }
+  TaggedTypeInfo switch_tagged;
+  TypeRef switch_subject;
+  const bool have_switch_tagged =
+      expr.kind == ExprKind::Switch && !expr.children.empty() &&
+      InferExprType(expr.children[0], ctx, scopes, current_artifact, &switch_subject) &&
+      ResolveTaggedType(switch_subject, ctx, &switch_tagged);
+  for (const auto& branch : expr.switch_branches) {
+    if (!branch.is_default && !IsSwitchPattern(branch) &&
+        !ValidatePropagationExpr(branch.condition,
+                                 expected_return,
+                                 ctx,
+                                 scopes,
+                                 current_artifact,
+                                 error)) {
+      return false;
+    }
+    auto branch_scopes = scopes;
+    if (branch.is_block || !branch.pattern_binding.empty()) branch_scopes.emplace_back();
+    if (!branch.pattern_binding.empty() && have_switch_tagged) {
+      const TypeRef* binding_type = switch_tagged.value_type;
+      if (switch_tagged.kind == TaggedArtifactKind::Result &&
+          branch.pattern_field == "error") {
+        binding_type = switch_tagged.error_type;
+      }
+      if (binding_type) {
+        LocalInfo binding;
+        binding.mutability = Mutability::Immutable;
+        binding.type = binding_type;
+        branch_scopes.back()[branch.pattern_binding] = binding;
+      }
+    }
+    if (branch.has_inline_value &&
+        !ValidatePropagationExpr(branch.value,
+                                 expected_return,
+                                 ctx,
+                                 branch_scopes,
+                                 current_artifact,
+                                 error)) {
+      return false;
+    }
+    if (branch.is_block &&
+        !ValidatePropagationBlock(branch.block,
+                                  expected_return,
+                                  ctx,
+                                  branch_scopes,
+                                  current_artifact,
+                                  error)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ValidatePropagationStmt(
+    const Stmt& stmt,
+    const TypeRef* expected_return,
+    const ValidateContext& ctx,
+    std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    bool recurse_blocks,
+    std::string* error) {
+  if (scopes.empty()) scopes.emplace_back();
+  auto validate = [&](const Expr& value) {
+    return ValidatePropagationExpr(
+        value, expected_return, ctx, scopes, current_artifact, error);
+  };
+  switch (stmt.kind) {
+    case StmtKind::Return:
+      if (stmt.has_return_expr && !validate(stmt.expr)) return false;
+      break;
+    case StmtKind::Expr:
+      if (!validate(stmt.expr)) return false;
+      break;
+    case StmtKind::Assign:
+      if (!validate(stmt.target) || !validate(stmt.expr)) return false;
+      break;
+    case StmtKind::VarDecl:
+      if (stmt.var_decl.has_init_expr && !validate(stmt.var_decl.init_expr)) return false;
+      scopes.back()[stmt.var_decl.name] =
+          LocalInfo{stmt.var_decl.mutability, &stmt.var_decl.type, {}, false};
+      break;
+    case StmtKind::IfChain:
+      for (const auto& branch : stmt.if_branches) {
+        if (!validate(branch.first)) return false;
+        if (recurse_blocks &&
+            !ValidatePropagationBlock(branch.second,
+                                      expected_return,
+                                      ctx,
+                                      scopes,
+                                      current_artifact,
+                                      error)) {
+          return false;
+        }
+      }
+      if (recurse_blocks &&
+          !ValidatePropagationBlock(stmt.else_branch,
+                                    expected_return,
+                                    ctx,
+                                    scopes,
+                                    current_artifact,
+                                    error)) {
+        return false;
+      }
+      break;
+    case StmtKind::IfStmt:
+      if (!validate(stmt.if_cond)) return false;
+      if (recurse_blocks &&
+          (!ValidatePropagationBlock(stmt.if_then,
+                                     expected_return,
+                                     ctx,
+                                     scopes,
+                                     current_artifact,
+                                     error) ||
+           !ValidatePropagationBlock(stmt.if_else,
+                                     expected_return,
+                                     ctx,
+                                     scopes,
+                                     current_artifact,
+                                     error))) {
+        return false;
+      }
+      break;
+    case StmtKind::WhileLoop:
+      if (!validate(stmt.loop_cond)) return false;
+      if (recurse_blocks &&
+          !ValidatePropagationBlock(stmt.loop_body,
+                                    expected_return,
+                                    ctx,
+                                    scopes,
+                                    current_artifact,
+                                    error)) {
+        return false;
+      }
+      break;
+    case StmtKind::ForLoop: {
+      auto loop_scopes = scopes;
+      loop_scopes.emplace_back();
+      if (stmt.has_loop_var_decl) {
+        if (stmt.loop_var_decl.has_init_expr &&
+            !ValidatePropagationExpr(stmt.loop_var_decl.init_expr,
+                                     expected_return,
+                                     ctx,
+                                     loop_scopes,
+                                     current_artifact,
+                                     error)) {
+          return false;
+        }
+        loop_scopes.back()[stmt.loop_var_decl.name] =
+            LocalInfo{stmt.loop_var_decl.mutability, &stmt.loop_var_decl.type, {}, false};
+      } else if (!ValidatePropagationExpr(stmt.loop_iter,
+                                          expected_return,
+                                          ctx,
+                                          loop_scopes,
+                                          current_artifact,
+                                          error)) {
+        return false;
+      }
+      if (!ValidatePropagationExpr(stmt.loop_cond,
+                                   expected_return,
+                                   ctx,
+                                   loop_scopes,
+                                   current_artifact,
+                                   error) ||
+          !ValidatePropagationExpr(stmt.loop_step,
+                                   expected_return,
+                                   ctx,
+                                   loop_scopes,
+                                   current_artifact,
+                                   error)) {
+        return false;
+      }
+      if (recurse_blocks &&
+          !ValidatePropagationBlock(stmt.loop_body,
+                                    expected_return,
+                                    ctx,
+                                    loop_scopes,
+                                    current_artifact,
+                                    error)) {
+        return false;
+      }
+      break;
+    }
+    case StmtKind::Break:
+    case StmtKind::Skip:
+      break;
+  }
+  return true;
+}
+
+bool ValidatePropagationBlock(
+    const std::vector<Stmt>& body,
+    const TypeRef* expected_return,
+    const ValidateContext& ctx,
+    std::vector<std::unordered_map<std::string, LocalInfo>> scopes,
+    const ArtifactDecl* current_artifact,
+    std::string* error) {
+  if (scopes.empty()) scopes.emplace_back();
+  for (const auto& stmt : body) {
+    if (!ValidatePropagationStmt(
+            stmt, expected_return, ctx, scopes, current_artifact, true, error)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool CheckStmt(const Stmt& stmt,
@@ -1621,6 +1982,11 @@ bool CheckCallArgTypes(const Expr& call_expr,
   for (size_t i = 0; i < info.params.size() && i < call_expr.args.size(); ++i) {
     TypeRef expected;
     if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
+    if (call_expr.args[i].kind == ExprKind::ArtifactLiteral &&
+        !ValidateExprAgainstExpected(
+            call_expr.args[i], expected, ctx, scopes, current_artifact, error)) {
+      return false;
+    }
     TypeRef actual;
     if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) continue;
     if (!CheckTypesCompatibleForExpr(expected, actual, call_expr.args[i],
@@ -1821,13 +2187,11 @@ bool ValidateArtifactLiteral(const Expr& expr,
     const auto& field = artifact->fields[i];
     if (!CheckArtifactLiteralFieldSpecifiedOnce(field.name, seen, error)) return false;
     seen.insert(field.name);
-    TypeRef value_type;
-    if (InferExprType(expr.children[i], ctx, scopes, current_artifact, &value_type)) {
-      TypeRef expected;
-      if (!SubstituteTypeParams(field.type, type_mapping, &expected)) return false;
-      if (!CheckTypesCompatibleForExpr(expected, value_type, expr.children[i],
-                                       "artifact field type mismatch: " + field.name,
-                                       error)) return false;
+    TypeRef expected;
+    if (!SubstituteTypeParams(field.type, type_mapping, &expected)) return false;
+    if (!ValidateExprAgainstExpected(
+            expr.children[i], expected, ctx, scopes, current_artifact, error)) {
+      return false;
     }
   }
   if (!expr.field_names.empty()) {
@@ -1844,13 +2208,11 @@ bool ValidateArtifactLiteral(const Expr& expr,
       const auto& name = expr.field_names[i];
       auto it = field_map.find(name);
       if (it == field_map.end()) continue;
-      TypeRef value_type;
-      if (InferExprType(expr.field_values[i], ctx, scopes, current_artifact, &value_type)) {
-        TypeRef expected;
-        if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
-        if (!CheckTypesCompatibleForExpr(expected, value_type, expr.field_values[i],
-                                         "artifact field type mismatch: " + name,
-                                         error)) return false;
+      TypeRef expected;
+      if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
+      if (!ValidateExprAgainstExpected(
+              expr.field_values[i], expected, ctx, scopes, current_artifact, error)) {
+        return false;
       }
     }
   }
@@ -1858,6 +2220,97 @@ bool ValidateArtifactLiteral(const Expr& expr,
     if (!CheckArtifactLiteralRequiredField(field.name, field.has_init_expr, seen, error)) return false;
   }
   return true;
+}
+
+bool ValidateExprAgainstExpected(
+    const Expr& expr,
+    const TypeRef& expected,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    std::string* error) {
+  TaggedTypeInfo tagged;
+  if (ResolveTaggedType(expected, ctx, &tagged) && expr.kind == ExprKind::ArtifactLiteral) {
+    if (tagged.kind == TaggedArtifactKind::Optional) {
+      if (!expr.field_names.empty() || !expr.field_values.empty() || expr.children.size() > 1) {
+        if (error) *error = "optional literal must be '{}' or '{ value }'";
+        return false;
+      }
+      if (expr.children.empty()) return true;
+      return ValidateExprAgainstExpected(
+          expr.children[0], *tagged.value_type, ctx, scopes, current_artifact, error);
+    }
+    if (tagged.kind == TaggedArtifactKind::Result) {
+      if (!expr.children.empty() || expr.field_names.size() != 1 ||
+          expr.field_values.size() != 1) {
+        if (error) {
+          *error = "Result literal requires exactly one '.value' or '.error' payload";
+        }
+        return false;
+      }
+      const std::string& field = expr.field_names[0];
+      const TypeRef* payload_type = nullptr;
+      if (field == "value") payload_type = tagged.value_type;
+      if (field == "error") payload_type = tagged.error_type;
+      if (!payload_type) {
+        if (error) *error = "Result literal field must be '.value' or '.error'";
+        return false;
+      }
+      return ValidateExprAgainstExpected(
+          expr.field_values[0], *payload_type, ctx, scopes, current_artifact, error);
+    }
+  }
+
+  if (expr.kind == ExprKind::ArtifactLiteral && expected.dims.empty()) {
+    const auto artifact_it = ctx.artifacts.find(expected.name);
+    if (artifact_it == ctx.artifacts.end()) {
+      if (error) *error = "artifact literal requires an artifact or tagged target type";
+      return false;
+    }
+    std::unordered_map<std::string, TypeRef> mapping;
+    if (!BuildArtifactTypeParamMap(expected, artifact_it->second, &mapping, error)) {
+      return false;
+    }
+    return ValidateArtifactLiteral(
+        expr, artifact_it->second, mapping, ctx, scopes, current_artifact, error);
+  }
+
+  if (!expected.dims.empty() && expected.dims.front().is_list &&
+      IsListLiteralExpr(expr)) {
+    return CheckListLiteralElementTypes(expr, ctx, scopes, current_artifact, expected, error);
+  }
+  if (!expected.dims.empty() && !expected.dims.front().is_list &&
+      IsPositionalBraceLiteralExpr(expr)) {
+    if (!CheckArrayLiteralShape(expr, expected.dims, 0, error)) return false;
+    TypeRef base_type;
+    if (!CloneTypeRef(expected, &base_type)) return false;
+    base_type.dims.clear();
+    return CheckArrayLiteralElementTypes(expr,
+                                         ctx,
+                                         scopes,
+                                         current_artifact,
+                                         expected.dims,
+                                         0,
+                                         base_type,
+                                         error);
+  }
+  if (expr.kind == ExprKind::FnLiteral) {
+    return CheckFnLiteralAgainstType(expr, expected, error);
+  }
+  if (expr.kind == ExprKind::Member && !expr.children.empty() &&
+      expr.children[0].kind == ExprKind::Identifier &&
+      expr.children[0].text == expected.name &&
+      ctx.enum_types.find(expected.name) != ctx.enum_types.end()) {
+    return CheckExpr(expr, ctx, scopes, current_artifact, error);
+  }
+  if (!CheckExpr(expr, ctx, scopes, current_artifact, error)) return false;
+  TypeRef actual;
+  if (!InferExprType(expr, ctx, scopes, current_artifact, &actual)) {
+    if (error) *error = "cannot infer expression type for typed context";
+    return false;
+  }
+  return CheckTypesCompatibleForExpr(
+      expected, actual, expr, "expression type mismatch", error);
 }
 
 bool CheckStmt(const Stmt& stmt,
@@ -1869,11 +2322,28 @@ bool CheckStmt(const Stmt& stmt,
                std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                const ArtifactDecl* current_artifact,
                std::string* error) {
+  auto propagation_scopes = scopes;
+  if (!ValidatePropagationStmt(
+          stmt,
+          expected_return,
+          ctx,
+          propagation_scopes,
+          current_artifact,
+          false,
+          error)) {
+    return false;
+  }
+
   switch (stmt.kind) {
     case StmtKind::Return:
       if (!CheckReturnStmtValuePresence(stmt, return_is_void, error)) return false;
       if (stmt.has_return_expr) {
         if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+        if (expected_return && stmt.expr.kind == ExprKind::ArtifactLiteral &&
+            !ValidateExprAgainstExpected(
+                stmt.expr, *expected_return, ctx, scopes, current_artifact, error)) {
+          return false;
+        }
         if (expected_return) {
           TypeRef actual;
           if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &actual)) {
@@ -1884,8 +2354,25 @@ bool CheckStmt(const Stmt& stmt,
         return true;
       }
       return true;
-    case StmtKind::Expr:
-      return CheckExpr(stmt.expr, ctx, scopes, current_artifact, error);
+    case StmtKind::Expr: {
+      if (stmt.expr.kind == ExprKind::ArtifactLiteral) {
+        if (error) *error = "contextual literal requires a typed value context";
+        return false;
+      }
+      if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+      TypeRef expression_type;
+      if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &expression_type)) {
+        TaggedTypeInfo tagged;
+        if (ResolveTaggedType(expression_type, ctx, &tagged) &&
+            tagged.kind == TaggedArtifactKind::Result) {
+          if (error) {
+            *error = "Result value must be returned, stored, propagated, or exhaustively handled";
+          }
+          return false;
+        }
+      }
+      return true;
+    }
     case StmtKind::Assign:
       if (!CheckExpr(stmt.target, ctx, scopes, current_artifact, error)) return false;
       if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_artifact, error)) return false;
@@ -1897,6 +2384,11 @@ bool CheckStmt(const Stmt& stmt,
         TypeRef target_type;
         TypeRef value_type;
         bool have_target = InferExprType(stmt.target, ctx, scopes, current_artifact, &target_type);
+        if (have_target && stmt.expr.kind == ExprKind::ArtifactLiteral &&
+            !ValidateExprAgainstExpected(
+                stmt.expr, target_type, ctx, scopes, current_artifact, error)) {
+          return false;
+        }
         bool have_value = false;
         if (stmt.expr.kind == ExprKind::Switch) {
           have_value = AnalyzeSwitchExpr(stmt.expr,
@@ -2178,12 +2670,8 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
 
   if (dim_index + 1 >= dims.size()) {
     for (const auto& child : expr.children) {
-      VarDecl temp;
-      temp.name = "__array_element";
-      temp.type = element_type;
-      temp.has_init_expr = true;
-      temp.init_expr = child;
-      if (!ValidateVarInitExpr(temp, ctx, scopes, current_artifact, false, error)) {
+      if (!ValidateExprAgainstExpected(
+              child, element_type, ctx, scopes, current_artifact, error)) {
         if (error) *error = "array literal element type mismatch";
         return false;
       }
@@ -2223,12 +2711,8 @@ bool CheckListLiteralElementTypes(const Expr& expr,
   }
 
   for (const auto& child : expr.children) {
-    VarDecl temp;
-    temp.name = "__list_element";
-    temp.type = element_type;
-    temp.has_init_expr = true;
-    temp.init_expr = child;
-    if (!ValidateVarInitExpr(temp, ctx, scopes, current_artifact, false, error)) {
+    if (!ValidateExprAgainstExpected(
+            child, element_type, ctx, scopes, current_artifact, error)) {
       if (error) *error = "list literal element type mismatch";
       return false;
     }
@@ -2247,6 +2731,19 @@ bool ValidateVarInitExpr(const VarDecl& var,
                          bool return_is_void,
                          int loop_depth) {
   if (!var.has_init_expr) return true;
+  if (!ValidatePropagationExpr(
+          var.init_expr, expected_return, ctx, scopes, current_artifact, error)) {
+    return false;
+  }
+  TaggedTypeInfo tagged_target;
+  const bool is_tagged_literal =
+      var.init_expr.kind == ExprKind::ArtifactLiteral &&
+      ResolveTaggedType(var.type, ctx, &tagged_target);
+  if (is_tagged_literal &&
+      !ValidateExprAgainstExpected(
+          var.init_expr, var.type, ctx, scopes, current_artifact, error)) {
+    return false;
+  }
   if (var.init_expr.kind != ExprKind::Switch &&
       !CheckExpr(var.init_expr, ctx, scopes, current_artifact, error)) {
     return false;
@@ -2315,7 +2812,8 @@ bool ValidateVarInitExpr(const VarDecl& var,
     if (!CheckTypesCompatibleForExpr(var.type, init_type, var.init_expr,
                                      "initializer type mismatch", error)) return false;
   }
-  if (var.init_expr.kind == ExprKind::ArtifactLiteral && var.type.dims.empty()) {
+  if (!is_tagged_literal && var.init_expr.kind == ExprKind::ArtifactLiteral &&
+      var.type.dims.empty()) {
     auto artifact_it = ctx.artifacts.find(var.type.name);
     if (artifact_it != ctx.artifacts.end()) {
       std::unordered_map<std::string, TypeRef> mapping;
@@ -2352,25 +2850,88 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        int loop_depth) {
   if (!CheckSwitchExprShape(expr, error)) return false;
   if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+  TypeRef subject_type;
+  if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &subject_type)) {
+    if (error) *error = "cannot infer switch subject type";
+    return false;
+  }
+  TaggedTypeInfo subject_tagged;
+  const bool tagged_subject = ResolveTaggedType(subject_type, ctx, &subject_tagged);
+  bool uses_patterns = false;
+  for (const auto& branch : expr.switch_branches) {
+    uses_patterns = uses_patterns || IsSwitchPattern(branch);
+  }
+  if (uses_patterns && !tagged_subject) {
+    if (error) *error = "structural switch patterns require optional or Result subject";
+    return false;
+  }
+
   const std::unordered_set<std::string> empty_type_params;
   const auto& branch_type_params = type_params ? *type_params : empty_type_params;
   size_t default_count = 0;
+  size_t absent_count = 0;
+  size_t present_count = 0;
+  size_t value_count = 0;
+  size_t error_count = 0;
   bool has_type = false;
   TypeRef common;
   for (const auto& branch : expr.switch_branches) {
-    if (branch.is_default) {
+    const TypeRef* pattern_binding_type = nullptr;
+    if (uses_patterns) {
+      if (branch.is_default || !IsSwitchPattern(branch)) {
+        if (error) *error = "cannot mix structural patterns with conditions or default";
+        return false;
+      }
+      if (subject_tagged.kind == TaggedArtifactKind::Optional) {
+        if (branch.pattern_kind == SwitchPatternKind::Absent) {
+          absent_count++;
+          if (!branch.pattern_binding.empty()) {
+            if (error) *error = "absent optional pattern cannot bind a value";
+            return false;
+          }
+        } else if (branch.pattern_kind == SwitchPatternKind::Present) {
+          present_count++;
+          pattern_binding_type = subject_tagged.value_type;
+        } else {
+          if (error) *error = "optional switch requires '{}' and '{ binding }' patterns";
+          return false;
+        }
+      } else {
+        if (branch.pattern_kind != SwitchPatternKind::Tagged) {
+          if (error) *error = "Result switch requires '.value' and '.error' patterns";
+          return false;
+        }
+        if (branch.pattern_field == "value") {
+          value_count++;
+          pattern_binding_type = subject_tagged.value_type;
+        } else if (branch.pattern_field == "error") {
+          error_count++;
+          pattern_binding_type = subject_tagged.error_type;
+        } else {
+          if (error) *error = "Result switch pattern must use '.value' or '.error'";
+          return false;
+        }
+      }
+    } else if (branch.is_default) {
       default_count++;
     } else {
       if (!CheckExpr(branch.condition, ctx, scopes, current_artifact, error)) return false;
       if (!CheckBoolCondition(branch.condition, ctx, scopes, current_artifact, error)) return false;
     }
+
     const Expr* value_expr = nullptr;
     if (!GetSwitchBranchValueExpr(branch, require_explicit_return, &value_expr, error)) return false;
     if (!value_expr) return false;
 
     auto branch_scopes = scopes;
+    if (branch.is_block || pattern_binding_type) branch_scopes.emplace_back();
+    if (pattern_binding_type) {
+      LocalInfo binding;
+      binding.mutability = Mutability::Immutable;
+      binding.type = pattern_binding_type;
+      if (!AddLocal(branch_scopes, branch.pattern_binding, binding, error)) return false;
+    }
     if (branch.is_block) {
-      branch_scopes.emplace_back();
       for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
         if (!CheckStmt(branch.block[stmt_index],
                        ctx,
@@ -2385,20 +2946,12 @@ bool AnalyzeSwitchExpr(const Expr& expr,
         }
       }
     }
-    const auto& value_scopes = branch.is_block ? branch_scopes : scopes;
+    const auto& value_scopes =
+        (branch.is_block || pattern_binding_type) ? branch_scopes : scopes;
 
     if (expected_type) {
-      VarDecl temp;
-      temp.name = "__switch_branch";
-      temp.type = *expected_type;
-      temp.has_init_expr = true;
-      temp.init_expr = *value_expr;
-      if (!ValidateVarInitExpr(temp,
-                               ctx,
-                               value_scopes,
-                               current_artifact,
-                               false,
-                               error)) {
+      if (!ValidateExprAgainstExpected(
+              *value_expr, *expected_type, ctx, value_scopes, current_artifact, error)) {
         return false;
       }
     } else {
@@ -2411,13 +2964,25 @@ bool AnalyzeSwitchExpr(const Expr& expr,
       if (!has_type) {
         if (!CloneTypeRef(value_type, &common)) return false;
         has_type = true;
-      } else {
-        if (!CheckTypesCompatibleForExpr(common, value_type, *value_expr,
-                                         "switch branch type mismatch", error)) return false;
+      } else if (!CheckTypesCompatibleForExpr(common,
+                                              value_type,
+                                              *value_expr,
+                                              "switch branch type mismatch",
+                                              error)) {
+        return false;
       }
     }
   }
-  if (default_count != 1) {
+  if (uses_patterns) {
+    const bool exhaustive_optional = subject_tagged.kind == TaggedArtifactKind::Optional &&
+                                     absent_count == 1 && present_count == 1;
+    const bool exhaustive_result = subject_tagged.kind == TaggedArtifactKind::Result &&
+                                   value_count == 1 && error_count == 1;
+    if (!exhaustive_optional && !exhaustive_result) {
+      if (error) *error = "tagged switch must contain each state exactly once";
+      return false;
+    }
+  } else if (default_count != 1) {
     if (error) *error = "switch must have exactly one default branch";
     return false;
   }
@@ -2841,6 +3406,14 @@ bool CheckExpr(const Expr& expr,
         }
         TypeRef base_type;
         if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+          TaggedTypeInfo tagged;
+          if (ResolveTaggedType(base_type, ctx, &tagged)) {
+            if (error) {
+              *error = "tagged payload access requires exhaustive pattern binding or '?'";
+            }
+            PrefixErrorLocation(expr.line, expr.column, error);
+            return false;
+          }
           if (!base_type.dims.empty() && base_type.dims.front().is_list &&
               IsListMethodName(expr.text)) {
             return true;

@@ -24,7 +24,9 @@ void CollectFnLiteralExpr(const Expr& expr,
   for (const auto& arg : expr.args) CollectFnLiteralExpr(arg, {}, nullptr, out);
   for (const auto& value : expr.field_values) CollectFnLiteralExpr(value, {}, nullptr, out);
   for (const auto& branch : expr.switch_branches) {
-    if (!branch.is_default) CollectFnLiteralExpr(branch.condition, {}, nullptr, out);
+    if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None) {
+      CollectFnLiteralExpr(branch.condition, {}, nullptr, out);
+    }
     if (branch.has_inline_value) CollectFnLiteralExpr(branch.value, {}, nullptr, out);
     for (const auto& stmt : branch.block) {
       if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) {
@@ -256,6 +258,9 @@ void CollectSwitchExpr(const Expr& expr,
     for (const auto& branch : expr.switch_branches) {
       NormalizedSwitchBranch normalized;
       normalized.is_default = branch.is_default;
+      normalized.pattern_kind = branch.pattern_kind;
+      normalized.pattern_field = branch.pattern_field;
+      normalized.pattern_binding = branch.pattern_binding;
       normalized.is_block = branch.is_block;
       normalized.has_inline_value = branch.has_inline_value;
       normalized.is_explicit_return = branch.is_explicit_return;
@@ -279,7 +284,9 @@ void CollectSwitchExpr(const Expr& expr,
   for (const auto& arg : expr.args) CollectSwitchExpr(arg, out);
   for (const auto& value : expr.field_values) CollectSwitchExpr(value, out);
   for (const auto& branch : expr.switch_branches) {
-    if (!branch.is_default) CollectSwitchExpr(branch.condition, out);
+    if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None) {
+      CollectSwitchExpr(branch.condition, out);
+    }
     if (branch.has_inline_value) CollectSwitchExpr(branch.value, out);
     CollectSwitchStmts(branch.block, out);
   }
@@ -356,7 +363,9 @@ void CollectExprShapeExpr(const Expr& expr, std::vector<NormalizedExprShape>* ou
   for (const auto& arg : expr.args) CollectExprShapeExpr(arg, out);
   for (const auto& value : expr.field_values) CollectExprShapeExpr(value, out);
   for (const auto& branch : expr.switch_branches) {
-    if (!branch.is_default) CollectExprShapeExpr(branch.condition, out);
+    if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None) {
+      CollectExprShapeExpr(branch.condition, out);
+    }
     if (branch.has_inline_value) CollectExprShapeExpr(branch.value, out);
     CollectExprShapeStmts(branch.block, out);
   }

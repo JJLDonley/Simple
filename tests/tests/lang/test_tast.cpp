@@ -1,8 +1,10 @@
 #include "test_utils.h"
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "AST/lower_cast.h"
@@ -760,9 +762,9 @@ bool LangGenResolvesInstantiationOrder() {
 
   GenericInstantiationRequest box{"Box", {"i32"}, 0, 0, {}};
   GenericInstantiationRequest list{"List", {"Box<i32>"}, 0, 0, {}};
-  GenericInstantiationRequest option{"Option", {"List<Box<i32>>"}, 0, 0, {}};
+  GenericInstantiationRequest wrapper{"Wrapper", {"List<Box<i32>>"}, 0, 0, {}};
   std::vector<GenericInstantiationNode> nodes = {
-      GenericInstantiationNode{option, {list}},
+      GenericInstantiationNode{wrapper, {list}},
       GenericInstantiationNode{box, {}},
       GenericInstantiationNode{list, {box}},
   };
@@ -771,11 +773,11 @@ bool LangGenResolvesInstantiationOrder() {
   if (!ResolveInstantiationOrder(nodes, &ordered, &error) || !error.empty()) return false;
   if (ordered.size() != 3 || InstantiationRequestKey(ordered[0]) != "Box<i32>" ||
       InstantiationRequestKey(ordered[1]) != "List<Box<i32>>" ||
-      InstantiationRequestKey(ordered[2]) != "Option<List<Box<i32>>>" ) {
+      InstantiationRequestKey(ordered[2]) != "Wrapper<List<Box<i32>>>" ) {
     return false;
   }
 
-  nodes[1].dependencies = {option};
+  nodes[1].dependencies = {wrapper};
   ordered.clear();
   return !ResolveInstantiationOrder(nodes, &ordered, &error) &&
          error.find("generic instantiation cycle") != std::string::npos;
@@ -805,7 +807,8 @@ bool LangGenCollectsInstantiationRequests() {
   Simple::Lang::AST::Decl fn;
   fn.kind = DeclKind::Function;
   fn.func.name = "use";
-  fn.func.return_type.name = "Option";
+  fn.func.return_type.name = Simple::Lang::kOptionalTypeInternalName;
+  fn.func.return_type.is_optional_syntax = true;
   fn.func.return_type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("string"));
   Simple::Lang::AST::ParamDecl param;
   param.name = "value";
@@ -840,7 +843,9 @@ bool LangGenCollectsInstantiationRequests() {
          Simple::Lang::GEN::InstantiationRequestKey(requests[0]) == "Box<i32>" &&
          requests[1].base_name == "List" && requests[1].argument_identities[0] == "Box<i32>" &&
          requests[2].base_name == "Promise" && requests[2].argument_identities[0] == "i32" &&
-         requests[3].base_name == "Option" && requests[3].argument_identities[0] == "string" &&
+         requests[3].base_name == Simple::Lang::kOptionalTypeInternalName &&
+         requests[3].argument_identities[0] == "string" &&
+         Simple::Lang::GEN::InstantiationRequestKey(requests[3]) == "string?" &&
          requests[4].base_name == "Result" && requests[4].argument_identities.size() == 2 &&
          requests[5].base_name == "identity" && requests[5].argument_identities[0] == "i32";
 }
@@ -1544,6 +1549,132 @@ bool LangTastCheckCallExpressionValidatesShape() {
 }
 
 
+bool LangTastRejectsLegacyOptionalGenericName() {
+  const char* src = "main : i32 () { value : Option<i32>; return 0 }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("unknown type: Option") != std::string::npos;
+}
+
+bool LangTastRejectsTaggedWholeValueEquality() {
+  const char* src =
+      "main :: i32 () { a : i32?; b : i32?; if (a == b) { return 1 } return 0 }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("requires scalar operands") != std::string::npos;
+}
+
+bool LangTastRejectsDirectTaggedPayloadAccess() {
+  for (const char* src : {
+           "main : i32 () { value : i32? = { 1 }; return value.value }",
+           "Error :: enum { Bad = 1 } main : i32 () { "
+           "result : Result<i32, Error> = { .value = 1 }; return result.value }",
+       }) {
+    std::string error;
+    if (Simple::Lang::ValidateProgramFromString(src, &error) ||
+        error.find("tagged payload access requires exhaustive pattern binding or '?'") ==
+            std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool LangTastRejectsOptionalImplicitLift() {
+  const char* src = "main : i32 () { value : i32? = 42; return 0 }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("initializer type mismatch") != std::string::npos;
+}
+
+bool LangTastRejectsMalformedOptionalLiteral() {
+  const char* src = "main : i32 () { value : i32? = { 1, 2 }; return 0 }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("optional literal must be '{}' or '{ value }'") != std::string::npos;
+}
+
+bool LangTastRejectsUncontextualBraceLiteral() {
+  const char* src = "main : void () { {}; }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("contextual literal requires a typed value context") != std::string::npos;
+}
+
+bool LangTastRejectsInexhaustiveOptionalPattern() {
+  const char* src =
+      "main : i32 () { value : i32?; return switch (value) { "
+      "{ present } => return present } }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("each state exactly once") != std::string::npos;
+}
+
+bool LangTastRejectsInvalidResultLiteral() {
+  for (const auto& test : {
+           std::pair<const char*, const char*>{
+               "Error :: enum { Bad = 1 } main : Result<i32, Error> () { "
+               "return { .other = 1 } }",
+               "'.value' or '.error'"},
+           std::pair<const char*, const char*>{
+               "Error :: enum { Bad = 1 } main : i32 () { "
+               "result : Result<i32, Error> = { .value = \"bad\" }; return 0 }",
+               "expression type mismatch"},
+           std::pair<const char*, const char*>{
+               "Error :: enum { Bad = 1 } main : i32 () { "
+               "result : Result<i32, Error>; return switch (result) { "
+               "{ .value = value } => return value } }",
+               "each state exactly once"},
+       }) {
+    std::string error;
+    if (Simple::Lang::ValidateProgramFromString(test.first, &error) ||
+        error.find(test.second) == std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool LangTastRejectsDiscardedResult() {
+  const char* src =
+      "Error :: enum { Bad = 1 } make : Result<i32, Error> () { "
+      "return { .value = 1 } } main : i32 () { make(); return 0 }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("Result value must be returned, stored, propagated") != std::string::npos;
+}
+
+bool LangTastRejectsIncompatibleOptionalPropagation() {
+  for (const auto& test : {
+           std::pair<const char*, const char*>{
+               "main : i32 () { value : i32?; return value? }",
+               "optional propagation requires an optional return type"},
+           std::pair<const char*, const char*>{
+               "main : string? () { value : i32?; number : i32 = value?; return {} }",
+               "optional propagation requires the same payload type"},
+           std::pair<const char*, const char*>{
+               "main : i32? () { value : i32 = 1; number : i32 = value?; return {} }",
+               "operator '?' requires optional or Result operand"},
+       }) {
+    std::string error;
+    if (Simple::Lang::ValidateProgramFromString(test.first, &error) ||
+        error.find(test.second) == std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool LangTastRejectsMismatchedResultPropagation() {
+  const char* src =
+      "First :: enum { Bad = 1 } Second :: enum { Bad = 1 } "
+      "source : Result<i32, First> () { return { .error = First.Bad } } "
+      "target : Result<i32, Second> () { value : i32 = source()?; "
+      "return { .value = value } }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error) &&
+         error.find("same error type") != std::string::npos;
+}
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
@@ -1593,6 +1724,23 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_tast_literal_typing_rejects_non_literal", LangTastLiteralTypingRejectsNonLiteral},
+  {"lang_tast_rejects_legacy_optional_generic_name",
+   LangTastRejectsLegacyOptionalGenericName},
+  {"lang_tast_rejects_tagged_whole_value_equality",
+   LangTastRejectsTaggedWholeValueEquality},
+  {"lang_tast_rejects_direct_tagged_payload_access",
+   LangTastRejectsDirectTaggedPayloadAccess},
+  {"lang_tast_rejects_optional_implicit_lift", LangTastRejectsOptionalImplicitLift},
+  {"lang_tast_rejects_malformed_optional_literal", LangTastRejectsMalformedOptionalLiteral},
+  {"lang_tast_rejects_uncontextual_brace_literal", LangTastRejectsUncontextualBraceLiteral},
+  {"lang_tast_rejects_inexhaustive_optional_pattern",
+   LangTastRejectsInexhaustiveOptionalPattern},
+  {"lang_tast_rejects_invalid_result_literal", LangTastRejectsInvalidResultLiteral},
+  {"lang_tast_rejects_discarded_result", LangTastRejectsDiscardedResult},
+  {"lang_tast_rejects_incompatible_optional_propagation",
+   LangTastRejectsIncompatibleOptionalPropagation},
+  {"lang_tast_rejects_mismatched_result_propagation",
+   LangTastRejectsMismatchedResultPropagation},
 };
 
 const TestSection kLangTastSections[] = {

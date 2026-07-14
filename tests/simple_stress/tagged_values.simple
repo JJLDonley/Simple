@@ -1,0 +1,191 @@
+module Tests.Stress.TaggedValues
+
+Failure :: enum {
+  Invalid = 1,
+  Exhausted = 2
+}
+
+Holder<T> :: artifact {
+  value : T
+}
+
+present<T> :: T? (value : T) {
+  return { value }
+}
+
+absent<T> :: T? () {
+  return {}
+}
+
+orElse<T> :: T (candidate : T?, fallback : T) {
+  return switch (candidate) {
+    { value } => return value
+    {} => return fallback
+  }
+}
+
+preserve<T> :: T? (candidate : T?) {
+  value : T = candidate?
+  return { value }
+}
+
+asResult<T> :: Result<T, Failure> (value : T) {
+  return { .value = value }
+}
+
+flatten :: i32? (candidate : i32??) {
+  flattened : i32? = switch (candidate) {
+    { inner } => {
+      value : i32 = inner?
+      return { value }
+    }
+    {} => return {}
+  }
+  return flattened
+}
+
+requireNonnegative :: Result<i32, Failure> (value : i32) {
+  if (value < 0) { return { .error = Failure.Invalid } }
+  return { .value = value }
+}
+
+propagationStops :: Result<i32, Failure> () {
+  value : i32 = requireNonnegative(-1)?
+  globalCounter = value + 1
+  return { .value = value }
+}
+
+sumTo :: Result<i32, Failure> (limit : i32) {
+  if (limit < 0) { return { .error = Failure.Invalid } }
+  total : i32 = 0
+  for (i : i32 = 0; i < limit; i += 1) {
+    value : i32 = requireNonnegative(i)?
+    total += value
+  }
+  return { .value = total }
+}
+
+label :: Result<string, Failure> (valid : bool) {
+  input : i32 = -1
+  if (valid) { input = 1 }
+  value : i32 = requireNonnegative(input)?
+  if (value == 1) { return { .value = "ready" } }
+  return { .error = Failure.Exhausted }
+}
+
+globalMissing : i32?
+globalResult : Result<i32, Failure>
+globalCounter : i32
+
+main :: i32 () {
+  missing : i32?
+  presentZero : i32? = { 0 }
+  defaultResult : Result<i32, Failure>
+  values : i32?[] = []
+  holders : Holder<string?>[] = []
+
+  for (i : i32 = 0; i < 2000; i += 1) {
+    if (i % 2 == 0) {
+      values.push(present(i))
+      holders.push({ present("even") })
+    } else {
+      values.push(absent<i32>())
+      holders.push({ absent<string>() })
+    }
+  }
+
+  total : i32 = 0
+  for (i : i32 = 0; i < values.len(); i += 1) {
+    total += orElse(values[i], 0)
+  }
+  if (total != 999000) { return 1 }
+  if (values.len() != 2000 || holders.len() != 2000) { return 2 }
+
+  missingValue : i32 = switch (missing) {
+    { value } => return value
+    {} => return 7
+  }
+  if (missingValue != 7) { return 3 }
+  presentZeroValue : i32 = switch (presentZero) {
+    { value } => return value
+    {} => return 16
+  }
+  if (presentZeroValue != 0) { return 16 }
+  globalMissingValue : i32 = switch (globalMissing) {
+    { value } => return value
+    {} => return 7
+  }
+  if (globalMissingValue != 7) { return 9 }
+
+  zeroResult : i32 = switch (defaultResult) {
+    { .value = value } => return value
+    { .error = error } => return 9
+  }
+  if (zeroResult != 0) { return 4 }
+  globalZeroResult : i32 = switch (globalResult) {
+    { .value = value } => return value
+    { .error = error } => return 9
+  }
+  if (globalZeroResult != 0) { return 10 }
+
+  sum : Result<i32, Failure> = sumTo(10)
+  sumValue : i32 = switch (sum) {
+    { .value = value } => return value
+    { .error = error } => return -1
+  }
+  if (sumValue != 45) { return 5 }
+  preserved : i32? = preserve(present(42))
+  preservedValue : i32 = switch (preserved) {
+    { value } => return value
+    {} => return 0
+  }
+  if (preservedValue != 42) { return 11 }
+
+  failed : Result<i32, Failure> = propagationStops()
+  if (globalCounter != 0) { return 17 }
+  failureObserved : bool = switch (failed) {
+    { .value = value } => return false
+    { .error = error } => return true
+  }
+  if (!failureObserved) { return 6 }
+
+  nested : i32?? = { {} }
+  nestedValue : i32 = switch (nested) {
+    { inner } => return orElse(inner, 11)
+    {} => return 12
+  }
+  if (nestedValue != 11) { return 7 }
+  flattened : i32? = flatten({ { 42 } })
+  flattenedValue : i32 = switch (flattened) {
+    { value } => return value
+    {} => return 0
+  }
+  if (flattenedValue != 42) { return 12 }
+  genericResult : Result<i32, Failure> = asResult(42)
+  genericResultValue : i32 = switch (genericResult) {
+    { .value = value } => return value
+    { .error = error } => return 0
+  }
+  if (genericResultValue != 42) { return 13 }
+  nestedResult : Result<i32?, Failure> = { .value = { 42 } }
+  nestedResultValue : i32 = switch (nestedResult) {
+    { .value = value } => return orElse(value, 0)
+    { .error = error } => return 0
+  }
+  if (nestedResultValue != 42) { return 14 }
+  wide : Result<f64, Failure> = { .value = 2.5 }
+  wideValue : f64 = switch (wide) {
+    { .value = value } => return value
+    { .error = error } => return 0.0
+  }
+  if (wideValue != 2.5) { return 15 }
+
+  text : Result<string, Failure> = label(true)
+  textLength : i32 = switch (text) {
+    { .value = value } => return len(value)
+    { .error = error } => return 0
+  }
+  if (textLength != 5) { return 8 }
+
+  return 0
+}

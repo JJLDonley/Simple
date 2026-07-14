@@ -71,6 +71,20 @@ bool LangLexesKeywordsAndOps() {
 }
 
 
+bool LangLexesOptionalAndPropagationTokens() {
+  Simple::Lang::Lexer lexer("value : i32? = source?");
+  if (!lexer.Lex()) return false;
+  return ExpectTokenKinds(lexer.Tokens(), {
+      Simple::Lang::TokenKind::Identifier,
+      Simple::Lang::TokenKind::Colon,
+      Simple::Lang::TokenKind::Identifier,
+      Simple::Lang::TokenKind::Question,
+      Simple::Lang::TokenKind::Assign,
+      Simple::Lang::TokenKind::Identifier,
+      Simple::Lang::TokenKind::Question,
+  });
+}
+
 bool LangLexesRangeOp() {
   const char* src = "0..10";
   Simple::Lang::Lexer lex(src);
@@ -161,6 +175,7 @@ bool LangLexRejectsInvalidCharEscape() {
 const TestCase kLangLexerTests[] = {
   {"lang_split_lexer_tokenizes_basic_program", LangSplitLexerTokenizesBasicProgram},
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
+  {"lang_lex_optional_and_propagation_tokens", LangLexesOptionalAndPropagationTokens},
   {"lang_lex_range_op", LangLexesRangeOp},
   {"lang_lex_switch_arrow", LangLexesSwitchArrow},
   {"lang_lex_literals", LangLexesLiterals},

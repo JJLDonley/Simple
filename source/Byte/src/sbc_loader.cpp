@@ -242,7 +242,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           }
           break;
         case TypeKind::Result:
-        case TypeKind::Option:
+        case TypeKind::Optional:
+          if (!IsManagedArtifactType(row)) {
+            return Fail("tagged type must use managed artifact layout");
+          }
+          break;
         case TypeKind::Vector:
         case TypeKind::Unspecified:
           break;
@@ -275,8 +279,6 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         case TypeKind::Array:
         case TypeKind::List:
         case TypeKind::Function:
-        case TypeKind::Result:
-        case TypeKind::Option:
         case TypeKind::Vector:
           if (row.field_start != 0 || row.field_count != 0) {
             return Fail("type kind has fields (type_id=" + std::to_string(i) +
@@ -285,6 +287,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
                         " field_start=" + std::to_string(row.field_start) +
                         " field_count=" + std::to_string(row.field_count) + ")");
           }
+          break;
+        case TypeKind::Result:
+        case TypeKind::Optional:
           break;
         case TypeKind::Unspecified:
           break;

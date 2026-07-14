@@ -5,7 +5,7 @@
 
 namespace Simple::Byte {
 
-constexpr uint16_t kOpcodeMetadataVersion = 1;
+constexpr uint16_t kOpcodeMetadataVersion = 2;
 
 enum class ExtendedOpCode : uint16_t {
   CheckedAddI32 = 1,
@@ -104,12 +104,6 @@ enum class ExtendedOpCode : uint16_t {
   VariantTag = 94,
   VariantPayload = 95,
   VariantMake = 96,
-  ResultOk = 97,
-  ResultErr = 98,
-  ResultIsOk = 99,
-  ResultIsErr = 100,
-  ResultUnwrap = 101,
-  ResultPropagateErr = 102,
   RangeNew = 103,
   RangeNewStep = 104,
   RangeNext = 105,

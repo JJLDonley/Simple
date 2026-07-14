@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `1.0`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.0`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -158,15 +158,15 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 | ✅ | `array<T>` | `Array` / `20` | ref | aggregate metadata via `kind=array` |
 | ✅ | `list<T>` | `List` / `21` | ref | aggregate metadata via `kind=list` |
 | ✅ | `fn<sig>` | `Function` / `22` | ref | typed function/closure ref metadata via `kind=function` |
-| ✅ | `result<T,E>` | `Result` / `23` | ref/value | result metadata via `kind=result` |
-| ✅ | `option<T>` | `Option` / `24` | ref/value | optional metadata via `kind=option` |
+| ✅ | concrete Result layout | `Result` / `23` | ref | managed fields via `kind=result` |
+| ✅ | concrete `T?` layout | `Optional` / `24` | ref | managed payload via `kind=optional` |
 | ✅ | `vec<T,N>` | `Vector` / `25` | vector | SIMD/vector metadata via `kind=vector` |
 
-The current `option<T>` spelling is experimental IR metadata, not final source
-syntax. The `v0.6` SIR/SBC revision replaces it with
-`optional<T>`/`Optional` metadata emitted from source `T?`, removes the old
-identity in the same change, and updates the compatibility version without an
-alias.
+Source `T?` and `Result<T,E>` materialize deterministic concrete managed type
+rows. SIR uses normal object allocation, field access, comparisons, and branches
+for their operations. The experimental `option<T>` identity and Result marker
+instructions were removed rather than retained as aliases. This is the breaking
+SIR 2.0 transition; an explicit `sir version 1.0` directive is rejected.
 
 ## Operand and literal grammar
 
@@ -917,12 +917,6 @@ Tagged data and error operations.
 | ✅ | `ext 94` | `variant.tag` | `none` | `Ext.VariantTag` | reads variant tag |
 | ✅ | `ext 95` | `variant.payload.<T> <case>` | `case` | `ConstI32` + `Ext.VariantPayload` | extracts variant payload |
 | ✅ | `ext 96` | `variant.make.<T> <case>` | `case` | `ConstI32` + `Ext.VariantMake` | constructs variant value |
-| ✅ | `ext 97` | `result.ok.<T>` | `none` | `Ext.ResultOk` | constructs ok result |
-| ✅ | `ext 98` | `result.err.<T>` | `none` | `Ext.ResultErr` | constructs err result |
-| ✅ | `ext 99` | `result.is.ok` | `none` | `Ext.ResultIsOk` | tests ok result |
-| ✅ | `ext 100` | `result.is.err` | `none` | `Ext.ResultIsErr` | tests err result |
-| ✅ | `ext 101` | `result.unwrap.<T>` | `none` | `Ext.ResultUnwrap` | unwraps result value |
-| ✅ | `ext 102` | `result.propagate.err` | `none` | `Ext.ResultPropagateErr` | propagates err result |
 | ✅ | `ext 61` | `throw` | `none` | `Ext.Throw` | raises current exception/traps in current VM |
 | ✅ | `ext 132` | `catch <label>` | `label` | `ConstI32` + `Ext.Catch` | registers/validates handler label |
 | ✅ | `ext 133` | `finally <label>` | `label` | `ConstI32` + `Ext.Finally` | registers/validates cleanup label |

@@ -17,8 +17,8 @@ struct ExecOptions;
 
 namespace Simple::VM::Jit {
 
-constexpr uint32_t kLlvmJitCacheAbiVersion = 4;
-constexpr uint32_t kLlvmJitRuntimeHelperAbiVersion = 10;
+constexpr uint32_t kLlvmJitCacheAbiVersion = 5;
+constexpr uint32_t kLlvmJitRuntimeHelperAbiVersion = 11;
 
 std::string BuildLlvmJitCacheKey(uintptr_t module_identity,
                                  size_t function_index,

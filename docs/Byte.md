@@ -32,7 +32,7 @@ An SBC file contains:
 3. Metadata sections.
 4. Code bytes.
 
-The current magic is `SBC0`; the current binary format version is `0x0001`.
+The current magic is `SBC0`; the current binary format version is `0x0002`.
 
 ## Header
 
@@ -108,14 +108,13 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `20` | `Array` | `array<T>` | aggregate metadata |
 | ✅ | `21` | `List` | `list<T>` | aggregate metadata |
 | ✅ | `22` | `Function` | `fn<sig>` | typed function ref metadata |
-| ✅ | `23` | `Result` | `result<T,E>` | tagged result metadata |
-| ✅ | `24` | `Option` | `option<T>` | optional value metadata |
+| ✅ | `23` | `Result` | `result<T,E>` | managed tagged result metadata |
+| ✅ | `24` | `Optional` | `optional<T>` | managed optional metadata for source `T?` |
 | ✅ | `25` | `Vector` | `vec<T,N>` | SIMD/vector metadata |
 
-Row `24` records the current experimental implementation. The `v0.6` SBC
-revision renames its metadata identity to `Optional`/`optional<T>` behind source
-syntax `T?`, removes `Option` source/runtime naming directly, and bumps the SBC
-compatibility version rather than retaining an alias.
+SBC v2 removes the experimental Result marker opcodes and the `Option` metadata
+name. Source `T?` and `Result<T,E>` lower to concrete managed layouts and normal
+object/field/control-flow opcodes; no compatibility aliases remain.
 
 ## Binary row schemas
 
@@ -153,9 +152,14 @@ compatibility version rather than retaining an alias.
 | Status | Area | Contract |
 |:---:|---|---|
 | ✅ | magic | `SBC0` / `0x30434253` |
-| ✅ | version | current binary version `0x0001` |
+| ✅ | version | current binary version `0x0002` |
 | ✅ | endian | loader validates header endian marker |
 | ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
+
+SBC v2 is intentionally incompatible with v1. It records the `Optional` type
+identity and removes the experimental Result marker opcode range; the loader
+rejects older modules instead of applying a compatibility translation. Opcode
+metadata version is `2`, and the corresponding runtime ABI is `1.2`.
 
 ## Opcodes
 
@@ -815,7 +819,7 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 
 ### Enums, variants, and errors
 
-Enum/variant/result/error operations. Plain integer-like enums may still lower to scalar ops.
+Enum/variant/error operations. Plain integer-like enums may still lower to scalar ops.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -825,12 +829,6 @@ Enum/variant/result/error operations. Plain integer-like enums may still lower t
 | ✅ | ext `94` | `VariantTag` | 0 | 1 | 1 |
 | ✅ | ext `95` | `VariantPayload` | 0 | 2 | 1 |
 | ✅ | ext `96` | `VariantMake` | 0 | 2 | 1 |
-| ✅ | ext `97` | `ResultOk` | 0 | 1 | 1 |
-| ✅ | ext `98` | `ResultErr` | 0 | 1 | 1 |
-| ✅ | ext `99` | `ResultIsOk` | 0 | 1 | 1 |
-| ✅ | ext `100` | `ResultIsErr` | 0 | 1 | 1 |
-| ✅ | ext `101` | `ResultUnwrap` | 0 | 1 | 1 |
-| ✅ | ext `102` | `ResultPropagateErr` | 0 | 1 | 1 |
 | ✅ | ext `61` | `Throw` | 0 | 0 | 0 |
 | ✅ | ext `132` | `Catch` | 0 | 1 | 0 |
 | ✅ | ext `133` | `Finally` | 0 | 1 | 0 |

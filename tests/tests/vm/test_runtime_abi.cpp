@@ -47,7 +47,7 @@ bool VmRuntimeAbiBuildsCanonicalTypeIdentities() {
   using Simple::VM::Runtime::CanonicalFunctionTypeIdentity;
   using Simple::VM::Runtime::CanonicalInstantiatedTypeIdentity;
   using Simple::VM::Runtime::CanonicalListTypeIdentity;
-  using Simple::VM::Runtime::CanonicalOptionTypeIdentity;
+  using Simple::VM::Runtime::CanonicalOptionalTypeIdentity;
   using Simple::VM::Runtime::CanonicalPointerTypeIdentity;
   using Simple::VM::Runtime::CanonicalPrimitiveTypeIdentity;
   using Simple::VM::Runtime::CanonicalPromiseTypeIdentity;
@@ -77,7 +77,7 @@ bool VmRuntimeAbiBuildsCanonicalTypeIdentities() {
          data_id.rfind("data#", 0) == 0 &&
          data_id.find(":" + std::to_string(layout.size) + ":" + std::to_string(layout.align)) !=
              std::string::npos &&
-         CanonicalOptionTypeIdentity("i32") == "option<i32>" &&
+         CanonicalOptionalTypeIdentity("i32") == "optional<i32>" &&
          CanonicalResultTypeIdentity("i32", "string") == "result<i32,string>" &&
          CanonicalPromiseTypeIdentity("string") == "promise<string>";
 }
@@ -142,11 +142,19 @@ bool VmRuntimeAbiMapsOpaqueHandleTypeRows() {
   scalar.size = 8;
   const auto scalar_info = GetSbcTypeAbiTypeInfo(scalar);
 
+  Simple::Byte::TypeRow tagged;
+  tagged.kind = static_cast<uint8_t>(TypeKind::Result);
+  tagged.flags = Simple::Byte::kTypeFlagManagedArtifact;
+  tagged.size = 12;
+  const auto tagged_info = GetSbcTypeAbiTypeInfo(tagged);
+
   return handle_info.abi_class == AbiClass::Handle && handle_info.size == 8 &&
          handle_info.align == 8 && handle_info.native_callable &&
          !handle_info.external_ffi_callable &&
          GetAbiParameterPassMode(handle_info) == AbiPassMode::Direct &&
-         scalar_info.abi_class == AbiClass::Scalar && scalar_info.size == 8;
+         scalar_info.abi_class == AbiClass::Scalar && scalar_info.size == 8 &&
+         tagged_info.abi_class == AbiClass::Ref && tagged_info.size == 8 &&
+         tagged_info.native_callable && !tagged_info.external_ffi_callable;
 }
 
 bool VmRuntimeAbiMapsStableSbcDataTypes() {
@@ -311,27 +319,33 @@ bool VmRuntimeAbiPacksPromiseIds() {
          !promise.IsNull();
 }
 
-bool VmRuntimeAbiBuildsResultAndOptionValues() {
+bool VmRuntimeAbiBuildsResultAndOptionalValues() {
   using Simple::VM::Runtime::AbiVariantTag;
   using Simple::VM::Runtime::AbiVariantValue;
-  using Simple::VM::Runtime::IsAbiOptionSome;
-  using Simple::VM::Runtime::IsAbiResultErr;
-  using Simple::VM::Runtime::IsAbiResultOk;
-  using Simple::VM::Runtime::MakeAbiOptionNone;
-  using Simple::VM::Runtime::MakeAbiOptionSome;
-  using Simple::VM::Runtime::MakeAbiResultErr;
-  using Simple::VM::Runtime::MakeAbiResultOk;
+  using Simple::VM::Runtime::IsAbiOptionalPresent;
+  using Simple::VM::Runtime::IsAbiResultError;
+  using Simple::VM::Runtime::IsAbiResultValue;
+  using Simple::VM::Runtime::MakeAbiOptionalAbsent;
+  using Simple::VM::Runtime::MakeAbiOptionalPresent;
+  using Simple::VM::Runtime::MakeAbiResultError;
+  using Simple::VM::Runtime::MakeAbiResultValue;
 
   static_assert(sizeof(AbiVariantValue) == 16, "ABI variants remain 16 bytes");
-  const AbiVariantValue none = MakeAbiOptionNone();
-  const AbiVariantValue some = MakeAbiOptionSome(42);
-  const AbiVariantValue ok = MakeAbiResultOk(7);
-  const AbiVariantValue err = MakeAbiResultErr(9);
-  return none.tag == AbiVariantTag::None && none.payload == 0 && !IsAbiOptionSome(none) &&
-         some.tag == AbiVariantTag::Some && some.payload == 42 && IsAbiOptionSome(some) &&
-         ok.tag == AbiVariantTag::Ok && ok.payload == 7 && IsAbiResultOk(ok) &&
-         err.tag == AbiVariantTag::Err && err.payload == 9 && IsAbiResultErr(err) &&
-         !IsAbiResultErr(ok);
+  const AbiVariantValue zero_initialized{};
+  const AbiVariantValue absent = MakeAbiOptionalAbsent();
+  const AbiVariantValue present = MakeAbiOptionalPresent(42);
+  const AbiVariantValue value = MakeAbiResultValue(7);
+  const AbiVariantValue error_value = MakeAbiResultError(9);
+  return static_cast<uint32_t>(AbiVariantTag::Value) == 0 &&
+         static_cast<uint32_t>(AbiVariantTag::Error) == 1 &&
+         IsAbiResultValue(zero_initialized) && !IsAbiResultError(zero_initialized) &&
+         absent.tag == AbiVariantTag::Absent && absent.payload == 0 &&
+         !IsAbiOptionalPresent(absent) && present.tag == AbiVariantTag::Present &&
+         present.payload == 42 && IsAbiOptionalPresent(present) &&
+         value.tag == AbiVariantTag::Value && value.payload == 7 &&
+         IsAbiResultValue(value) && error_value.tag == AbiVariantTag::Error &&
+         error_value.payload == 9 && IsAbiResultError(error_value) &&
+         !IsAbiResultError(value);
 }
 
 bool VmRuntimeAbiClassifiesPassModes() {
@@ -460,8 +474,8 @@ bool VmRuntimeAbiValidatesExternalCSignatures() {
     return false;
   }
   error.clear();
-  return !ValidateExternalCAbiSignature({TypeKind::I32}, TypeKind::Option, &error) &&
-         error.find("option") != std::string::npos;
+  return !ValidateExternalCAbiSignature({TypeKind::I32}, TypeKind::Optional, &error) &&
+         error.find("optional") != std::string::npos;
 }
 
 bool VmRuntimeAbiValidatesCallableSignatures() {
@@ -761,7 +775,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
   {"vm_runtime_promise_registry_waits_across_threads", VmRuntimePromiseRegistryWaitsAcrossThreads},
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
-  {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
+  {"vm_runtime_abi_builds_result_and_optional_values", VmRuntimeAbiBuildsResultAndOptionalValues},
   {"vm_runtime_abi_classifies_pass_modes", VmRuntimeAbiClassifiesPassModes},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_marks_opaque_vm_references", VmRuntimeAbiMarksOpaqueVmReferences},
