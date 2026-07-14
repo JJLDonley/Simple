@@ -1193,6 +1193,43 @@ bool CheckCallTarget(const Expr& callee,
   return true;
 }
 
+bool PopulateArtifactCallTarget(const TypeRef& instance_type,
+                                const ArtifactDecl* artifact,
+                                const std::string& member,
+                                CallTargetInfo* out,
+                                std::string* error) {
+  if (!artifact || !out) return false;
+  std::unordered_map<std::string, TypeRef> substitutions;
+  if (!artifact->generics.empty() &&
+      !BuildArtifactTypeParamMap(instance_type, artifact, &substitutions, error)) {
+    return false;
+  }
+  if (const FuncDecl* method = FindArtifactMethod(artifact, member)) {
+    out->params.clear();
+    if (!SubstituteTypeParams(method->return_type, substitutions, &out->return_type)) return false;
+    out->return_mutability = method->return_mutability;
+    out->type_params = method->generics;
+    out->is_proc = false;
+    for (const auto& param : method->params) {
+      TypeRef resolved;
+      if (!SubstituteTypeParams(param.type, substitutions, &resolved)) return false;
+      out->params.push_back(std::move(resolved));
+    }
+    return true;
+  }
+  const VarDecl* field = FindArtifactField(artifact, member);
+  if (!field || !field->type.is_proc) return false;
+  TypeRef resolved;
+  if (!SubstituteTypeParams(field->type, substitutions, &resolved)) return false;
+  out->params.clear();
+  out->type_params.clear();
+  out->is_proc = true;
+  out->return_mutability = resolved.proc_return_mutability;
+  if (!CloneTypeVector(resolved.proc_params, &out->params)) return false;
+  if (resolved.proc_return && !CloneTypeRef(*resolved.proc_return, &out->return_type)) return false;
+  return true;
+}
+
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -1448,92 +1485,13 @@ bool GetCallTargetInfo(const Expr& callee,
           return true;
         }
       }
-      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-        if (!local->type) return false;
-        auto artifact_it = ctx.artifacts.find(local->type->name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
-        if (method) {
-          std::unordered_map<std::string, TypeRef> mapping;
-          if (artifact && !artifact->generics.empty()) {
-            if (!BuildArtifactTypeParamMap(*local->type, artifact, &mapping, error)) return false;
-          }
-          out->params.clear();
-          TypeRef resolved_return;
-          if (!SubstituteTypeParams(method->return_type, mapping, &resolved_return)) return false;
-          if (!CloneTypeRef(resolved_return, &out->return_type)) return false;
-          out->return_mutability = method->return_mutability;
-          out->type_params = method->generics;
-          out->is_proc = false;
-          for (const auto& param : method->params) {
-            TypeRef copy;
-            if (!SubstituteTypeParams(param.type, mapping, &copy)) return false;
-            out->params.push_back(std::move(copy));
-          }
-          return true;
-        }
-        const VarDecl* field = FindArtifactField(artifact, callee.text);
-        if (field && field->type.is_proc) {
-          std::unordered_map<std::string, TypeRef> mapping;
-          if (artifact && !artifact->generics.empty()) {
-            if (!BuildArtifactTypeParamMap(*local->type, artifact, &mapping, error)) return false;
-          }
-          TypeRef resolved_field;
-          if (!SubstituteTypeParams(field->type, mapping, &resolved_field)) return false;
-          out->params.clear();
-          out->type_params.clear();
-          out->is_proc = true;
-          out->return_mutability = resolved_field.proc_return_mutability;
-          if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
-          if (resolved_field.proc_return) {
-            if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
-          }
-          return true;
-        }
-      }
-      auto global_it = ctx.globals.find(base.text);
-      if (global_it != ctx.globals.end()) {
-        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
-        if (method) {
-          std::unordered_map<std::string, TypeRef> mapping;
-          if (artifact && !artifact->generics.empty()) {
-            if (!BuildArtifactTypeParamMap(global_it->second->type, artifact, &mapping, error)) return false;
-          }
-          out->params.clear();
-          TypeRef resolved_return;
-          if (!SubstituteTypeParams(method->return_type, mapping, &resolved_return)) return false;
-          if (!CloneTypeRef(resolved_return, &out->return_type)) return false;
-          out->return_mutability = method->return_mutability;
-          out->type_params = method->generics;
-          out->is_proc = false;
-          for (const auto& param : method->params) {
-            TypeRef copy;
-            if (!SubstituteTypeParams(param.type, mapping, &copy)) return false;
-            out->params.push_back(std::move(copy));
-          }
-          return true;
-        }
-        const VarDecl* field = FindArtifactField(artifact, callee.text);
-        if (field && field->type.is_proc) {
-          std::unordered_map<std::string, TypeRef> mapping;
-          if (artifact && !artifact->generics.empty()) {
-            if (!BuildArtifactTypeParamMap(global_it->second->type, artifact, &mapping, error)) return false;
-          }
-          TypeRef resolved_field;
-          if (!SubstituteTypeParams(field->type, mapping, &resolved_field)) return false;
-          out->params.clear();
-          out->type_params.clear();
-          out->is_proc = true;
-          out->return_mutability = resolved_field.proc_return_mutability;
-          if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
-          if (resolved_field.proc_return) {
-            if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
-          }
-          return true;
-        }
-      }
+    }
+    TypeRef instance_type;
+    if (InferExprType(base, ctx, scopes, current_artifact, &instance_type)) {
+      const auto artifact_it = ctx.artifacts.find(instance_type.name);
+      const ArtifactDecl* artifact =
+          artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+      if (PopulateArtifactCallTarget(instance_type, artifact, callee.text, out, error)) return true;
     }
   }
   if (error) *error = "attempt to call non-function";

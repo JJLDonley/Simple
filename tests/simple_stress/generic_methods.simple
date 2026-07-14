@@ -18,6 +18,10 @@ Router :: artifact {
   }
 }
 
+Holder :: artifact {
+  box : Box<i32>
+}
+
 main :: i32 () {
   box : Box<i32> = { 40 }
   total : i32 = 0
@@ -30,12 +34,15 @@ main :: i32 () {
   if (!yes) { return 2 }
 
   boxes : Box<i32>[] = [box]
-  if (boxes[0].choose<i32>(2) != 2) { return 3 }
+  if (boxes[0].choose(2) != 2) { return 3 }
+
+  holder : Holder = { box }
+  if (!holder.box.choose(true)) { return 4 }
 
   router : Router = {}
   left :: i32 = router.echo(20)
   right :: i32 = router.echo(22)
-  if (left + right != 42) { return 4 }
+  if (left + right != 42) { return 5 }
 
-  return box.keep(false) + boxes[0].choose<i32>(2) - 42
+  return box.keep(false) + boxes[0].choose(2) - 42
 }

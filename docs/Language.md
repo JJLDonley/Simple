@@ -609,7 +609,7 @@ The parser accepts generic type syntax:
 Map<string, i32>
 ```
 
-The experimental `v0.5.9` compiler materializes concrete top-level and
+The experimental `v0.5.10` compiler materializes concrete top-level and
 namespace-owned generic functions, generic methods, and artifact
 specializations before SIR emission. Type arguments may be
 explicit or inferred from call arguments. Specializations have deterministic
@@ -625,11 +625,12 @@ partial JIT transition. Namespace-owned generic functions preserve ownership
 through materialization and work across quoted imports; their concrete bodies
 remain inside the owning namespace rather than leaking synthetic top-level
 symbols. Generic methods combine receiver and method type arguments into one
-stable specialization identity. Named receivers support inferred or explicit
-method arguments; indexed receivers support explicit method arguments.
+stable specialization identity. Named, member, and indexed receivers support
+inferred or explicit method arguments through the same artifact call-target
+resolution path.
 
-Complete indexed-receiver inference and executable canonical tagged
-`Result`/`Option`/`Promise` values remain language-completion work. `v0.5.9`
+Recursive generic method specialization and executable canonical tagged
+`Result`/`Option`/`Promise` values remain language-completion work. `v0.5.10`
 reserves those three canonical generic type names and validates
 exact arity (`Result<T,E>`, `Option<T>`, and `Promise<T>`), but does not yet
 provide their constructors, payload operations, or runtime lowering.
@@ -689,7 +690,7 @@ not replace or postpone it.
 ## Async functions and explicit failure design
 
 > **Design target for `v0.6`:** the syntax and semantics in this section are the
-> accepted language design, not functionality provided by the current `v0.5.9`
+> accepted language design, not functionality provided by the current `v0.5.10`
 > compiler. The transitional `System.Job` and `Standard.Promise` calls remain
 > documented in [Jobs, promises, and async design](Async.md).
 
@@ -1521,7 +1522,7 @@ Current tests intentionally reject or limit:
 
 - the planned `async` return modifier, `await` expression, and `?` propagation operator
 - language-level `Result<T, E>`, `Option<T>`, and `Promise<T>` execution semantics
-- inferred generic method arguments on indexed receivers and recursive generic method specialization
+- recursive generic method specialization
 - executable canonical tagged generic `Result`, `Option`, and `Promise` values
 - closure capture for procedure literals
 - procedure values at extern boundaries

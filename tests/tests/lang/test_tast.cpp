@@ -1493,6 +1493,23 @@ bool LangTastCheckAssignmentValidatesShape() {
 }
 
 
+bool LangTastInfersGenericMethodOnIndexedReceiver() {
+  const std::string source =
+      "Box<T> :: artifact { item : T; choose<U> :: U (value : U) { return value } }\n"
+      "main :: i32 () { boxes : Box<i32>[] = []; box : Box<i32> = { 1 }; "
+      "boxes.push(box); return boxes[0].choose(42) }";
+  Simple::Lang::AST::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(source, &program, &error) ||
+      !Simple::Lang::TAST::AnnotateInferredGenericCallTypeArguments(&program, &error)) {
+    return false;
+  }
+  if (program.decls.size() != 2 || program.decls[1].func.body.empty()) return false;
+  const auto& call = program.decls[1].func.body.back().expr;
+  return call.kind == Simple::Lang::AST::ExprKind::Call && call.type_args.size() == 1 &&
+         call.type_args[0].name == "i32";
+}
+
 bool LangTastCheckCallExpressionValidatesShape() {
   Simple::Lang::AST::TypeRef proc;
   proc.is_proc = true;
@@ -1562,6 +1579,8 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_expression_operators_validate_scalar_and_compound_assign", LangTastExpressionOperatorsValidateScalarAndCompoundAssign},
   {"lang_tast_check_expression_shape_validates_identifiers", LangTastCheckExpressionShapeValidatesIdentifiers},
   {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
+  {"lang_tast_infers_generic_method_on_indexed_receiver",
+   LangTastInfersGenericMethodOnIndexedReceiver},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_extracts_switch_branch_values", LangTastControlFlowExtractsSwitchBranchValues},
