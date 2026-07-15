@@ -715,7 +715,6 @@ std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs);
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text);
 std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::string& text);
-std::string NormalizeCoreDlMember(const std::string& member);
 std::string QualifiedMemberAtPosition(const std::string& text, uint32_t line, uint32_t character);
 struct TokenRef;
 
@@ -1184,10 +1183,6 @@ std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::st
   return aliases;
 }
 
-std::string NormalizeCoreDlMember(const std::string& member) {
-  return Simple::Lang::NormalizeSystemFFIMemberName(member);
-}
-
 bool ResolveReservedModuleSignature(const std::string& call_name,
                                     const std::string& text,
                                     ReservedSignature* out) {
@@ -1437,7 +1432,6 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
   const auto module_id = Simple::Lang::ParseCanonicalLibraryModule(module);
   if (module_id && module_id->root == Simple::Lang::LibraryRoot::System &&
       static_cast<Simple::Lang::SystemModule>(module_id->module_index) == Simple::Lang::SystemModule::FFI) {
-    member = NormalizeCoreDlMember(member);
   }
   *out_module = std::move(module);
   *out_member = std::move(member);

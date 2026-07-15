@@ -2,12 +2,14 @@
 #include "runtime/values.h"
 
 #include "native/arg_utils.h"
+#include "native/ffi_resource.h"
 #include "native/spec_builder.h"
 
 #include "ffi/dl_runtime.h"
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 namespace Simple::VM::Native {
@@ -19,6 +21,7 @@ namespace {
 
 struct DynamicLibraryResource {
   int64_t native_handle = 0;
+  std::unordered_map<std::string, NativeHandleId> symbols;
 };
 
 bool CloseDynamicLibraryResource(void* payload, std::string* error) {
@@ -95,7 +98,7 @@ NativeCallResult DlSymbol(NativeCallContext& context) {
     result.value = PackI64(0);
     return result;
   }
-  const auto* library = static_cast<const DynamicLibraryResource*>(record->payload.get());
+  auto* library = static_cast<DynamicLibraryResource*>(record->payload.get());
   const uint32_t name_ref = UnpackRef(context.args[1]);
   if (name_ref == HeapLayout::kNullRef) {
     SetDlError(context, "System.FFI.sym null name");
@@ -108,11 +111,34 @@ NativeCallResult DlSymbol(NativeCallContext& context) {
     result.value = PackI64(0);
     return result;
   }
-  result.value = PackI64(context.dl_last_error
-                             ? Simple::VM::Ffi::DlRuntime::Symbol(
-                                   library->native_handle, name, context.dl_last_error)
-                             : 0);
-  return result;
+  if (const auto existing = library->symbols.find(name);
+      existing != library->symbols.end()) {
+    return NativeCallResult::Handle(existing->second);
+  }
+  const int64_t address = context.dl_last_error
+                              ? Simple::VM::Ffi::DlRuntime::Symbol(
+                                    library->native_handle, name, context.dl_last_error)
+                              : 0;
+  if (address == 0 || !context.resource_registry) {
+    result.value = PackI64(0);
+    return result;
+  }
+  auto symbol = std::make_shared<FfiSymbolResource>();
+  symbol->library = UnpackNativeHandleId(context.args[0]);
+  symbol->address = static_cast<uintptr_t>(address);
+  NativeResourceRecord symbol_record;
+  symbol_record.kind = NativeResourceKind::FfiSymbol;
+  symbol_record.debug_label = name;
+  symbol_record.payload = symbol;
+  const NativeHandleId symbol_handle =
+      context.resource_registry->Insert(std::move(symbol_record));
+  if (symbol_handle.IsNull()) {
+    SetDlError(context, "System.FFI.sym resource registry is full");
+    result.value = PackI64(0);
+    return result;
+  }
+  library->symbols.emplace(name, symbol_handle);
+  return NativeCallResult::Handle(symbol_handle);
 }
 
 NativeCallResult DlClose(NativeCallContext& context) {
@@ -124,6 +150,17 @@ NativeCallResult DlClose(NativeCallContext& context) {
   if (!context.ArgHandle(0, &handle)) {
     SetDlError(context, "System.FFI.close invalid handle encoding");
     return NativeCallResult::I32(-1);
+  }
+  NativeResourceRecord* library_record = nullptr;
+  if (context.resource_registry->Get(handle, NativeResourceKind::FfiLibrary,
+                                     &library_record) == NativeResourceStatus::Ok &&
+      library_record && library_record->payload) {
+    auto* library = static_cast<DynamicLibraryResource*>(library_record->payload.get());
+    for (const auto& [name, symbol] : library->symbols) {
+      (void)name;
+      context.resource_registry->Close(symbol, NativeResourceKind::FfiSymbol,
+                                       context.dl_last_error);
+    }
   }
   const NativeResourceStatus status = context.resource_registry->Close(
       handle, NativeResourceKind::FfiLibrary, context.dl_last_error);
@@ -164,11 +201,15 @@ void RegisterSystemDl(NativeRegistry& registry) {
       "Open a dynamic library handle."));
   registry.Register(WithDoc(
       WithStability(
-          WithResource(WithCapability(MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::Sym),
+          WithResource(
+              WithResource(WithCapability(MayAllocateHost(MakeSpec(
+                                               module,
+                                               Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::Sym),
                                                {TypeKind::I64, TypeKind::String}, TypeKind::Ptr,
-                                               DlSymbol),
-                                      "ffi.dynamic_load"),
-                       NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0),
+                                               DlSymbol)),
+                                          "ffi.dynamic_load"),
+                           NativeResourceKind::FfiSymbol, NativeResourceAccess::Output),
+              NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0),
           NativeStability::Unsafe),
       "Resolve a symbol from a dynamic library handle."));
   registry.Register(WithStability(
@@ -179,10 +220,6 @@ void RegisterSystemDl(NativeRegistry& registry) {
       NativeStability::Unsafe));
   registry.Register(WithStability(
       MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::LastError), {},
-               TypeKind::String, DlLastError),
-      NativeStability::Unsafe));
-  registry.Register(WithStability(
-      MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::LastErrorSnake), {},
                TypeKind::String, DlLastError),
       NativeStability::Unsafe));
 }

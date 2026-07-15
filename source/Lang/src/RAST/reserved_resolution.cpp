@@ -145,10 +145,6 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   return false;
 }
 
-std::string NormalizeDlMemberName(const std::string& name) {
-  return NormalizeSystemFFIMemberName(name);
-}
-
 bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out) {
   if (!out) return false;
   if (base.kind == Simple::Lang::AST::ExprKind::Identifier) {
@@ -194,7 +190,7 @@ bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
   if (!ResolveReservedModuleId(reserved_imports, reserved_import_aliases, module_name, &resolved)) return false;
   return resolved.root == LibraryRoot::System &&
          static_cast<SystemModule>(resolved.module_index) == SystemModule::FFI &&
-         ParseMember(SystemModule::FFI, NormalizeDlMemberName(callee.text)) == SystemMember(SystemFFIMember::Open);
+         ParseMember(SystemModule::FFI, callee.text) == SystemMember(SystemFFIMember::Open);
 }
 
 bool GetDlOpenManifestModule(
@@ -220,7 +216,7 @@ bool GetDlOpenManifestModule(const ResolvedProgram* program,
   if (!program || !out_module || expr.kind != Simple::Lang::AST::ExprKind::Call || expr.children.empty()) return false;
   const auto& callee = expr.children[0];
   if (callee.kind != Simple::Lang::AST::ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
-  if (NormalizeDlMemberName(callee.text) != "open") return false;
+  if (callee.text != "open") return false;
   std::string module_alias;
   if (!GetModuleNameFromExpr(callee.children[0], &module_alias)) return false;
   std::string canonical;

@@ -35,7 +35,7 @@ This page is the canonical language reference for the syntax and behavior covere
 - [Pointers and member access](#pointers-and-member-access)
 - [Diagnostics](#diagnostics)
 - [Known limitations](#known-limitations)
-- [Compatibility APIs](#compatibility-apis)
+- [Embedding APIs](#embedding-apis)
 
 ## Quick example
 
@@ -667,7 +667,10 @@ language version to 2.2 and typed Promise instructions advance SIR to 2.1, SBC
 metadata to version 3, and the runtime ABI to 1.3. Guarded address-of,
 dereference, pointer assignment/member access, identity comparison, typed
 pointer metadata, and the internal zero-pointer instruction advance syntax to
-2.3, SIR to 2.2, SBC/opcode metadata to 4, and the runtime ABI to 1.4.
+2.3, SIR to 2.2, SBC/opcode metadata to 4, and the runtime ABI to 1.4. Exact
+external-C scalar validation, `usize`/`isize`, nullable-pointer niche lowering,
+typed external function pointers, and pointer casts advance syntax to 2.4, SIR
+to 2.3, SBC/opcode metadata to 5, and the runtime ABI to 1.5.
 
 ### `v0.6` generic design
 
@@ -1828,15 +1831,17 @@ Common rejected cases covered by tests include:
 
 Current tests intentionally reject or limit:
 
-- the planned `async` return modifier and `await` expression
-- language-level `Promise<T>` layout and execution semantics
-- procedure values and closures at extern boundaries
-- recursive artifact ABI for extern/FFI
+- unbounded foreign-pointer dereference and indexing without proven extents
+- VM procedures and capturing closures at external-C boundaries
+- managed strings, references, artifacts, general optionals, Result, and Promise
+  in external-C signatures
+- Simple-function callback trampolines into the VM
+- ownership transfer without explicit owner/deallocator metadata
 - using modules/functions as types or enum types as values
 
-## Compatibility APIs
+## Embedding APIs
 
-Embedders can use the compatibility APIs:
+Embedders can use the public compiler APIs:
 
 ```cpp
 ParseProgramFromString(source, &program, &error);
@@ -1847,4 +1852,4 @@ EmitSir(program, &sir, &error);
 ParseTypeFromString(type_text, &type, &error);
 ```
 
-New compiler implementation code should use the phase APIs (`CAST`, `AST`, `RAST`, `TAST`, `IRB`, `IRE`) directly, while public compatibility APIs remain available for current embedders.
+Compiler implementation code uses the phase APIs (`CAST`, `AST`, `RAST`, `TAST`, `IRB`, `IRE`) directly; embedders use the stable public entry points above.

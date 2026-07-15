@@ -1096,6 +1096,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   if (!add_builtin("u16", Simple::Byte::TypeKind::U16, 2)) return false;
   if (!add_builtin("u32", Simple::Byte::TypeKind::U32, 4)) return false;
   if (!add_builtin("u64", Simple::Byte::TypeKind::U64, 8)) return false;
+  if (!add_builtin("isize", Simple::Byte::TypeKind::ISize, 8)) return false;
+  if (!add_builtin("usize", Simple::Byte::TypeKind::USize, 8)) return false;
   if (!add_builtin("f32", Simple::Byte::TypeKind::F32, 4)) return false;
   if (!add_builtin("f64", Simple::Byte::TypeKind::F64, 8)) return false;
   if (!add_builtin("bool", Simple::Byte::TypeKind::Bool, 1)) return false;
@@ -1120,6 +1122,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind == "u16") { *out_kind = Simple::Byte::TypeKind::U16; return true; }
     if (kind == "u32") { *out_kind = Simple::Byte::TypeKind::U32; return true; }
     if (kind == "u64") { *out_kind = Simple::Byte::TypeKind::U64; return true; }
+    if (kind == "isize") { *out_kind = Simple::Byte::TypeKind::ISize; return true; }
+    if (kind == "usize") { *out_kind = Simple::Byte::TypeKind::USize; return true; }
     if (kind == "f32") { *out_kind = Simple::Byte::TypeKind::F32; return true; }
     if (kind == "f64") { *out_kind = Simple::Byte::TypeKind::F64; return true; }
     if (kind == "bool") { *out_kind = Simple::Byte::TypeKind::Bool; return true; }
@@ -1174,6 +1178,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return 4;
       case Simple::Byte::TypeKind::I64:
       case Simple::Byte::TypeKind::U64:
+      case Simple::Byte::TypeKind::ISize:
+      case Simple::Byte::TypeKind::USize:
       case Simple::Byte::TypeKind::F64:
         return 8;
       case Simple::Byte::TypeKind::Ref:
@@ -1862,7 +1868,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       auto is_type_name = [](const std::string& t) {
         return t == "i8" || t == "i16" || t == "i32" || t == "i64" ||
                t == "u8" || t == "u16" || t == "u32" || t == "u64" ||
-               t == "f32" || t == "f64" || t == "bool" || t == "char" ||
+               t == "isize" || t == "usize" || t == "f32" || t == "f64" || t == "bool" || t == "char" ||
                t == "string" || t == "ref" || t == "null";
       };
       auto has_legacy_typed_suffix = [&](const std::string& mnemonic) {
@@ -2558,6 +2564,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConstI16(static_cast<int16_t>(value));
         continue;
       }
+      if (op == "const.isize") op = "const.i64";
+      if (op == "const.usize") op = "const.u64";
       if (op == "const.i64") {
         int64_t value = 0;
         if (args.size() != 1) {

@@ -115,6 +115,7 @@ struct Expr {
   std::vector<Expr> children;
   std::vector<Expr> args;
   std::vector<TypeRef> type_args;
+  TypeRef cast_type;
   std::vector<std::string> field_names;
   std::vector<Expr> field_values;
   std::vector<ParamDecl> fn_params;

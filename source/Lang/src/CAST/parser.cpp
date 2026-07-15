@@ -1565,8 +1565,9 @@ bool Parser::ParseUnaryExpr(Expr* out) {
     Advance();
     TypeRef cast_type;
     if (!ParseTypeInner(&cast_type)) return false;
-    if (cast_type.is_proc || !cast_type.type_args.empty() || !cast_type.dims.empty()) {
-      error_ = "cast expects primitive type name in @T(value)";
+    if ((cast_type.is_proc && cast_type.pointer_depth == 0) ||
+        !cast_type.type_args.empty() || !cast_type.dims.empty()) {
+      error_ = "cast expects primitive or pointer type in @T(value)";
       return false;
     }
     if (!Match(TokenKind::LParen)) {
@@ -1586,6 +1587,7 @@ bool Parser::ParseUnaryExpr(Expr* out) {
     callee.column = cast_type.column;
     Expr call;
     call.kind = ExprKind::Call;
+    call.cast_type = std::move(cast_type);
     call.children.push_back(std::move(callee));
     call.args.push_back(std::move(arg));
     if (out) *out = std::move(call);

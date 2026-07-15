@@ -35,6 +35,7 @@ struct ValidateContext {
   std::unordered_map<std::string, const ModuleDecl*> modules;
   std::unordered_map<std::string, const VarDecl*> globals;
   std::unordered_map<std::string, bool> global_points_to_immutable;
+  std::unordered_map<std::string, bool> global_vm_storage_pointer;
   std::unordered_map<std::string, const FuncDecl*> functions;
   std::unordered_map<std::string, const ExternDecl*> externs;
   std::unordered_map<std::string, std::unordered_map<std::string, const ExternDecl*>> externs_by_module;
@@ -52,6 +53,7 @@ struct LocalInfo {
   std::string dl_module;
   bool points_to_immutable = false;
   bool frame_borrowed_pointer = false;
+  bool vm_storage_pointer = false;
   bool pointer_usable = true;
 };
 
@@ -215,7 +217,6 @@ using RAST::IsArtifactMemberName;
 using RAST::IsIoPrintName;
 using RAST::ModuleMembers;
 using RAST::NativeModuleNameForReserved;
-using RAST::NormalizeDlMemberName;
 using RAST::ReservedModuleMembers;
 using RAST::UnknownMemberErrorWithSuggestion;
 using TAST::AddLocal;
@@ -791,6 +792,9 @@ bool InferExprType(const Expr& expr,
     }
     case ExprKind::Call: {
       if (expr.children.empty()) return false;
+      if (!expr.cast_type.name.empty() || expr.cast_type.is_proc) {
+        return CloneTypeRef(expr.cast_type, out);
+      }
       const Expr& callee = expr.children[0];
       if (callee.kind == ExprKind::Identifier) {
         if (callee.text == "len") {
@@ -844,6 +848,12 @@ bool InferExprType(const Expr& expr,
       if (base_type.name == "string" && base_type.dims.empty()) {
         out->name = "char";
         return true;
+      }
+      if (base_type.pointer_depth > 0) {
+        TypeRef result;
+        if (!CloneTypeRef(base_type, &result)) return false;
+        result.pointer_depth -= 1;
+        return CloneTypeRef(result, out);
       }
       if (base_type.dims.empty()) return false;
       TypeRef result;
@@ -1402,6 +1412,33 @@ bool IsFrameBorrowedPointerExpr(
   return false;
 }
 
+bool IsVmStoragePointerExpr(
+    const Expr& expr,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes) {
+  if (IsAddressOfExpr(expr, nullptr)) return true;
+  if (expr.kind == ExprKind::Identifier) {
+    if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+      return local->vm_storage_pointer;
+    }
+    auto global = ctx.global_vm_storage_pointer.find(expr.text);
+    return global != ctx.global_vm_storage_pointer.end() && global->second;
+  }
+  if (expr.kind == ExprKind::Call && expr.cast_type.pointer_depth > 0 &&
+      expr.args.size() == 1) {
+    return IsVmStoragePointerExpr(expr.args[0], ctx, scopes);
+  }
+  if (expr.kind == ExprKind::ArtifactLiteral) {
+    for (const auto& child : expr.children) {
+      if (IsVmStoragePointerExpr(child, ctx, scopes)) return true;
+    }
+    for (const auto& value : expr.field_values) {
+      if (IsVmStoragePointerExpr(value, ctx, scopes)) return true;
+    }
+  }
+  return false;
+}
+
 bool CheckCallTarget(const Expr& callee,
                      size_t arg_count,
                      const ValidateContext& ctx,
@@ -1555,7 +1592,7 @@ bool CheckCallTarget(const Expr& callee,
             const bool is_system_ffi_open =
                 ResolveReservedModuleId(ctx, module_name, &resolved_module) &&
                 IsLibraryModule(resolved_module, SystemModule::FFI) &&
-                ParseMember(SystemModule::FFI, NormalizeDlMemberName(callee.text)) == SystemMember(SystemFFIMember::Open);
+                ParseMember(SystemModule::FFI, callee.text) == SystemMember(SystemFFIMember::Open);
             if (!is_system_ffi_open && info.params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
@@ -1730,6 +1767,7 @@ bool GetCallTargetInfo(const Expr& callee,
         out->return_mutability = local->type->proc_return_mutability;
         out->type_params.clear();
         out->is_proc = true;
+        out->is_external_c = local->type->pointer_depth > 0;
         return true;
       }
       return false;
@@ -1744,6 +1782,7 @@ bool GetCallTargetInfo(const Expr& callee,
         out->return_mutability = global_it->second->type.proc_return_mutability;
         out->type_params.clear();
         out->is_proc = true;
+        out->is_external_c = global_it->second->type.pointer_depth > 0;
         return true;
       }
       return false;
@@ -2021,7 +2060,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return CheckReservedTimeCallArgTypes(name, arg_types, error);
       }
       if (IsLibraryModule(mod, SystemModule::FFI) &&
-          ParseMember(SystemModule::FFI, NormalizeDlMemberName(name)) == SystemMember(SystemFFIMember::Open)) {
+          ParseMember(SystemModule::FFI, name) == SystemMember(SystemFFIMember::Open)) {
         TypeRef path;
         if (!call_expr.args.empty() && !infer_arg(0, &path)) return true;
         std::vector<TypeRef> arg_types(call_expr.args.size());
@@ -2107,9 +2146,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return false;
       }
     }
-    if (info.is_external_c && expected.pointer_depth > 0 &&
-        IsFrameBorrowedPointerExpr(call_expr.args[i], ctx, scopes)) {
-      if (error) *error = "external C call cannot receive VM frame pointer";
+    if (info.is_external_c &&
+        IsVmStoragePointerExpr(call_expr.args[i], ctx, scopes)) {
+      if (error) *error = "external C call cannot receive VM storage pointer";
       return false;
     }
   }
@@ -2435,6 +2474,8 @@ bool ValidateFnLiteralBody(
     LocalInfo info;
     info.mutability = expr.fn_params[i].mutability;
     info.type = &signature.proc_params[i];
+    info.points_to_immutable = info.type->pointer_depth > 0 &&
+                               info.mutability == Mutability::Immutable;
     lambda_scopes.back().emplace(expr.fn_params[i].name, std::move(info));
   }
 
@@ -2736,6 +2777,8 @@ bool CheckStmt(const Stmt& stmt,
               auto local_it = scope_it->find(stmt.target.text);
               if (local_it == scope_it->end()) continue;
               local_it->second.frame_borrowed_pointer = frame_borrow;
+              local_it->second.vm_storage_pointer =
+                  IsVmStoragePointerExpr(stmt.expr, ctx, scopes);
               local_it->second.pointer_usable = true;
               updated_local = true;
               break;
@@ -2785,6 +2828,8 @@ bool CheckStmt(const Stmt& stmt,
             if (known) local_it->second.points_to_immutable = points_to_immutable;
             local_it->second.frame_borrowed_pointer =
                 IsFrameBorrowedPointerExpr(stmt.var_decl.init_expr, ctx, scopes);
+            local_it->second.vm_storage_pointer =
+                IsVmStoragePointerExpr(stmt.var_decl.init_expr, ctx, scopes);
           }
         }
         std::string manifest_module;
@@ -3535,6 +3580,34 @@ bool CheckExpr(const Expr& expr,
       }
       return CheckBinaryOpTypes(expr, ctx, scopes, current_artifact, error);
     case ExprKind::Call:
+      if (!expr.cast_type.name.empty() || expr.cast_type.is_proc) {
+        if (expr.args.size() != 1) {
+          if (error) *error = "cast expects exactly one argument";
+          return false;
+        }
+        if (!CheckExpr(expr.args[0], ctx, scopes, current_artifact, error)) return false;
+        TypeRef source_type;
+        if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &source_type)) {
+          if (error) *error = "cannot infer cast operand type";
+          return false;
+        }
+        if (expr.cast_type.pointer_depth > 0) {
+          if (source_type.pointer_depth == 0 ||
+              source_type.pointer_depth != expr.cast_type.pointer_depth) {
+            if (error) *error = "pointer cast requires matching pointer depth";
+            return false;
+          }
+          const bool source_void = !source_type.is_proc && source_type.name == "void";
+          const bool target_void = !expr.cast_type.is_proc && expr.cast_type.name == "void";
+          if (!source_void && !target_void && !TypeEquals(source_type, expr.cast_type)) {
+            if (error) *error = "pointer cast requires identical pointee type or void pointer";
+            return false;
+          }
+          return true;
+        }
+        if (!CheckPrimitiveCastArgType(expr.cast_type.name, source_type, error)) return false;
+        return true;
+      }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       for (const auto& arg : expr.args) {
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
@@ -3829,8 +3902,13 @@ bool CheckExpr(const Expr& expr,
       {
         TypeRef base_type;
         if (InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) {
-          if (base_type.dims.empty() && base_type.name != "string") {
-            if (error) *error = "indexing is only valid on arrays, lists, and strings";
+          if (base_type.pointer_depth > 0) {
+            if (!IsVmStoragePointerExpr(expr.children[0], ctx, scopes)) {
+              if (error) *error = "pointer indexing requires proven VM extent";
+              return false;
+            }
+          } else if (base_type.dims.empty() && base_type.name != "string") {
+            if (error) *error = "indexing is only valid on arrays, lists, strings, and proven pointers";
             return false;
           }
         } else if (expr.children[0].kind == ExprKind::Literal) {
@@ -3979,6 +4057,8 @@ bool CheckFunctionBody(const FuncDecl& fn,
     LocalInfo info;
     info.mutability = param.mutability;
     info.type = &param.type;
+    info.points_to_immutable = param.type.pointer_depth > 0 &&
+                               param.mutability == Mutability::Immutable;
     if (!AddLocal(scopes, param.name, info, error)) return false;
   }
   for (const auto& stmt : fn.body) {
@@ -4123,6 +4203,8 @@ static bool ValidateProgramImpl(
           if (known) {
             ctx.global_points_to_immutable[decl.var.name] = points_to_immutable;
           }
+          ctx.global_vm_storage_pointer[decl.var.name] =
+              IsVmStoragePointerExpr(decl.var.init_expr, ctx, initializer_scopes);
         }
         break;
     }

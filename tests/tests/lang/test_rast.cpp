@@ -360,7 +360,7 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
          !Simple::Lang::RAST::IsIoPrintName("write") &&
          Simple::Lang::RAST::IsReservedModuleFunction("System.FS", "open") &&
          Simple::Lang::RAST::IsReservedModuleFunction("System.Json", "parse") &&
-         Simple::Lang::RAST::NormalizeDlMemberName("Open") == "open";
+         !Simple::Lang::RAST::IsReservedModuleFunction("System.FFI", "Open");
 }
 
 

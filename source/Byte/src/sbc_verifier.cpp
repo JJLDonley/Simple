@@ -52,19 +52,6 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicStrF32: *out = {16, 1, {3, 0}}; return true; // str_f32(f32)->string
     case kIntrinsicStrF64: *out = {16, 1, {4, 0}}; return true; // str_f64(f64)->string
     case kIntrinsicStrBool: *out = {16, 1, {14, 0}}; return true; // str_bool(bool)->string
-    case kIntrinsicDlCallI8: *out = {7, 3, {2, 7, 7}}; return true; // dl_call_i8(i64,i8,i8)->i8
-    case kIntrinsicDlCallI16: *out = {8, 3, {2, 8, 8}}; return true; // dl_call_i16(i64,i16,i16)->i16
-    case kIntrinsicDlCallI32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i32(i64,i32,i32)->i32
-    case kIntrinsicDlCallI64: *out = {2, 3, {2, 2, 2}}; return true; // dl_call_i64(i64,i64,i64)->i64
-    case kIntrinsicDlCallU8: *out = {9, 3, {2, 9, 9}}; return true; // dl_call_u8(i64,u8,u8)->u8
-    case kIntrinsicDlCallU16: *out = {10, 3, {2, 10, 10}}; return true; // dl_call_u16(i64,u16,u16)->u16
-    case kIntrinsicDlCallU32: *out = {11, 3, {2, 11, 11}}; return true; // dl_call_u32(i64,u32,u32)->u32
-    case kIntrinsicDlCallU64: *out = {12, 3, {2, 12, 12}}; return true; // dl_call_u64(i64,u64,u64)->u64
-    case kIntrinsicDlCallF32: *out = {3, 3, {2, 3, 3}}; return true; // dl_call_f32(i64,f32,f32)->f32
-    case kIntrinsicDlCallF64: *out = {4, 3, {2, 4, 4}}; return true; // dl_call_f64(i64,f64,f64)->f64
-    case kIntrinsicDlCallBool: *out = {6, 3, {2, 6, 6}}; return true; // dl_call_bool(i64,bool,bool)->bool
-    case kIntrinsicDlCallChar: *out = {13, 3, {2, 13, 13}}; return true; // dl_call_char(i64,char,char)->char
-    case kIntrinsicDlCallStr0: *out = {5, 1, {2, 0, 0}}; return true; // dl_call_str0(i64)->ref
     default: return false;
   }
 }
@@ -154,6 +141,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case TypeKind::I32:
         return ValType::I32;
       case TypeKind::I64:
+      case TypeKind::ISize:
         return ValType::I64;
       case TypeKind::U8:
         return ValType::U8;
@@ -162,6 +150,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case TypeKind::U32:
         return ValType::U32;
       case TypeKind::U64:
+      case TypeKind::USize:
         return ValType::U64;
       case TypeKind::Bool:
         return ValType::Bool;
@@ -186,7 +175,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         return ValType::Ptr;
       case TypeKind::Unspecified:
         if (IsOpaqueHandleType(row)) return ValType::I64;
-        if (IsManagedArtifactType(row)) return ValType::Ref;
+        if (IsManagedArtifactType(row) || IsStableDataType(row)) return ValType::Ref;
         return ValType::Unknown;
       default:
         return ValType::Unknown;
@@ -1085,11 +1074,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
             ValType length = pop_type();
             ValType index = pop_type();
             ValType ptr = pop_type();
-            VerifyResult r1 = check_type(index, ValType::I32, "PTR_CHECK_BOUNDS index type mismatch");
+            VerifyResult r1 = check_type(ptr, ValType::Ptr, "PTR_CHECK_BOUNDS pointer type mismatch");
             if (!r1.ok) return r1;
-            VerifyResult r2 = check_type(length, ValType::I32, "PTR_CHECK_BOUNDS length type mismatch");
+            VerifyResult r2 = check_type(index, ValType::I32, "PTR_CHECK_BOUNDS index type mismatch");
             if (!r2.ok) return r2;
-            push_type(ptr);
+            VerifyResult r3 = check_type(length, ValType::I32, "PTR_CHECK_BOUNDS length type mismatch");
+            if (!r3.ok) return r3;
+            push_type(ValType::Ptr);
+            stack_height -= 2;
             pc = next;
             continue;
           }

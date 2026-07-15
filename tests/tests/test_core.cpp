@@ -6461,7 +6461,7 @@ std::vector<uint8_t> BuildImportDlOpenNullModule() {
   std::vector<uint8_t> const_pool;
   uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.FFI"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
-  uint32_t last_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "last_error"));
+  uint32_t last_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "lastError"));
 
   std::vector<uint8_t> functions;
   AppendU32(functions, 0);
@@ -16156,13 +16156,13 @@ bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 2);
   static_assert(Simple::Lang::kSirVersionMajor == 2);
   static_assert(Simple::Lang::kStdlibVersionMajor == 2);
-  static_assert(Simple::Byte::kSbcVersion == 0x0004u);
-  static_assert(Simple::Byte::kOpcodeMetadataVersion == 4);
+  static_assert(Simple::Byte::kSbcVersion == 0x0005u);
+  static_assert(Simple::Byte::kOpcodeMetadataVersion == 5);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 3 &&
-         Simple::Lang::kSirVersionMinor == 2 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 4 &&
+         Simple::Lang::kSirVersionMinor == 3 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 4;
+         Simple::VM::kRuntimeAbiVersionMinor == 5;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {

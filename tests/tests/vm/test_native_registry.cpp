@@ -172,7 +172,7 @@ bool RunNativeRegistryModuleTest() {
   const auto* dl_open = default_registry.Find("System.FFI", "open");
   const auto* dl_sym = default_registry.Find("System.FFI", "sym");
   const auto* dl_close = default_registry.Find("System.FFI", "close");
-  const auto* dl_last_error = default_registry.Find("System.FFI", "last_error");
+  const auto* dl_last_error = default_registry.Find("System.FFI", "lastError");
   const auto* log_set_level = default_registry.Find("System.Log", "setLevel");
   const auto* log_set_file = default_registry.Find("System.Log", "setFile");
   const auto* log_emit = default_registry.Find("System.Log", "log");

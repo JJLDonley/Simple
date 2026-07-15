@@ -3,6 +3,7 @@
 #include "ffi/dl_call.h"
 #include "library_catalog.h"
 #include "native/dispatch.h"
+#include "native/ffi_resource.h"
 #include "runtime/values.h"
 #include "sbc_loader.h"
 
@@ -125,7 +126,39 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
         out_error = "System.FFI.call first parameter must be an external function pointer";
         return false;
       }
-      int64_t ptr_bits = UnpackI64(args[0]);
+      auto resolve_external_pointer = [&](Slot encoded, int64_t* out_address) -> bool {
+        *out_address = UnpackI64(encoded);
+        const Simple::VM::Native::NativeHandleId symbol_handle =
+            Simple::VM::Native::UnpackNativeHandleId(encoded);
+        if (symbol_handle.IsNull() ||
+            symbol_handle.owner != resource_registry.OwnerId()) {
+          return true;
+        }
+        Simple::VM::Native::NativeResourceRecord* symbol_record = nullptr;
+        const auto symbol_status = resource_registry.Get(
+            symbol_handle, Simple::VM::Native::NativeResourceKind::FfiSymbol,
+            &symbol_record);
+        if (symbol_status != Simple::VM::Native::NativeResourceStatus::Ok ||
+            !symbol_record || !symbol_record->payload) {
+          out_error = "System.FFI.call invalid symbol lifetime: " +
+                      std::string(Simple::VM::Native::NativeResourceStatusName(symbol_status));
+          return false;
+        }
+        const auto* symbol = static_cast<const Simple::VM::Native::FfiSymbolResource*>(
+            symbol_record->payload.get());
+        const auto library_status = resource_registry.Get(
+            symbol->library, Simple::VM::Native::NativeResourceKind::FfiLibrary,
+            nullptr);
+        if (library_status != Simple::VM::Native::NativeResourceStatus::Ok) {
+          out_error = "System.FFI.call symbol owner is no longer live: " +
+                      std::string(Simple::VM::Native::NativeResourceStatusName(library_status));
+          return false;
+        }
+        *out_address = static_cast<int64_t>(symbol->address);
+        return true;
+      };
+      int64_t ptr_bits = 0;
+      if (!resolve_external_pointer(args[0], &ptr_bits)) return false;
       if (ptr_bits == 0) {
         if (dl_last_error.empty()) {
           dl_last_error = "System.FFI.call null ptr";
@@ -136,6 +169,7 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
         return false;
       }
       std::vector<uint32_t> arg_type_ids;
+      std::vector<Slot> marshaled_args = args;
       arg_type_ids.reserve(sig.param_count > 0 ? static_cast<size_t>(sig.param_count - 1) : 0u);
       for (uint16_t i = 1; i < sig.param_count; ++i) {
         uint32_t type_id = module.param_types[sig.param_type_start + i];
@@ -144,13 +178,18 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
           return false;
         }
         arg_type_ids.push_back(type_id);
+        if (static_cast<TypeKind>(module.types[type_id].kind) == TypeKind::Ptr) {
+          int64_t address = 0;
+          if (!resolve_external_pointer(args[i], &address)) return false;
+          marshaled_args[i] = PackI64(address);
+        }
       }
       if (!Simple::VM::Ffi::DispatchDynamicDlCall(ptr_bits,
                                                   module,
                                                   sig.ret_type_id,
                                                   out_has_ret,
                                                   arg_type_ids,
-                                                  args,
+                                                  marshaled_args,
                                                   1,
                                                   heap,
                                                   &out_ret,

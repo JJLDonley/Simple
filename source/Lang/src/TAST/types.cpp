@@ -10,7 +10,7 @@ namespace {
 
 const std::unordered_set<std::string> kPrimitiveTypes = {
   "i8", "i16", "i32", "i64",
-  "u8", "u16", "u32", "u64",
+  "u8", "u16", "u32", "u64", "usize", "isize",
   "f32", "f64",
   "bool", "char", "string",
 };
@@ -172,7 +172,8 @@ bool IsBuiltinCallIdentifierName(const std::string& name) {
 
 bool IsIntegerScalarTypeName(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64";
+         name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
+         name == "usize" || name == "isize";
 }
 
 bool IsIntegerTypeName(const std::string& name) {

@@ -49,6 +49,7 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
     case TypeKind::Unspecified:
       return AbiTypeInfo{AbiClass::Void, 0, 1, true, true};
     case TypeKind::Bool:
+      return AbiTypeInfo{AbiClass::Scalar, 1, 1, true, false};
     case TypeKind::I8:
     case TypeKind::U8:
       return AbiTypeInfo{AbiClass::Scalar, 1, 1, true, true};
@@ -57,11 +58,16 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
       return AbiTypeInfo{AbiClass::Scalar, 2, 2, true, true};
     case TypeKind::I32:
     case TypeKind::U32:
-    case TypeKind::Char:
       return AbiTypeInfo{AbiClass::Scalar, 4, 4, true, true};
+    case TypeKind::Char:
+      return AbiTypeInfo{AbiClass::Scalar, 4, 4, true, false};
     case TypeKind::I64:
     case TypeKind::U64:
       return AbiTypeInfo{AbiClass::Scalar, 8, 8, true, true};
+    case TypeKind::ISize:
+    case TypeKind::USize:
+      return AbiTypeInfo{AbiClass::Scalar, static_cast<uint32_t>(sizeof(void*)),
+                         static_cast<uint32_t>(alignof(void*)), true, true};
     case TypeKind::F32:
       return AbiTypeInfo{AbiClass::Float, 4, 4, true, true};
     case TypeKind::F64:
@@ -73,7 +79,8 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
     case TypeKind::Function:
       return AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
     case TypeKind::Ptr:
-      return AbiTypeInfo{AbiClass::Scalar, 8, 8, true, true};
+      return AbiTypeInfo{AbiClass::Scalar, static_cast<uint32_t>(sizeof(void*)),
+                         static_cast<uint32_t>(alignof(void*)), true, true};
     case TypeKind::Result:
     case TypeKind::Optional:
       return AbiTypeInfo{AbiClass::Variant, 16, 8, true, false};

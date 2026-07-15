@@ -370,7 +370,12 @@ bool VmNativeFunctionMetadataDeclaresResources() {
          dl_open->resources[0].access == NativeResourceAccess::Output &&
          dl_open->blocking == NativeBlockingBehavior::MayBlock &&
          dl_open->allocation == NativeAllocationBehavior::MayAllocateHost &&
-         dl_sym->resources.size() == 1 && dl_sym->resources[0].parameter_index == 0 &&
+         dl_sym->resources.size() == 2 &&
+         dl_sym->resources[0].kind == NativeResourceKind::FfiSymbol &&
+         dl_sym->resources[0].access == NativeResourceAccess::Output &&
+         dl_sym->resources[1].kind == NativeResourceKind::FfiLibrary &&
+         dl_sym->resources[1].parameter_index == 0 &&
+         dl_sym->allocation == NativeAllocationBehavior::MayAllocateHost &&
          !dl_open->capability_tags.empty() && json_parse->resources.size() == 1 &&
          json_parse->resources[0].kind == NativeResourceKind::JsonValue &&
          json_parse->allocation == NativeAllocationBehavior::MayAllocateHost &&
@@ -391,7 +396,7 @@ bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
              std::string::npos &&
          docs.find("| `open` | `System.FS` | `implemented` | `system` | `(string, i32) -> i32` | `may-block` | `no-alloc` | `no-safepoint` | `-` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `System.FFI` | `implemented` | `system` | `(i64, string) -> ptr` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
+         docs.find("| `sym` | `System.FFI` | `implemented` | `system` | `(i64, string) -> ptr` | `non-blocking` | `host-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `out:ffi-symbol:to-caller:vm-shutdown, in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 
@@ -641,12 +646,21 @@ bool VmNativeFfiLibrariesUseOwnedResourceHandles() {
     return false;
   }
 
+  const NativeHandleId symbol_handle = UnpackNativeHandleId(symbol_value);
+  if (symbol_handle.IsNull() ||
+      resources.Get(symbol_handle, NativeResourceKind::FfiSymbol, nullptr) !=
+          NativeResourceStatus::Ok) {
+    return false;
+  }
+
   Slot close_result = 1;
   if (!DispatchMetadataImport(registry, "System.FFI", "close", {library_value},
                               TypeKind::I32, context, &close_result, &has_return,
                               &error) ||
       !error.empty() || Simple::VM::Runtime::UnpackI32(close_result) != 0 ||
-      resources.LiveCount() != 0) {
+      resources.LiveCount() != 0 ||
+      resources.Get(symbol_handle, NativeResourceKind::FfiSymbol, nullptr) !=
+          NativeResourceStatus::AlreadyClosed) {
     return false;
   }
 

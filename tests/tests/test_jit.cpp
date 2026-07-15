@@ -9218,7 +9218,10 @@ bool RunLlvmJitResourceInputImportRejectsInvalidHandleTest() {
     std::cerr << "expected LLVM JIT resource-input import to reject a null handle\n";
     return false;
   }
-  return error == "unsupported";
+  return error.find("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI") !=
+             std::string::npos &&
+         error.find("reason=resource-argument-or-result") != std::string::npos &&
+         error.find("target=System.FFI.sym") != std::string::npos;
 }
 
 bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {

@@ -43,7 +43,6 @@ bool GetDlOpenManifestModule(
     const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
     const std::unordered_map<std::string, std::unordered_map<std::string, const Simple::Lang::AST::ExternDecl*>>& externs_by_module,
     std::string* out_module);
-std::string NormalizeDlMemberName(const std::string& name);
 bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out);
 bool GetDlOpenManifestModule(const ResolvedProgram* program,
                              const Simple::Lang::AST::Expr& expr,

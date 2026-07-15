@@ -93,9 +93,9 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
 
 bool LangIrbCollectsAllocationMetadata() {
   const char* src =
-      "extern host.puts : i32 (text : string)\n"
+      "extern host.consume : i32 (value : i32)\n"
       "g : i32 = 7\n"
-      "main : i32 () { host.puts(\"hi\"); return g; }\n";
+      "main : i32 () { host.consume(7); return g; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -117,8 +117,8 @@ bool LangIrbCollectsAllocationMetadata() {
   }
   bool saw_import = false;
   for (const auto& import : module.ir.imports) {
-    if (import.module == "host" && import.symbol == "puts" && import.signature.params.size() == 1 &&
-        import.signature.params[0].name == "string" && import.signature.has_result &&
+    if (import.module == "host" && import.symbol == "consume" && import.signature.params.size() == 1 &&
+        import.signature.params[0].name == "i32" && import.signature.has_result &&
         import.signature.result.name == "i32") saw_import = true;
   }
   bool saw_function = false;

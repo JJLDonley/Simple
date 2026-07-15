@@ -6,7 +6,7 @@ main :: i32 () {
   value : i32 = 3
   pointer : i32* = &value
   *pointer += 4
-  if (value != 7 || *pointer != 7) { return 1 }
+  if (value != 7 || *pointer != 7 || pointer[0] != 7) { return 1 }
 
   box : Box = { 10 }
   field_pointer : i32* = &box.value

@@ -1,0 +1,5 @@
+read :: i32 (pointer : i32*) {
+  return pointer[0]
+}
+
+main :: i32 () { return 0 }

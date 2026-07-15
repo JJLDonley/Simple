@@ -6,10 +6,15 @@ namespace Simple::Lang::TAST {
 namespace {
 
 bool IsAbiScalar(const std::string& name) {
-  return name == "bool" || name == "char" || name == "i8" || name == "i16" ||
-         name == "i32" || name == "i64" || name == "u8" || name == "u16" ||
-         name == "u32" || name == "u64" || name == "f32" || name == "f64" ||
-         name == "string";
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
+         name == "isize" || name == "usize" || name == "f32" || name == "f64";
+}
+
+bool IsExternalNullablePointer(const Simple::Lang::AST::TypeRef& type) {
+  const auto* value = OptionalValueType(type);
+  return value && value->pointer_depth > 0 && value->dims.empty() &&
+         value->type_args.empty();
 }
 
 bool IsSupportedDlAbiArtifact(
@@ -24,18 +29,24 @@ bool IsSupportedDlAbiArtifact(
     return false;
   }
   const Simple::Lang::AST::ArtifactDecl* artifact = it->second;
-  if (!artifact) {
+  if (!artifact || !artifact->is_data || !artifact->generics.empty()) {
     visiting->erase(name);
     return false;
   }
   for (const auto& field : artifact->fields) {
-    if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
+    if (!field.type.type_args.empty() || !field.type.dims.empty() ||
+        IsOptionalType(field.type)) {
       visiting->erase(name);
       return false;
     }
     if (field.type.pointer_depth > 0) continue;
+    if (field.type.is_proc || !IsAbiScalar(field.type.name)) {
+      if (artifacts.find(field.type.name) == artifacts.end()) {
+        visiting->erase(name);
+        return false;
+      }
+    }
     if (IsAbiScalar(field.type.name)) continue;
-    if (enum_types.find(field.type.name) != enum_types.end()) continue;
     if (artifacts.find(field.type.name) != artifacts.end()) {
       if (!IsSupportedDlAbiArtifact(field.type.name, enum_types, artifacts, visiting)) {
         visiting->erase(name);
@@ -57,11 +68,31 @@ bool IsSupportedDlAbiType(
     const std::unordered_set<std::string>& enum_types,
     const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
     bool allow_void) {
-  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
-  if (type.pointer_depth > 0) return true;
+  if (!type.dims.empty()) return false;
+  if (IsExternalNullablePointer(type)) return true;
+  auto concrete_optional = artifacts.find(type.name);
+  if (concrete_optional != artifacts.end() &&
+      concrete_optional->second->tagged_kind == TaggedArtifactKind::Optional) {
+    for (const auto& field : concrete_optional->second->fields) {
+      if (field.name == "value" && field.type.pointer_depth > 0) return true;
+    }
+  }
+  if (!type.type_args.empty()) return false;
+  if (type.pointer_depth > 0) {
+    if (type.is_proc) {
+      if (type.pointer_depth != 1 || !type.proc_return) return false;
+      if (!IsSupportedDlAbiType(*type.proc_return, enum_types, artifacts, true)) return false;
+      for (const auto& param : type.proc_params) {
+        if (!IsSupportedDlAbiType(param, enum_types, artifacts, false)) return false;
+      }
+      return true;
+    }
+    return type.name == "void" || IsAbiScalar(type.name) ||
+           (artifacts.find(type.name) != artifacts.end() && artifacts.at(type.name)->is_data);
+  }
+  if (type.is_proc) return false;
   if (allow_void && type.name == "void") return true;
   if (IsAbiScalar(type.name)) return true;
-  if (enum_types.find(type.name) != enum_types.end()) return true;
   if (artifacts.find(type.name) != artifacts.end()) {
     std::unordered_set<std::string> visiting;
     return IsSupportedDlAbiArtifact(type.name, enum_types, artifacts, &visiting);
@@ -127,6 +158,12 @@ bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
     case Simple::Byte::TypeKind::I64:
       *out = MakeSimpleType("i64");
       return true;
+    case Simple::Byte::TypeKind::ISize:
+      *out = MakeSimpleType("isize");
+      return true;
+    case Simple::Byte::TypeKind::USize:
+      *out = MakeSimpleType("usize");
+      return true;
     case Simple::Byte::TypeKind::F32:
       *out = MakeSimpleType("f32");
       return true;
@@ -158,11 +195,16 @@ bool CheckAbiShape(const Simple::Lang::AST::TypeRef& type,
       type.type_args.empty() && !type.is_proc) {
     return true;
   }
-  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
+  if (IsExternalNullablePointer(type)) return true;
+  if (!type.dims.empty() || (!type.type_args.empty() && !IsExternalNullablePointer(type))) {
     if (error) *error = "extern ABI type shape is not supported";
     return false;
   }
   if (type.pointer_depth > 0) return true;
+  if (type.is_proc) {
+    if (error) *error = "VM procedure value is not an external function pointer";
+    return false;
+  }
   if (IsAbiScalar(type.name)) return true;
   if (error) *error = "extern ABI scalar type is not supported";
   return false;

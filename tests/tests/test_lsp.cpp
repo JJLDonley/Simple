@@ -1407,10 +1407,10 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import System.FFI as FFI\\nFFI.ca\"}}}";
+      "\"text\":\"import System.FFI as FFI\\nFFI.s\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":33,\"method\":\"textDocument/completion\",\"params\":{"
-      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":6}}}";
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -1424,9 +1424,7 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
   if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
   return err_contents.empty() &&
          out_contents.find("\"id\":33") != std::string::npos &&
-         out_contents.find("\"label\":\"call_i32\"") != std::string::npos &&
-         out_contents.find("\"label\":\"call_i64\"") != std::string::npos &&
-         out_contents.find("\"label\":\"call_str0\"") != std::string::npos &&
+         out_contents.find("\"label\":\"sym\"") != std::string::npos &&
          out_contents.find("\"label\":\"open\"") == std::string::npos &&
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }

@@ -656,8 +656,8 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   }
 
   auto cstring = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 2});
-  if (!cstring.abi_valid || !cstring.vm_marshal_supported || !cstring.jit_helper_safe || !cstring.jit_loop_safe ||
-      !cstring.needs_roots || cstring.may_allocate) {
+  if (cstring.abi_valid || cstring.vm_marshal_supported ||
+      cstring.reason.find("unsupported VM marshal type") == std::string::npos) {
     return false;
   }
 
@@ -752,7 +752,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
     return false;
   }
   if (layout.size != 16 || layout.align != 8 || !layout.pass_by_value) return false;
-  if (!layout.native_callable || !layout.external_ffi_callable || layout.contains_references) {
+  if (!layout.native_callable || layout.external_ffi_callable || layout.contains_references) {
     return false;
   }
 

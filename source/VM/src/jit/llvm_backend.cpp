@@ -1356,6 +1356,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       case Simple::Byte::TypeKind::U16: return "u16";
       case Simple::Byte::TypeKind::U32: return "u32";
       case Simple::Byte::TypeKind::U64: return "u64";
+      case Simple::Byte::TypeKind::ISize: return "isize";
+      case Simple::Byte::TypeKind::USize: return "usize";
       case Simple::Byte::TypeKind::U128: return "u128";
       case Simple::Byte::TypeKind::Bool: return "bool";
       case Simple::Byte::TypeKind::Char: return "char";

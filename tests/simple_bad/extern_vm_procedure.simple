@@ -1,0 +1,3 @@
+extern consume : void (callback : fn i32 (i32))
+
+main :: i32 () { return 0 }

@@ -464,10 +464,6 @@ bool LangSimpleFixtureExternDecl() {
   return RunSimpleFileExpectExit("tests/simple/extern_decl.simple", 0);
 }
 
-bool LangSimpleFixtureExternCoreOsArgsCount() {
-  return RunSimpleFileExpectExit("tests/simple/extern_System_os_args_count.simple", 0);
-}
-
 bool LangSimpleFixtureCoreDlOpen() {
   return RunSimpleFileExpectExit("tests/simple/System_dl_open.simple", 1);
 }
@@ -1006,7 +1002,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 2.2\n", 0) == 0 &&
+  return sir.rfind("sir version 2.3\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -1687,8 +1683,8 @@ bool LangSirEmitsIoPrintFormat() {
 
 bool LangSirEmitsExternAbiFlatten() {
   const char* src =
-      "Tex :: artifact { id : u32; width : i32; }\n"
-      "RT :: artifact { id : u32; tex : Tex; }\n"
+      "Tex :: data { id : u32; width : i32; }\n"
+      "RT :: data { id : u32; tex : Tex; }\n"
       "extern ffi.Use : void (t : RT)\n"
       "main : void () { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
   std::string sir;
@@ -2235,7 +2231,7 @@ bool LangValidateExternRecursiveArtifactRejected() {
 
 bool LangValidateExternPointerCallOk() {
   const char* src =
-      "Node :: artifact { next: Node* }\n"
+      "Node :: data { next: Node* }\n"
       "extern C.walk : Node* (head : Node*)\n"
       "main : i32 () { return 0; }";
   std::string error;
@@ -2322,21 +2318,39 @@ bool LangPointerDerefParses() {
 }
 
 bool LangPointerRuntimeWorks() {
-  return RunSimpleFileExpectExit("tests/simple/pointers.simple", 0);
+  return RunSimpleFileExpectExit("tests/simple/pointers.simple", 0) &&
+         RunSimpleFileExpectExit("tests/simple/pointer_width_integers.simple", 0);
 }
 
 bool LangPointerLifetimeAndOperationErrors() {
   const std::vector<std::pair<std::string, std::string>> cases = {
-      {"tests/simple_bad/pointer_extern_frame.simple", "external C call cannot receive VM frame pointer"},
+      {"tests/simple_bad/pointer_extern_frame.simple", "external C call cannot receive VM storage pointer"},
+      {"tests/simple_bad/pointer_extern_global.simple", "external C call cannot receive VM storage pointer"},
       {"tests/simple_bad/pointer_return_frame.simple", "cannot return pointer borrowed from the current frame"},
       {"tests/simple_bad/pointer_ordering.simple", "pointers support only equality comparisons"},
       {"tests/simple_bad/pointer_deref_void.simple", "cannot dereference void pointer"},
       {"tests/simple_bad/pointer_uninitialized.simple", "pointer is not usable before assignment"},
+      {"tests/simple_bad/extern_pointer_cast_mismatch.simple", "pointer cast requires identical pointee type or void pointer"},
+      {"tests/simple_bad/pointer_index_unbounded.simple", "pointer indexing requires proven VM extent"},
   };
   for (const auto& [path, expected] : cases) {
     int exit_code = 0;
     const std::string error = RunCommandCaptureStderr({"check", path}, &exit_code);
     if (exit_code == 0 || error.find(expected) == std::string::npos) return false;
+  }
+  return true;
+}
+
+bool LangExternManagedTypesRejected() {
+  for (const char* path : {
+           "tests/simple_bad/extern_vm_procedure.simple",
+           "tests/simple_bad/extern_managed_string.simple",
+           "tests/simple_bad/extern_char_implicit.simple",
+           "tests/simple_bad/extern_managed_artifact.simple",
+       }) {
+    int exit_code = 0;
+    const std::string error = RunCommandCaptureStderr({"check", path}, &exit_code);
+    if (exit_code == 0 || error.find("extern ABI") == std::string::npos) return false;
   }
   return true;
 }
@@ -2816,7 +2830,8 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   const auto print_sig = GetLibrarySignature(ToLibraryModuleId(StandardModule::IO), "println");
   if (!print_sig || print_sig->params.size() != 1 || print_sig->params[0].type.name != "T" ||
       print_sig->return_type.name != "void" || print_sig->type_params.size() != 1) return false;
-  const auto ffi_open_sig = GetLibrarySignature(ToLibraryModuleId(SystemModule::FFI), "Open");
+  const auto ffi_open_sig = GetLibrarySignature(ToLibraryModuleId(SystemModule::FFI), "open");
+  if (GetLibrarySignature(ToLibraryModuleId(SystemModule::FFI), "Open")) return false;
   if (!ffi_open_sig || ffi_open_sig->params.size() != 1 ||
       ffi_open_sig->params[0].type.name != "string" || ffi_open_sig->return_type.name != "i64") return false;
   const auto planned_meta = GetLibraryMemberMetadata(ToLibraryModuleId(StandardModule::Bytes), "toBase64");
@@ -2934,14 +2949,14 @@ bool LangValidateNamespaceExternManifestAndCall() {
     std::ofstream raylib(dir / "raylib.simple", std::ios::binary);
     raylib << "module Raylib\n"
            << "import System.FFI\n"
-           << "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : string) }\n"
-           << "lib :: i64 = System.FFI.Open(\"libraylib.so\", Raylib)\n";
+           << "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : u8*?) }\n"
+           << "lib :: i64 = System.FFI.open(\"libraylib.so\", Raylib)\n";
   }
   {
     std::ofstream main_file(dir / "main.simple", std::ios::binary);
     main_file << "import Raylib\n"
               << "using Raylib.Raylib\n"
-              << "main : void () { Raylib.Raylib.InitWindow(1, 2, \"ok\"); InitWindow(1, 2, \"ok\"); }\n";
+              << "main : void () { Raylib.Raylib.InitWindow(1, 2, {}); InitWindow(1, 2, {}); }\n";
   }
 
   Simple::Lang::Program program;
@@ -3979,6 +3994,7 @@ const TestCase kLangTests[] = {
   {"lang_pointer_deref_parses", LangPointerDerefParses},
   {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
   {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
+  {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
   {"lang_pointer_null_init_rejected", LangPointerNullInitRejected},
   {"lang_pointer_to_ref_shapes_validate", LangPointerToRefShapesValidate},
   {"lang_validate_address_of_requires_lvalue", LangValidateAddressOfRequiresLValue},
@@ -4089,7 +4105,6 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
-  {"lang_simple_fixture_extern_System_os_args_count", LangSimpleFixtureExternCoreOsArgsCount},
   {"lang_simple_fixture_System_dl_open", LangSimpleFixtureCoreDlOpen},
   {"lang_simple_fixture_System_dl_open_global", LangSimpleFixtureCoreDlOpenGlobal},
   {"lang_simple_fixture_float_literal_context", LangSimpleFixtureFloatLiteralContext},

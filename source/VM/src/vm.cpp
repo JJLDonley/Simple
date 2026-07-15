@@ -1367,7 +1367,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               int32_t length = UnpackI32(Pop(stack));
               int32_t index = UnpackI32(Pop(stack));
               Slot ptr = Pop(stack);
-              if (index < 0 || length < 0 || index >= length) return Trap("PTR_CHECK_BOUNDS out of bounds");
+              if (index < 0 || length < 0 || index >= length) {
+                return Trap("PTR_CHECK_BOUNDS out of bounds");
+              }
+              VmPointerRecord* record = nullptr;
+              if (!get_vm_pointer(ptr, &record) || length > 1) {
+                return Trap("PTR_CHECK_BOUNDS pointer has no proven extent");
+              }
               Push(stack, ptr);
               break;
             }
@@ -3273,155 +3279,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             bool value = UnpackI32(Pop(stack)) != 0;
             uint32_t handle = CreateString(heap, AsciiToU16(value ? "true" : "false"));
             if (handle == kNullRef) return Trap("INTRINSIC str_bool allocation failed");
-            Push(stack, PackRef(handle));
-            break;
-          }
-          case kIntrinsicDlCallI8: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i8 stack underflow");
-            int8_t b = static_cast<int8_t>(UnpackI32(Pop(stack)));
-            int8_t a = static_cast<int8_t>(UnpackI32(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_i8 null ptr");
-            using Fn = int8_t (*)(int8_t, int8_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallI16: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i16 stack underflow");
-            int16_t b = static_cast<int16_t>(UnpackI32(Pop(stack)));
-            int16_t a = static_cast<int16_t>(UnpackI32(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_i16 null ptr");
-            using Fn = int16_t (*)(int16_t, int16_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallI32: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i32 stack underflow");
-            int32_t b = UnpackI32(Pop(stack));
-            int32_t a = UnpackI32(Pop(stack));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_i32 null ptr");
-            using Fn = int32_t (*)(int32_t, int32_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(fn(a, b)));
-            break;
-          }
-          case kIntrinsicDlCallI64: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i64 stack underflow");
-            int64_t b = UnpackI64(Pop(stack));
-            int64_t a = UnpackI64(Pop(stack));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_i64 null ptr");
-            using Fn = int64_t (*)(int64_t, int64_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI64(fn(a, b)));
-            break;
-          }
-          case kIntrinsicDlCallU8: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u8 stack underflow");
-            uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
-            uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_u8 null ptr");
-            using Fn = uint8_t (*)(uint8_t, uint8_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallU16: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u16 stack underflow");
-            uint16_t b = static_cast<uint16_t>(UnpackI32(Pop(stack)));
-            uint16_t a = static_cast<uint16_t>(UnpackI32(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_u16 null ptr");
-            using Fn = uint16_t (*)(uint16_t, uint16_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallU32: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u32 stack underflow");
-            uint32_t b = static_cast<uint32_t>(UnpackI32(Pop(stack)));
-            uint32_t a = static_cast<uint32_t>(UnpackI32(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_u32 null ptr");
-            using Fn = uint32_t (*)(uint32_t, uint32_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallU64: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u64 stack underflow");
-            uint64_t b = static_cast<uint64_t>(UnpackI64(Pop(stack)));
-            uint64_t a = static_cast<uint64_t>(UnpackI64(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_u64 null ptr");
-            using Fn = uint64_t (*)(uint64_t, uint64_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI64(static_cast<int64_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallF32: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_f32 stack underflow");
-            float b = UnpackF32(Pop(stack));
-            float a = UnpackF32(Pop(stack));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_f32 null ptr");
-            using Fn = float (*)(float, float);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            float out = fn(a, b);
-            Push(stack, PackF32(out));
-            break;
-          }
-          case kIntrinsicDlCallF64: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_f64 stack underflow");
-            double b = UnpackF64(Pop(stack));
-            double a = UnpackF64(Pop(stack));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_f64 null ptr");
-            using Fn = double (*)(double, double);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            double out = fn(a, b);
-            Push(stack, PackF64(out));
-            break;
-          }
-          case kIntrinsicDlCallBool: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_bool stack underflow");
-            bool b = (UnpackI32(Pop(stack)) != 0);
-            bool a = (UnpackI32(Pop(stack)) != 0);
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_bool null ptr");
-            using Fn = bool (*)(bool, bool);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(fn(a, b) ? 1 : 0));
-            break;
-          }
-          case kIntrinsicDlCallChar: {
-            if (stack.size() < 3) return Trap("INTRINSIC dl_call_char stack underflow");
-            uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
-            uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_char null ptr");
-            using Fn = uint8_t (*)(uint8_t, uint8_t);
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
-            break;
-          }
-          case kIntrinsicDlCallStr0: {
-            if (stack.empty()) return Trap("INTRINSIC dl_call_str0 stack underflow");
-            int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("System.FFI.call_str0 null ptr");
-            using Fn = const char* (*)();
-            Fn fn = reinterpret_cast<Fn>(ptr_bits);
-            const char* out = fn();
-            if (!out) {
-              Push(stack, PackRef(kNullRef));
-              break;
-            }
-            uint32_t handle = CreateString(heap, AsciiToU16(out));
             Push(stack, PackRef(handle));
             break;
           }

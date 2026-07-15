@@ -18,6 +18,7 @@
 #include "lang_version.h"
 #include "platform/platform.h"
 #include "RAST/reserved_resolution.h"
+#include "TAST/abi.h"
 #include "TAST/type_checker.h"
 #include "TAST/types.h"
 #include "native/registry.h"
@@ -71,6 +72,8 @@ struct EmitState {
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<TypeRef>>> extern_params_by_module;
   std::unordered_map<std::string, std::unordered_map<std::string, TypeRef>> extern_returns_by_module;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> dl_call_import_ids_by_module;
+  std::unordered_map<std::string, std::string> external_pointer_call_imports;
+  uint32_t external_pointer_call_counter = 0;
   std::unordered_map<std::string, uint32_t> global_indices;
   std::unordered_map<std::string, TypeRef> global_types;
   std::unordered_map<std::string, Mutability> global_mutability;
@@ -361,17 +364,6 @@ TypeRef MakeTypeRef(const char* name) {
   return out;
 }
 
-std::string NormalizeCoreDlMember(const std::string& name) {
-  return NormalizeSystemFFIMemberName(name);
-}
-
-std::string ResolveImportModule(const std::string& module) {
-  if (const auto replacement = LegacyRuntimeModuleReplacementView(module)) {
-    return std::string(*replacement);
-  }
-  return module;
-}
-
 bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   if (!out) return false;
   if (base.kind == ExprKind::Identifier) {
@@ -425,11 +417,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
   for (const auto& module : st.using_reserved_modules) {
     const auto id = ParseCanonicalLibraryModule(module);
     if (!id) continue;
-    const std::string normalized_member =
-        (id->root == LibraryRoot::System &&
-         static_cast<SystemModule>(id->module_index) == SystemModule::FFI)
-            ? NormalizeCoreDlMember(member)
-            : member;
+    const std::string& normalized_member = member;
     if (!RAST::IsReservedModuleFunction(module, normalized_member) &&
         !RAST::GetReservedModuleVarType(module, normalized_member, nullptr)) {
       continue;
@@ -498,7 +486,7 @@ bool IsCoreDlOpenCallExpr(const Expr& expr, const EmitState& st) {
   if (!ResolveReservedModuleId(st, module_name, &resolved)) return false;
   return resolved.root == LibraryRoot::System &&
          static_cast<SystemModule>(resolved.module_index) == SystemModule::FFI &&
-         ParseMember(SystemModule::FFI, NormalizeCoreDlMember(callee.text)) == SystemMember(SystemFFIMember::Open);
+         ParseMember(SystemModule::FFI, callee.text) == SystemMember(SystemFFIMember::Open);
 }
 
 bool GetDlOpenManifestModule(const Expr& expr, const EmitState& st, std::string* out_module) {
@@ -576,58 +564,28 @@ bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
   return false;
 }
 
+const TypeRef* ExternalNullablePointerValueType(const TypeRef& type,
+                                                const EmitState& st) {
+  if (const TypeRef* value = TAST::OptionalValueType(type)) {
+    return value->pointer_depth > 0 ? value : nullptr;
+  }
+  auto artifact_it = st.artifacts.find(type.name);
+  if (artifact_it == st.artifacts.end() ||
+      artifact_it->second->tagged_kind != TaggedArtifactKind::Optional) {
+    return nullptr;
+  }
+  for (const auto& field : artifact_it->second->fields) {
+    if (field.name == "value" && field.type.pointer_depth > 0) return &field.type;
+  }
+  return nullptr;
+}
+
 bool IsSupportedDlAbiType(const TypeRef& type, const EmitState& st, bool allow_void) {
-  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
-  if (type.pointer_depth > 0) return true;
-  if (allow_void && type.name == "void") return true;
-  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
-      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
-      type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
-      type.name == "string") {
-    return true;
-  }
-  if (st.enum_values.find(type.name) != st.enum_values.end()) return true;
-  if (st.abi_types.find(type.name) != st.abi_types.end()) return true;
-  if (st.artifacts.find(type.name) != st.artifacts.end()) {
-    std::unordered_set<std::string> visiting;
-    std::function<bool(const std::string&)> check_struct = [&](const std::string& name) -> bool {
-      if (!visiting.insert(name).second) return false;
-      auto it = st.artifacts.find(name);
-      if (it == st.artifacts.end()) {
-        visiting.erase(name);
-        return false;
-      }
-      const ArtifactDecl* art = it->second;
-      for (const auto& field : art->fields) {
-        if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
-          visiting.erase(name);
-          return false;
-        }
-        if (field.type.pointer_depth > 0) continue;
-        if (field.type.name == "i8" || field.type.name == "i16" || field.type.name == "i32" ||
-            field.type.name == "i64" || field.type.name == "u8" || field.type.name == "u16" ||
-            field.type.name == "u32" || field.type.name == "u64" || field.type.name == "f32" ||
-            field.type.name == "f64" || field.type.name == "bool" || field.type.name == "char" ||
-            field.type.name == "string") {
-          continue;
-        }
-        if (st.enum_values.find(field.type.name) != st.enum_values.end()) continue;
-        if (st.artifacts.find(field.type.name) != st.artifacts.end()) {
-          if (!check_struct(field.type.name)) {
-            visiting.erase(name);
-            return false;
-          }
-          continue;
-        }
-        visiting.erase(name);
-        return false;
-      }
-      visiting.erase(name);
-      return true;
-    };
-    return check_struct(type.name);
-  }
-  return false;
+  if (ExternalNullablePointerValueType(type, st)) return true;
+  std::unordered_set<std::string> enums;
+  enums.reserve(st.enum_values.size());
+  for (const auto& entry : st.enum_values) enums.insert(entry.first);
+  return TAST::IsSupportedDlAbiType(type, enums, st.artifacts, allow_void);
 }
 
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
@@ -797,8 +755,8 @@ std::string NewLabel(EmitState& st, const std::string& prefix) {
 const char* NormalizeNumericOpType(const std::string& name) {
   if (name == "i8" || name == "i16" || name == "i32" || name == "char") return "i32";
   if (name == "u8" || name == "u16" || name == "u32") return "u32";
-  if (name == "i64") return "i64";
-  if (name == "u64") return "u64";
+  if (name == "i64" || name == "isize") return "i64";
+  if (name == "u64" || name == "usize") return "u64";
   if (name == "f32") return "f32";
   if (name == "f64") return "f64";
   return nullptr;
@@ -807,7 +765,7 @@ const char* NormalizeNumericOpType(const std::string& name) {
 const char* NormalizeBitwiseOpType(const std::string& name) {
   if (name == "i8" || name == "i16" || name == "i32" || name == "char") return "i32";
   if (name == "u8" || name == "u16" || name == "u32") return "i32";
-  if (name == "i64" || name == "u64") return "i64";
+  if (name == "i64" || name == "u64" || name == "isize" || name == "usize") return "i64";
   return nullptr;
 }
 
@@ -815,11 +773,11 @@ const char* IncOpForType(const std::string& name) {
   if (name == "i8") return "inc i8";
   if (name == "i16") return "inc i16";
   if (name == "i32" || name == "char" || name == "bool") return "inc i32";
-  if (name == "i64") return "inc i64";
+  if (name == "i64" || name == "isize") return "inc i64";
   if (name == "u8") return "inc u8";
   if (name == "u16") return "inc u16";
   if (name == "u32") return "inc u32";
-  if (name == "u64") return "inc u64";
+  if (name == "u64" || name == "usize") return "inc u64";
   if (name == "f32") return "inc f32";
   if (name == "f64") return "inc f64";
   return nullptr;
@@ -829,11 +787,11 @@ const char* DecOpForType(const std::string& name) {
   if (name == "i8") return "dec i8";
   if (name == "i16") return "dec i16";
   if (name == "i32" || name == "char" || name == "bool") return "dec i32";
-  if (name == "i64") return "dec i64";
+  if (name == "i64" || name == "isize") return "dec i64";
   if (name == "u8") return "dec u8";
   if (name == "u16") return "dec u16";
   if (name == "u32") return "dec u32";
-  if (name == "u64") return "dec u64";
+  if (name == "u64" || name == "usize") return "dec u64";
   if (name == "f32") return "dec f32";
   if (name == "f64") return "dec f64";
   return nullptr;
@@ -848,7 +806,8 @@ const char* VmOpSuffixForType(const TypeRef& type, const EmitState& st) {
       type.name == "u8" || type.name == "u16" || type.name == "u32") {
     return "i32";
   }
-  if (type.name == "i64" || type.name == "u64") return "i64";
+  if (type.name == "i64" || type.name == "u64" ||
+      type.name == "isize" || type.name == "usize") return "i64";
   if (type.name == "f32") return "f32";
   if (type.name == "f64") return "f64";
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
@@ -1079,17 +1038,82 @@ bool EmitAbiInflateReturn(EmitState& st,
   return true;
 }
 
-bool EmitDynamicDlCallByHandleGlobal(EmitState& st,
-                                     const std::string& handle_global,
-                                     const std::string& dl_module,
+bool EmitExternalNullablePointerArgument(EmitState& st,
+                                         const Expr& expr,
+                                         const TypeRef& optional_type,
+                                         std::string* error) {
+  const TypeRef* pointer_type = ExternalNullablePointerValueType(optional_type, st);
+  if (!pointer_type) return false;
+  std::string temp_name;
+  uint16_t temp_index = 0;
+  if (!AllocateTempLocal(st, optional_type, &temp_name, &temp_index, error)) return false;
+  if (!EmitExpr(st, expr, &optional_type, error)) return false;
+  (*st.out) << "  stloc " << temp_index << "\n";
+  PopStack(st, 1);
+  const uint32_t base_stack = st.stack_cur;
+  const std::string present_label = NewLabel(st, "ffi_optional_present_");
+  const std::string end_label = NewLabel(st, "ffi_optional_end_");
+  (*st.out) << "  ldloc " << temp_index << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  isnull\n";
+  (*st.out) << "  jmp.false " << present_label << "\n";
+  PopStack(st, 1);
+  (*st.out) << "  ptr.null\n";
+  PushStack(st, 1);
+  (*st.out) << "  jmp " << end_label << "\n";
+  (*st.out) << present_label << ":\n";
+  st.stack_cur = base_stack;
+  (*st.out) << "  ldloc " << temp_index << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  ldfld " << optional_type.name << ".value\n";
+  (*st.out) << "  ptr.check.null\n";
+  (*st.out) << end_label << ":\n";
+  st.stack_cur = base_stack + 1;
+  return true;
+}
+
+bool EmitExternalNullablePointerReturn(EmitState& st,
+                                       const TypeRef& optional_type,
+                                       std::string* error) {
+  const TypeRef* pointer_type = ExternalNullablePointerValueType(optional_type, st);
+  if (!pointer_type) return false;
+  std::string temp_name;
+  uint16_t temp_index = 0;
+  if (!AllocateTempLocal(st, *pointer_type, &temp_name, &temp_index, error)) return false;
+  (*st.out) << "  stloc " << temp_index << "\n";
+  PopStack(st, 1);
+  const uint32_t base_stack = st.stack_cur;
+  const std::string present_label = NewLabel(st, "ffi_pointer_present_");
+  const std::string end_label = NewLabel(st, "ffi_pointer_end_");
+  (*st.out) << "  ldloc " << temp_index << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  ptr.isnull\n";
+  (*st.out) << "  jmp.false " << present_label << "\n";
+  PopStack(st, 1);
+  (*st.out) << "  const null\n";
+  PushStack(st, 1);
+  (*st.out) << "  jmp " << end_label << "\n";
+  (*st.out) << present_label << ":\n";
+  st.stack_cur = base_stack;
+  (*st.out) << "  newobj " << optional_type.name << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  dup\n";
+  PushStack(st, 1);
+  (*st.out) << "  ldloc " << temp_index << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  stfld " << optional_type.name << ".value\n";
+  PopStack(st, 2);
+  (*st.out) << end_label << ":\n";
+  st.stack_cur = base_stack + 1;
+  return true;
+}
+
+bool EmitDynamicDlCall(EmitState& st,
+                       const Expr& handle,
+                       const std::string& dl_module,
                                      const std::string& symbol,
-                                     const std::vector<Expr>& args,
-                                     std::string* error) {
-  auto global_it = st.global_indices.find(handle_global);
-  if (global_it == st.global_indices.end()) {
-    if (error) *error = "missing dynamic DL handle global: " + handle_global;
-    return false;
-  }
+                       const std::vector<Expr>& args,
+                       std::string* error) {
   auto params_mod_it = st.extern_params_by_module.find(dl_module);
   auto returns_mod_it = st.extern_returns_by_module.find(dl_module);
   if (params_mod_it == st.extern_params_by_module.end() ||
@@ -1131,8 +1155,8 @@ bool EmitDynamicDlCallByHandleGlobal(EmitState& st,
       return false;
     }
   }
-  (*st.out) << "  ldglob " << global_it->second << "\n";
-  PushStack(st, 1);
+  TypeRef handle_type = MakeTypeRef("i64");
+  if (!EmitExpr(st, handle, &handle_type, error)) return false;
   std::string symbol_name;
   if (!AddStringConst(st, symbol, &symbol_name)) return false;
   (*st.out) << "  const string " << symbol_name << "\n";
@@ -1152,6 +1176,8 @@ bool EmitDynamicDlCallByHandleGlobal(EmitState& st,
     }
     if (abi_param) {
       if (!EmitAbiPackArtifactArg(st, args[i], params[i], *abi_param, error)) return false;
+    } else if (ExternalNullablePointerValueType(params[i], st)) {
+      if (!EmitExternalNullablePointerArgument(st, args[i], params[i], error)) return false;
     } else {
       if (!EmitExpr(st, args[i], &params[i], error)) return false;
     }
@@ -1164,13 +1190,33 @@ bool EmitDynamicDlCallByHandleGlobal(EmitState& st,
   (*st.out) << "  call " << call_id_it->second << " " << abi_arg_count << "\n";
   PopStack(st, abi_arg_count);
   if (ret_it->second.name != "void") PushStack(st, 1);
+  if (ret_it->second.pointer_depth > 0) (*st.out) << "  ptr.check.null\n";
   if (abi_ret) {
     if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
+  } else if (ExternalNullablePointerValueType(ret_it->second, st)) {
+    if (!EmitExternalNullablePointerReturn(st, ret_it->second, error)) return false;
   }
   return true;
 }
 
+bool EmitDynamicDlCallByHandleGlobal(EmitState& st,
+                                     const std::string& handle_global,
+                                     const std::string& dl_module,
+                                     const std::string& symbol,
+                                     const std::vector<Expr>& args,
+                                     std::string* error) {
+  if (st.global_indices.find(handle_global) == st.global_indices.end()) {
+    if (error) *error = "missing dynamic DL handle global: " + handle_global;
+    return false;
+  }
+  Expr handle;
+  handle.kind = ExprKind::Identifier;
+  handle.text = handle_global;
+  return EmitDynamicDlCall(st, handle, dl_module, symbol, args, error);
+}
+
 uint32_t FieldSizeForType(const TypeRef& type) {
+  if (type.pointer_depth > 0) return 8;
   if (type.is_proc) return 4;
   if (!type.dims.empty()) return 4;
   if (type.name == "string") return 4;
@@ -1178,7 +1224,8 @@ uint32_t FieldSizeForType(const TypeRef& type) {
       type.name == "i32" || type.name == "u8" || type.name == "u16" || type.name == "u32") {
     return 4;
   }
-  if (type.name == "i64" || type.name == "u64" || type.name == "f64") return 8;
+  if (type.name == "i64" || type.name == "u64" || type.name == "isize" ||
+      type.name == "usize" || type.name == "f64") return 8;
   if (type.name == "f32") return 4;
   return 4;
 }
@@ -1209,6 +1256,7 @@ std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
 }
 
 std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::string* error) {
+  if (ExternalNullablePointerValueType(type, st)) return "ptr";
   if (type.pointer_depth > 0) return "ptr";
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
@@ -1258,6 +1306,52 @@ std::string GetProcSigName(EmitState& st,
   st.proc_sig_names.emplace(std::move(key_str), name);
   st.proc_sig_lines.push_back(line.str());
   return name;
+}
+
+bool EnsureExternalPointerCallImport(EmitState& st,
+                                     const TypeRef& proc_type,
+                                     std::string* out_import,
+                                     std::string* error) {
+  if (!out_import || !proc_type.is_proc || proc_type.pointer_depth != 1 ||
+      !proc_type.proc_return) {
+    if (error) *error = "external function pointer type is invalid";
+    return false;
+  }
+  if (!IsSupportedDlAbiType(*proc_type.proc_return, st, true)) {
+    if (error) *error = "external function pointer return type is not ABI-supported";
+    return false;
+  }
+  for (const auto& param : proc_type.proc_params) {
+    if (!IsSupportedDlAbiType(param, st, false)) {
+      if (error) *error = "external function pointer parameter type is not ABI-supported";
+      return false;
+    }
+  }
+  const std::string key = GEN::TypeRefIdentity(proc_type);
+  auto existing = st.external_pointer_call_imports.find(key);
+  if (existing != st.external_pointer_call_imports.end()) {
+    *out_import = existing->second;
+    return true;
+  }
+  EmitState::ImportItem item;
+  item.name = "import_" + std::to_string(st.imports.size());
+  item.module = "System.FFI";
+  item.symbol = "call$pointer" +
+                std::to_string(st.external_pointer_call_counter++);
+  item.sig_name = "sig_import_" + std::to_string(st.imports.size());
+  TypeRef pointer_param;
+  if (!CloneTypeRef(proc_type, &pointer_param)) return false;
+  item.params.push_back(std::move(pointer_param));
+  for (const auto& param : proc_type.proc_params) {
+    TypeRef copy;
+    if (!CloneTypeRef(param, &copy)) return false;
+    item.params.push_back(std::move(copy));
+  }
+  if (!CloneTypeRef(*proc_type.proc_return, &item.ret)) return false;
+  *out_import = item.name;
+  st.external_pointer_call_imports.emplace(key, item.name);
+  st.imports.push_back(std::move(item));
+  return true;
 }
 
 bool PushStack(EmitState& st, uint32_t count) {
@@ -1686,6 +1780,11 @@ bool InferExprType(const Expr& expr,
         out->name = "char";
         return true;
       }
+      if (container.pointer_depth > 0) {
+        if (!CloneTypeRef(container, out)) return false;
+        out->pointer_depth -= 1;
+        return true;
+      }
       if (container.dims.empty()) {
         if (error) *error = "indexing is only valid on arrays, lists, and strings";
         return false;
@@ -1767,6 +1866,9 @@ bool InferExprType(const Expr& expr,
       if (expr.children.empty()) {
         if (error) *error = "call missing callee";
         return false;
+      }
+      if (!expr.cast_type.name.empty() || expr.cast_type.is_proc) {
+        return CloneTypeRef(expr.cast_type, out);
       }
       const Expr& callee = expr.children[0];
       if (callee.kind == ExprKind::Identifier) {
@@ -1897,9 +1999,7 @@ bool InferExprType(const Expr& expr,
           std::string reserved_module;
           if (has_reserved_module) reserved_module = std::string(ToCanonicalName(reserved_module_id));
           if (has_reserved_module) {
-            const bool reserved_is_ffi = IsLibraryModule(reserved_module_id, SystemModule::FFI);
-            const std::string member_name =
-                reserved_is_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+            const std::string& member_name = callee.text;
             if (IsLibraryModule(reserved_module_id, StandardModule::Math) &&
                 ParseMember(StandardModule::Math, member_name) &&
                 !expr.args.empty()) {
@@ -1920,10 +2020,6 @@ bool InferExprType(const Expr& expr,
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
-          const bool ext_is_system_ffi =
-              (ParseCanonicalLibraryModule(module_name) &&
-               IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
-              (has_reserved_module && IsLibraryModule(reserved_module_id, SystemModule::FFI));
           if (ext_mod_it == st.extern_returns_by_module.end() && has_reserved_module) {
             ext_mod_it = st.extern_returns_by_module.find(reserved_module);
             if (ext_mod_it != st.extern_returns_by_module.end()) {
@@ -1931,21 +2027,13 @@ bool InferExprType(const Expr& expr,
             }
           }
           if (ext_mod_it != st.extern_returns_by_module.end()) {
-            const std::string member_name =
-                ext_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+            const std::string& member_name = callee.text;
             auto ext_it = ext_mod_it->second.find(member_name);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
             }
           }
-          LibraryModuleId resolved_module_id{};
-          const bool module_is_reserved = ResolveReservedModuleId(st, module_name, &resolved_module_id);
-          const bool module_is_system_ffi =
-              (ParseCanonicalLibraryModule(module_name) &&
-               IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
-              (module_is_reserved && IsLibraryModule(resolved_module_id, SystemModule::FFI));
-          const std::string member_name =
-              module_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+          const std::string& member_name = callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -3471,6 +3559,15 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "call missing callee";
         return false;
       }
+      if (expr.cast_type.pointer_depth > 0) {
+        if (expr.args.size() != 1) {
+          if (error) *error = "pointer cast expects one argument";
+          return false;
+        }
+        TypeRef source_type;
+        if (!InferExprType(expr.args[0], st, &source_type, error)) return false;
+        return EmitExpr(st, expr.args[0], &source_type, error);
+      }
       const Expr& callee = expr.children[0];
       auto emit_indirect_call = [&](const TypeRef& proc_type,
                                     const std::string& target_name) -> bool {
@@ -3481,6 +3578,34 @@ bool EmitExpr(EmitState& st,
         if (expr.args.size() != proc_type.proc_params.size()) {
           if (error) *error = "call argument count mismatch for '" + target_name + "'";
           return false;
+        }
+        if (proc_type.pointer_depth > 0) {
+          std::string import_name;
+          if (!EnsureExternalPointerCallImport(
+                  st, proc_type, &import_name, error)) return false;
+          if (!EmitExpr(st, callee, &proc_type, error)) return false;
+          (*st.out) << "  ptr.check.null\n";
+          for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+            if (ExternalNullablePointerValueType(proc_type.proc_params[i], st)) {
+              if (!EmitExternalNullablePointerArgument(
+                      st, expr.args[i], proc_type.proc_params[i], error)) return false;
+            } else if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) {
+              return false;
+            }
+          }
+          const uint32_t arg_count =
+              static_cast<uint32_t>(proc_type.proc_params.size() + 1);
+          (*st.out) << "  call " << import_name << " " << arg_count << "\n";
+          PopStack(st, arg_count);
+          if (proc_type.proc_return->name != "void") PushStack(st, 1);
+          if (proc_type.proc_return->pointer_depth > 0) {
+            (*st.out) << "  ptr.check.null\n";
+          }
+          if (ExternalNullablePointerValueType(*proc_type.proc_return, st)) {
+            if (!EmitExternalNullablePointerReturn(
+                    st, *proc_type.proc_return, error)) return false;
+          }
+          return true;
         }
         for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
           if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
@@ -3744,85 +3869,8 @@ bool EmitExpr(EmitState& st,
           std::string dl_module;
           ResolveDlModuleForIdentifier(base.text, st, &dl_module);
           if (!dl_module.empty()) {
-            auto params_mod_it = st.extern_params_by_module.find(dl_module);
-            auto returns_mod_it = st.extern_returns_by_module.find(dl_module);
-            if (params_mod_it == st.extern_params_by_module.end() ||
-                returns_mod_it == st.extern_returns_by_module.end()) {
-              if (error) *error = "unknown dynamic DL manifest module: " + dl_module;
-              return false;
-            }
-            auto params_it = params_mod_it->second.find(callee.text);
-            auto ret_it = returns_mod_it->second.find(callee.text);
-            if (params_it == params_mod_it->second.end() || ret_it == returns_mod_it->second.end()) {
-              if (error) *error = "unknown dynamic symbol: " + base.text + "." + callee.text;
-              return false;
-            }
-            const auto& params = params_it->second;
-            if (expr.args.size() != params.size()) {
-              if (error) *error = "call argument count mismatch for dynamic symbol '" +
-                                  base.text + "." + callee.text + "'";
-              return false;
-            }
-            const EmitState::AbiTypeInfo* abi_ret = nullptr;
-            if (NeedsAbiFlattenType(ret_it->second, st)) {
-              abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
-              if (!abi_ret) {
-                if (error) *error = "missing ABI type for dynamic return '" + callee.text + "'";
-                return false;
-              }
-            }
-            auto call_mod_it = st.dl_call_import_ids_by_module.find(dl_module);
-            if (call_mod_it == st.dl_call_import_ids_by_module.end()) {
-              if (error) *error = "missing dynamic DL call import module: " + dl_module;
-              return false;
-            }
-            auto call_id_it = call_mod_it->second.find(callee.text);
-            if (call_id_it == call_mod_it->second.end()) {
-              if (error) *error = "missing dynamic DL call import: " + dl_module + "." + callee.text;
-              return false;
-            }
-            std::string sym_import_id;
-            if (!GetCoreDlSymImportId(st, &sym_import_id)) {
-              if (error) *error = "missing DL.sym import for dynamic symbol calls";
-              return false;
-            }
-            TypeRef ptr_type = MakeTypeRef("i64");
-            if (!EmitExpr(st, base, &ptr_type, error)) return false;
-            std::string symbol_name;
-            if (!AddStringConst(st, callee.text, &symbol_name)) return false;
-            (*st.out) << "  const string " << symbol_name << "\n";
-            PushStack(st, 1);
-            (*st.out) << "  call " << sym_import_id << " 2\n";
-            PopStack(st, 2);
-            PushStack(st, 1);
-            uint32_t abi_arg_count = 1;
-            for (size_t i = 0; i < params.size(); ++i) {
-              const EmitState::AbiTypeInfo* abi_param = nullptr;
-              if (NeedsAbiFlattenType(params[i], st)) {
-                abi_param = FindAbiTypeForArtifact(st, params[i].name);
-                if (!abi_param) {
-                  if (error) *error = "missing ABI type for dynamic param '" + callee.text + "'";
-                  return false;
-                }
-              }
-              if (abi_param) {
-                if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
-              } else {
-                if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
-              }
-              ++abi_arg_count;
-            }
-            if (abi_arg_count > 255) {
-              if (error) *error = "dynamic DL call has too many ABI parameters";
-              return false;
-            }
-            (*st.out) << "  call " << call_id_it->second << " " << abi_arg_count << "\n";
-            PopStack(st, abi_arg_count);
-            if (ret_it->second.name != "void") PushStack(st, 1);
-            if (abi_ret) {
-              if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
-            }
-            return true;
+            return EmitDynamicDlCall(
+                st, base, dl_module, callee.text, expr.args, error);
           }
         }
         TypeRef list_type;
@@ -3932,6 +3980,8 @@ bool EmitExpr(EmitState& st,
             // Not a reserved module; fall through to normal call handling.
           } else {
             const std::string reserved_module = std::string(ToCanonicalName(reserved_module_id));
+            const bool reserved_is_ffi =
+                IsLibraryModule(reserved_module_id, SystemModule::FFI);
             if (IsLibraryModule(reserved_module_id, StandardModule::Math)) {
               if (callee.text == "abs") {
                 if (expr.args.size() != 1) {
@@ -3978,9 +4028,7 @@ bool EmitExpr(EmitState& st,
                 return true;
               }
             }
-            const bool reserved_is_ffi = IsLibraryModule(reserved_module_id, SystemModule::FFI);
-            const std::string member_name =
-                reserved_is_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+            const std::string& member_name = callee.text;
             if (reserved_is_ffi) {
               if (member_name == "open") {
                 if (expr.args.size() != 1 && expr.args.size() != 2) {
@@ -4014,78 +4062,6 @@ bool EmitExpr(EmitState& st,
                 if (st.stack_cur >= 1) st.stack_cur -= 1;
                 else st.stack_cur = 0;
                 if (ret_it->second.name != "void") PushStack(st, 1);
-                return true;
-              }
-              if (member_name == "call_i32") {
-                if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'DL.call_i32'";
-                  return false;
-                }
-                TypeRef ptr_type = MakeTypeRef("i64");
-                TypeRef arg_type = MakeTypeRef("i32");
-                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
-                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
-                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
-                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallI32 << "\n";
-                PopStack(st, 3);
-                PushStack(st, 1);
-                return true;
-              }
-              if (member_name == "call_i64") {
-                if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'DL.call_i64'";
-                  return false;
-                }
-                TypeRef ptr_type = MakeTypeRef("i64");
-                TypeRef arg_type = MakeTypeRef("i64");
-                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
-                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
-                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
-                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallI64 << "\n";
-                PopStack(st, 3);
-                PushStack(st, 1);
-                return true;
-              }
-              if (member_name == "call_f32") {
-                if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'DL.call_f32'";
-                  return false;
-                }
-                TypeRef ptr_type = MakeTypeRef("i64");
-                TypeRef arg_type = MakeTypeRef("f32");
-                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
-                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
-                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
-                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallF32 << "\n";
-                PopStack(st, 3);
-                PushStack(st, 1);
-                return true;
-              }
-              if (member_name == "call_f64") {
-                if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'DL.call_f64'";
-                  return false;
-                }
-                TypeRef ptr_type = MakeTypeRef("i64");
-                TypeRef arg_type = MakeTypeRef("f64");
-                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
-                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
-                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
-                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallF64 << "\n";
-                PopStack(st, 3);
-                PushStack(st, 1);
-                return true;
-              }
-              if (member_name == "call_str0") {
-                if (expr.args.size() != 1) {
-                  if (error) *error = "call argument count mismatch for 'DL.call_str0'";
-                  return false;
-                }
-                TypeRef ptr_type = MakeTypeRef("i64");
-                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
-                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallStr0 << "\n";
-                PopStack(st, 1);
-                PushStack(st, 1);
                 return true;
               }
             }
@@ -4140,14 +4116,7 @@ bool EmitExpr(EmitState& st,
           }
         }
         if (GetModuleNameFromExpr(base, &module_name)) {
-          LibraryModuleId resolved_module_id{};
-          const bool module_is_reserved = ResolveReservedModuleId(st, module_name, &resolved_module_id);
-          const bool module_is_system_ffi =
-              (ParseCanonicalLibraryModule(module_name) &&
-               IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
-              (module_is_reserved && IsLibraryModule(resolved_module_id, SystemModule::FFI));
-          const std::string member_name =
-              module_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+          const std::string& member_name = callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -4189,10 +4158,6 @@ bool EmitExpr(EmitState& st,
               ResolveReservedModuleId(st, module_name, &resolved_module_id_for_ext);
           std::string resolved_module_name_for_ext;
           if (has_resolved_module_for_ext) resolved_module_name_for_ext = std::string(ToCanonicalName(resolved_module_id_for_ext));
-          bool ext_is_system_ffi =
-              (ParseCanonicalLibraryModule(ext_module_name) &&
-               IsCanonicalLibraryModule(ext_module_name, SystemModule::FFI)) ||
-              (has_resolved_module_for_ext && IsLibraryModule(resolved_module_id_for_ext, SystemModule::FFI));
           auto ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
           if (ext_mod_it == st.extern_ids_by_module.end()) {
             if (has_resolved_module_for_ext) {
@@ -4201,8 +4166,7 @@ bool EmitExpr(EmitState& st,
             }
           }
           if (ext_mod_it != st.extern_ids_by_module.end()) {
-            const std::string extern_member_name =
-                ext_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+            const std::string& extern_member_name = callee.text;
             const std::string ext_key = ext_module_name + "." + extern_member_name;
             auto id_it = ext_mod_it->second.find(extern_member_name);
             if (id_it != ext_mod_it->second.end()) {
@@ -4510,6 +4474,8 @@ bool EmitExpr(EmitState& st,
             }
             if (abi_param) {
               if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+            } else if (ExternalNullablePointerValueType(params[i], st)) {
+              if (!EmitExternalNullablePointerArgument(st, expr.args[i], params[i], error)) return false;
             } else {
               if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
             }
@@ -4524,8 +4490,11 @@ bool EmitExpr(EmitState& st,
           if (ret_it->second.name != "void") {
             PushStack(st, 1);
           }
+          if (ret_it->second.pointer_depth > 0) (*st.out) << "  ptr.check.null\n";
           if (abi_ret) {
             if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
+          } else if (ExternalNullablePointerValueType(ret_it->second, st)) {
+            if (!EmitExternalNullablePointerReturn(st, ret_it->second, error)) return false;
           }
           return true;
         }
@@ -4706,13 +4675,17 @@ bool EmitExpr(EmitState& st,
       TypeRef container_type;
       if (!InferExprType(expr.children[0], st, &container_type, error)) return false;
       const bool is_string = container_type.name == "string" && container_type.dims.empty();
-      if (container_type.dims.empty() && !is_string) {
-        if (error) *error = "indexing is only valid on arrays, lists, and strings";
+      const bool is_pointer = container_type.pointer_depth > 0;
+      if (container_type.dims.empty() && !is_string && !is_pointer) {
+        if (error) *error = "indexing is only valid on arrays, lists, strings, and pointers";
         return false;
       }
       TypeRef element_type;
       if (is_string) {
         element_type.name = "char";
+      } else if (is_pointer) {
+        if (!CloneTypeRef(container_type, &element_type)) return false;
+        element_type.pointer_depth -= 1;
       } else if (!CloneElementType(container_type, &element_type)) {
         if (error) *error = "failed to resolve index element type";
         return false;
@@ -4726,6 +4699,14 @@ bool EmitExpr(EmitState& st,
       TypeRef index_type;
       index_type.name = "i32";
       if (!EmitExpr(st, expr.children[1], &index_type, error)) return false;
+      if (is_pointer) {
+        (*st.out) << "  const i32 1\n";
+        PushStack(st, 1);
+        (*st.out) << "  ptr.check.bounds\n";
+        PopStack(st, 2);
+        (*st.out) << "  load.ptr " << VmTypeNameForElement(element_type, st) << "\n";
+        return true;
+      }
       if (is_string) {
         (*st.out) << "  string.get.char\n";
       } else if (container_type.dims.front().is_list) {
@@ -5979,7 +5960,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   };
   uint32_t dynamic_dl_call_index = 0;
   for (const auto* ext : externs) {
-    std::string module = ext->has_module ? ResolveImportModule(ext->module) : std::string("host");
+    std::string module = ext->has_module ? ext->module : std::string("host");
     std::string symbol = ext->name;
     std::string key = module + '\0' + symbol;
     if (import_index_by_key.find(key) != import_index_by_key.end()) {
@@ -6064,7 +6045,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
 
     if (ext->has_module &&
-        !IsCanonicalLibraryModule(ResolveImportModule(ext->module), SystemModule::FFI) &&
+        !IsCanonicalLibraryModule(ext->module, SystemModule::FFI) &&
         IsSupportedDlAbiType(st.imports.back().ret, st, true)) {
       bool all_params_scalar = true;
       for (const auto& p : st.imports.back().params) {
@@ -6185,6 +6166,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         return true;
       case Simple::Byte::TypeKind::I64:
         *out = make_type("i64");
+        return true;
+      case Simple::Byte::TypeKind::ISize:
+        *out = make_type("isize");
+        return true;
+      case Simple::Byte::TypeKind::USize:
+        *out = make_type("usize");
         return true;
       case Simple::Byte::TypeKind::F32:
         *out = make_type("f32");
@@ -6343,7 +6330,6 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_reserved_import(alias, "System.FFI", "close", std::move(close_params), make_type("i32"))) return false;
 
       if (!add_reserved_import(alias, "System.FFI", "lastError", {}, make_type("string"))) return false;
-      if (!add_reserved_import(alias, "System.FFI", "last_error", {}, make_type("string"))) return false;
     }
   }
 

@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.2`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.3`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -849,7 +849,7 @@ Explicit pointer/address and raw memory operations.
 | ✅ | `ext 80` | `ptr.ne` | `none` | `Ext.PtrNe` | pointer identity inequality |
 | ✅ | `ext 81` | `ptr.isnull` | `none` | `Ext.PtrIsNull` | zero-address test |
 | ✅ | `ext 82` | `ptr.check.null` | `none` | `Ext.PtrCheckNull` | zero-address guard |
-| ⚠️ | `ext 83` | `ptr.check.bounds` | `none` | `Ext.PtrCheckBounds` | internal guard; source indexing awaits extent metadata |
+| ✅ | `ext 83` | `ptr.check.bounds` | `none` | `Ext.PtrCheckBounds` | guards source indexing with proven VM extent |
 | ❌ | `ext 84` | `mem.copy` | `none` | `Ext.MemCopy` | traps without proven extents |
 | ❌ | `ext 85` | `mem.move` | `none` | `Ext.MemMove` | traps without proven extents |
 | ❌ | `ext 86` | `mem.set` | `none` | `Ext.MemSet` | traps without proven extents |

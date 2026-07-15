@@ -29,34 +29,8 @@ using Simple::VM::Runtime::UnpackI64;
 using Simple::VM::Runtime::UnpackRef;
 constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
 
-inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
-  if (allow_void && kind == TypeKind::Unspecified) return true;
-  switch (kind) {
-    case TypeKind::I8:
-    case TypeKind::I16:
-    case TypeKind::I32:
-    case TypeKind::I64:
-    case TypeKind::U8:
-    case TypeKind::U16:
-    case TypeKind::U32:
-    case TypeKind::U64:
-    case TypeKind::F32:
-    case TypeKind::F64:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-    case TypeKind::String:
-      return true;
-    default:
-      return false;
-  }
-}
-
 template <typename T>
-bool ConvertDlArg(Slot slot,
-                  Heap& heap,
-                  std::vector<std::string>& owned_strings,
-                  T* out,
-                  std::string* out_error) {
+bool ConvertDlArg(Slot slot, T* out, std::string* out_error) {
   if (!out) return false;
   if constexpr (std::is_same_v<T, int8_t>) {
     *out = static_cast<int8_t>(UnpackI32(slot));
@@ -88,30 +62,13 @@ bool ConvertDlArg(Slot slot,
   } else if constexpr (std::is_same_v<T, double>) {
     *out = UnpackF64(slot);
     return true;
-  } else if constexpr (std::is_same_v<T, bool>) {
-    *out = (UnpackI32(slot) != 0);
-    return true;
-  } else if constexpr (std::is_same_v<T, const char*>) {
-    uint32_t ref = UnpackRef(slot);
-    if (ref == kNullRef) {
-      *out = nullptr;
-      return true;
-    }
-    HeapObject* obj = heap.Get(ref);
-    if (!obj || obj->header.kind != ObjectKind::String) {
-      if (out_error) *out_error = "System.FFI.call string argument is not a string";
-      return false;
-    }
-    owned_strings.push_back(U16ToAscii(ReadString(obj)));
-    *out = owned_strings.back().c_str();
-    return true;
   }
   if (out_error) *out_error = "System.FFI.call unsupported argument type conversion";
   return false;
 }
 
 template <typename T>
-bool PackDlReturn(T value, Heap& heap, Slot* out_ret, std::string* out_error) {
+bool PackDlReturn(T value, Slot* out_ret, std::string* out_error) {
   if (!out_ret) return false;
   if constexpr (std::is_same_v<T, int8_t>) {
     *out_ret = PackI32(static_cast<int32_t>(value));
@@ -143,182 +100,9 @@ bool PackDlReturn(T value, Heap& heap, Slot* out_ret, std::string* out_error) {
   } else if constexpr (std::is_same_v<T, double>) {
     *out_ret = PackF64(value);
     return true;
-  } else if constexpr (std::is_same_v<T, bool>) {
-    *out_ret = PackI32(value ? 1 : 0);
-    return true;
-  } else if constexpr (std::is_same_v<T, const char*>) {
-    if (!value) {
-      *out_ret = PackRef(kNullRef);
-      return true;
-    }
-    uint32_t handle = CreateString(heap, AsciiToU16(value));
-    *out_ret = PackRef(handle);
-    return true;
   }
   if (out_error) *out_error = "System.FFI.call unsupported return type conversion";
   return false;
-}
-
-template <typename Ret, typename... Args>
-bool InvokeDlFunctionTyped(int64_t ptr_bits,
-                           const std::vector<Slot>& args,
-                           size_t arg_base,
-                           Heap& heap,
-                           Slot* out_ret,
-                           std::string* out_error) {
-  std::vector<std::string> owned_strings;
-  owned_strings.reserve(sizeof...(Args));
-  std::tuple<std::decay_t<Args>...> converted{};
-  bool ok = true;
-  size_t index = 0;
-  auto convert_one = [&](auto& dst) {
-    if (!ok) return;
-    using ArgT = std::decay_t<decltype(dst)>;
-    if (arg_base + index >= args.size()) {
-      ok = false;
-      if (out_error) *out_error = "System.FFI.call arg index out of range";
-      return;
-    }
-    if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
-      ok = false;
-      return;
-    }
-    ++index;
-  };
-  std::apply([&](auto&... vals) { (convert_one(vals), ...); }, converted);
-  if (!ok) return false;
-  using Fn = Ret (*)(Args...);
-  Fn fn = reinterpret_cast<Fn>(ptr_bits);
-  Ret value = std::apply([&](auto... vals) -> Ret { return fn(vals...); }, converted);
-  return PackDlReturn<Ret>(value, heap, out_ret, out_error);
-}
-
-template <typename... Args>
-bool InvokeDlFunctionVoidTyped(int64_t ptr_bits,
-                               const std::vector<Slot>& args,
-                               size_t arg_base,
-                               Heap& heap,
-                               std::string* out_error) {
-  std::vector<std::string> owned_strings;
-  owned_strings.reserve(sizeof...(Args));
-  std::tuple<std::decay_t<Args>...> converted{};
-  bool ok = true;
-  size_t index = 0;
-  auto convert_one = [&](auto& dst) {
-    if (!ok) return;
-    using ArgT = std::decay_t<decltype(dst)>;
-    if (arg_base + index >= args.size()) {
-      ok = false;
-      if (out_error) *out_error = "System.FFI.call arg index out of range";
-      return;
-    }
-    if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
-      ok = false;
-      return;
-    }
-    ++index;
-  };
-  std::apply([&](auto&... vals) { (convert_one(vals), ...); }, converted);
-  if (!ok) return false;
-  using Fn = void (*)(Args...);
-  Fn fn = reinterpret_cast<Fn>(ptr_bits);
-  std::apply([&](auto... vals) { fn(vals...); }, converted);
-  return true;
-}
-
-#define SIMPLE_DL_FOREACH_TYPE(X) \
-  X(TypeKind::I8, int8_t)         \
-  X(TypeKind::I16, int16_t)       \
-  X(TypeKind::I32, int32_t)       \
-  X(TypeKind::I64, int64_t)       \
-  X(TypeKind::U8, uint8_t)        \
-  X(TypeKind::U16, uint16_t)      \
-  X(TypeKind::U32, uint32_t)      \
-  X(TypeKind::U64, uint64_t)      \
-  X(TypeKind::F32, float)         \
-  X(TypeKind::F64, double)        \
-  X(TypeKind::Bool, bool)         \
-  X(TypeKind::Char, uint8_t)      \
-  X(TypeKind::String, const char*)
-
-template <typename Ret>
-bool DispatchDlCall1(TypeKind arg0_kind,
-                     int64_t ptr_bits,
-                     const std::vector<Slot>& args,
-                     size_t arg_base,
-                     Heap& heap,
-                     Slot* out_ret,
-                     std::string* out_error) {
-  switch (arg0_kind) {
-#define SIMPLE_DL_CASE_ARG0(kind, cpp_type) \
-    case kind:                              \
-      return InvokeDlFunctionTyped<Ret, cpp_type>(ptr_bits, args, arg_base, heap, out_ret, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0)
-#undef SIMPLE_DL_CASE_ARG0
-    default:
-      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
-      return false;
-  }
-}
-
-template <typename Arg0>
-bool DispatchDlCall2Arg1Void(TypeKind arg1_kind,
-                             int64_t ptr_bits,
-                             const std::vector<Slot>& args,
-                             size_t arg_base,
-                             Heap& heap,
-                             std::string* out_error) {
-  switch (arg1_kind) {
-#define SIMPLE_DL_CASE_ARG1_VOID(kind, cpp_type) \
-    case kind:                                   \
-      return InvokeDlFunctionVoidTyped<Arg0, cpp_type>(ptr_bits, args, arg_base, heap, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1_VOID)
-#undef SIMPLE_DL_CASE_ARG1_VOID
-    default:
-      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
-      return false;
-  }
-}
-
-template <typename Ret, typename Arg0>
-bool DispatchDlCall2Arg1(TypeKind arg1_kind,
-                         int64_t ptr_bits,
-                         const std::vector<Slot>& args,
-                         size_t arg_base,
-                         Heap& heap,
-                         Slot* out_ret,
-                         std::string* out_error) {
-  switch (arg1_kind) {
-#define SIMPLE_DL_CASE_ARG1(kind, cpp_type) \
-    case kind:                              \
-      return InvokeDlFunctionTyped<Ret, Arg0, cpp_type>(ptr_bits, args, arg_base, heap, out_ret, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1)
-#undef SIMPLE_DL_CASE_ARG1
-    default:
-      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
-      return false;
-  }
-}
-
-template <typename Ret>
-bool DispatchDlCall2(TypeKind arg0_kind,
-                     TypeKind arg1_kind,
-                     int64_t ptr_bits,
-                     const std::vector<Slot>& args,
-                     size_t arg_base,
-                     Heap& heap,
-                     Slot* out_ret,
-                     std::string* out_error) {
-  switch (arg0_kind) {
-#define SIMPLE_DL_CASE_ARG0_2(kind, cpp_type) \
-    case kind:                                \
-      return DispatchDlCall2Arg1<Ret, cpp_type>(arg1_kind, ptr_bits, args, arg_base, heap, out_ret, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_2)
-#undef SIMPLE_DL_CASE_ARG0_2
-    default:
-      if (out_error) *out_error = "System.FFI.call unsupported parameter type";
-      return false;
-  }
 }
 
 struct DlOwnedFfiType {
@@ -358,17 +142,17 @@ ffi_type* PrimitiveFfiType(TypeKind kind) {
     case TypeKind::I16: return &ffi_type_sint16;
     case TypeKind::I32: return &ffi_type_sint32;
     case TypeKind::I64: return &ffi_type_sint64;
+    case TypeKind::ISize:
+      return sizeof(intptr_t) == 8 ? &ffi_type_sint64 : &ffi_type_sint32;
     case TypeKind::U8:
-    case TypeKind::Bool:
-    case TypeKind::Char:
       return &ffi_type_uint8;
     case TypeKind::U16: return &ffi_type_uint16;
     case TypeKind::U32: return &ffi_type_uint32;
     case TypeKind::U64: return &ffi_type_uint64;
+    case TypeKind::USize:
+      return sizeof(uintptr_t) == 8 ? &ffi_type_uint64 : &ffi_type_uint32;
     case TypeKind::F32: return &ffi_type_float;
     case TypeKind::F64: return &ffi_type_double;
-    case TypeKind::String:
-    case TypeKind::Ref:
     case TypeKind::Ptr:
       return &ffi_type_pointer;
     default:
@@ -388,11 +172,6 @@ bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
   }
   const auto& row = module.types[type_id];
   const TypeKind kind = static_cast<TypeKind>(row.kind);
-  if (kind == TypeKind::String) {
-    *out = Simple::VM::Runtime::GetExternalCAbiWrapperTypeInfo(
-        Simple::VM::Runtime::AbiExternalWrapperKind::CString);
-    return true;
-  }
   if (kind != TypeKind::Unspecified || row.field_count == 0) {
     *out = Simple::VM::Runtime::GetPrimitiveAbiTypeInfo(kind);
     return true;
@@ -542,8 +321,6 @@ bool PrepareStructOffsets(const SbcModule& module,
 bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
                          size_t offset,
                          TypeKind kind,
-                         Heap& heap,
-                         std::vector<std::string>& owned_strings,
                          void* out_value,
                          std::string* out_error) {
   auto require = [&](size_t n) -> bool {
@@ -580,9 +357,19 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       *static_cast<int64_t*>(out_value) = v;
       return true;
     }
-    case TypeKind::U8:
-    case TypeKind::Bool:
-    case TypeKind::Char: {
+    case TypeKind::ISize: {
+      if (!require(8)) return false;
+      int64_t value = 0;
+      std::memcpy(&value, payload.data() + offset, sizeof(value));
+      const intptr_t narrowed = static_cast<intptr_t>(value);
+      if (static_cast<int64_t>(narrowed) != value) {
+        if (out_error) *out_error = "System.FFI.call struct isize field does not fit host ABI";
+        return false;
+      }
+      *static_cast<intptr_t*>(out_value) = narrowed;
+      return true;
+    }
+    case TypeKind::U8: {
       if (!require(1)) return false;
       *static_cast<uint8_t*>(out_value) = payload[offset];
       return true;
@@ -608,6 +395,18 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       *static_cast<uint64_t*>(out_value) = v;
       return true;
     }
+    case TypeKind::USize: {
+      if (!require(8)) return false;
+      uint64_t value = 0;
+      std::memcpy(&value, payload.data() + offset, sizeof(value));
+      const uintptr_t narrowed = static_cast<uintptr_t>(value);
+      if (static_cast<uint64_t>(narrowed) != value) {
+        if (out_error) *out_error = "System.FFI.call struct usize field does not fit host ABI";
+        return false;
+      }
+      *static_cast<uintptr_t*>(out_value) = narrowed;
+      return true;
+    }
     case TypeKind::F32: {
       if (!require(4)) return false;
       float v = 0.0f;
@@ -622,23 +421,6 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       *static_cast<double*>(out_value) = v;
       return true;
     }
-    case TypeKind::String: {
-      if (!require(4)) return false;
-      uint32_t ref = 0;
-      std::memcpy(&ref, payload.data() + offset, sizeof(ref));
-      if (ref == kNullRef) {
-        *static_cast<const char**>(out_value) = nullptr;
-        return true;
-      }
-      HeapObject* obj = heap.Get(ref);
-      if (!obj || obj->header.kind != ObjectKind::String) {
-        if (out_error) *out_error = "System.FFI.call struct string field is not a string";
-        return false;
-      }
-      owned_strings.push_back(U16ToAscii(ReadString(obj)));
-      *static_cast<const char**>(out_value) = owned_strings.back().c_str();
-      return true;
-    }
     default:
       if (out_error) *out_error = "System.FFI.call unsupported struct field type";
       return false;
@@ -649,7 +431,6 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
                           size_t offset,
                           TypeKind kind,
                           const void* value,
-                          Heap& heap,
                           std::string* out_error) {
   if (!payload) return false;
   auto require = [&](size_t n) -> bool {
@@ -680,9 +461,13 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
       std::memcpy(payload->data() + offset, value, sizeof(int64_t));
       return true;
     }
-    case TypeKind::U8:
-    case TypeKind::Bool:
-    case TypeKind::Char: {
+    case TypeKind::ISize: {
+      if (!require(8)) return false;
+      const int64_t expanded = static_cast<int64_t>(*static_cast<const intptr_t*>(value));
+      std::memcpy(payload->data() + offset, &expanded, sizeof(expanded));
+      return true;
+    }
+    case TypeKind::U8: {
       if (!require(1)) return false;
       (*payload)[offset] = *static_cast<const uint8_t*>(value);
       return true;
@@ -702,6 +487,12 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
       std::memcpy(payload->data() + offset, value, sizeof(uint64_t));
       return true;
     }
+    case TypeKind::USize: {
+      if (!require(8)) return false;
+      const uint64_t expanded = static_cast<uint64_t>(*static_cast<const uintptr_t*>(value));
+      std::memcpy(payload->data() + offset, &expanded, sizeof(expanded));
+      return true;
+    }
     case TypeKind::F32: {
       if (!require(4)) return false;
       std::memcpy(payload->data() + offset, value, sizeof(float));
@@ -710,14 +501,6 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
     case TypeKind::F64: {
       if (!require(8)) return false;
       std::memcpy(payload->data() + offset, value, sizeof(double));
-      return true;
-    }
-    case TypeKind::String: {
-      if (!require(4)) return false;
-      const char* text = *static_cast<const char* const*>(value);
-      uint32_t ref = kNullRef;
-      if (text) ref = CreateString(heap, AsciiToU16(text));
-      std::memcpy(payload->data() + offset, &ref, sizeof(ref));
       return true;
     }
     default:
@@ -731,7 +514,6 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
                             uint32_t handle,
                             DlAbiCache& cache,
                             Heap& heap,
-                            std::vector<std::string>& owned_strings,
                             void* out_value,
                             std::string* out_error);
 
@@ -748,7 +530,6 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
                             uint32_t handle,
                             DlAbiCache& cache,
                             Heap& heap,
-                            std::vector<std::string>& owned_strings,
                             void* out_value,
                             std::string* out_error) {
   if (!IsStructTypeId(module, type_id)) {
@@ -783,13 +564,13 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
       }
       uint32_t nested = 0;
       std::memcpy(&nested, obj->payload.data() + vm_offset, sizeof(nested));
-      if (!MarshalVmArtifactToFfi(module, field_type_id, nested, cache, heap, owned_strings, dst, out_error)) {
+      if (!MarshalVmArtifactToFfi(module, field_type_id, nested, cache, heap, dst, out_error)) {
         return false;
       }
       continue;
     }
     TypeKind field_kind = static_cast<TypeKind>(module.types[field_type_id].kind);
-    if (!ReadVmPayloadScalar(obj->payload, vm_offset, field_kind, heap, owned_strings, dst, out_error)) {
+    if (!ReadVmPayloadScalar(obj->payload, vm_offset, field_kind, dst, out_error)) {
       return false;
     }
   }
@@ -837,7 +618,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
       continue;
     }
     TypeKind field_kind = static_cast<TypeKind>(module.types[field_type_id].kind);
-    if (!WriteVmPayloadScalar(&obj->payload, vm_offset, field_kind, src, heap, out_error)) return false;
+    if (!WriteVmPayloadScalar(&obj->payload, vm_offset, field_kind, src, out_error)) return false;
   }
   *out_handle = handle;
   return true;
@@ -846,8 +627,6 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
 bool FillScalarArgStorage(const SbcModule& module,
                           uint32_t type_id,
                           Slot slot,
-                          Heap& heap,
-                          std::vector<std::string>& owned_strings,
                           void* out_value,
                           std::string* out_error) {
   if (type_id >= module.types.size()) {
@@ -856,21 +635,38 @@ bool FillScalarArgStorage(const SbcModule& module,
   }
   TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
   switch (kind) {
-    case TypeKind::I8: return ConvertDlArg<int8_t>(slot, heap, owned_strings, static_cast<int8_t*>(out_value), out_error);
-    case TypeKind::I16: return ConvertDlArg<int16_t>(slot, heap, owned_strings, static_cast<int16_t*>(out_value), out_error);
-    case TypeKind::I32: return ConvertDlArg<int32_t>(slot, heap, owned_strings, static_cast<int32_t*>(out_value), out_error);
-    case TypeKind::I64: return ConvertDlArg<int64_t>(slot, heap, owned_strings, static_cast<int64_t*>(out_value), out_error);
+    case TypeKind::I8: return ConvertDlArg<int8_t>(slot, static_cast<int8_t*>(out_value), out_error);
+    case TypeKind::I16: return ConvertDlArg<int16_t>(slot, static_cast<int16_t*>(out_value), out_error);
+    case TypeKind::I32: return ConvertDlArg<int32_t>(slot, static_cast<int32_t*>(out_value), out_error);
+    case TypeKind::I64: return ConvertDlArg<int64_t>(slot, static_cast<int64_t*>(out_value), out_error);
     case TypeKind::U8:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-      return ConvertDlArg<uint8_t>(slot, heap, owned_strings, static_cast<uint8_t*>(out_value), out_error);
+      return ConvertDlArg<uint8_t>(slot, static_cast<uint8_t*>(out_value), out_error);
     case TypeKind::U16:
-      return ConvertDlArg<uint16_t>(slot, heap, owned_strings, static_cast<uint16_t*>(out_value), out_error);
+      return ConvertDlArg<uint16_t>(slot, static_cast<uint16_t*>(out_value), out_error);
     case TypeKind::U32:
-      return ConvertDlArg<uint32_t>(slot, heap, owned_strings, static_cast<uint32_t*>(out_value), out_error);
+      return ConvertDlArg<uint32_t>(slot, static_cast<uint32_t*>(out_value), out_error);
     case TypeKind::U64:
-    case TypeKind::Ref:
-      return ConvertDlArg<uint64_t>(slot, heap, owned_strings, static_cast<uint64_t*>(out_value), out_error);
+      return ConvertDlArg<uint64_t>(slot, static_cast<uint64_t*>(out_value), out_error);
+    case TypeKind::ISize: {
+      const int64_t value = UnpackI64(slot);
+      const intptr_t narrowed = static_cast<intptr_t>(value);
+      if (static_cast<int64_t>(narrowed) != value) {
+        if (out_error) *out_error = "System.FFI.call isize argument does not fit host ABI";
+        return false;
+      }
+      *static_cast<intptr_t*>(out_value) = narrowed;
+      return true;
+    }
+    case TypeKind::USize: {
+      const uint64_t value = static_cast<uint64_t>(slot);
+      const uintptr_t narrowed = static_cast<uintptr_t>(value);
+      if (static_cast<uint64_t>(narrowed) != value) {
+        if (out_error) *out_error = "System.FFI.call usize argument does not fit host ABI";
+        return false;
+      }
+      *static_cast<uintptr_t*>(out_value) = narrowed;
+      return true;
+    }
     case TypeKind::Ptr: {
       const uintptr_t bits = static_cast<uintptr_t>(slot);
       if (static_cast<Slot>(bits) != slot) {
@@ -881,11 +677,9 @@ bool FillScalarArgStorage(const SbcModule& module,
       return true;
     }
     case TypeKind::F32:
-      return ConvertDlArg<float>(slot, heap, owned_strings, static_cast<float*>(out_value), out_error);
+      return ConvertDlArg<float>(slot, static_cast<float*>(out_value), out_error);
     case TypeKind::F64:
-      return ConvertDlArg<double>(slot, heap, owned_strings, static_cast<double*>(out_value), out_error);
-    case TypeKind::String:
-      return ConvertDlArg<const char*>(slot, heap, owned_strings, static_cast<const char**>(out_value), out_error);
+      return ConvertDlArg<double>(slot, static_cast<double*>(out_value), out_error);
     default:
       if (out_error) *out_error = "System.FFI.call unsupported parameter type";
       return false;
@@ -902,11 +696,10 @@ bool IsDlScalarParamMarshalSupported(TypeKind kind) {
     case TypeKind::U16:
     case TypeKind::U32:
     case TypeKind::U64:
+    case TypeKind::ISize:
+    case TypeKind::USize:
     case TypeKind::F32:
     case TypeKind::F64:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-    case TypeKind::String:
     case TypeKind::Ptr:
       return true;
     default:
@@ -915,7 +708,7 @@ bool IsDlScalarParamMarshalSupported(TypeKind kind) {
 }
 
 bool IsDlScalarReturnMarshalSupported(TypeKind kind) {
-  return IsDlScalarParamMarshalSupported(kind) || kind == TypeKind::Ref;
+  return IsDlScalarParamMarshalSupported(kind);
 }
 
 bool ValidateDlVmMarshalType(const SbcModule& module,
@@ -931,11 +724,6 @@ bool ValidateDlVmMarshalType(const SbcModule& module,
   }
   const auto& row = module.types[type_id];
   const TypeKind kind = static_cast<TypeKind>(row.kind);
-  if (kind == TypeKind::String) {
-    if (needs_roots) *needs_roots = true;
-    if (is_return && may_allocate) *may_allocate = true;
-    return true;
-  }
   if (IsStructTypeId(module, type_id)) {
     if (!visiting.insert(type_id).second) {
       if (out_error) *out_error = "System.FFI.call recursive struct marshal is unsupported";
@@ -992,22 +780,22 @@ bool IsDlJitLoopScalarType(TypeKind kind) {
     case TypeKind::U16:
     case TypeKind::U32:
     case TypeKind::U64:
+    case TypeKind::ISize:
+    case TypeKind::USize:
     case TypeKind::F32:
     case TypeKind::F64:
-    case TypeKind::Bool:
-    case TypeKind::Char:
       return true;
     default:
       return false;
   }
 }
 
-bool IsDlJitLoopSafeTypeId(const SbcModule& module, uint32_t type_id, bool allow_string) {
+bool IsDlJitLoopSafeTypeId(const SbcModule& module, uint32_t type_id) {
   if (type_id == 0xFFFFFFFFu) return true;
   if (type_id >= module.types.size()) return false;
   if (IsStructTypeId(module, type_id)) return false;
   const auto kind = static_cast<TypeKind>(module.types[type_id].kind);
-  return (allow_string && kind == TypeKind::String) || IsDlJitLoopScalarType(kind);
+  return IsDlJitLoopScalarType(kind);
 }
 
 bool ValidateDlJitLoopSignature(const SbcModule& module,
@@ -1015,12 +803,12 @@ bool ValidateDlJitLoopSignature(const SbcModule& module,
                                 bool has_ret,
                                 const std::vector<uint32_t>& arg_type_ids,
                                 std::string* out_error) {
-  if (has_ret && !IsDlJitLoopSafeTypeId(module, ret_type_id, false)) {
+  if (has_ret && !IsDlJitLoopSafeTypeId(module, ret_type_id)) {
     if (out_error) *out_error = "System.FFI.call result is not JIT loop safe";
     return false;
   }
   for (uint32_t type_id : arg_type_ids) {
-    if (!IsDlJitLoopSafeTypeId(module, type_id, true)) {
+    if (!IsDlJitLoopSafeTypeId(module, type_id)) {
       if (out_error) *out_error = "System.FFI.call parameter is not JIT loop safe";
       return false;
     }
@@ -1154,8 +942,8 @@ bool ValidateDynamicDlFunctionSignature(const SbcModule& module,
     return false;
   }
   const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
-  if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-    if (out_error) *out_error = "System.FFI.call function pointer must be i64/u64";
+  if (ptr_kind != TypeKind::Ptr) {
+    if (out_error) *out_error = "System.FFI.call function pointer must use pointer ABI type";
     return false;
   }
   std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
@@ -1175,7 +963,6 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
   if (!ValidateDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids, out_error)) return false;
 
   DlAbiCache cache;
-  std::vector<std::string> owned_strings;
   std::vector<ffi_type*> ffi_arg_types(arg_type_ids.size(), nullptr);
   for (size_t i = 0; i < arg_type_ids.size(); ++i) {
     ffi_arg_types[i] = BuildDlFfiType(module, arg_type_ids[i], cache, out_error);
@@ -1224,7 +1011,6 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                                   ref,
                                   cache,
                                   heap,
-                                  owned_strings,
                                   arg_storage[i].data(),
                                   out_error)) {
         return false;
@@ -1232,8 +1018,6 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     } else if (!FillScalarArgStorage(module,
                                      type_id,
                                      args[arg_base + i],
-                                     heap,
-                                     owned_strings,
                                      arg_storage[i].data(),
                                      out_error)) {
       return false;
@@ -1269,32 +1053,35 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
   }
   TypeKind ret_kind = static_cast<TypeKind>(module.types[ret_type_id].kind);
   switch (ret_kind) {
-    case TypeKind::I8: return PackDlReturn<int8_t>(*reinterpret_cast<int8_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::I16: return PackDlReturn<int16_t>(*reinterpret_cast<int16_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::I32: return PackDlReturn<int32_t>(*reinterpret_cast<int32_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::I64: return PackDlReturn<int64_t>(*reinterpret_cast<int64_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::U8: return PackDlReturn<uint8_t>(*reinterpret_cast<uint8_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::U16: return PackDlReturn<uint16_t>(*reinterpret_cast<uint16_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::U32: return PackDlReturn<uint32_t>(*reinterpret_cast<uint32_t*>(ret_storage.data()), heap, out_ret, out_error);
+    case TypeKind::I8: return PackDlReturn<int8_t>(*reinterpret_cast<int8_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::I16: return PackDlReturn<int16_t>(*reinterpret_cast<int16_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::I32: return PackDlReturn<int32_t>(*reinterpret_cast<int32_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::I64: return PackDlReturn<int64_t>(*reinterpret_cast<int64_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::U8: return PackDlReturn<uint8_t>(*reinterpret_cast<uint8_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::U16: return PackDlReturn<uint16_t>(*reinterpret_cast<uint16_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::U32: return PackDlReturn<uint32_t>(*reinterpret_cast<uint32_t*>(ret_storage.data()), out_ret, out_error);
     case TypeKind::U64:
-    case TypeKind::Ref:
-      return PackDlReturn<uint64_t>(*reinterpret_cast<uint64_t*>(ret_storage.data()), heap, out_ret, out_error);
+      return PackDlReturn<uint64_t>(*reinterpret_cast<uint64_t*>(ret_storage.data()), out_ret, out_error);
     case TypeKind::Ptr:
       *out_ret = static_cast<Slot>(reinterpret_cast<uintptr_t>(
           *reinterpret_cast<void**>(ret_storage.data())));
       return true;
-    case TypeKind::F32: return PackDlReturn<float>(*reinterpret_cast<float*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::F64: return PackDlReturn<double>(*reinterpret_cast<double*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::Bool: return PackDlReturn<bool>((*reinterpret_cast<uint8_t*>(ret_storage.data())) != 0, heap, out_ret, out_error);
-    case TypeKind::Char: return PackDlReturn<uint8_t>(*reinterpret_cast<uint8_t*>(ret_storage.data()), heap, out_ret, out_error);
-    case TypeKind::String: return PackDlReturn<const char*>(*reinterpret_cast<const char**>(ret_storage.data()), heap, out_ret, out_error);
+    case TypeKind::ISize:
+      *out_ret = PackI64(static_cast<int64_t>(
+          *reinterpret_cast<intptr_t*>(ret_storage.data())));
+      return true;
+    case TypeKind::USize:
+      *out_ret = static_cast<Slot>(
+          *reinterpret_cast<uintptr_t*>(ret_storage.data()));
+      return true;
+    case TypeKind::F32: return PackDlReturn<float>(*reinterpret_cast<float*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::F64: return PackDlReturn<double>(*reinterpret_cast<double*>(ret_storage.data()), out_ret, out_error);
     default:
       if (out_error) *out_error = "System.FFI.call unsupported return type";
       return false;
   }
 }
 
-#undef SIMPLE_DL_FOREACH_TYPE
 
 
 } // namespace Simple::VM::Ffi

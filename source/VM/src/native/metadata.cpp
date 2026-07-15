@@ -33,6 +33,8 @@ bool NativeTypeMatchesLibraryType(Simple::Byte::TypeKind native_type,
     case TypeKind::U16: return library_type == "u16";
     case TypeKind::U32: return library_type == "u32";
     case TypeKind::U64: return library_type == "u64";
+    case TypeKind::ISize: return library_type == "isize";
+    case TypeKind::USize: return library_type == "usize";
     case TypeKind::U128: return library_type == "u128";
     case TypeKind::F32: return library_type == "f32";
     case TypeKind::F64: return library_type == "f64";
@@ -246,6 +248,10 @@ std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
       return "i32";
     case TypeKind::I64:
       return "i64";
+    case TypeKind::ISize:
+      return "isize";
+    case TypeKind::USize:
+      return "usize";
     case TypeKind::F32:
       return "f32";
     case TypeKind::F64:

@@ -1,6 +1,6 @@
-extern puts : i32 (s : string)
+extern consume : i32 (value : i32)
 
-main : i32 () {
-  puts()
+main :: i32 () {
+  consume()
   return 0
 }

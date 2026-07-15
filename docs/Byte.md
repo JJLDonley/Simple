@@ -104,18 +104,21 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `16` | `String` | `string` | string reference |
 | ✅ | `17` | `Void` | `void` | no-result signature/metadata type |
 | ✅ | `18` | `Never` | `never` | non-returning metadata type |
-| ✅ | `19` | `Ptr` | `ptr<T>` | typed pointer metadata |
+| ✅ | `19` | `Ptr` | `ptr` | runtime pointer ABI value |
 | ✅ | `20` | `Array` | `array<T>` | aggregate metadata |
 | ✅ | `21` | `List` | `list<T>` | aggregate metadata |
 | ✅ | `22` | `Function` | `fn<sig>` | typed function ref metadata |
 | ✅ | `23` | `Result` | `result<T,E>` | managed tagged result metadata |
 | ✅ | `24` | `Optional` | `optional<T>` | managed optional metadata for source `T?` |
 | ✅ | `25` | `Vector` | `vec<T,N>` | SIMD/vector metadata |
+| ✅ | `26` | `ISize` | `isize` | checked host pointer-width signed integer |
+| ✅ | `27` | `USize` | `usize` | checked host pointer-width unsigned integer |
 
-SBC v3 retains the structural optional/Result layouts introduced by v2 and adds
-verified operands for managed async execution. `MakeFuture` carries function id
-and argument count; `Await` carries the result type id needed for exact verifier
-stack and GC maps. No compatibility aliases or old-opcode translations remain.
+SBC v5 retains structural optional/Result and managed async layouts while adding
+pointer-width integer identities and strict external-C pointer signatures.
+`MakeFuture` carries function id and argument count; `Await` carries the result
+type id needed for exact verifier stack and GC maps. No compatibility aliases or
+old-opcode translations remain.
 
 ## Binary row schemas
 
@@ -160,7 +163,7 @@ stack and GC maps. No compatibility aliases or old-opcode translations remain.
 SBC v3 is intentionally incompatible with v2 because async extended opcodes now
 carry verified immediates rather than placeholder stack identities. The loader
 rejects older modules instead of applying a compatibility translation. Opcode
-metadata version is `4`, and the corresponding runtime ABI is `1.4`.
+metadata version is `5`, and the corresponding runtime ABI is `1.5`.
 
 ## Opcodes
 

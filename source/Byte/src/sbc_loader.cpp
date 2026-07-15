@@ -195,7 +195,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 8, &row.size)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
-      if (row.kind > static_cast<uint8_t>(TypeKind::Vector)) return Fail("type kind invalid");
+      if (row.kind > static_cast<uint8_t>(TypeKind::USize)) return Fail("type kind invalid");
       auto kind = static_cast<TypeKind>(row.kind);
       const uint8_t layout_flags = static_cast<uint8_t>(row.flags &
           (kTypeFlagManagedArtifact | kTypeFlagStableData | kTypeFlagOpaqueHandle));
@@ -224,6 +224,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           break;
         case TypeKind::I64:
         case TypeKind::U64:
+        case TypeKind::ISize:
+        case TypeKind::USize:
         case TypeKind::F64:
           if (row.size != 8) return Fail("type kind size mismatch");
           break;
@@ -266,6 +268,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         case TypeKind::U16:
         case TypeKind::U32:
         case TypeKind::U64:
+        case TypeKind::ISize:
+        case TypeKind::USize:
         case TypeKind::U128:
         case TypeKind::F32:
         case TypeKind::F64:

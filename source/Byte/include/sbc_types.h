@@ -9,7 +9,7 @@
 namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
-constexpr uint16_t kSbcVersion = 0x0004u;
+constexpr uint16_t kSbcVersion = 0x0005u;
 constexpr size_t kSbcHeaderSize = 32u;
 constexpr size_t kSbcSectionRowSize = 16u;
 constexpr size_t kSbcHeaderMagicOffset = 0x00u;
@@ -93,6 +93,8 @@ enum class TypeKind : uint8_t {
   Result = 23,
   Optional = 24,
   Vector = 25,
+  ISize = 26,
+  USize = 27,
 };
 
 struct DebugHeader {

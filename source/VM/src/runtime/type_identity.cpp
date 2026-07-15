@@ -50,6 +50,8 @@ std::string CanonicalPrimitiveTypeIdentity(Simple::Byte::TypeKind kind) {
     case TypeKind::U16: return "u16";
     case TypeKind::U32: return "u32";
     case TypeKind::U64: return "u64";
+    case TypeKind::ISize: return "isize";
+    case TypeKind::USize: return "usize";
     case TypeKind::U128: return "u128";
     case TypeKind::F32: return "f32";
     case TypeKind::F64: return "f64";

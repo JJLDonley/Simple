@@ -1,11 +1,15 @@
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
 
 int32_t simple_add_i32(int32_t a, int32_t b) {
   return a + b;
+}
+
+typedef int32_t (*SimpleBinaryI32)(int32_t, int32_t);
+
+int32_t simple_apply_i32(SimpleBinaryI32 callback, int32_t a, int32_t b) {
+  return callback ? callback(a, b) : -1;
 }
 
 int8_t simple_add_i8(int8_t a, int8_t b) {
@@ -44,18 +48,6 @@ double simple_add_f64(double a, double b) {
   return a + b;
 }
 
-uint8_t simple_char_max(uint8_t a, uint8_t b) {
-  return a > b ? a : b;
-}
-
-bool simple_bool_and(bool a, bool b) {
-  return a && b;
-}
-
-const char* simple_hello(void) {
-  return "hello this is a string from C function";
-}
-
 int32_t simple_inc_i32(int32_t a) {
   return a + 1;
 }
@@ -64,17 +56,29 @@ double simple_mix_i32_f64(int32_t a, double b) {
   return (double)a + b;
 }
 
-int32_t simple_strlen_cstr(const char* text) {
-  if (!text) return -1;
-  return (int32_t)strlen(text);
-}
-
-const char* simple_echo(const char* text) {
-  return text;
-}
-
 void simple_sink_i32(int32_t value) {
   (void)value;
+}
+
+size_t simple_add_usize(size_t a, size_t b) {
+  return a + b;
+}
+
+ptrdiff_t simple_add_isize(ptrdiff_t a, ptrdiff_t b) {
+  return a + b;
+}
+
+int32_t* simple_maybe_i32_pointer(int32_t present) {
+  static int32_t value = 37;
+  return present ? &value : NULL;
+}
+
+int32_t simple_pointer_is_null(const int32_t* pointer) {
+  return pointer == NULL ? 1 : 0;
+}
+
+int32_t simple_read_i32_pointer(const int32_t* pointer) {
+  return pointer ? *pointer : -1;
 }
 
 typedef struct SimpleColor {
