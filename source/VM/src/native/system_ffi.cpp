@@ -165,7 +165,7 @@ void RegisterSystemDl(NativeRegistry& registry) {
   registry.Register(WithDoc(
       WithStability(
           WithResource(WithCapability(MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::Sym),
-                                               {TypeKind::I64, TypeKind::String}, TypeKind::I64,
+                                               {TypeKind::I64, TypeKind::String}, TypeKind::Ptr,
                                                DlSymbol),
                                       "ffi.dynamic_load"),
                        NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0),

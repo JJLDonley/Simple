@@ -16156,13 +16156,13 @@ bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 2);
   static_assert(Simple::Lang::kSirVersionMajor == 2);
   static_assert(Simple::Lang::kStdlibVersionMajor == 2);
-  static_assert(Simple::Byte::kSbcVersion == 0x0003u);
-  static_assert(Simple::Byte::kOpcodeMetadataVersion == 3);
+  static_assert(Simple::Byte::kSbcVersion == 0x0004u);
+  static_assert(Simple::Byte::kOpcodeMetadataVersion == 4);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 2 &&
-         Simple::Lang::kSirVersionMinor == 1 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 3 &&
+         Simple::Lang::kSirVersionMinor == 2 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 3;
+         Simple::VM::kRuntimeAbiVersionMinor == 4;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {

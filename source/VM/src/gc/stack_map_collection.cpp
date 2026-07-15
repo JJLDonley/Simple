@@ -22,7 +22,8 @@ void MaybeCollectWithStackMap(bool have_meta,
                               const std::vector<Slot>& stack,
                               const std::vector<Interpreter::FrameState>& call_stack,
                               const Interpreter::FrameState& current,
-                              const std::vector<Slot>& locals_arena) {
+                              const std::vector<Slot>& locals_arena,
+                              const std::vector<uint32_t>& pointer_roots) {
   if (!have_meta) return;
   if (op_counter % 1000 != 0) return;
   const Simple::Byte::StackMap* stack_map = FindVerifiedStackMap(verify_result, current.func_index, pc);
@@ -55,6 +56,7 @@ void MaybeCollectWithStackMap(bool have_meta,
   root_context.current = current_root;
   root_context.locals_arena = &locals_arena;
   TraceRoots(root_context);
+  for (uint32_t root : pointer_roots) heap.Mark(root);
   heap.Sweep();
 }
 

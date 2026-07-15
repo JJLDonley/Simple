@@ -57,6 +57,8 @@ bool IsCompatibleNativeReturnType(Simple::Byte::TypeKind expected, Simple::Byte:
     case TypeKind::I64:
     case TypeKind::U64:
       return IsI64LikeImportType(actual);
+    case TypeKind::Ptr:
+      return actual == TypeKind::Ptr || IsI64LikeImportType(actual);
     case TypeKind::String:
       return IsStringLikeImportType(actual);
     case TypeKind::Ref:

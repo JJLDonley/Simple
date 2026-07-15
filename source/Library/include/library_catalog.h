@@ -1434,7 +1434,7 @@ inline std::optional<LibrarySignatureSpec> GetSystemLibrarySignature(SystemModul
       switch (m) {
         case SystemFFIMember::Open: return LibrarySignature({LibraryParam("path", "string")}, "i64");
         case SystemFFIMember::Sym:
-        case SystemFFIMember::Symbol: return LibrarySignature({LibraryParam("handle", "i64"), LibraryParam("name", "string")}, "i64");
+        case SystemFFIMember::Symbol: return LibrarySignature({LibraryParam("handle", "i64"), LibraryParam("name", "string")}, "void*");
         case SystemFFIMember::Close: return LibrarySignature({LibraryParam("handle", "i64")}, "i32");
         case SystemFFIMember::LastError:
         case SystemFFIMember::LastErrorSnake: return LibrarySignature({}, "string");

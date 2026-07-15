@@ -1,0 +1,5 @@
+bad :: void (pointer : void*) {
+  *pointer
+}
+
+main :: i32 () { return 0 }

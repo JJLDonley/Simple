@@ -40,7 +40,7 @@ bool NativeTypeMatchesLibraryType(Simple::Byte::TypeKind native_type,
     case TypeKind::Ref:
     case TypeKind::Array:
     case TypeKind::List: return library_type == "ref" || library_type == "i32[]" || library_type == "string[]";
-    case TypeKind::Ptr: return library_type == "ptr" || library_type == "i64" || library_type == "handle";
+    case TypeKind::Ptr: return library_type == "void*";
     case TypeKind::Char: return library_type == "char";
     case TypeKind::Never: return library_type == "never";
     case TypeKind::Function: return library_type == "function";
@@ -254,6 +254,8 @@ std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
       return "string";
     case TypeKind::Ref:
       return "ref";
+    case TypeKind::Ptr:
+      return "ptr";
     default:
       return "unknown";
   }

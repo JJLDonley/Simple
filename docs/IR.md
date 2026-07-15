@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.1`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.2`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -837,22 +837,23 @@ Explicit pointer/address and raw memory operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | `ext 88` | `addrof.local <slot>` | `local` | `ConstI32` + `Ext.AddressOfLocal` | local address/value handle |
-| ✅ | `ext 89` | `addrof.global <slot>` | `global` | `ConstI32` + `Ext.AddressOfGlobal` | global address/value handle |
-| ✅ | `ext 90` | `addrof.field <field>` | `field` | `ConstI32` + `Ext.AddressOfField` | field address/value handle |
-| ✅ | `ext 75` | `load.ptr.<T>` | `none` | `Ext.LoadPtr` | loads pointer-represented slot |
-| ✅ | `ext 76` | `store.ptr.<T>` | `none` | `Ext.StorePtr` | stores pointer-represented slot |
-| ✅ | `ext 77` | `ptr.add` | `none` | `Ext.PtrAdd` | pointer integer offset add |
-| ✅ | `ext 78` | `ptr.offset` | `none` | `Ext.PtrOffset` | pointer integer offset add |
-| ✅ | `ext 79` | `ptr.eq` | `none` | `Ext.PtrEq` | pointer/reference equality |
-| ✅ | `ext 80` | `ptr.ne` | `none` | `Ext.PtrNe` | pointer/reference inequality |
-| ✅ | `ext 81` | `ptr.isnull` | `none` | `Ext.PtrIsNull` | null-test |
-| ✅ | `ext 82` | `ptr.check.null` | `none` | `Ext.PtrCheckNull` | null-check |
-| ✅ | `ext 83` | `ptr.check.bounds` | `none` | `Ext.PtrCheckBounds` | bounds-check |
-| ✅ | `ext 84` | `mem.copy` | `none` | `Ext.MemCopy` | memory copy operation |
-| ✅ | `ext 85` | `mem.move` | `none` | `Ext.MemMove` | memory move operation |
-| ✅ | `ext 86` | `mem.set` | `none` | `Ext.MemSet` | memory set operation |
-| ✅ | `ext 87` | `mem.compare` | `none` | `Ext.MemCompare` | memory compare operation |
+| ✅ | `ext 149` | `ptr.null` | `none` | `Ext.PtrNull` | internal zero pointer state; no source null literal |
+| ✅ | `ext 88` | `addrof.local <slot>` | `local` | `ConstI32` + `Ext.AddressOfLocal` | creates frame-scoped VM provenance |
+| ✅ | `ext 89` | `addrof.global <slot>` | `global` | `ConstI32` + `Ext.AddressOfGlobal` | creates global VM provenance |
+| ✅ | `ext 90` | `addrof.field <field>` | `field` | `ConstI32` + `Ext.AddressOfField` | creates rooted field provenance |
+| ✅ | `ext 75` | `load.ptr <T>` | `none` | `Ext.LoadPtr` | guarded load through live VM provenance |
+| ✅ | `ext 76` | `store.ptr <T>` | `none` | `Ext.StorePtr` | guarded store through live mutable VM provenance |
+| ❌ | `ext 77` | `ptr.add` | `none` | `Ext.PtrAdd` | raw pointer arithmetic traps |
+| ❌ | `ext 78` | `ptr.offset` | `none` | `Ext.PtrOffset` | raw pointer arithmetic traps |
+| ✅ | `ext 79` | `ptr.eq` | `none` | `Ext.PtrEq` | pointer identity equality |
+| ✅ | `ext 80` | `ptr.ne` | `none` | `Ext.PtrNe` | pointer identity inequality |
+| ✅ | `ext 81` | `ptr.isnull` | `none` | `Ext.PtrIsNull` | zero-address test |
+| ✅ | `ext 82` | `ptr.check.null` | `none` | `Ext.PtrCheckNull` | zero-address guard |
+| ⚠️ | `ext 83` | `ptr.check.bounds` | `none` | `Ext.PtrCheckBounds` | internal guard; source indexing awaits extent metadata |
+| ❌ | `ext 84` | `mem.copy` | `none` | `Ext.MemCopy` | traps without proven extents |
+| ❌ | `ext 85` | `mem.move` | `none` | `Ext.MemMove` | traps without proven extents |
+| ❌ | `ext 86` | `mem.set` | `none` | `Ext.MemSet` | traps without proven extents |
+| ❌ | `ext 87` | `mem.compare` | `none` | `Ext.MemCompare` | traps without proven extents |
 
 ### Checked operations
 

@@ -51,6 +51,8 @@ struct LocalInfo {
   const TypeRef* type = nullptr;
   std::string dl_module;
   bool points_to_immutable = false;
+  bool frame_borrowed_pointer = false;
+  bool pointer_usable = true;
 };
 
 struct CallTargetInfo {
@@ -59,6 +61,7 @@ struct CallTargetInfo {
   Mutability return_mutability = Mutability::Mutable;
   std::vector<std::string> type_params;
   bool is_proc = false;
+  bool is_external_c = false;
 };
 
 bool CloneFunctionCallReturn(const FuncDecl& function, TypeRef* out) {
@@ -410,7 +413,14 @@ bool LibraryTypeToTypeRef(const LibraryTypeSpec& spec, TypeRef* out) {
     *out = MakeListType(name.substr(0, name.size() - 2));
     return true;
   }
+  uint32_t pointer_depth = 0;
+  while (!name.empty() && name.back() == '*') {
+    name.pop_back();
+    ++pointer_depth;
+  }
+  if (name.empty()) return false;
   *out = MakeSimpleType(name);
+  out->pointer_depth = pointer_depth;
   return true;
 }
 
@@ -850,6 +860,12 @@ bool InferExprType(const Expr& expr,
       if (op == "&") {
         TypeRef result = operand;
         result.pointer_depth += 1;
+        return CloneTypeRef(result, out);
+      }
+      if (op == "*") {
+        if (operand.pointer_depth == 0) return false;
+        TypeRef result = operand;
+        result.pointer_depth -= 1;
         return CloneTypeRef(result, out);
       }
       if (op == "?") {
@@ -1365,6 +1381,27 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
   return true;
 }
 
+bool IsFrameBorrowedPointerExpr(
+    const Expr& expr,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes) {
+  const Expr* address_target = nullptr;
+  if (IsAddressOfExpr(expr, &address_target)) {
+    if (address_target->kind == ExprKind::Member) return true;
+    const Expr* root = address_target;
+    if (!root || root->kind != ExprKind::Identifier) return true;
+    if (FindLocal(scopes, root->text)) return true;
+    return ctx.globals.find(root->text) == ctx.globals.end() &&
+           ctx.modules.find(root->text) == ctx.modules.end();
+  }
+  if (expr.kind == ExprKind::Identifier) {
+    if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+      return local->frame_borrowed_pointer;
+    }
+  }
+  return false;
+}
+
 bool CheckCallTarget(const Expr& callee,
                      size_t arg_count,
                      const ValidateContext& ctx,
@@ -1672,6 +1709,7 @@ bool GetCallTargetInfo(const Expr& callee,
     auto ext_it = ctx.externs.find(callee.text);
     if (ext_it != ctx.externs.end()) {
       out->params.clear();
+      out->is_external_c = true;
       if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
       out->return_mutability = ext_it->second->return_mutability;
       out->type_params.clear();
@@ -2061,6 +2099,19 @@ bool CheckCallArgTypes(const Expr& call_expr,
     }
     if (!CheckTypesCompatibleForExpr(expected, actual, call_expr.args[i],
                                      "call argument type mismatch", error)) return false;
+    if (expected.pointer_depth > 0 && call_expr.args[i].kind == ExprKind::Identifier) {
+      if (const LocalInfo* local = FindLocal(scopes, call_expr.args[i].text);
+          local && local->type && local->type->pointer_depth > 0 &&
+          !local->pointer_usable) {
+        if (error) *error = "pointer is not usable before assignment: " + call_expr.args[i].text;
+        return false;
+      }
+    }
+    if (info.is_external_c && expected.pointer_depth > 0 &&
+        IsFrameBorrowedPointerExpr(call_expr.args[i], ctx, scopes)) {
+      if (error) *error = "external C call cannot receive VM frame pointer";
+      return false;
+    }
   }
   return true;
 }
@@ -2235,6 +2286,20 @@ bool CheckAssignmentTarget(const Expr& target,
     }
     return true;
   }
+  if (target.kind == ExprKind::Unary && target.op == "*" &&
+      target.children.size() == 1) {
+    TypeRef pointer_type;
+    if (!InferExprType(target.children[0], ctx, scopes, current_artifact,
+                       &pointer_type) || pointer_type.pointer_depth == 0) {
+      if (error) *error = "dereference assignment requires pointer operand";
+      return false;
+    }
+    if (!is_mutable_expr(target.children[0])) {
+      if (error) *error = "cannot assign through immutable value";
+      return false;
+    }
+    return true;
+  }
   if (error) *error = "invalid assignment target";
   return false;
 }
@@ -2263,6 +2328,11 @@ bool ValidateArtifactLiteral(const Expr& expr,
             expr.children[i], expected, ctx, scopes, current_artifact, error)) {
       return false;
     }
+    if (expected.pointer_depth > 0 &&
+        IsFrameBorrowedPointerExpr(expr.children[i], ctx, scopes)) {
+      if (error) *error = "cannot store frame-borrowed pointer in artifact field";
+      return false;
+    }
   }
   if (!expr.field_names.empty()) {
     std::unordered_set<std::string> valid;
@@ -2282,6 +2352,11 @@ bool ValidateArtifactLiteral(const Expr& expr,
       if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
       if (!ValidateExprAgainstExpected(
               expr.field_values[i], expected, ctx, scopes, current_artifact, error)) {
+        return false;
+      }
+      if (expected.pointer_depth > 0 &&
+          IsFrameBorrowedPointerExpr(expr.field_values[i], ctx, scopes)) {
+        if (error) *error = "cannot store frame-borrowed pointer in artifact field";
         return false;
       }
     }
@@ -2513,6 +2588,11 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckReturnStmtValuePresence(stmt, return_is_void, error)) return false;
       if (stmt.has_return_expr) {
         if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+        if (expected_return && expected_return->pointer_depth > 0 &&
+            IsFrameBorrowedPointerExpr(stmt.expr, ctx, scopes)) {
+          if (error) *error = "cannot return pointer borrowed from the current frame";
+          return false;
+        }
         const bool direct_fn_call = IsDirectFnLiteralCall(stmt.expr);
         const bool contextual_return =
             stmt.expr.kind == ExprKind::ArtifactLiteral ||
@@ -2648,6 +2728,24 @@ bool CheckStmt(const Stmt& stmt,
         } else if (have_target && !CheckArrayListLiteralTargetShape(target_type, stmt.expr, error)) {
           return false;
         }
+        if (have_target && target_type.pointer_depth > 0 && stmt.assign_op == "=") {
+          const bool frame_borrow = IsFrameBorrowedPointerExpr(stmt.expr, ctx, scopes);
+          bool updated_local = false;
+          if (stmt.target.kind == ExprKind::Identifier) {
+            for (auto scope_it = scopes.rbegin(); scope_it != scopes.rend(); ++scope_it) {
+              auto local_it = scope_it->find(stmt.target.text);
+              if (local_it == scope_it->end()) continue;
+              local_it->second.frame_borrowed_pointer = frame_borrow;
+              local_it->second.pointer_usable = true;
+              updated_local = true;
+              break;
+            }
+          }
+          if (frame_borrow && !updated_local) {
+            if (error) *error = "cannot store frame-borrowed pointer in escaping storage";
+            return false;
+          }
+        }
       }
       return true;
     case StmtKind::VarDecl:
@@ -2656,6 +2754,8 @@ bool CheckStmt(const Stmt& stmt,
         LocalInfo info;
         info.mutability = stmt.var_decl.mutability;
         info.type = &stmt.var_decl.type;
+        info.pointer_usable = stmt.var_decl.type.pointer_depth == 0 ||
+                              stmt.var_decl.has_init_expr;
         if (!AddLocal(scopes, stmt.var_decl.name, info, error)) return false;
       }
       if (stmt.var_decl.has_init_expr) {
@@ -2681,8 +2781,10 @@ bool CheckStmt(const Stmt& stmt,
                                          &known,
                                          &points_to_immutable);
           auto local_it = scopes.back().find(stmt.var_decl.name);
-          if (local_it != scopes.back().end() && known) {
-            local_it->second.points_to_immutable = points_to_immutable;
+          if (local_it != scopes.back().end()) {
+            if (known) local_it->second.points_to_immutable = points_to_immutable;
+            local_it->second.frame_borrowed_pointer =
+                IsFrameBorrowedPointerExpr(stmt.var_decl.init_expr, ctx, scopes);
           }
         }
         std::string manifest_module;
@@ -3347,6 +3449,14 @@ bool CheckExpr(const Expr& expr,
     }
     case ExprKind::Unary:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (expr.op == "*" && expr.children[0].kind == ExprKind::Identifier) {
+        if (const LocalInfo* local = FindLocal(scopes, expr.children[0].text);
+            local && local->type && local->type->pointer_depth > 0 &&
+            !local->pointer_usable) {
+          if (error) *error = "pointer is not usable before assignment: " + expr.children[0].text;
+          return false;
+        }
+      }
       if (expr.op == "++" || expr.op == "--" || expr.op == "post++" || expr.op == "post--") {
         if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       }
@@ -3577,6 +3687,14 @@ bool CheckExpr(const Expr& expr,
         }
       }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (is_ptr && expr.children[0].kind == ExprKind::Identifier) {
+        if (const LocalInfo* local = FindLocal(scopes, expr.children[0].text);
+            local && local->type && local->type->pointer_depth > 0 &&
+            !local->pointer_usable) {
+          if (error) *error = "pointer is not usable before assignment: " + expr.children[0].text;
+          return false;
+        }
+      }
       if (is_dot && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier) {

@@ -282,6 +282,18 @@ std::vector<uint8_t> BuildTypesI32RefStringI64() {
   return types;
 }
 
+std::vector<uint8_t> BuildTypesI32RefStringI64Ptr() {
+  std::vector<uint8_t> types = BuildTypesI32RefStringI64();
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(Simple::Byte::TypeKind::Ptr));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  return types;
+}
+
 std::vector<uint8_t> BuildSingleImportFunctionModuleWithTypes(
     const std::vector<uint8_t>& main_code,
     uint16_t main_locals,
@@ -8802,11 +8814,12 @@ bool RunLlvmJitDynamicDlScalarCallInsideLoopTest() {
   bool has_ret = false;
   std::string error;
   Simple::VM::Heap heap;
-  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
-    std::cerr << "LLVM JIT dynamic dl scalar loop run failed: " << error << "\n";
+  if (backend.TryRunFunctionWithRuntime(
+          load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
     return false;
   }
-  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 4;
+  return error.find("dynamic-dl/external-c") != std::string::npos &&
+         error.find("invalid-abi-signature") != std::string::npos;
 }
 
 bool RunLlvmJitDynamicDlStringArgInsideLoopTest() {
@@ -8871,11 +8884,12 @@ bool RunLlvmJitDynamicDlStringArgInsideLoopTest() {
   bool has_ret = false;
   std::string error;
   Simple::VM::Heap heap;
-  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
-    std::cerr << "LLVM JIT dynamic dl string loop run failed: " << error << "\n";
+  if (backend.TryRunFunctionWithRuntime(
+          load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
     return false;
   }
-  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 3;
+  return error.find("dynamic-dl/external-c") != std::string::npos &&
+         error.find("non-scalar-or-managed-signature") != std::string::npos;
 }
 
 bool RunLlvmJitDynamicDlScalarLoopMatchesInterpreterTest() {
@@ -8932,7 +8946,8 @@ bool RunLlvmJitDynamicDlScalarLoopMatchesInterpreterTest() {
               << " vs " << exec_jit.exit_code << "\n";
     return false;
   }
-  return exec_jit.exit_code == 4;
+  return exec_jit.status == Simple::VM::ExecStatus::Trapped &&
+         exec_jit.error.find("function pointer") != std::string::npos;
 }
 
 bool RunLlvmJitDynamicDlContextHelperInsideLoopTest() {
@@ -8990,11 +9005,12 @@ bool RunLlvmJitDynamicDlContextHelperInsideLoopTest() {
   bool has_ret = false;
   std::string error;
   Simple::VM::Heap heap;
-  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
-    std::cerr << "LLVM JIT dynamic dl context helper loop run failed: " << error << "\n";
+  if (backend.TryRunFunctionWithRuntime(
+          load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
     return false;
   }
-  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 4;
+  return error.find("dynamic-dl/external-c") != std::string::npos &&
+         error.find("invalid-abi-signature") != std::string::npos;
 }
 
 bool RunLlvmJitDynamicDlManagedSignatureDiagnosticTest() {
@@ -9187,7 +9203,7 @@ bool RunLlvmJitResourceInputImportRejectsInvalidHandleTest() {
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
       BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.FFI", "sym",
-                                               SigSpec{3, 2, {3, 2}}, BuildTypesI32RefStringI64(), const_pool));
+                                               SigSpec{4, 2, {3, 2}}, BuildTypesI32RefStringI64Ptr(), const_pool));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;

@@ -664,7 +664,10 @@ is retained. The completed lambda grammar advances the current language syntax
 version to 2.1; SIR remains 2.0 because lambda bodies lower through existing
 function, closure, and indirect-call instructions. Async syntax advances the
 language version to 2.2 and typed Promise instructions advance SIR to 2.1, SBC
-metadata to version 3, and the runtime ABI to 1.3.
+metadata to version 3, and the runtime ABI to 1.3. Guarded address-of,
+dereference, pointer assignment/member access, identity comparison, typed
+pointer metadata, and the internal zero-pointer instruction advance syntax to
+2.3, SIR to 2.2, SBC/opcode metadata to 4, and the runtime ABI to 1.4.
 
 ### `v0.6` generic design
 

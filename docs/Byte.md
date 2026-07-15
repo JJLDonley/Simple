@@ -160,7 +160,7 @@ stack and GC maps. No compatibility aliases or old-opcode translations remain.
 SBC v3 is intentionally incompatible with v2 because async extended opcodes now
 carry verified immediates rather than placeholder stack identities. The loader
 rejects older modules instead of applying a compatibility translation. Opcode
-metadata version is `3`, and the corresponding runtime ABI is `1.3`.
+metadata version is `4`, and the corresponding runtime ABI is `1.4`.
 
 ## Opcodes
 

@@ -1,0 +1,8 @@
+main :: i32 () {
+  left_value : i32 = 1
+  right_value : i32 = 2
+  left : i32* = &left_value
+  right : i32* = &right_value
+  if (left < right) { return 1 }
+  return 0
+}

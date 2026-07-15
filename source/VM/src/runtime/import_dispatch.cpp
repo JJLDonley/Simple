@@ -121,8 +121,8 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
         return false;
       }
       TypeKind ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
-      if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-        out_error = "System.FFI.call first parameter must be i64/u64";
+      if (ptr_kind != TypeKind::Ptr) {
+        out_error = "System.FFI.call first parameter must be an external function pointer";
         return false;
       }
       int64_t ptr_bits = UnpackI64(args[0]);

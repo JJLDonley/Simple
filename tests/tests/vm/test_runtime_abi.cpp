@@ -636,6 +636,10 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   ref.kind = static_cast<uint8_t>(TypeKind::Ref);
   ref.size = 8;
   module.types.push_back(ref);
+  Simple::Byte::TypeRow ptr;
+  ptr.kind = static_cast<uint8_t>(TypeKind::Ptr);
+  ptr.size = 8;
+  module.types.push_back(ptr);
   Simple::Byte::TypeRow point;
   point.kind = static_cast<uint8_t>(TypeKind::Unspecified);
   point.size = 8;
@@ -645,25 +649,25 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   module.fields.push_back(Simple::Byte::FieldRow{0, 0, 0, 0});
   module.fields.push_back(Simple::Byte::FieldRow{0, 0, 4, 0});
 
-  auto scalar = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 0});
+  auto scalar = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 0});
   if (!scalar.abi_valid || !scalar.vm_marshal_supported || !scalar.jit_helper_safe || !scalar.jit_loop_safe ||
       scalar.may_allocate || scalar.needs_roots) {
     return false;
   }
 
-  auto cstring = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 2});
+  auto cstring = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 2});
   if (!cstring.abi_valid || !cstring.vm_marshal_supported || !cstring.jit_helper_safe || !cstring.jit_loop_safe ||
       !cstring.needs_roots || cstring.may_allocate) {
     return false;
   }
 
-  auto aggregate = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, false, {1, 4});
+  auto aggregate = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, false, {4, 5});
   if (!aggregate.abi_valid || !aggregate.vm_marshal_supported || !aggregate.jit_helper_safe ||
       aggregate.jit_loop_safe || !aggregate.needs_roots || aggregate.may_allocate) {
     return false;
   }
 
-  auto aggregate_ret = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 4, true, {1});
+  auto aggregate_ret = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 5, true, {4});
   if (!aggregate_ret.abi_valid || !aggregate_ret.vm_marshal_supported || !aggregate_ret.jit_helper_safe ||
       aggregate_ret.jit_loop_safe || !aggregate_ret.needs_roots || !aggregate_ret.may_allocate) {
     return false;
@@ -674,7 +678,7 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
     return false;
   }
 
-  auto bad_ref_param = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 3});
+  auto bad_ref_param = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 3});
   return !bad_ref_param.abi_valid && !bad_ref_param.vm_marshal_supported &&
          bad_ref_param.reason.find("unsupported VM marshal type") != std::string::npos;
 }

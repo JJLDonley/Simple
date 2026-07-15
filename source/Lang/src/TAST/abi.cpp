@@ -136,6 +136,10 @@ bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
     case Simple::Byte::TypeKind::String:
       *out = MakeSimpleType("string");
       return true;
+    case Simple::Byte::TypeKind::Ptr:
+      *out = MakeSimpleType("void");
+      out->pointer_depth = 1;
+      return true;
     case Simple::Byte::TypeKind::Ref:
       *out = MakeListType("i32");
       return true;

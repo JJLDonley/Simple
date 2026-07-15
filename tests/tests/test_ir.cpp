@@ -3624,7 +3624,7 @@ bool RunIrTextDuplicateExportFailsTest() {
 
 bool RunIrTextSirVersionDirectiveTest() {
   const char* text =
-      "sir version 2.1\n"
+      "sir version 2.2\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 10\n"
@@ -3847,30 +3847,21 @@ bool RunIrTextVectorOpsTest() {
 
 bool RunIrTextPointerMemoryOpsTest() {
   const char* text =
-      "func main locals=0 stack=12\n"
-      "  enter 0\n"
+      "func main locals=1 stack=3\n"
+      "  enter 1\n"
       "  const i32 10\n"
-      "  load.ptr i32\n"
-      "  const i32 5\n"
-      "  ptr.add\n"
-      "  const i32 2\n"
-      "  ptr.offset\n"
+      "  stloc 0\n"
+      "  addrof.local 0\n"
       "  const i32 99\n"
-      "  store.ptr.i32\n"
-      "  const i32 1\n"
-      "  const i32 2\n"
-      "  const i32 3\n"
-      "  mem.copy\n"
-      "  const i32 1\n"
-      "  const i32 2\n"
-      "  const i32 3\n"
-      "  mem.compare\n"
+      "  store.ptr i32\n"
+      "  addrof.local 0\n"
+      "  load.ptr i32\n"
       "  ret\n"
       "end\n"
       "entry main\n";
   auto module = BuildIrTextModule(text, "ir_text_pointer_memory_ops");
   if (module.empty()) return false;
-  return RunExpectExit(module, 0);
+  return RunExpectExit(module, 99);
 }
 
 bool RunIrTextPointerMemoryOpBadTest() {
@@ -5071,7 +5062,7 @@ bool RunIrTextPointerOpOpsTest() {
       "  ldloc obj\n"
       "  stglob g\n"
       "  addrof.local obj\n"
-      "  addrof.global g\n"
+      "  addrof.local obj\n"
       "  ptr.eq\n"
       "  jmp.true ok\n"
       "  const i32 0\n"
@@ -5090,7 +5081,7 @@ bool RunIrTextPointerNullOpOpsTest() {
   const char* text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
-      "  const null\n"
+      "  ptr.null\n"
       "  ptr.isnull\n"
       "  jmp.true ok\n"
       "  const i32 0\n"
@@ -5109,7 +5100,7 @@ bool RunIrTextPointerCheckNullTrapTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
-      "  const null\n"
+      "  ptr.null\n"
       "  ptr.check.null\n"
       "  pop\n"
       "  const i32 0\n"

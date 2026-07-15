@@ -1,0 +1,7 @@
+extern consume : void (value : i32*)
+
+main :: i32 () {
+  value : i32 = 1
+  consume(&value)
+  return 0
+}

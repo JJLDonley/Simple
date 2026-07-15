@@ -1104,6 +1104,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   if (!add_builtin("string", Simple::Byte::TypeKind::String, 4)) return false;
   if (!add_builtin("void", Simple::Byte::TypeKind::Void, 0)) return false;
   if (!add_builtin("never", Simple::Byte::TypeKind::Never, 0)) return false;
+  if (!add_builtin("ptr", Simple::Byte::TypeKind::Ptr, 8)) return false;
 
   auto parse_type_kind = [&](const std::string& kind_text,
                              Simple::Byte::TypeKind* out_kind,
@@ -3598,6 +3599,11 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "typeof") {
         builder.EmitTypeOf();
+        continue;
+      }
+      if (op == "ptr.null") {
+        if (!args.empty()) return fail("ptr.null expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrNull);
         continue;
       }
       if (op == "ptr.isnull") {

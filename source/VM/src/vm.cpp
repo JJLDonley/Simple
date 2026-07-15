@@ -101,6 +101,45 @@ bool IsManagedPromiseSlotType(TypeKind kind) {
 }
 
 constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
+constexpr uint64_t kVmPointerTag = 0xF17E000000000000ull;
+constexpr uint64_t kVmPointerTagMask = 0xFFFF000000000000ull;
+constexpr uint64_t kVmPointerPayloadMask = 0x0000FFFFFFFFFFFFull;
+constexpr uint64_t kVmPointerIndexMask = 0x0000000000FFFFFFull;
+constexpr uint32_t kVmPointerGenerationMask = 0x00FFFFFFu;
+
+enum class VmPointerKind : uint8_t {
+  Local,
+  Global,
+  ArtifactField,
+};
+
+struct VmPointerRecord {
+  VmPointerKind kind = VmPointerKind::Local;
+  uint64_t frame_token = 0;
+  size_t slot_index = 0;
+  uint32_t object_ref = kNullRef;
+  uint32_t field_id = 0;
+  uint32_t generation = 1;
+  bool active = true;
+};
+
+uint64_t PackVmPointer(size_t index, uint32_t generation) {
+  const uint64_t encoded_index = static_cast<uint64_t>(index) + 1u;
+  return kVmPointerTag |
+         ((static_cast<uint64_t>(generation & kVmPointerGenerationMask)) << 24u) |
+         (encoded_index & kVmPointerIndexMask);
+}
+
+bool UnpackVmPointer(uint64_t value, size_t* index, uint32_t* generation) {
+  if (!index || !generation || (value & kVmPointerTagMask) != kVmPointerTag) return false;
+  const uint64_t payload = value & kVmPointerPayloadMask;
+  const uint64_t encoded_index = payload & kVmPointerIndexMask;
+  const uint32_t encoded_generation = static_cast<uint32_t>(payload >> 24u);
+  if (encoded_index == 0 || encoded_generation == 0) return false;
+  *index = static_cast<size_t>(encoded_index - 1u);
+  *generation = encoded_generation;
+  return true;
+}
 
 bool CheckedMulOverflowI64(int64_t a, int64_t b, int64_t* out) {
   if (a > 0) {
@@ -261,11 +300,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Slot>& stack = interpreter_state.stack;
   std::vector<Simple::VM::Interpreter::FrameState>& call_stack = interpreter_state.call_stack;
   std::vector<Slot>& call_args = interpreter_state.call_args;
-
+  std::vector<VmPointerRecord> vm_pointers;
+  uint64_t next_pointer_frame_token = 1;
 
   size_t func_start = module.functions[entry_func_index].code_offset;
   call_counts[entry_func_index] += 1;
   Simple::VM::Interpreter::FrameState current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, entry_func_index, 0, 0, kNullRef);
+  current.pointer_frame_token = next_pointer_frame_token++;
   TrapContext trap_ctx;
   trap_ctx.current = &current;
   trap_ctx.call_stack = &call_stack;
@@ -275,6 +316,125 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   TrapContextGuard trap_guard(&trap_ctx);
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
+
+  auto frame_token_is_active = [&](uint64_t token) {
+    if (token == 0) return true;
+    if (current.pointer_frame_token == token) return true;
+    for (const auto& frame : call_stack) {
+      if (frame.pointer_frame_token == token) return true;
+    }
+    return false;
+  };
+  auto get_vm_pointer = [&](Slot pointer, VmPointerRecord** out) {
+    size_t index = 0;
+    uint32_t generation = 0;
+    if (!out || !UnpackVmPointer(pointer, &index, &generation) ||
+        index >= vm_pointers.size()) {
+      return false;
+    }
+    VmPointerRecord& record = vm_pointers[index];
+    if (!record.active || record.generation != generation ||
+        !frame_token_is_active(record.frame_token)) return false;
+    *out = &record;
+    return true;
+  };
+  auto load_vm_pointer = [&](Slot pointer, Slot* out) {
+    VmPointerRecord* record = nullptr;
+    if (!out || !get_vm_pointer(pointer, &record)) return false;
+    switch (record->kind) {
+      case VmPointerKind::Local:
+        if (record->slot_index >= locals_arena.size()) return false;
+        *out = locals_arena[record->slot_index];
+        return true;
+      case VmPointerKind::Global:
+        if (record->slot_index >= globals.size()) return false;
+        *out = globals[record->slot_index];
+        return true;
+      case VmPointerKind::ArtifactField: {
+        if (record->field_id >= module.fields.size()) return false;
+        HeapObject* object = heap.Get(record->object_ref);
+        if (!object || object->header.kind != ObjectKind::Artifact) return false;
+        const auto& field = module.fields[record->field_id];
+        if (field.type_id >= module.types.size()) return false;
+        const uint32_t width = module.types[field.type_id].size;
+        if (width == 8 && field.offset + 8 <= object->payload.size()) {
+          *out = ReadU64Payload(object->payload, field.offset);
+          return true;
+        }
+        if (width > 0 && width <= 4 && field.offset + 4 <= object->payload.size()) {
+          *out = static_cast<Slot>(ReadU32Payload(object->payload, field.offset));
+          return true;
+        }
+        return false;
+      }
+    }
+    return false;
+  };
+  auto store_vm_pointer = [&](Slot pointer, Slot value) {
+    VmPointerRecord* record = nullptr;
+    if (!get_vm_pointer(pointer, &record)) return false;
+    switch (record->kind) {
+      case VmPointerKind::Local:
+        if (record->slot_index >= locals_arena.size()) return false;
+        locals_arena[record->slot_index] = value;
+        return true;
+      case VmPointerKind::Global:
+        if (record->slot_index >= globals.size()) return false;
+        globals[record->slot_index] = value;
+        return true;
+      case VmPointerKind::ArtifactField: {
+        if (record->field_id >= module.fields.size()) return false;
+        HeapObject* object = heap.Get(record->object_ref);
+        if (!object || object->header.kind != ObjectKind::Artifact) return false;
+        const auto& field = module.fields[record->field_id];
+        if (field.type_id >= module.types.size()) return false;
+        const uint32_t width = module.types[field.type_id].size;
+        if (width == 8 && field.offset + 8 <= object->payload.size()) {
+          WriteU64Payload(object->payload, field.offset, value);
+          return true;
+        }
+        if (width > 0 && width <= 4 && field.offset + 4 <= object->payload.size()) {
+          WriteU32Payload(object->payload, field.offset, static_cast<uint32_t>(value));
+          return true;
+        }
+        return false;
+      }
+    }
+    return false;
+  };
+
+  auto intern_vm_pointer = [&](const VmPointerRecord& requested) -> Slot {
+    size_t reusable = vm_pointers.size();
+    for (size_t i = 0; i < vm_pointers.size(); ++i) {
+      auto& existing = vm_pointers[i];
+      if (existing.active && !frame_token_is_active(existing.frame_token)) {
+        existing.active = false;
+      }
+      if (!existing.active) {
+        if (existing.generation < kVmPointerGenerationMask &&
+            reusable == vm_pointers.size()) {
+          reusable = i;
+        }
+        continue;
+      }
+      if (existing.kind == requested.kind &&
+          existing.frame_token == requested.frame_token &&
+          existing.slot_index == requested.slot_index &&
+          existing.object_ref == requested.object_ref &&
+          existing.field_id == requested.field_id) {
+        return PackVmPointer(i, existing.generation);
+      }
+    }
+    VmPointerRecord record = requested;
+    if (reusable < vm_pointers.size()) {
+      record.generation = vm_pointers[reusable].generation + 1u;
+      vm_pointers[reusable] = record;
+      return PackVmPointer(reusable, record.generation);
+    }
+    if (vm_pointers.size() >= kVmPointerIndexMask) return 0;
+    vm_pointers.push_back(record);
+    return PackVmPointer(vm_pointers.size() - 1, record.generation);
+  };
 
   auto is_llvm_unsupported = [](const std::string& reason) -> bool {
     return reason.empty() || reason.rfind("unsupported", 0) == 0;
@@ -314,7 +474,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     trap_ctx.pc = pc;
     trap_ctx.func_start = func_start;
     ++op_counter;
-    Simple::VM::Gc::MaybeCollectWithStackMap(have_meta, op_counter, pc, vr, heap, globals, stack, call_stack, current, locals_arena);
+    std::vector<uint32_t> pointer_roots;
+    if (have_meta && op_counter % 1000 == 0) {
+      for (auto& pointer : vm_pointers) {
+        if (pointer.active && !frame_token_is_active(pointer.frame_token)) {
+          pointer.active = false;
+        }
+        if (pointer.active && pointer.kind == VmPointerKind::ArtifactField &&
+            pointer.object_ref != kNullRef) {
+          pointer_roots.push_back(pointer.object_ref);
+        }
+      }
+    }
+    Simple::VM::Gc::MaybeCollectWithStackMap(
+        have_meta, op_counter, pc, vr, heap, globals, stack, call_stack,
+        current, locals_arena, pointer_roots);
     if (pc >= end) {
       if (call_stack.empty()) {
         ExecResult done;
@@ -1065,6 +1239,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) return Trap("runtime limit exceeded: call depth");
               call_stack.push_back(current);
               current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, func_id, pc, stack.size(), kNullRef);
+              current.pointer_frame_token = next_pointer_frame_token++;
               for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) locals_arena[current.locals_base + i] = call_args[i];
               func_start = func.code_offset;
               pc = func_start;
@@ -1109,6 +1284,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) return Trap("runtime limit exceeded: call depth");
               call_stack.push_back(current);
               current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, target, pc, stack.size(), closure_ref);
+              current.pointer_frame_token = next_pointer_frame_token++;
               for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) locals_arena[current.locals_base + i] = call_args[i];
               func_start = module.functions[target].code_offset;
               pc = func_start;
@@ -1142,23 +1318,31 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               if (!heap.Get(UnpackRef(value))) return Trap("UNPIN_REF invalid reference");
               break;
             }
+            case Simple::Byte::ExtendedOpCode::PtrNull:
+              Push(stack, 0);
+              break;
             case Simple::Byte::ExtendedOpCode::LoadPtr: {
-              Slot ptr = Pop(stack);
-              Push(stack, ptr);
+              const Slot pointer = Pop(stack);
+              if (pointer == 0) return Trap("LOAD_PTR null pointer");
+              Slot value = 0;
+              if (!load_vm_pointer(pointer, &value)) {
+                return Trap("LOAD_PTR pointer has no live VM provenance");
+              }
+              Push(stack, value);
               break;
             }
             case Simple::Byte::ExtendedOpCode::StorePtr: {
-              (void)Pop(stack);
-              (void)Pop(stack);
+              const Slot value = Pop(stack);
+              const Slot pointer = Pop(stack);
+              if (pointer == 0) return Trap("STORE_PTR null pointer");
+              if (!store_vm_pointer(pointer, value)) {
+                return Trap("STORE_PTR pointer has no live mutable VM provenance");
+              }
               break;
             }
             case Simple::Byte::ExtendedOpCode::PtrAdd:
-            case Simple::Byte::ExtendedOpCode::PtrOffset: {
-              int32_t b = UnpackI32(Pop(stack));
-              int32_t a = UnpackI32(Pop(stack));
-              Push(stack, PackI32(a + b));
-              break;
-            }
+            case Simple::Byte::ExtendedOpCode::PtrOffset:
+              return Trap("raw pointer arithmetic is not supported");
             case Simple::Byte::ExtendedOpCode::PtrEq:
             case Simple::Byte::ExtendedOpCode::PtrNe: {
               Slot b = Pop(stack);
@@ -1170,12 +1354,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             }
             case Simple::Byte::ExtendedOpCode::PtrIsNull: {
               Slot ptr = Pop(stack);
-              Push(stack, PackI32(IsNullRef(ptr) ? 1 : 0));
+              Push(stack, PackI32(ptr == 0 ? 1 : 0));
               break;
             }
             case Simple::Byte::ExtendedOpCode::PtrCheckNull: {
               Slot ptr = Pop(stack);
-              if (IsNullRef(ptr)) return Trap("PTR_CHECK_NULL null pointer");
+              if (ptr == 0) return Trap("PTR_CHECK_NULL null pointer");
               Push(stack, ptr);
               break;
             }
@@ -1189,41 +1373,55 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             }
             case Simple::Byte::ExtendedOpCode::MemCopy:
             case Simple::Byte::ExtendedOpCode::MemMove:
-            case Simple::Byte::ExtendedOpCode::MemSet: {
-              (void)Pop(stack);
-              (void)Pop(stack);
-              (void)Pop(stack);
-              break;
-            }
-            case Simple::Byte::ExtendedOpCode::MemCompare: {
-              (void)Pop(stack);
-              (void)Pop(stack);
-              (void)Pop(stack);
-              Push(stack, PackI32(0));
-              break;
-            }
+            case Simple::Byte::ExtendedOpCode::MemSet:
+            case Simple::Byte::ExtendedOpCode::MemCompare:
+              return Trap("raw memory operation requires proven pointer extents");
             case Simple::Byte::ExtendedOpCode::AddressOfLocal: {
-              int32_t idx = UnpackI32(Pop(stack));
-              if (idx < 0 || static_cast<uint32_t>(idx) >= current.locals_count) return Trap("ADDRESS_OF_LOCAL out of range");
-              Push(stack, locals_arena[current.locals_base + static_cast<uint32_t>(idx)]);
+              const int32_t idx = UnpackI32(Pop(stack));
+              if (idx < 0 || static_cast<uint32_t>(idx) >= current.locals_count) {
+                return Trap("ADDRESS_OF_LOCAL out of range");
+              }
+              VmPointerRecord record;
+              record.kind = VmPointerKind::Local;
+              record.frame_token = current.pointer_frame_token;
+              record.slot_index = current.locals_base + static_cast<uint32_t>(idx);
+              const Slot pointer = intern_vm_pointer(record);
+              if (pointer == 0) return Trap("VM pointer registry exhausted");
+              Push(stack, pointer);
               break;
             }
             case Simple::Byte::ExtendedOpCode::AddressOfGlobal: {
-              int32_t idx = UnpackI32(Pop(stack));
-              if (idx < 0 || static_cast<size_t>(idx) >= globals.size()) return Trap("ADDRESS_OF_GLOBAL out of range");
-              Push(stack, globals[static_cast<size_t>(idx)]);
+              const int32_t idx = UnpackI32(Pop(stack));
+              if (idx < 0 || static_cast<size_t>(idx) >= globals.size()) {
+                return Trap("ADDRESS_OF_GLOBAL out of range");
+              }
+              VmPointerRecord record;
+              record.kind = VmPointerKind::Global;
+              record.slot_index = static_cast<size_t>(idx);
+              const Slot pointer = intern_vm_pointer(record);
+              if (pointer == 0) return Trap("VM pointer registry exhausted");
+              Push(stack, pointer);
               break;
             }
             case Simple::Byte::ExtendedOpCode::AddressOfField: {
-              int32_t field_raw = UnpackI32(Pop(stack));
-              Slot v = Pop(stack);
-              if (field_raw < 0 || static_cast<uint32_t>(field_raw) >= module.fields.size()) return Trap("ADDRESS_OF_FIELD bad field id");
-              if (IsNullRef(v)) return Trap("ADDRESS_OF_FIELD on non-ref");
-              HeapObject* obj = heap.Get(UnpackRef(v));
-              if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("ADDRESS_OF_FIELD on non-object");
-              uint32_t offset = module.fields[static_cast<uint32_t>(field_raw)].offset;
-              if (offset + 4 > obj->payload.size()) return Trap("ADDRESS_OF_FIELD out of bounds");
-              Push(stack, PackI32(static_cast<int32_t>(ReadU32Payload(obj->payload, offset))));
+              const int32_t field_raw = UnpackI32(Pop(stack));
+              const Slot object_slot = Pop(stack);
+              if (field_raw < 0 || static_cast<uint32_t>(field_raw) >= module.fields.size()) {
+                return Trap("ADDRESS_OF_FIELD bad field id");
+              }
+              if (IsNullRef(object_slot)) return Trap("ADDRESS_OF_FIELD on non-ref");
+              HeapObject* object = heap.Get(UnpackRef(object_slot));
+              if (!object || object->header.kind != ObjectKind::Artifact) {
+                return Trap("ADDRESS_OF_FIELD on non-object");
+              }
+              VmPointerRecord record;
+              record.kind = VmPointerKind::ArtifactField;
+              record.frame_token = current.pointer_frame_token;
+              record.object_ref = UnpackRef(object_slot);
+              record.field_id = static_cast<uint32_t>(field_raw);
+              const Slot pointer = intern_vm_pointer(record);
+              if (pointer == 0) return Trap("VM pointer registry exhausted");
+              Push(stack, pointer);
               break;
             }
             case Simple::Byte::ExtendedOpCode::EnumTag:
@@ -1432,6 +1630,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               call_stack.push_back(current);
               current = Simple::VM::Interpreter::BuildFrame(
                   module, locals_arena, func_id, pc, stack.size(), kNullRef);
+              current.pointer_frame_token = next_pointer_frame_token++;
               current.completing_promise_ref = promise_ref;
               for (uint32_t i = 0; i < arg_count && i < current.locals_count; ++i) {
                 locals_arena[current.locals_base + i] = ReadU64Payload(
@@ -3799,6 +3998,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         call_stack.push_back(current);
         call_counts[func_id] += 1;
         current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, func_id, pc, stack.size(), kNullRef);
+        current.pointer_frame_token = next_pointer_frame_token++;
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
         }
@@ -3887,6 +4087,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         call_stack.push_back(current);
         call_counts[static_cast<size_t>(func_index)] += 1;
         current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
+        current.pointer_frame_token = next_pointer_frame_token++;
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
         }
@@ -3976,6 +4177,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         stack.resize(stack_base);
         call_counts[func_id] += 1;
         current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, func_id, return_pc, stack_base, kNullRef);
+        current.pointer_frame_token = next_pointer_frame_token++;
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
         }

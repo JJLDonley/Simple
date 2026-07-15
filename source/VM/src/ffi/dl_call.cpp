@@ -369,6 +369,7 @@ ffi_type* PrimitiveFfiType(TypeKind kind) {
     case TypeKind::F64: return &ffi_type_double;
     case TypeKind::String:
     case TypeKind::Ref:
+    case TypeKind::Ptr:
       return &ffi_type_pointer;
     default:
       return nullptr;
@@ -870,6 +871,15 @@ bool FillScalarArgStorage(const SbcModule& module,
     case TypeKind::U64:
     case TypeKind::Ref:
       return ConvertDlArg<uint64_t>(slot, heap, owned_strings, static_cast<uint64_t*>(out_value), out_error);
+    case TypeKind::Ptr: {
+      const uintptr_t bits = static_cast<uintptr_t>(slot);
+      if (static_cast<Slot>(bits) != slot) {
+        if (out_error) *out_error = "System.FFI.call pointer does not fit host ABI";
+        return false;
+      }
+      *static_cast<void**>(out_value) = reinterpret_cast<void*>(bits);
+      return true;
+    }
     case TypeKind::F32:
       return ConvertDlArg<float>(slot, heap, owned_strings, static_cast<float*>(out_value), out_error);
     case TypeKind::F64:
@@ -897,6 +907,7 @@ bool IsDlScalarParamMarshalSupported(TypeKind kind) {
     case TypeKind::Bool:
     case TypeKind::Char:
     case TypeKind::String:
+    case TypeKind::Ptr:
       return true;
     default:
       return false;
@@ -1109,8 +1120,8 @@ DynamicDlAbiValidation AnalyzeDynamicDlFunctionSignature(const SbcModule& module
     return result;
   }
   const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
-  if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-    result.reason = "System.FFI.call function pointer must be i64/u64";
+  if (ptr_kind != TypeKind::Ptr) {
+    result.reason = "System.FFI.call function pointer must use pointer ABI type";
     return result;
   }
   std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
@@ -1268,6 +1279,10 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     case TypeKind::U64:
     case TypeKind::Ref:
       return PackDlReturn<uint64_t>(*reinterpret_cast<uint64_t*>(ret_storage.data()), heap, out_ret, out_error);
+    case TypeKind::Ptr:
+      *out_ret = static_cast<Slot>(reinterpret_cast<uintptr_t>(
+          *reinterpret_cast<void**>(ret_storage.data())));
+      return true;
     case TypeKind::F32: return PackDlReturn<float>(*reinterpret_cast<float*>(ret_storage.data()), heap, out_ret, out_error);
     case TypeKind::F64: return PackDlReturn<double>(*reinterpret_cast<double*>(ret_storage.data()), heap, out_ret, out_error);
     case TypeKind::Bool: return PackDlReturn<bool>((*reinterpret_cast<uint8_t*>(ret_storage.data())) != 0, heap, out_ret, out_error);

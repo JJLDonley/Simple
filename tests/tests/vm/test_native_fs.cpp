@@ -391,7 +391,7 @@ bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
              std::string::npos &&
          docs.find("| `open` | `System.FS` | `implemented` | `system` | `(string, i32) -> i32` | `may-block` | `no-alloc` | `no-safepoint` | `-` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `System.FFI` | `implemented` | `system` | `(i64, string) -> i64` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
+         docs.find("| `sym` | `System.FFI` | `implemented` | `system` | `(i64, string) -> ptr` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 
@@ -635,7 +635,7 @@ bool VmNativeFfiLibrariesUseOwnedResourceHandles() {
 
   Slot symbol_value = 0;
   if (!DispatchMetadataImport(registry, "System.FFI", "sym",
-                              {library_value, PackRef(symbol_ref)}, TypeKind::I64,
+                              {library_value, PackRef(symbol_ref)}, TypeKind::Ptr,
                               context, &symbol_value, &has_return, &error) ||
       !error.empty() || symbol_value == 0) {
     return false;

@@ -25,7 +25,8 @@ void MaybeCollectWithStackMap(bool have_meta,
                               const std::vector<Slot>& stack,
                               const std::vector<Interpreter::FrameState>& call_stack,
                               const Interpreter::FrameState& current,
-                              const std::vector<Slot>& locals_arena);
+                              const std::vector<Slot>& locals_arena,
+                              const std::vector<uint32_t>& pointer_roots);
 
 } // namespace Simple::VM::Gc
 

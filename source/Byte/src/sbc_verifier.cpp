@@ -130,6 +130,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
     Bool,
     Char,
     Ref,
+    Ptr,
   };
   auto read_name = [&](uint32_t offset) -> std::string {
     if (offset == 0xFFFFFFFFu) return {};
@@ -181,6 +182,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case TypeKind::Result:
       case TypeKind::Optional:
         return ValType::Ref;
+      case TypeKind::Ptr:
+        return ValType::Ptr;
       case TypeKind::Unspecified:
         if (IsOpaqueHandleType(row)) return ValType::I64;
         if (IsManagedArtifactType(row)) return ValType::Ref;
@@ -202,6 +205,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         return VmType::I32;
       case ValType::U64:
       case ValType::I64:
+      case ValType::Ptr:
         return VmType::I64;
       case ValType::F32:
         return VmType::F32;
@@ -1011,15 +1015,28 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::PtrNull:
+            push_type(ValType::Ptr);
+            stack_height += 1;
+            if (static_cast<uint32_t>(stack_height) > func.stack_max) {
+              return fail_at("stack exceeds max", current_pc, current_opcode);
+            }
+            pc = next;
+            continue;
           case Simple::Byte::ExtendedOpCode::LoadPtr: {
             ValType ptr = pop_type();
-            push_type(ptr);
+            VerifyResult r = check_type(ptr, ValType::Ptr, "LOAD_PTR pointer type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Unknown);
             pc = next;
             continue;
           }
           case Simple::Byte::ExtendedOpCode::StorePtr: {
             (void)pop_type();
-            (void)pop_type();
+            ValType ptr = pop_type();
+            VerifyResult r = check_type(ptr, ValType::Ptr, "STORE_PTR pointer type mismatch");
+            if (!r.ok) return r;
+            stack_height -= 2;
             pc = next;
             continue;
           }
@@ -1037,15 +1054,20 @@ VerifyResult VerifyModule(const SbcModule& module) {
           }
           case Simple::Byte::ExtendedOpCode::PtrEq:
           case Simple::Byte::ExtendedOpCode::PtrNe: {
-            (void)pop_type();
-            (void)pop_type();
+            ValType rhs = pop_type();
+            ValType lhs = pop_type();
+            VerifyResult r1 = check_type(lhs, ValType::Ptr, "pointer comparison lhs type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(rhs, ValType::Ptr, "pointer comparison rhs type mismatch");
+            if (!r2.ok) return r2;
             push_type(ValType::Bool);
+            stack_height -= 1;
             pc = next;
             continue;
           }
           case Simple::Byte::ExtendedOpCode::PtrIsNull: {
             ValType ptr = pop_type();
-            VerifyResult r = check_type(ptr, ValType::Ref, "PTR_ISNULL type mismatch");
+            VerifyResult r = check_type(ptr, ValType::Ptr, "PTR_ISNULL type mismatch");
             if (!r.ok) return r;
             push_type(ValType::Bool);
             pc = next;
@@ -1053,9 +1075,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           }
           case Simple::Byte::ExtendedOpCode::PtrCheckNull: {
             ValType ptr = pop_type();
-            VerifyResult r = check_type(ptr, ValType::Ref, "PTR_CHECK_NULL type mismatch");
+            VerifyResult r = check_type(ptr, ValType::Ptr, "PTR_CHECK_NULL type mismatch");
             if (!r.ok) return r;
-            push_type(ValType::Ref);
+            push_type(ValType::Ptr);
             pc = next;
             continue;
           }
@@ -1093,18 +1115,19 @@ VerifyResult VerifyModule(const SbcModule& module) {
             ValType index = pop_type();
             VerifyResult r = check_type(index, ValType::I32, "ADDRESS_OF index type mismatch");
             if (!r.ok) return r;
-            push_type(ValType::Unknown);
+            push_type(ValType::Ptr);
             pc = next;
             continue;
           }
           case Simple::Byte::ExtendedOpCode::AddressOfField: {
             ValType field = pop_type();
             ValType ref = pop_type();
+            stack_height -= 1;
             VerifyResult r1 = check_type(field, ValType::I32, "ADDRESS_OF_FIELD id type mismatch");
             if (!r1.ok) return r1;
             VerifyResult r2 = check_type(ref, ValType::Ref, "ADDRESS_OF_FIELD ref type mismatch");
             if (!r2.ok) return r2;
-            push_type(ValType::Unknown);
+            push_type(ValType::Ptr);
             pc = next;
             continue;
           }

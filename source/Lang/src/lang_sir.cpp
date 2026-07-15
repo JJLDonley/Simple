@@ -1197,7 +1197,7 @@ uint32_t AlignTo(uint32_t value, uint32_t align) {
 }
 
 std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
-  if (type.pointer_depth > 0) return "i64";
+  if (type.pointer_depth > 0) return "ptr";
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "string";
@@ -1209,7 +1209,7 @@ std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
 }
 
 std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::string* error) {
-  if (type.pointer_depth > 0) return "i64";
+  if (type.pointer_depth > 0) return "ptr";
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "void") return "void";
@@ -1612,6 +1612,14 @@ bool InferExprType(const Expr& expr,
       }
       TypeRef operand;
       if (!InferExprType(expr.children[0], st, &operand, error)) return false;
+      if (expr.op == "*") {
+        if (operand.pointer_depth == 0) {
+          if (error) *error = "dereference requires pointer operand";
+          return false;
+        }
+        operand.pointer_depth -= 1;
+        return CloneTypeRef(operand, out);
+      }
       if (expr.op == "post?") {
         TaggedTypeInfo tagged;
         if (!ResolveTaggedType(operand, st, &tagged) || !tagged.value_type) {
@@ -2422,6 +2430,68 @@ bool EmitGlobalAssignment(EmitState& st,
   return true;
 }
 
+bool EmitPointerAssignment(EmitState& st,
+                           const Expr& target,
+                           const Expr& value,
+                           const std::string& assign_op,
+                           std::string* error) {
+  if (target.kind != ExprKind::Unary || target.op != "*" ||
+      target.children.size() != 1) {
+    if (error) *error = "dereference assignment requires pointer target";
+    return false;
+  }
+  TypeRef pointer_type;
+  if (!InferExprType(target.children[0], st, &pointer_type, error) ||
+      pointer_type.pointer_depth == 0) {
+    if (error) *error = "dereference assignment requires pointer operand";
+    return false;
+  }
+  TypeRef value_type;
+  if (!CloneTypeRef(pointer_type, &value_type)) return false;
+  value_type.pointer_depth -= 1;
+  std::string rhs_temp_name;
+  uint16_t rhs_temp_index = 0;
+  if (!AllocateTempLocal(st, value_type, &rhs_temp_name, &rhs_temp_index, error)) return false;
+  if (!EmitExpr(st, value, &value_type, error)) return false;
+  (*st.out) << "  stloc " << rhs_temp_index << "\n";
+  PopStack(st, 1);
+  if (!EmitExpr(st, target.children[0], &pointer_type, error)) return false;
+  (*st.out) << "  ptr.check.null\n";
+  if (assign_op != "=") {
+    (*st.out) << "  dup\n";
+    PushStack(st, 1);
+    (*st.out) << "  load.ptr " << VmTypeNameForElement(value_type, st) << "\n";
+  }
+  (*st.out) << "  ldloc " << rhs_temp_index << "\n";
+  PushStack(st, 1);
+  if (assign_op != "=") {
+    const char* binary_op = AssignOpToBinaryOp(assign_op);
+    const char* op_type = binary_op &&
+            (std::string(binary_op) == "&" || std::string(binary_op) == "|" ||
+             std::string(binary_op) == "^" || std::string(binary_op) == "<<" ||
+             std::string(binary_op) == ">>")
+        ? NormalizeBitwiseOpType(value_type.name)
+        : NormalizeNumericOpType(value_type.name);
+    if (!binary_op || !op_type) {
+      if (error) *error = "unsupported dereference assignment operator '" + assign_op + "'";
+      return false;
+    }
+    if (std::string(binary_op) == "+") (*st.out) << "  add " << op_type << "\n";
+    else if (std::string(binary_op) == "-") (*st.out) << "  sub " << op_type << "\n";
+    else if (std::string(binary_op) == "*") (*st.out) << "  mul " << op_type << "\n";
+    else if (std::string(binary_op) == "/") (*st.out) << "  div " << op_type << "\n";
+    else if (std::string(binary_op) == "%") (*st.out) << "  mod " << op_type << "\n";
+    else if (std::string(binary_op) == "&") (*st.out) << "  and " << op_type << "\n";
+    else if (std::string(binary_op) == "|") (*st.out) << "  or " << op_type << "\n";
+    else if (std::string(binary_op) == "^") (*st.out) << "  xor " << op_type << "\n";
+    else if (std::string(binary_op) == "<<") (*st.out) << "  shl " << op_type << "\n";
+    else if (std::string(binary_op) == ">>") (*st.out) << "  shr " << op_type << "\n";
+    PopStack(st, 1);
+  }
+  (*st.out) << "  store.ptr " << VmTypeNameForElement(value_type, st) << "\n";
+  return PopStack(st, 2);
+}
+
 bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
   if (expr.children.size() != 2) {
     if (error) *error = "assignment missing operands";
@@ -2540,6 +2610,8 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
     }
     TypeRef base_type;
     if (!InferExprType(base, st, &base_type, error)) return false;
+    TypeRef base_expr_type;
+    if (!CloneTypeRef(base_type, &base_expr_type)) return false;
     if (is_ptr) {
       if (base_type.pointer_depth == 0) {
         if (error) *error = "pointer member assignment requires a pointer type";
@@ -2558,7 +2630,11 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
       return false;
     }
     const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
-    if (!EmitExpr(st, base, &base_type, error)) return false;
+    if (!EmitExpr(st, base, &base_expr_type, error)) return false;
+    if (is_ptr) {
+      (*st.out) << "  ptr.check.null\n";
+      (*st.out) << "  load.ptr ref\n";
+    }
     if (expr.op != "=") {
       if (!EmitDup(st)) return false;
       (*st.out) << "  ldfld " << base_type.name << "." << target.text << "\n";
@@ -2615,6 +2691,10 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
     PopStack(st, 2);
     return true;
   }
+  if (target.kind == ExprKind::Unary && target.op == "*" &&
+      target.children.size() == 1) {
+    return EmitPointerAssignment(st, target, expr.children[1], expr.op, error);
+  }
   if (error) *error = "assignment target not supported in SIR emission";
   return false;
 }
@@ -2629,6 +2709,51 @@ bool EmitUnary(EmitState& st,
   }
   TypeRef operand_type;
   if (!InferExprType(expr.children[0], st, &operand_type, error)) return false;
+  if (expr.op == "&") {
+    const Expr& target = expr.children[0];
+    if (target.kind == ExprKind::Identifier) {
+      auto local_it = st.local_indices.find(target.text);
+      if (local_it != st.local_indices.end()) {
+        (*st.out) << "  addrof.local " << local_it->second << "\n";
+        return PushStack(st, 1);
+      }
+      auto global_it = st.global_indices.find(target.text);
+      if (global_it != st.global_indices.end()) {
+        (*st.out) << "  addrof.global " << global_it->second << "\n";
+        return PushStack(st, 1);
+      }
+    }
+    if (target.kind == ExprKind::Member && target.op == "." &&
+        target.children.size() == 1) {
+      TypeRef base_type;
+      if (!InferExprType(target.children[0], st, &base_type, error)) return false;
+      auto layout_it = st.artifact_layouts.find(base_type.name);
+      if (layout_it == st.artifact_layouts.end() ||
+          layout_it->second.field_index.find(target.text) ==
+              layout_it->second.field_index.end()) {
+        if (error) *error = "address-of requires artifact field";
+        return false;
+      }
+      if (!EmitExpr(st, target.children[0], &base_type, error)) return false;
+      (*st.out) << "  addrof.field " << base_type.name << "." << target.text << "\n";
+      return true;
+    }
+    if (error) *error = "address-of target is not supported";
+    return false;
+  }
+  if (expr.op == "*") {
+    if (operand_type.pointer_depth == 0) {
+      if (error) *error = "dereference requires pointer operand";
+      return false;
+    }
+    if (!EmitExpr(st, expr.children[0], &operand_type, error)) return false;
+    TypeRef value_type;
+    if (!CloneTypeRef(operand_type, &value_type)) return false;
+    value_type.pointer_depth -= 1;
+    (*st.out) << "  ptr.check.null\n";
+    (*st.out) << "  load.ptr " << VmTypeNameForElement(value_type, st) << "\n";
+    return true;
+  }
   if (expr.op == "await") {
     if (operand_type.name != "Promise" || operand_type.type_args.size() != 1 ||
         operand_type.pointer_depth != 0 || !operand_type.dims.empty()) {
@@ -3039,6 +3164,11 @@ bool EmitBinary(EmitState& st,
   if (!EmitExpr(st, expr.children[0], &type, error)) return false;
   if (!EmitExpr(st, expr.children[1], &type, error)) return false;
   PopStack(st, 1);
+  if (type.pointer_depth > 0 && (expr.op == "==" || expr.op == "!=")) {
+    (*st.out) << "  ptr.eq\n";
+    if (expr.op == "!=") (*st.out) << "  bool.not\n";
+    return true;
+  }
   if (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
       expr.op == ">" || expr.op == ">=") {
     if (type.name == "string" && (expr.op == "==" || expr.op == "!=")) {
@@ -4914,7 +5044,10 @@ bool EmitExpr(EmitState& st,
       }
       TypeRef base_type;
       if (!InferExprType(base, st, &base_type, error)) return false;
-      if (expr.op == "->") {
+      TypeRef base_expr_type;
+      if (!CloneTypeRef(base_type, &base_expr_type)) return false;
+      const bool pointer_access = expr.op == "->";
+      if (pointer_access) {
         if (base_type.pointer_depth == 0) {
           if (error) *error = "pointer member access requires a pointer type";
           return false;
@@ -4926,7 +5059,11 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "member access base is not an artifact";
         return false;
       }
-      if (!EmitExpr(st, base, &base_type, error)) return false;
+      if (!EmitExpr(st, base, &base_expr_type, error)) return false;
+      if (pointer_access) {
+        (*st.out) << "  ptr.check.null\n";
+        (*st.out) << "  load.ptr ref\n";
+      }
       (*st.out) << "  ldfld " << base_type.name << "." << expr.text << "\n";
       PopStack(st, 1);
       PushStack(st, 1);
@@ -4965,6 +5102,10 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   }
   if (type.is_proc) {
     (*st.out) << "  const null\n";
+    return PushStack(st, 1);
+  }
+  if (type.pointer_depth > 0) {
+    (*st.out) << "  ptr.null\n";
     return PushStack(st, 1);
   }
   const auto artifact_it = st.artifacts.find(type.name);
@@ -5222,6 +5363,10 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         PopStack(st, 3);
         return true;
       }
+      if (stmt.target.kind == ExprKind::Unary && stmt.target.op == "*") {
+        return EmitPointerAssignment(
+            st, stmt.target, stmt.expr, stmt.assign_op, error);
+      }
       if (stmt.target.kind == ExprKind::Member) {
         if (stmt.target.children.empty()) {
           if (error) *error = "member assignment missing base";
@@ -5238,6 +5383,8 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         }
         TypeRef base_type;
         if (!InferExprType(base, st, &base_type, error)) return false;
+        TypeRef base_expr_type;
+        if (!CloneTypeRef(base_type, &base_expr_type)) return false;
         if (is_ptr) {
           if (base_type.pointer_depth == 0) {
             if (error) *error = "pointer member assignment requires a pointer type";
@@ -5256,7 +5403,11 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           return false;
         }
         const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
-        if (!EmitExpr(st, base, &base_type, error)) return false;
+        if (!EmitExpr(st, base, &base_expr_type, error)) return false;
+        if (is_ptr) {
+          (*st.out) << "  ptr.check.null\n";
+          (*st.out) << "  load.ptr ref\n";
+        }
         if (stmt.assign_op != "=") {
           if (!EmitDup(st)) return false;
           (*st.out) << "  ldfld " << base_type.name << "." << stmt.target.text << "\n";
@@ -5930,7 +6081,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         dyn_item.sig_name = "sig_import_" + std::to_string(st.imports.size());
         dyn_item.flags = 0;
         TypeRef ptr_type;
-        ptr_type.name = "i64";
+        ptr_type.name = "void";
+        ptr_type.pointer_depth = 1;
         dyn_item.params.push_back(std::move(ptr_type));
         for (const auto& param : st.imports.back().params) {
           TypeRef cloned_param;
@@ -6043,6 +6195,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       case Simple::Byte::TypeKind::String:
         *out = make_type("string");
         return true;
+      case Simple::Byte::TypeKind::Ptr:
+        *out = make_type("void");
+        out->pointer_depth = 1;
+        return true;
       case Simple::Byte::TypeKind::Ref:
         *out = make_list_type("i32");
         return true;
@@ -6061,7 +6217,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       *out = make_list_type(name.c_str());
       return true;
     }
+    uint32_t pointer_depth = 0;
+    while (!name.empty() && name.back() == '*') {
+      name.pop_back();
+      ++pointer_depth;
+    }
+    if (name.empty()) return false;
     *out = make_type(name.c_str());
+    out->pointer_depth = pointer_depth;
     return true;
   };
   auto native_module_for_reserved = [](const std::string& reserved, std::string* out) -> bool {
@@ -6171,7 +6334,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sym_params;
       sym_params.push_back(make_type("i64"));
       sym_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "System.FFI", "sym", std::move(sym_params), make_type("i64"))) return false;
+      TypeRef symbol_pointer = make_type("void");
+      symbol_pointer.pointer_depth = 1;
+      if (!add_reserved_import(alias, "System.FFI", "sym", std::move(sym_params), std::move(symbol_pointer))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));

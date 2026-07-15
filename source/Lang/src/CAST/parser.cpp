@@ -175,6 +175,7 @@ bool Parser::ParseBlock(std::vector<Stmt>* out) {
 bool Parser::ParseTypeSuffixes(TypeRef* out) {
   if (!out) return false;
   while (pending_type_argument_closes_ == 0) {
+    if (Peek().line > LastTokenLine()) break;
     if (Peek().kind == TokenKind::LBracket || Peek().kind == TokenKind::LBrace) {
       if (!ParseTypeDims(out)) return false;
       continue;
@@ -1147,7 +1148,7 @@ bool Parser::ParseStmt(Stmt* out) {
 
   size_t save = index_;
   Expr target;
-  if (ParsePostfixExpr(&target)) {
+  if (ParseUnaryExpr(&target)) {
     const Token& op = Peek();
     bool is_assign = false;
     switch (op.kind) {
@@ -1445,7 +1446,7 @@ bool Parser::ParseNonFormatExpr(Expr* out) {
 bool Parser::ParseAssignmentExpr(Expr* out) {
   size_t save = index_;
   Expr target;
-  if (ParsePostfixExpr(&target)) {
+  if (ParseUnaryExpr(&target)) {
     const Token& op = Peek();
     bool is_assign = false;
     switch (op.kind) {
@@ -1522,6 +1523,24 @@ bool Parser::ParseBinaryExpr(int min_prec, Expr* out) {
   if (!ParseUnaryExpr(&lhs)) return false;
 
   while (true) {
+    if (Peek().kind == TokenKind::Star && Peek().line > LastTokenLine()) {
+      const size_t probe_index = index_;
+      const std::string probe_error = error_;
+      Expr pointer_target;
+      const bool parsed_target = ParseUnaryExpr(&pointer_target);
+      const TokenKind following = Peek().kind;
+      index_ = probe_index;
+      error_ = probe_error;
+      const bool begins_assignment =
+          parsed_target &&
+          (following == TokenKind::Assign || following == TokenKind::PlusEq ||
+           following == TokenKind::MinusEq || following == TokenKind::StarEq ||
+           following == TokenKind::SlashEq || following == TokenKind::PercentEq ||
+           following == TokenKind::AmpEq || following == TokenKind::PipeEq ||
+           following == TokenKind::CaretEq || following == TokenKind::ShlEq ||
+           following == TokenKind::ShrEq);
+      if (begins_assignment) break;
+    }
     const Token& op = Peek();
     int prec = GetBinaryPrecedence(op);
     if (prec < min_prec) break;
@@ -1573,7 +1592,8 @@ bool Parser::ParseUnaryExpr(Expr* out) {
     return true;
   }
   if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus ||
-      tok.kind == TokenKind::Amp || tok.kind == TokenKind::KwAwait ||
+      tok.kind == TokenKind::Amp || tok.kind == TokenKind::Star ||
+      tok.kind == TokenKind::KwAwait ||
       tok.kind == TokenKind::PlusPlus || tok.kind == TokenKind::MinusMinus) {
     Advance();
     Expr operand;

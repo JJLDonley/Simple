@@ -751,7 +751,7 @@ bool RunNativeRegistryModuleTest() {
          json_stringify->result_type == Simple::Byte::TypeKind::String &&
          json_free->result_type == Simple::Byte::TypeKind::I32 &&
          dl_open->result_type == Simple::Byte::TypeKind::I64 &&
-         dl_sym->result_type == Simple::Byte::TypeKind::I64 &&
+         dl_sym->result_type == Simple::Byte::TypeKind::Ptr &&
          dl_close->result_type == Simple::Byte::TypeKind::I32 &&
          dl_last_error->result_type == Simple::Byte::TypeKind::String &&
          buffer_new->result_type == Simple::Byte::TypeKind::Ref &&

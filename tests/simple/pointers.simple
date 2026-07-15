@@ -1,0 +1,29 @@
+Box :: artifact {
+  value : i32
+}
+
+main :: i32 () {
+  value : i32 = 3
+  pointer : i32* = &value
+  *pointer += 4
+  if (value != 7 || *pointer != 7) { return 1 }
+
+  box : Box = { 10 }
+  field_pointer : i32* = &box.value
+  box = { 90 }
+  index : i32 = 0
+  while (index < 1200) {
+    temporary : Box = { index }
+    index += temporary.value - temporary.value + 1
+  }
+  *field_pointer = *pointer + 5
+  if (*field_pointer != 12 || box.value != 90) { return 2 }
+
+  box_pointer : Box* = &box
+  box_pointer->value += 2
+  if (box.value != 92 || box_pointer->value != 92) { return 3 }
+
+  same : i32* = &value
+  if (pointer != same) { return 4 }
+  return 0
+}

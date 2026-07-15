@@ -1006,7 +1006,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 2.1\n", 0) == 0 &&
+  return sir.rfind("sir version 2.2\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2305,20 +2305,40 @@ bool LangValidateAddressOfRequiresLValue() {
   return error.find("address-of requires assignable expression") != std::string::npos;
 }
 
-bool LangPointerStorageEmissionRejected() {
-  const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return 0 }";
+bool LangPointerStorageEmissionWorks() {
+  const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return *p }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("unsupported unary operator '&'") != std::string::npos;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
+  return sir.find("addrof.local") != std::string::npos &&
+         sir.find("load.ptr i32") != std::string::npos;
 }
 
-bool LangPointerDerefParseRejected() {
+bool LangPointerDerefParses() {
   const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return *p }";
   std::string error;
   Simple::Lang::Program program;
-  if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
-  return error.find("expected expression") != std::string::npos;
+  return Simple::Lang::CAST::ParseProgramFromString(src, &program, &error);
+}
+
+bool LangPointerRuntimeWorks() {
+  return RunSimpleFileExpectExit("tests/simple/pointers.simple", 0);
+}
+
+bool LangPointerLifetimeAndOperationErrors() {
+  const std::vector<std::pair<std::string, std::string>> cases = {
+      {"tests/simple_bad/pointer_extern_frame.simple", "external C call cannot receive VM frame pointer"},
+      {"tests/simple_bad/pointer_return_frame.simple", "cannot return pointer borrowed from the current frame"},
+      {"tests/simple_bad/pointer_ordering.simple", "pointers support only equality comparisons"},
+      {"tests/simple_bad/pointer_deref_void.simple", "cannot dereference void pointer"},
+      {"tests/simple_bad/pointer_uninitialized.simple", "pointer is not usable before assignment"},
+  };
+  for (const auto& [path, expected] : cases) {
+    int exit_code = 0;
+    const std::string error = RunCommandCaptureStderr({"check", path}, &exit_code);
+    if (exit_code == 0 || error.find(expected) == std::string::npos) return false;
+  }
+  return true;
 }
 
 bool LangPointerNullInitRejected() {
@@ -3955,8 +3975,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_pointer_member_requires_pointer", LangValidatePointerMemberRequiresPointer},
   {"lang_validate_pointer_to_immutable_rejects_mutation", LangValidatePointerToImmutableRejectsMutation},
   {"lang_validate_pointer_to_mutable_allows_mutation", LangValidatePointerToMutableAllowsMutation},
-  {"lang_pointer_storage_emission_rejected", LangPointerStorageEmissionRejected},
-  {"lang_pointer_deref_parse_rejected", LangPointerDerefParseRejected},
+  {"lang_pointer_storage_emission_works", LangPointerStorageEmissionWorks},
+  {"lang_pointer_deref_parses", LangPointerDerefParses},
+  {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
+  {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
   {"lang_pointer_null_init_rejected", LangPointerNullInitRejected},
   {"lang_pointer_to_ref_shapes_validate", LangPointerToRefShapesValidate},
   {"lang_validate_address_of_requires_lvalue", LangValidateAddressOfRequiresLValue},

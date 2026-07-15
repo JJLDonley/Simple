@@ -6,9 +6,12 @@
 namespace Simple::Lang::TAST {
 
 bool IsAddressableExpr(const Expr& expr) {
-  return expr.kind == Simple::Lang::AST::ExprKind::Identifier ||
-         expr.kind == Simple::Lang::AST::ExprKind::Member ||
-         expr.kind == Simple::Lang::AST::ExprKind::Index;
+  if (expr.kind == Simple::Lang::AST::ExprKind::Identifier) return true;
+  if (expr.kind == Simple::Lang::AST::ExprKind::Member && expr.op == "." &&
+      expr.children.size() == 1) {
+    return IsAddressableExpr(expr.children[0]);
+  }
+  return false;
 }
 
 bool IsMemberAccessExpr(const Expr& expr,
@@ -116,6 +119,17 @@ bool CheckUnaryOpTypeRules(const std::string& expr_op,
     }
     return true;
   }
+  if (op == "*") {
+    if (operand.pointer_depth == 0) {
+      if (error) *error = "dereference requires pointer operand";
+      return false;
+    }
+    if (operand.name == "void" && operand.pointer_depth == 1) {
+      if (error) *error = "cannot dereference void pointer";
+      return false;
+    }
+    return true;
+  }
   if (op == "?") return true;
   if (op == "await") {
     if (operand.name != "Promise" || operand.type_args.size() != 1 ||
@@ -149,6 +163,17 @@ bool CheckBinaryOpTypeRules(const std::string& op,
                             const Expr& lhs_expr,
                             const Expr& rhs_expr,
                             std::string* error) {
+  if (lhs.pointer_depth > 0 || rhs.pointer_depth > 0) {
+    if (op != "==" && op != "!=") {
+      if (error) *error = "pointers support only equality comparisons";
+      return false;
+    }
+    if (!TypeEquals(lhs, rhs)) {
+      if (error) *error = "pointer comparison requires matching pointer types";
+      return false;
+    }
+    return true;
+  }
   if (!RequireScalar(lhs, op, error)) return false;
   if (!RequireScalar(rhs, op, error)) return false;
   if (!TypeEquals(lhs, rhs)) {
