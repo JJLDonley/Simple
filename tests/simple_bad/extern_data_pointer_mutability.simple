@@ -1,0 +1,12 @@
+View :: data {
+  data :: i32*
+}
+
+extern source : View ()
+extern write : void (destination : i32*)
+
+main :: i32 () {
+  view : View = source()
+  write(view.data)
+  return 0
+}

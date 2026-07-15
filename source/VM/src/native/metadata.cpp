@@ -174,8 +174,8 @@ bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string*
     return false;
   }
   std::string abi_error;
-  if (!Simple::VM::Runtime::ValidateAbiCallableSignature(spec.parameter_types, spec.result_type,
-                                                         false, &abi_error)) {
+  if (!Simple::VM::Runtime::ValidateAbiCallableSignature(
+          spec.parameter_types, spec.result_type, &abi_error)) {
     if (error) *error = name + " has invalid ABI signature: " + abi_error;
     return false;
   }

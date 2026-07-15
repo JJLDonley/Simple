@@ -1,0 +1,7 @@
+extern source : i32* ()
+
+leak :: i32* () {
+  return source()
+}
+
+main :: i32 () { return 0 }

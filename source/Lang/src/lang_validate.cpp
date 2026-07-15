@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "AST/capture_analysis.h"
 #include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "native/registry.h"
@@ -54,17 +55,79 @@ struct LocalInfo {
   bool points_to_immutable = false;
   bool frame_borrowed_pointer = false;
   bool vm_storage_pointer = false;
+  bool external_borrowed_pointer = false;
   bool pointer_usable = true;
 };
 
 struct CallTargetInfo {
   std::vector<TypeRef> params;
+  std::vector<Mutability> param_mutabilities;
   TypeRef return_type;
   Mutability return_mutability = Mutability::Mutable;
   std::vector<std::string> type_params;
   bool is_proc = false;
   bool is_external_c = false;
 };
+
+bool IsRawPointerShape(const TypeRef& type) {
+  if (type.pointer_depth > 0) return true;
+  const TypeRef* optional_value = TAST::OptionalValueType(type);
+  return optional_value && optional_value->pointer_depth > 0;
+}
+
+bool IsFunctionPointerShape(const TypeRef& type) {
+  if (type.pointer_depth > 0) return type.is_proc;
+  const TypeRef* optional_value = TAST::OptionalValueType(type);
+  return optional_value && optional_value->pointer_depth > 0 &&
+         optional_value->is_proc;
+}
+
+bool TypeContainsRawPointerImpl(
+    const TypeRef& type,
+    const ValidateContext& ctx,
+    std::unordered_set<std::string>* visiting) {
+  if (IsRawPointerShape(type)) return true;
+  if (type.pointer_depth > 0 || type.is_proc || !type.dims.empty()) return false;
+  const auto artifact = ctx.artifacts.find(type.name);
+  if (artifact == ctx.artifacts.end() || !artifact->second ||
+      !artifact->second->is_data ||
+      !visiting->insert(type.name).second) {
+    return false;
+  }
+  for (const auto& field : artifact->second->fields) {
+    if (TypeContainsRawPointerImpl(field.type, ctx, visiting)) {
+      visiting->erase(type.name);
+      return true;
+    }
+  }
+  visiting->erase(type.name);
+  return false;
+}
+
+bool TypeContainsRawPointer(const TypeRef& type, const ValidateContext& ctx) {
+  std::unordered_set<std::string> visiting;
+  return TypeContainsRawPointerImpl(type, ctx, &visiting);
+}
+
+bool SetExternCallTarget(const ExternDecl& ext, CallTargetInfo* out) {
+  if (!out) return false;
+  out->params.clear();
+  out->param_mutabilities.clear();
+  out->params.reserve(ext.params.size());
+  out->param_mutabilities.reserve(ext.params.size());
+  if (!TAST::CloneTypeRef(ext.return_type, &out->return_type)) return false;
+  out->return_mutability = ext.return_mutability;
+  out->type_params.clear();
+  out->is_proc = false;
+  out->is_external_c = true;
+  for (const auto& param : ext.params) {
+    TypeRef copy;
+    if (!TAST::CloneTypeRef(param.type, &copy)) return false;
+    out->params.push_back(std::move(copy));
+    out->param_mutabilities.push_back(param.mutability);
+  }
+  return true;
+}
 
 bool CloneFunctionCallReturn(const FuncDecl& function, TypeRef* out) {
   if (!function.is_async) return TAST::CloneTypeRef(function.return_type, out);
@@ -497,12 +560,7 @@ bool ResolveUsingModuleExternCallTarget(const ValidateContext& ctx,
     if (found) return false;
     found = true;
     found_module = module;
-    found_info.params.clear();
-    found_info.return_type = ext_it->second->return_type;
-    found_info.return_mutability = ext_it->second->return_mutability;
-    found_info.type_params.clear();
-    found_info.is_proc = false;
-    for (const auto& param : ext_it->second->params) found_info.params.push_back(param.type);
+    if (!SetExternCallTarget(*ext_it->second, &found_info)) return false;
   }
   if (!found) return false;
   if (out_module) *out_module = std::move(found_module);
@@ -1388,6 +1446,53 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
       return true;
     }
   }
+  if (expr.kind == ExprKind::Member && expr.op == "." &&
+      !expr.children.empty()) {
+    TypeRef base_type;
+    if (InferExprType(expr.children[0], ctx, scopes, current_artifact,
+                      &base_type)) {
+      const auto artifact = ctx.artifacts.find(base_type.name);
+      if (artifact != ctx.artifacts.end()) {
+        const VarDecl* field = FindArtifactField(artifact->second, expr.text);
+        if (field && IsRawPointerShape(field->type)) {
+          if (out_known) *out_known = true;
+          if (out_points_to_immutable) {
+            *out_points_to_immutable =
+                field->mutability == Mutability::Immutable;
+          }
+          return true;
+        }
+      }
+    }
+  }
+  if (expr.kind == ExprKind::Call && expr.cast_type.pointer_depth > 0 &&
+      expr.args.size() == 1) {
+    return GetPointerImmutabilityFromExpr(
+        expr.args[0], ctx, scopes, current_artifact, out_known,
+        out_points_to_immutable);
+  }
+  if (expr.kind == ExprKind::Call && !expr.children.empty()) {
+    CallTargetInfo info;
+    if (GetCallTargetInfo(expr.children[0], ctx, scopes, current_artifact,
+                          &info, nullptr) &&
+        IsRawPointerShape(info.return_type)) {
+      if (out_known) *out_known = true;
+      if (out_points_to_immutable) {
+        *out_points_to_immutable =
+            info.return_mutability == Mutability::Immutable;
+      }
+      return true;
+    }
+  }
+  if (expr.kind == ExprKind::ArtifactLiteral) {
+    const std::vector<Expr>* values = &expr.children;
+    if (values->empty()) values = &expr.field_values;
+    if (values->size() == 1) {
+      return GetPointerImmutabilityFromExpr(
+          values->front(), ctx, scopes, current_artifact, out_known,
+          out_points_to_immutable);
+    }
+  }
   return true;
 }
 
@@ -1407,6 +1512,18 @@ bool IsFrameBorrowedPointerExpr(
   if (expr.kind == ExprKind::Identifier) {
     if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
       return local->frame_borrowed_pointer;
+    }
+  }
+  if (expr.kind == ExprKind::Call && expr.cast_type.pointer_depth > 0 &&
+      expr.args.size() == 1) {
+    return IsFrameBorrowedPointerExpr(expr.args[0], ctx, scopes);
+  }
+  if (expr.kind == ExprKind::ArtifactLiteral) {
+    for (const auto& child : expr.children) {
+      if (IsFrameBorrowedPointerExpr(child, ctx, scopes)) return true;
+    }
+    for (const auto& value : expr.field_values) {
+      if (IsFrameBorrowedPointerExpr(value, ctx, scopes)) return true;
     }
   }
   return false;
@@ -1745,18 +1862,7 @@ bool GetCallTargetInfo(const Expr& callee,
     }
     auto ext_it = ctx.externs.find(callee.text);
     if (ext_it != ctx.externs.end()) {
-      out->params.clear();
-      out->is_external_c = true;
-      if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
-      out->return_mutability = ext_it->second->return_mutability;
-      out->type_params.clear();
-      out->is_proc = false;
-      for (const auto& param : ext_it->second->params) {
-        TypeRef copy;
-        if (!CloneTypeRef(param.type, &copy)) return false;
-        out->params.push_back(std::move(copy));
-      }
-      return true;
+      return SetExternCallTarget(*ext_it->second, out);
     }
     if (const LocalInfo* local = FindLocal(scopes, callee.text)) {
       if (local->type && local->type->is_proc) {
@@ -1844,17 +1950,7 @@ bool GetCallTargetInfo(const Expr& callee,
           auto ext_it = mod_it->second.find(callee.text);
           if (ext_it != mod_it->second.end()) {
             if (!CheckDlDynamicSignature(*ext_it->second, ctx.enum_types, ctx.artifacts, error)) return false;
-            out->params.clear();
-            if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
-            out->return_mutability = ext_it->second->return_mutability;
-            out->type_params.clear();
-            out->is_proc = false;
-            for (const auto& param : ext_it->second->params) {
-              TypeRef copy;
-              if (!CloneTypeRef(param.type, &copy)) return false;
-              out->params.push_back(std::move(copy));
-            }
-            return true;
+            return SetExternCallTarget(*ext_it->second, out);
           }
         }
       }
@@ -1889,17 +1985,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (ext_mod_it != ctx.externs_by_module.end()) {
           auto ext_it = ext_mod_it->second.find(callee.text);
           if (ext_it != ext_mod_it->second.end()) {
-            out->params.clear();
-            if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
-            out->return_mutability = ext_it->second->return_mutability;
-            out->type_params.clear();
-            out->is_proc = false;
-            for (const auto& param : ext_it->second->params) {
-              TypeRef copy;
-              if (!CloneTypeRef(param.type, &copy)) return false;
-              out->params.push_back(std::move(copy));
-            }
-            return true;
+            return SetExternCallTarget(*ext_it->second, out);
           }
         }
       }
@@ -1914,17 +2000,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (ext_mod_it != ctx.externs_by_module.end()) {
           auto ext_it = ext_mod_it->second.find(callee.text);
           if (ext_it != ext_mod_it->second.end()) {
-            out->params.clear();
-            if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
-            out->return_mutability = ext_it->second->return_mutability;
-            out->type_params.clear();
-            out->is_proc = false;
-            for (const auto& param : ext_it->second->params) {
-              TypeRef copy;
-              if (!CloneTypeRef(param.type, &copy)) return false;
-              out->params.push_back(std::move(copy));
-            }
-            return true;
+            return SetExternCallTarget(*ext_it->second, out);
           }
         }
       }
@@ -1987,6 +2063,49 @@ bool GetCallTargetInfo(const Expr& callee,
     }
   }
   if (error) *error = "attempt to call non-function";
+  return false;
+}
+
+bool IsExternalBorrowedPointerExpr(
+    const Expr& expr,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact) {
+  if (expr.kind == ExprKind::Identifier) {
+    if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+      return local->external_borrowed_pointer;
+    }
+  }
+  if (expr.kind == ExprKind::Call && expr.cast_type.pointer_depth > 0 &&
+      expr.args.size() == 1) {
+    return IsExternalBorrowedPointerExpr(
+        expr.args[0], ctx, scopes, current_artifact);
+  }
+  if (expr.kind == ExprKind::Call && !expr.children.empty()) {
+    CallTargetInfo info;
+    if (GetCallTargetInfo(expr.children[0], ctx, scopes, current_artifact,
+                          &info, nullptr) &&
+        info.is_external_c &&
+        TypeContainsRawPointer(info.return_type, ctx)) {
+      return true;
+    }
+  }
+  if (expr.kind == ExprKind::Member && !expr.children.empty()) {
+    return IsExternalBorrowedPointerExpr(
+        expr.children[0], ctx, scopes, current_artifact);
+  }
+  if (expr.kind == ExprKind::ArtifactLiteral) {
+    for (const auto& child : expr.children) {
+      if (IsExternalBorrowedPointerExpr(child, ctx, scopes, current_artifact)) {
+        return true;
+      }
+    }
+    for (const auto& value : expr.field_values) {
+      if (IsExternalBorrowedPointerExpr(value, ctx, scopes, current_artifact)) {
+        return true;
+      }
+    }
+  }
   return false;
 }
 
@@ -2145,6 +2264,31 @@ bool CheckCallArgTypes(const Expr& call_expr,
         if (error) *error = "pointer is not usable before assignment: " + call_expr.args[i].text;
         return false;
       }
+    }
+    if (info.is_external_c && IsRawPointerShape(expected) &&
+        !IsFunctionPointerShape(expected) &&
+        i < info.param_mutabilities.size() &&
+        info.param_mutabilities[i] == Mutability::Mutable) {
+      bool known = false;
+      bool points_to_immutable = false;
+      GetPointerImmutabilityFromExpr(call_expr.args[i], ctx, scopes,
+                                     current_artifact, &known,
+                                     &points_to_immutable);
+      if (known && points_to_immutable) {
+        if (error) {
+          *error = "mutable external pointer parameter requires mutable pointee provenance";
+        }
+        return false;
+      }
+    }
+    if (info.is_external_c && TypeContainsRawPointer(expected, ctx) &&
+        !IsRawPointerShape(expected) &&
+        !IsExternalBorrowedPointerExpr(
+            call_expr.args[i], ctx, scopes, current_artifact)) {
+      if (error) {
+        *error = "external data pointer fields require borrowed external provenance";
+      }
+      return false;
     }
     if (info.is_external_c &&
         IsVmStoragePointerExpr(call_expr.args[i], ctx, scopes)) {
@@ -2354,6 +2498,21 @@ bool ValidateArtifactLiteral(const Expr& expr,
   const size_t field_count = artifact->fields.size();
   if (!CheckArtifactLiteralPositionalCount(expr, field_count, error)) return false;
   if (!CheckArtifactLiteralDuplicateNamedFields(expr, error)) return false;
+  auto reject_pointer_escape = [&](const Expr& value,
+                                   const TypeRef& expected) -> bool {
+    if (!TypeContainsRawPointer(expected, ctx)) {
+      return false;
+    }
+    if (IsFrameBorrowedPointerExpr(value, ctx, scopes)) {
+      if (error) *error = "cannot store frame-borrowed pointer in artifact field";
+      return true;
+    }
+    if (IsExternalBorrowedPointerExpr(value, ctx, scopes, current_artifact)) {
+      if (error) *error = "cannot store borrowed external pointer in artifact field";
+      return true;
+    }
+    return false;
+  };
   std::unordered_set<std::string> seen;
   for (const auto& name : expr.field_names) seen.insert(name);
   for (size_t i = 0; i < expr.children.size(); ++i) {
@@ -2367,11 +2526,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
             expr.children[i], expected, ctx, scopes, current_artifact, error)) {
       return false;
     }
-    if (expected.pointer_depth > 0 &&
-        IsFrameBorrowedPointerExpr(expr.children[i], ctx, scopes)) {
-      if (error) *error = "cannot store frame-borrowed pointer in artifact field";
-      return false;
-    }
+    if (reject_pointer_escape(expr.children[i], expected)) return false;
   }
   if (!expr.field_names.empty()) {
     std::unordered_set<std::string> valid;
@@ -2393,11 +2548,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
               expr.field_values[i], expected, ctx, scopes, current_artifact, error)) {
         return false;
       }
-      if (expected.pointer_depth > 0 &&
-          IsFrameBorrowedPointerExpr(expr.field_values[i], ctx, scopes)) {
-        if (error) *error = "cannot store frame-borrowed pointer in artifact field";
-        return false;
-      }
+      if (reject_pointer_escape(expr.field_values[i], expected)) return false;
     }
   }
   for (const auto& field : artifact->fields) {
@@ -2457,6 +2608,18 @@ bool ValidateFnLiteralBody(
   if (!signature.proc_return) {
     if (error) *error = "fn literal procedure type is missing a return type";
     return false;
+  }
+  for (const auto& name : ASTAnalysis::FindFnLiteralFreeNames(expr)) {
+    const LocalInfo* local = FindLocal(outer_scopes, name);
+    if (!local) continue;
+    if (local->frame_borrowed_pointer || local->vm_storage_pointer) {
+      if (error) *error = "closure cannot capture VM storage pointer";
+      return false;
+    }
+    if (local->external_borrowed_pointer) {
+      if (error) *error = "closure cannot capture borrowed external pointer";
+      return false;
+    }
   }
 
   FuncDecl lambda;
@@ -2634,6 +2797,13 @@ bool CheckStmt(const Stmt& stmt,
           if (error) *error = "cannot return pointer borrowed from the current frame";
           return false;
         }
+        if (expected_return &&
+            TypeContainsRawPointer(*expected_return, ctx) &&
+            IsExternalBorrowedPointerExpr(
+                stmt.expr, ctx, scopes, current_artifact)) {
+          if (error) *error = "cannot return borrowed external pointer";
+          return false;
+        }
         const bool direct_fn_call = IsDirectFnLiteralCall(stmt.expr);
         const bool contextual_return =
             stmt.expr.kind == ExprKind::ArtifactLiteral ||
@@ -2769,8 +2939,12 @@ bool CheckStmt(const Stmt& stmt,
         } else if (have_target && !CheckArrayListLiteralTargetShape(target_type, stmt.expr, error)) {
           return false;
         }
-        if (have_target && target_type.pointer_depth > 0 && stmt.assign_op == "=") {
+        if (have_target &&
+            TypeContainsRawPointer(target_type, ctx) &&
+            stmt.assign_op == "=") {
           const bool frame_borrow = IsFrameBorrowedPointerExpr(stmt.expr, ctx, scopes);
+          const bool external_borrow = IsExternalBorrowedPointerExpr(
+              stmt.expr, ctx, scopes, current_artifact);
           bool updated_local = false;
           if (stmt.target.kind == ExprKind::Identifier) {
             for (auto scope_it = scopes.rbegin(); scope_it != scopes.rend(); ++scope_it) {
@@ -2779,6 +2953,17 @@ bool CheckStmt(const Stmt& stmt,
               local_it->second.frame_borrowed_pointer = frame_borrow;
               local_it->second.vm_storage_pointer =
                   IsVmStoragePointerExpr(stmt.expr, ctx, scopes);
+              local_it->second.external_borrowed_pointer =
+                  IsExternalBorrowedPointerExpr(
+                      stmt.expr, ctx, scopes, current_artifact);
+              bool known = false;
+              bool points_to_immutable = false;
+              GetPointerImmutabilityFromExpr(
+                  stmt.expr, ctx, scopes, current_artifact, &known,
+                  &points_to_immutable);
+              if (known) {
+                local_it->second.points_to_immutable = points_to_immutable;
+              }
               local_it->second.pointer_usable = true;
               updated_local = true;
               break;
@@ -2786,6 +2971,10 @@ bool CheckStmt(const Stmt& stmt,
           }
           if (frame_borrow && !updated_local) {
             if (error) *error = "cannot store frame-borrowed pointer in escaping storage";
+            return false;
+          }
+          if (external_borrow && !updated_local) {
+            if (error) *error = "cannot store borrowed external pointer in escaping storage";
             return false;
           }
         }
@@ -2814,15 +3003,17 @@ bool CheckStmt(const Stmt& stmt,
                                  loop_depth)) {
           return false;
         }
-        if (stmt.var_decl.type.pointer_depth > 0) {
+        if (TypeContainsRawPointer(stmt.var_decl.type, ctx)) {
           bool known = false;
           bool points_to_immutable = false;
-          GetPointerImmutabilityFromExpr(stmt.var_decl.init_expr,
-                                         ctx,
-                                         scopes,
-                                         current_artifact,
-                                         &known,
-                                         &points_to_immutable);
+          if (IsRawPointerShape(stmt.var_decl.type)) {
+            GetPointerImmutabilityFromExpr(stmt.var_decl.init_expr,
+                                           ctx,
+                                           scopes,
+                                           current_artifact,
+                                           &known,
+                                           &points_to_immutable);
+          }
           auto local_it = scopes.back().find(stmt.var_decl.name);
           if (local_it != scopes.back().end()) {
             if (known) local_it->second.points_to_immutable = points_to_immutable;
@@ -2830,6 +3021,9 @@ bool CheckStmt(const Stmt& stmt,
                 IsFrameBorrowedPointerExpr(stmt.var_decl.init_expr, ctx, scopes);
             local_it->second.vm_storage_pointer =
                 IsVmStoragePointerExpr(stmt.var_decl.init_expr, ctx, scopes);
+            local_it->second.external_borrowed_pointer =
+                IsExternalBorrowedPointerExpr(
+                    stmt.var_decl.init_expr, ctx, scopes, current_artifact);
           }
         }
         std::string manifest_module;
@@ -3959,35 +4153,46 @@ bool CheckExpr(const Expr& expr,
 
 bool ValidateAwaitPlacementInStmt(const Stmt& stmt,
                                   bool async_context,
-                                  std::string* error);
+                                  std::string* error,
+                                  bool* found_await = nullptr);
 
 bool ValidateAwaitPlacementInExpr(const Expr& expr,
                                   bool async_context,
-                                  std::string* error) {
+                                  std::string* error,
+                                  bool* found_await = nullptr) {
+  if (expr.kind == ExprKind::Unary && expr.op == "await") {
+    if (found_await) *found_await = true;
+  }
   if (expr.kind == ExprKind::Unary && expr.op == "await" && !async_context) {
     if (error) *error = "await is valid only inside async functions";
     return false;
   }
   for (const auto& child : expr.children) {
-    if (!ValidateAwaitPlacementInExpr(child, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInExpr(
+            child, async_context, error, found_await)) return false;
   }
   for (const auto& arg : expr.args) {
-    if (!ValidateAwaitPlacementInExpr(arg, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInExpr(
+            arg, async_context, error, found_await)) return false;
   }
   for (const auto& value : expr.field_values) {
-    if (!ValidateAwaitPlacementInExpr(value, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInExpr(
+            value, async_context, error, found_await)) return false;
   }
   for (const auto& branch : expr.switch_branches) {
     if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None &&
-        !ValidateAwaitPlacementInExpr(branch.condition, async_context, error)) {
+        !ValidateAwaitPlacementInExpr(
+            branch.condition, async_context, error, found_await)) {
       return false;
     }
     if (branch.is_block) {
       for (const auto& stmt : branch.block) {
-        if (!ValidateAwaitPlacementInStmt(stmt, async_context, error)) return false;
+        if (!ValidateAwaitPlacementInStmt(
+                stmt, async_context, error, found_await)) return false;
       }
     } else if (branch.has_inline_value &&
-               !ValidateAwaitPlacementInExpr(branch.value, async_context, error)) {
+               !ValidateAwaitPlacementInExpr(
+                   branch.value, async_context, error, found_await)) {
       return false;
     }
   }
@@ -4001,41 +4206,106 @@ bool ValidateAwaitPlacementInExpr(const Expr& expr,
 
 bool ValidateAwaitPlacementInStmt(const Stmt& stmt,
                                   bool async_context,
-                                  std::string* error) {
-  if (!ValidateAwaitPlacementInExpr(stmt.expr, async_context, error) ||
-      !ValidateAwaitPlacementInExpr(stmt.target, async_context, error) ||
-      !ValidateAwaitPlacementInExpr(stmt.loop_cond, async_context, error) ||
-      !ValidateAwaitPlacementInExpr(stmt.loop_iter, async_context, error) ||
-      !ValidateAwaitPlacementInExpr(stmt.loop_step, async_context, error)) {
+                                  std::string* error,
+                                  bool* found_await) {
+  if (!ValidateAwaitPlacementInExpr(
+          stmt.expr, async_context, error, found_await) ||
+      !ValidateAwaitPlacementInExpr(
+          stmt.target, async_context, error, found_await) ||
+      !ValidateAwaitPlacementInExpr(
+          stmt.loop_cond, async_context, error, found_await) ||
+      !ValidateAwaitPlacementInExpr(
+          stmt.loop_iter, async_context, error, found_await) ||
+      !ValidateAwaitPlacementInExpr(
+          stmt.loop_step, async_context, error, found_await)) {
     return false;
   }
   if (stmt.var_decl.has_init_expr &&
-      !ValidateAwaitPlacementInExpr(stmt.var_decl.init_expr, async_context, error)) {
+      !ValidateAwaitPlacementInExpr(
+          stmt.var_decl.init_expr, async_context, error, found_await)) {
     return false;
   }
   if (stmt.has_loop_var_decl && stmt.loop_var_decl.has_init_expr &&
-      !ValidateAwaitPlacementInExpr(stmt.loop_var_decl.init_expr, async_context, error)) {
+      !ValidateAwaitPlacementInExpr(
+          stmt.loop_var_decl.init_expr, async_context, error, found_await)) {
     return false;
   }
   for (const auto& branch : stmt.if_branches) {
-    if (!ValidateAwaitPlacementInExpr(branch.first, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInExpr(
+            branch.first, async_context, error, found_await)) return false;
     for (const auto& nested : branch.second) {
-      if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+      if (!ValidateAwaitPlacementInStmt(
+              nested, async_context, error, found_await)) return false;
     }
   }
   for (const auto& nested : stmt.else_branch) {
-    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInStmt(
+            nested, async_context, error, found_await)) return false;
   }
   for (const auto& nested : stmt.if_then) {
-    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInStmt(
+            nested, async_context, error, found_await)) return false;
   }
   for (const auto& nested : stmt.if_else) {
-    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInStmt(
+            nested, async_context, error, found_await)) return false;
   }
   for (const auto& nested : stmt.loop_body) {
-    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+    if (!ValidateAwaitPlacementInStmt(
+            nested, async_context, error, found_await)) return false;
   }
   return true;
+}
+
+bool ContainsPointerLocal(const std::vector<Stmt>& body,
+                          const ValidateContext& ctx);
+
+bool ExprContainsPointerLocal(const Expr& expr, const ValidateContext& ctx) {
+  if (expr.kind == ExprKind::FnLiteral) return false;
+  for (const auto& child : expr.children) {
+    if (ExprContainsPointerLocal(child, ctx)) return true;
+  }
+  for (const auto& arg : expr.args) {
+    if (ExprContainsPointerLocal(arg, ctx)) return true;
+  }
+  for (const auto& value : expr.field_values) {
+    if (ExprContainsPointerLocal(value, ctx)) return true;
+  }
+  for (const auto& branch : expr.switch_branches) {
+    if (ExprContainsPointerLocal(branch.condition, ctx) ||
+        ExprContainsPointerLocal(branch.value, ctx) ||
+        ContainsPointerLocal(branch.block, ctx)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ContainsPointerLocal(const std::vector<Stmt>& body,
+                          const ValidateContext& ctx) {
+  for (const auto& stmt : body) {
+    if (stmt.kind == StmtKind::VarDecl &&
+        TypeContainsRawPointer(stmt.var_decl.type, ctx)) {
+      return true;
+    }
+    if (ExprContainsPointerLocal(stmt.expr, ctx) ||
+        ExprContainsPointerLocal(stmt.target, ctx) ||
+        ExprContainsPointerLocal(stmt.loop_cond, ctx) ||
+        ExprContainsPointerLocal(stmt.loop_iter, ctx) ||
+        ExprContainsPointerLocal(stmt.loop_step, ctx) ||
+        (stmt.var_decl.has_init_expr &&
+         ExprContainsPointerLocal(stmt.var_decl.init_expr, ctx))) {
+      return true;
+    }
+    for (const auto& branch : stmt.if_branches) {
+      if (ContainsPointerLocal(branch.second, ctx)) return true;
+    }
+    for (const auto* nested : {&stmt.else_branch, &stmt.if_then, &stmt.if_else,
+                               &stmt.loop_body}) {
+      if (ContainsPointerLocal(*nested, ctx)) return true;
+    }
+  }
+  return false;
 }
 
 bool CheckFunctionBody(const FuncDecl& fn,
@@ -4043,8 +4313,22 @@ bool CheckFunctionBody(const FuncDecl& fn,
                        const std::unordered_set<std::string>& type_params,
                        const ArtifactDecl* current_artifact,
                        std::string* error) {
+  bool has_await = false;
   for (const auto& stmt : fn.body) {
-    if (!ValidateAwaitPlacementInStmt(stmt, fn.is_async, error)) return false;
+    if (!ValidateAwaitPlacementInStmt(
+            stmt, fn.is_async, error, &has_await)) return false;
+  }
+  if (fn.is_async) {
+    for (const auto& param : fn.params) {
+      if (TypeContainsRawPointer(param.type, ctx)) {
+        if (error) *error = "async function cannot retain pointer parameter";
+        return false;
+      }
+    }
+    if (has_await && ContainsPointerLocal(fn.body, ctx)) {
+      if (error) *error = "pointer local cannot cross async suspension";
+      return false;
+    }
   }
   std::vector<std::unordered_map<std::string, LocalInfo>> scopes;
   scopes.emplace_back();
@@ -4406,6 +4690,12 @@ static bool ValidateProgramImpl(
                                      nullptr,
                                      true,
                                      error)) {
+              return false;
+            }
+            if (TypeContainsRawPointer(decl.var.type, ctx) &&
+                IsExternalBorrowedPointerExpr(
+                    decl.var.init_expr, ctx, empty_scopes, nullptr)) {
+              if (error) *error = "cannot store borrowed external pointer in global storage";
               return false;
             }
           }

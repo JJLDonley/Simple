@@ -162,55 +162,10 @@ ffi_type* PrimitiveFfiType(TypeKind kind) {
 
 bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
                                 uint32_t type_id,
-                                std::unordered_set<uint32_t>& visiting,
                                 Simple::VM::Runtime::AbiTypeInfo* out,
                                 std::string* out_error) {
-  if (!out) return false;
-  if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.FFI.call type id out of range";
-    return false;
-  }
-  const auto& row = module.types[type_id];
-  const TypeKind kind = static_cast<TypeKind>(row.kind);
-  if (kind != TypeKind::Unspecified || row.field_count == 0) {
-    *out = Simple::VM::Runtime::GetPrimitiveAbiTypeInfo(kind);
-    return true;
-  }
-  if (!visiting.insert(type_id).second) {
-    if (out_error) *out_error = "System.FFI.call recursive struct ABI is unsupported";
-    return false;
-  }
-  if (row.field_start + row.field_count > module.fields.size()) {
-    if (out_error) *out_error = "System.FFI.call struct field range out of bounds";
-    visiting.erase(type_id);
-    return false;
-  }
-  std::vector<Simple::VM::Runtime::AbiTypeInfo> fields;
-  fields.reserve(row.field_count);
-  for (uint32_t i = 0; i < row.field_count; ++i) {
-    Simple::VM::Runtime::AbiTypeInfo field;
-    if (!BuildExternalDlAbiTypeInfo(module,
-                                    module.fields[row.field_start + i].type_id,
-                                    visiting,
-                                    &field,
-                                    out_error)) {
-      visiting.erase(type_id);
-      return false;
-    }
-    fields.push_back(field);
-  }
-  visiting.erase(type_id);
-  *out = Simple::VM::Runtime::GetAggregateAbiTypeInfo(
-      Simple::VM::Runtime::ComputeStableAggregateLayout(fields));
-  return true;
-}
-
-bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
-                                uint32_t type_id,
-                                Simple::VM::Runtime::AbiTypeInfo* out,
-                                std::string* out_error) {
-  std::unordered_set<uint32_t> visiting;
-  return BuildExternalDlAbiTypeInfo(module, type_id, visiting, out, out_error);
+  return Simple::VM::Runtime::GetSbcModuleTypeAbiTypeInfo(
+      module, type_id, out, out_error);
 }
 
 ffi_type* BuildDlFfiType(const SbcModule& module,
@@ -407,6 +362,18 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       *static_cast<uintptr_t*>(out_value) = narrowed;
       return true;
     }
+    case TypeKind::Ptr: {
+      if (!require(8)) return false;
+      uint64_t value = 0;
+      std::memcpy(&value, payload.data() + offset, sizeof(value));
+      const uintptr_t narrowed = static_cast<uintptr_t>(value);
+      if (static_cast<uint64_t>(narrowed) != value) {
+        if (out_error) *out_error = "System.FFI.call struct pointer field does not fit host ABI";
+        return false;
+      }
+      *static_cast<void**>(out_value) = reinterpret_cast<void*>(narrowed);
+      return true;
+    }
     case TypeKind::F32: {
       if (!require(4)) return false;
       float v = 0.0f;
@@ -490,6 +457,14 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
     case TypeKind::USize: {
       if (!require(8)) return false;
       const uint64_t expanded = static_cast<uint64_t>(*static_cast<const uintptr_t*>(value));
+      std::memcpy(payload->data() + offset, &expanded, sizeof(expanded));
+      return true;
+    }
+    case TypeKind::Ptr: {
+      if (!require(8)) return false;
+      const auto pointer = *static_cast<void* const*>(value);
+      const uint64_t expanded =
+          static_cast<uint64_t>(reinterpret_cast<uintptr_t>(pointer));
       std::memcpy(payload->data() + offset, &expanded, sizeof(expanded));
       return true;
     }
@@ -768,54 +743,6 @@ bool ValidateDlVmMarshalSignature(const SbcModule& module,
   return true;
 }
 
-bool IsDlJitLoopScalarType(TypeKind kind) {
-  switch (kind) {
-    case TypeKind::Unspecified:
-    case TypeKind::Void:
-    case TypeKind::I8:
-    case TypeKind::I16:
-    case TypeKind::I32:
-    case TypeKind::I64:
-    case TypeKind::U8:
-    case TypeKind::U16:
-    case TypeKind::U32:
-    case TypeKind::U64:
-    case TypeKind::ISize:
-    case TypeKind::USize:
-    case TypeKind::F32:
-    case TypeKind::F64:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool IsDlJitLoopSafeTypeId(const SbcModule& module, uint32_t type_id) {
-  if (type_id == 0xFFFFFFFFu) return true;
-  if (type_id >= module.types.size()) return false;
-  if (IsStructTypeId(module, type_id)) return false;
-  const auto kind = static_cast<TypeKind>(module.types[type_id].kind);
-  return IsDlJitLoopScalarType(kind);
-}
-
-bool ValidateDlJitLoopSignature(const SbcModule& module,
-                                uint32_t ret_type_id,
-                                bool has_ret,
-                                const std::vector<uint32_t>& arg_type_ids,
-                                std::string* out_error) {
-  if (has_ret && !IsDlJitLoopSafeTypeId(module, ret_type_id)) {
-    if (out_error) *out_error = "System.FFI.call result is not JIT loop safe";
-    return false;
-  }
-  for (uint32_t type_id : arg_type_ids) {
-    if (!IsDlJitLoopSafeTypeId(module, type_id)) {
-      if (out_error) *out_error = "System.FFI.call parameter is not JIT loop safe";
-      return false;
-    }
-  }
-  return true;
-}
-
 bool ValidateDlNativeAbiSignature(const SbcModule& module,
                                   uint32_t ret_type_id,
                                   bool has_ret,
@@ -887,9 +814,8 @@ DynamicDlAbiValidation AnalyzeDynamicDlCallSignature(const SbcModule& module,
   }
   result.may_block = true;
   result.jit_helper_safe = true;
-  error.clear();
-  result.jit_loop_safe = ValidateDlJitLoopSignature(module, ret_type_id, has_ret, arg_type_ids, &error);
-  if (!result.jit_loop_safe && result.reason.empty()) result.reason = error;
+  result.jit_loop_safe = false;
+  result.reason = "System.FFI.call inside LLVM loop requires interpreter runtime boundary";
   return result;
 }
 
@@ -907,9 +833,9 @@ DynamicDlAbiValidation AnalyzeDynamicDlFunctionSignature(const SbcModule& module
     result.reason = "System.FFI.call function pointer type id out of range";
     return result;
   }
-  const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
-  if (ptr_kind != TypeKind::Ptr) {
-    result.reason = "System.FFI.call function pointer must use pointer ABI type";
+  if (!Simple::Byte::IsExternalFunctionPointerType(
+          module.types[ptr_type_id])) {
+    result.reason = "System.FFI.call function pointer lacks external function metadata";
     return result;
   }
   std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
@@ -932,22 +858,11 @@ bool ValidateDynamicDlFunctionSignature(const SbcModule& module,
                                         bool has_ret,
                                         const std::vector<uint32_t>& param_type_ids,
                                         std::string* out_error) {
-  if (param_type_ids.empty()) {
-    if (out_error) *out_error = "System.FFI.call missing function pointer parameter";
-    return false;
-  }
-  const uint32_t ptr_type_id = param_type_ids.front();
-  if (ptr_type_id >= module.types.size()) {
-    if (out_error) *out_error = "System.FFI.call function pointer type id out of range";
-    return false;
-  }
-  const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
-  if (ptr_kind != TypeKind::Ptr) {
-    if (out_error) *out_error = "System.FFI.call function pointer must use pointer ABI type";
-    return false;
-  }
-  std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
-  return ValidateDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids, out_error);
+  const DynamicDlAbiValidation result = AnalyzeDynamicDlFunctionSignature(
+      module, ret_type_id, has_ret, param_type_ids);
+  if (result.abi_valid && result.vm_marshal_supported) return true;
+  if (out_error) *out_error = result.reason;
+  return false;
 }
 
 bool DispatchDynamicDlCall(int64_t ptr_bits,

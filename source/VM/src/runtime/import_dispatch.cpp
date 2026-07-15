@@ -121,9 +121,9 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
         out_error = "System.FFI.call pointer type out of range";
         return false;
       }
-      TypeKind ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
-      if (ptr_kind != TypeKind::Ptr) {
-        out_error = "System.FFI.call first parameter must be an external function pointer";
+      if (!Simple::Byte::IsExternalFunctionPointerType(
+              module.types[ptr_type_id])) {
+        out_error = "System.FFI.call first parameter lacks external function metadata";
         return false;
       }
       auto resolve_external_pointer = [&](Slot encoded, int64_t* out_address) -> bool {

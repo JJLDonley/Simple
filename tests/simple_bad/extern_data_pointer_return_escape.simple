@@ -1,0 +1,12 @@
+View :: data {
+  data :: i32*
+  length :: usize
+}
+
+extern source : View ()
+
+leak :: View () {
+  return source()
+}
+
+main :: i32 () { return 0 }

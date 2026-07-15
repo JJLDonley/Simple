@@ -1,6 +1,6 @@
-#include "IRE/capture_analysis.h"
+#include "AST/capture_analysis.h"
 
-namespace Simple::Lang::IRE {
+namespace Simple::Lang::ASTAnalysis {
 namespace {
 
 using CaptureScopes = std::vector<std::unordered_set<std::string>>;
@@ -175,4 +175,4 @@ void CollectCapturedLocalsFromStatements(
   }
 }
 
-} // namespace Simple::Lang::IRE
+} // namespace Simple::Lang::ASTAnalysis

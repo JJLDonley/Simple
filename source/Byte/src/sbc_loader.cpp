@@ -190,13 +190,30 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU8At(bytes, off + 4, &row.kind)) return Fail("type row read failed");
       if (!ReadU8At(bytes, off + 5, &row.flags)) return Fail("type row read failed");
       if (!ReadU16At(bytes, off + 6, &row.reserved)) return Fail("type row read failed");
-      if ((row.flags & ~kTypeFlagsKnownMask) != 0u) return Fail("type flags invalid");
-      if (!IsOpaqueHandleType(row) && row.reserved != 0) return Fail("type reserved invalid");
       if (!ReadU32At(bytes, off + 8, &row.size)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
+      if ((row.flags & ~kTypeFlagsKnownMask) != 0u) return Fail("type flags invalid");
+      if (!IsOpaqueHandleType(row) && row.reserved != 0) return Fail("type reserved invalid");
       if (row.kind > static_cast<uint8_t>(TypeKind::USize)) return Fail("type kind invalid");
       auto kind = static_cast<TypeKind>(row.kind);
+      const uint8_t pointer_flags = static_cast<uint8_t>(
+          row.flags & (kTypeFlagPointerReadOnly | kTypeFlagPointerNullable |
+                       kTypeFlagPointerFunction | kTypeFlagPointerBorrowed |
+                       kTypeFlagPointerExternal));
+      if (pointer_flags != 0u && kind != TypeKind::Ptr) {
+        return Fail("pointer contract flags require pointer type");
+      }
+      const bool external_pointer =
+          (pointer_flags & kTypeFlagPointerExternal) != 0u;
+      const bool borrowed_pointer =
+          (pointer_flags & kTypeFlagPointerBorrowed) != 0u;
+      if (external_pointer != borrowed_pointer) {
+        return Fail("external pointer contract must be borrowed");
+      }
+      if (!external_pointer && pointer_flags != 0u) {
+        return Fail("pointer contract flags require external pointer");
+      }
       const uint8_t layout_flags = static_cast<uint8_t>(row.flags &
           (kTypeFlagManagedArtifact | kTypeFlagStableData | kTypeFlagOpaqueHandle));
       if (layout_flags != 0u && (layout_flags & static_cast<uint8_t>(layout_flags - 1u)) != 0u) {

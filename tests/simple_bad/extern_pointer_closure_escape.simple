@@ -1,0 +1,7 @@
+extern source : i32* ()
+
+main :: i32 () {
+  pointer : i32* = source()
+  closure : fn i32 () = () { return pointer == pointer }
+  return closure()
+}

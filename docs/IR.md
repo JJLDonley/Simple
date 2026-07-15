@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.3`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.4`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -148,13 +148,18 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 | ✅ | `u16` | `U16` / `10` | 2 | unsigned integer |
 | ✅ | `u32` | `U32` / `11` | 4 | unsigned integer |
 | ✅ | `u64` | `U64` / `12` | 8 | unsigned integer |
+| ✅ | `isize` | `ISize` / `26` | word | checked pointer-width signed integer |
+| ✅ | `usize` | `USize` / `27` | word | checked pointer-width unsigned integer |
 | ✅ | `bool` | `Bool` / `14` | 1 | boolean |
 | ✅ | `char` | `Char` / `15` | 2 | UTF/code-unit scalar in current bytecode |
 | ✅ | `string` | `String` / `16` | ref | string reference |
 | ✅ | object/data type name | `Ref` or row kind | declared | resolved by `types:` rows; `kind=data` uses stable field offsets |
 | ✅ | `void` | `Void` / `17` | 0 | no-result signature spelling / metadata type |
 | ✅ | `never` | `Never` / `18` | 0 | non-returning metadata type |
-| ✅ | `ptr<T>` | `Ptr` / `19` | word | typed pointer metadata via `kind=ptr` |
+| ✅ | `ptr` | `Ptr` / `19` | word | VM pointer value via `kind=ptr` |
+| ✅ | `ptr.external.borrowed.mutable` / `.readonly` | `Ptr` / `19` plus flags | word | non-null external pointer access/borrow contract |
+| ✅ | `ptr.external.borrowed.nullable.mutable` / `.readonly` | `Ptr` / `19` plus flags | word | nullable external pointer niche contract |
+| ✅ | `ptr.external.borrowed.function` / `.nullable.function` | `Ptr` / `19` plus flags | word | external function-pointer contract |
 | ✅ | `array<T>` | `Array` / `20` | ref | aggregate metadata via `kind=array` |
 | ✅ | `list<T>` | `List` / `21` | ref | aggregate metadata via `kind=list` |
 | ✅ | `fn<sig>` | `Function` / `22` | ref | typed function/closure ref metadata via `kind=function` |

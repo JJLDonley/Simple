@@ -1107,6 +1107,34 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   if (!add_builtin("void", Simple::Byte::TypeKind::Void, 0)) return false;
   if (!add_builtin("never", Simple::Byte::TypeKind::Never, 0)) return false;
   if (!add_builtin("ptr", Simple::Byte::TypeKind::Ptr, 8)) return false;
+  constexpr uint8_t kExternalBorrowed =
+      Simple::Byte::kTypeFlagPointerExternal |
+      Simple::Byte::kTypeFlagPointerBorrowed;
+  if (!add_type("ptr.external.borrowed.mutable", Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed, 8)) return false;
+  if (!add_type("ptr.external.borrowed.readonly", Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerReadOnly,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.nullable.mutable",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.nullable.readonly",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable |
+                    Simple::Byte::kTypeFlagPointerReadOnly,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.function",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerFunction |
+                    Simple::Byte::kTypeFlagPointerReadOnly,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.nullable.function",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerFunction |
+                    Simple::Byte::kTypeFlagPointerNullable |
+                    Simple::Byte::kTypeFlagPointerReadOnly,
+                8)) return false;
 
   auto parse_type_kind = [&](const std::string& kind_text,
                              Simple::Byte::TypeKind* out_kind,

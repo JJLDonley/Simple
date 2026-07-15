@@ -1,0 +1,10 @@
+value :: async i32 () { return 1 }
+
+hold :: async i32 () {
+  storage : i32 = 0
+  pointer : i32* = &storage
+  result : i32 = await value()
+  return result
+}
+
+main :: i32 () { return 0 }

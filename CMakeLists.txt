@@ -183,7 +183,7 @@ set(SIMPLEVM_FRONTEND_SRC
   ${SIMPLEVM_LANG_ROOT}/src/TAST/control_flow.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/types.cpp
   ${SIMPLEVM_LANG_ROOT}/src/IRB/ir_builder.cpp
-  ${SIMPLEVM_LANG_ROOT}/src/IRE/capture_analysis.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/AST/capture_analysis.cpp
   ${SIMPLEVM_LANG_ROOT}/src/IRE/sir_emitter.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_validate.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_sir.cpp

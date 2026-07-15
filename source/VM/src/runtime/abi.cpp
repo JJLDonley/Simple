@@ -80,7 +80,7 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
       return AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
     case TypeKind::Ptr:
       return AbiTypeInfo{AbiClass::Scalar, static_cast<uint32_t>(sizeof(void*)),
-                         static_cast<uint32_t>(alignof(void*)), true, true};
+                         static_cast<uint32_t>(alignof(void*)), true, false};
     case TypeKind::Result:
     case TypeKind::Optional:
       return AbiTypeInfo{AbiClass::Variant, 16, 8, true, false};
@@ -108,7 +108,27 @@ AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row) {
   if (Simple::Byte::IsManagedArtifactType(row)) {
     return AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
   }
-  return GetPrimitiveAbiTypeInfo(static_cast<Simple::Byte::TypeKind>(row.kind));
+  AbiTypeInfo info =
+      GetPrimitiveAbiTypeInfo(static_cast<Simple::Byte::TypeKind>(row.kind));
+  if (static_cast<Simple::Byte::TypeKind>(row.kind) ==
+      Simple::Byte::TypeKind::Ptr) {
+    info.pointer_value = true;
+  }
+  if (info.pointer_value &&
+      (row.flags & Simple::Byte::kTypeFlagPointerExternal) != 0u) {
+    info.external_ffi_callable = true;
+    info.external_pointer = true;
+    info.pointer_nullable =
+        (row.flags & Simple::Byte::kTypeFlagPointerNullable) != 0u;
+    info.function_pointer =
+        (row.flags & Simple::Byte::kTypeFlagPointerFunction) != 0u;
+    info.pointer_access =
+        (row.flags & Simple::Byte::kTypeFlagPointerReadOnly) != 0u
+            ? AbiPointerAccess::ReadOnly
+            : AbiPointerAccess::Mutable;
+    info.pointer_ownership = AbiPointerOwnership::Borrowed;
+  }
+  return info;
 }
 
 bool GetSbcModuleTypeAbiTypeInfoImpl(const Simple::Byte::SbcModule& module,
@@ -132,7 +152,7 @@ bool GetSbcModuleTypeAbiTypeInfoImpl(const Simple::Byte::SbcModule& module,
   }
   const auto kind = static_cast<Simple::Byte::TypeKind>(row.kind);
   if (kind != Simple::Byte::TypeKind::Unspecified) {
-    *out = GetPrimitiveAbiTypeInfo(kind);
+    *out = GetSbcTypeAbiTypeInfo(row);
     return out->abi_class != AbiClass::Invalid;
   }
   if (!Simple::Byte::IsStableDataType(row)) {
@@ -499,7 +519,6 @@ bool ValidateNoRecursiveValueContainment(
 
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,
-                                  bool external_ffi,
                                   std::string* error) {
   for (size_t i = 0; i < parameter_types.size(); ++i) {
     const Simple::Byte::TypeKind kind = parameter_types[i];
@@ -509,8 +528,7 @@ bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& par
       return false;
     }
     const AbiTypeInfo info = GetPrimitiveAbiTypeInfo(kind);
-    if (info.abi_class == AbiClass::Invalid || !info.native_callable ||
-        (external_ffi && !info.external_ffi_callable)) {
+    if (info.abi_class == AbiClass::Invalid || !info.native_callable) {
       if (error) *error = "parameter " + std::to_string(i) + " is not callable by ABI as " + TypeKindAbiName(kind);
       return false;
     }
@@ -522,18 +540,11 @@ bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& par
   }
   const AbiTypeInfo result_info = GetPrimitiveAbiTypeInfo(result_type);
   if (!IsVoidLikeResult(result_type) &&
-      (result_info.abi_class == AbiClass::Invalid || !result_info.native_callable ||
-       (external_ffi && !result_info.external_ffi_callable))) {
+      (result_info.abi_class == AbiClass::Invalid || !result_info.native_callable)) {
     if (error) *error = std::string("result is not callable by ABI as ") + TypeKindAbiName(result_type);
     return false;
   }
   return true;
-}
-
-bool ValidateExternalCAbiSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
-                                   Simple::Byte::TypeKind result_type,
-                                   std::string* error) {
-  return ValidateAbiCallableSignature(parameter_types, result_type, true, error);
 }
 
 bool ValidateExternalCAbiTypeInfos(const std::vector<AbiTypeInfo>& parameter_types,
@@ -541,11 +552,28 @@ bool ValidateExternalCAbiTypeInfos(const std::vector<AbiTypeInfo>& parameter_typ
                                    std::string* error) {
   for (size_t i = 0; i < parameter_types.size(); ++i) {
     const AbiTypeInfo& type = parameter_types[i];
+    if (type.pointer_value &&
+        (!type.external_pointer ||
+         type.pointer_ownership != AbiPointerOwnership::Borrowed ||
+         type.pointer_access == AbiPointerAccess::None)) {
+      if (error) {
+        *error = "parameter " + std::to_string(i) +
+                 " lacks external pointer lifetime metadata";
+      }
+      return false;
+    }
     if (type.abi_class == AbiClass::Void || type.abi_class == AbiClass::Invalid ||
         !type.external_ffi_callable) {
       if (error) *error = "parameter " + std::to_string(i) + " is not external-C ABI callable";
       return false;
     }
+  }
+  if (result_type.pointer_value &&
+      (!result_type.external_pointer ||
+       result_type.pointer_ownership != AbiPointerOwnership::Borrowed ||
+       result_type.pointer_access == AbiPointerAccess::None)) {
+    if (error) *error = "result lacks external pointer lifetime metadata";
+    return false;
   }
   if (result_type.abi_class != AbiClass::Void &&
       (result_type.abi_class == AbiClass::Invalid || !result_type.external_ffi_callable)) {

@@ -8,6 +8,11 @@ Color :: data {
   a : i8
 }
 
+I32View :: data {
+  data :: i32*
+  length :: usize
+}
+
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 extern ffi.simple_apply_i32 : i32 (callback :: fn i32 (i32, i32)*, a : i32, b : i32)
 extern ffi.simple_add_i8 : i8 (a : i8, b : i8)
@@ -21,8 +26,16 @@ extern ffi.simple_sink_i32 : void (value : i32)
 extern ffi.simple_color_sum : i32 (color : Color)
 extern ffi.simple_add_usize : usize (a : usize, b : usize)
 extern ffi.simple_add_isize : isize (a : isize, b : isize)
+extern ffi.simple_i32_pointer : i32* ()
 extern ffi.simple_maybe_i32_pointer : i32*? (present : i32)
-extern ffi.simple_pointer_is_null : i32 (pointer : i32*?)
+extern ffi.simple_write_i32_pointer : void (pointer : i32*, value :: i32)
+extern ffi.simple_i32_pointer_slot : i32** ()
+extern ffi.simple_write_i32_pointer_slot : void (destination : i32**, value :: i32*)
+extern ffi.simple_read_i32_pointer_slot : i32 (slot :: i32**)
+extern ffi.simple_i32_view : I32View ()
+extern ffi.simple_read_i32_view : i32 (view :: I32View)
+extern ffi.simple_read_i32_pointer : i32 (pointer :: i32*)
+extern ffi.simple_pointer_is_null : i32 (pointer :: i32*?)
 
 main :: i32 () {
   path : string = System.Env.get("SIMPLE_TEST_FFI_LIBRARY")
@@ -50,6 +63,15 @@ main :: i32 () {
   if (library.simple_pointer_is_null(present) != 0) { return 0 }
   if (library.simple_pointer_is_null(absent) != 1) { return 0 }
   if (library.simple_pointer_is_null(empty) != 1) { return 0 }
+
+  pointer : i32* = library.simple_i32_pointer()
+  library.simple_write_i32_pointer(pointer, 73)
+  if (library.simple_read_i32_pointer(pointer) != 73) { return 0 }
+  slot : i32** = library.simple_i32_pointer_slot()
+  library.simple_write_i32_pointer_slot(slot, pointer)
+  if (library.simple_read_i32_pointer_slot(slot) != 73) { return 0 }
+  view : I32View = library.simple_i32_view()
+  if (library.simple_read_i32_view(view) != 73) { return 0 }
 
   raw : void* = System.FFI.sym(library, "simple_add_i32")
   add : fn i32 (i32, i32)* = @fn i32 (i32, i32)*(raw)

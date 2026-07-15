@@ -114,8 +114,9 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `26` | `ISize` | `isize` | checked host pointer-width signed integer |
 | ✅ | `27` | `USize` | `usize` | checked host pointer-width unsigned integer |
 
-SBC v5 retains structural optional/Result and managed async layouts while adding
-pointer-width integer identities and strict external-C pointer signatures.
+SBC v6 retains structural optional/Result, managed async layouts, and
+pointer-width integer identities while adding verifier-visible external pointer
+access, nullability, function-pointer, borrowed-ownership, and lifetime flags.
 `MakeFuture` carries function id and argument count; `Await` carries the result
 type id needed for exact verifier stack and GC maps. No compatibility aliases or
 old-opcode translations remain.
@@ -126,7 +127,7 @@ old-opcode translations remain.
 |:---:|---|---|
 | ✅ | `SbcHeader` | `magic`, `version`, `endian`, `flags`, `section_count`, `section_table_offset`, `entry_method_id`, reserved words |
 | ✅ | `SectionEntry` | `id`, `offset`, `size`, `count` |
-| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `reserved`, `size`, `field_start`, `field_count`; flag `0x1` marks managed artifact layout, flag `0x2` marks stable data layout, flag `0x4` marks opaque handle layout; layout flags are mutually exclusive and stores stable native resource kind id in `reserved`; verifier treats opaque handles as packed 64-bit handle words |
+| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `reserved`, `size`, `field_start`, `field_count`; `0x01` managed artifact, `0x02` stable data, `0x04` opaque handle, and pointer-only flags `0x08` read-only, `0x10` nullable, `0x20` function pointer, `0x40` borrowed, `0x80` external-C; external and borrowed must occur together; opaque handles store their resource kind in `reserved` |
 | ✅ | `FieldRow` | `name_str`, `type_id`, `offset`, `flags` |
 | ✅ | `MethodRow` | `name_str`, `sig_id`, `code_offset`, `local_count`, `flags` |
 | ✅ | `SigRow` | `ret_type_id`, `param_count`, `call_conv`, `param_type_start` |
@@ -156,14 +157,14 @@ old-opcode translations remain.
 | Status | Area | Contract |
 |:---:|---|---|
 | ✅ | magic | `SBC0` / `0x30434253` |
-| ✅ | version | current binary version `0x0003` |
+| ✅ | version | current binary version `0x0006` |
 | ✅ | endian | loader validates header endian marker |
 | ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
 
-SBC v3 is intentionally incompatible with v2 because async extended opcodes now
-carry verified immediates rather than placeholder stack identities. The loader
-rejects older modules instead of applying a compatibility translation. Opcode
-metadata version is `5`, and the corresponding runtime ABI is `1.5`.
+SBC v6 is intentionally incompatible with v5 because external pointer contracts
+are encoded in type metadata. The loader rejects older modules instead of
+applying a compatibility translation. Opcode metadata remains version `5`; the
+corresponding runtime ABI is `1.6`.
 
 ## Opcodes
 

@@ -1,5 +1,5 @@
 #include "IRE/sir_emitter.h"
-#include "IRE/capture_analysis.h"
+#include "AST/capture_analysis.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -87,8 +87,11 @@ struct EmitState {
     std::string symbol;
     std::string sig_name;
     uint32_t flags = 0;
+    bool external_c = false;
     std::vector<TypeRef> params;
+    std::vector<Mutability> param_mutabilities;
     TypeRef ret;
+    Mutability return_mutability = Mutability::Immutable;
   };
   std::vector<ImportItem> imports;
 
@@ -112,6 +115,7 @@ struct EmitState {
   struct AbiFieldPath {
     std::vector<std::string> path;
     TypeRef type;
+    Mutability mutability = Mutability::Immutable;
     std::string abi_name;
   };
   struct AbiTypeInfo {
@@ -230,17 +234,19 @@ bool CollectAbiFieldsForArtifact(const std::string& name,
   }
   const ArtifactDecl* art = it->second;
   for (const auto& field : art->fields) {
-    if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
-      if (error) *error = "unsupported ABI field type in artifact: " + field.name;
-      return false;
-    }
-    if (field.type.pointer_depth > 0) {
+    if (field.type.pointer_depth > 0 && field.type.type_args.empty() &&
+        field.type.dims.empty()) {
       EmitState::AbiFieldPath item;
       item.path = prefix;
       item.path.push_back(field.name);
       if (!CloneTypeRef(field.type, &item.type)) return false;
+      item.mutability = field.mutability;
       out_fields->push_back(std::move(item));
       continue;
+    }
+    if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
+      if (error) *error = "unsupported ABI field type in artifact: " + field.name;
+      return false;
     }
     if (st.artifacts.find(field.type.name) != st.artifacts.end()) {
       prefix.push_back(field.name);
@@ -256,6 +262,7 @@ bool CollectAbiFieldsForArtifact(const std::string& name,
     item.path = prefix;
     item.path.push_back(field.name);
     if (!CloneTypeRef(field.type, &item.type)) return false;
+    item.mutability = field.mutability;
     if (st.enum_values.find(item.type.name) != st.enum_values.end()) {
       item.type.name = "i32";
       item.type.type_args.clear();
@@ -1243,8 +1250,28 @@ uint32_t AlignTo(uint32_t value, uint32_t align) {
   return (value + mask) & ~mask;
 }
 
-std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
-  if (type.pointer_depth > 0) return "ptr";
+std::string ExternalPointerSirTypeName(const TypeRef& pointer,
+                                       Mutability mutability,
+                                       bool nullable) {
+  std::string name = "ptr.external.borrowed.";
+  if (nullable) name += "nullable.";
+  if (pointer.is_proc) {
+    name += "function";
+  } else {
+    name += mutability == Mutability::Mutable ? "mutable" : "readonly";
+  }
+  return name;
+}
+
+std::string FieldSirTypeName(const TypeRef& type,
+                             Mutability mutability,
+                             bool stable_data,
+                             const EmitState& st) {
+  if (type.pointer_depth > 0) {
+    return stable_data
+               ? ExternalPointerSirTypeName(type, mutability, false)
+               : "ptr";
+  }
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "string";
@@ -1269,6 +1296,17 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
   if (error) *error = "unsupported type in signature: " + type.name;
   return {};
+}
+
+std::string ExternalSigTypeName(const TypeRef& type,
+                                Mutability mutability,
+                                const EmitState& st,
+                                std::string* error) {
+  const TypeRef* pointer = ExternalNullablePointerValueType(type, st);
+  const bool nullable = pointer != nullptr;
+  if (!pointer && type.pointer_depth > 0) pointer = &type;
+  if (!pointer) return SigTypeNameFromType(type, st, error);
+  return ExternalPointerSirTypeName(*pointer, mutability, nullable);
 }
 
 std::string GetProcSigName(EmitState& st,
@@ -1339,13 +1377,17 @@ bool EnsureExternalPointerCallImport(EmitState& st,
   item.symbol = "call$pointer" +
                 std::to_string(st.external_pointer_call_counter++);
   item.sig_name = "sig_import_" + std::to_string(st.imports.size());
+  item.external_c = true;
+  item.return_mutability = proc_type.proc_return_mutability;
   TypeRef pointer_param;
   if (!CloneTypeRef(proc_type, &pointer_param)) return false;
   item.params.push_back(std::move(pointer_param));
+  item.param_mutabilities.push_back(Mutability::Immutable);
   for (const auto& param : proc_type.proc_params) {
     TypeRef copy;
     if (!CloneTypeRef(param, &copy)) return false;
     item.params.push_back(std::move(copy));
+    item.param_mutabilities.push_back(Mutability::Immutable);
   }
   if (!CloneTypeRef(*proc_type.proc_return, &item.ret)) return false;
   *out_import = item.name;
@@ -4882,7 +4924,7 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       std::vector<std::pair<std::string, TypeRef>> captures;
-      const auto free_names = IRE::FindFnLiteralFreeNames(expr);
+      const auto free_names = ASTAnalysis::FindFnLiteralFreeNames(expr);
       std::vector<std::string> ordered_names(free_names.begin(), free_names.end());
       std::sort(ordered_names.begin(), ordered_names.end());
       for (const auto& name : ordered_names) {
@@ -5590,8 +5632,8 @@ bool EmitFunction(EmitState& st,
   std::unordered_set<std::string> available_capture_names;
   if (implicit_self) available_capture_names.insert("self");
   for (const auto& param : fn.params) available_capture_names.insert(param.name);
-  IRE::CollectAllLocalNames(stmt_body, &available_capture_names);
-  IRE::CollectCapturedLocalsFromStatements(
+  ASTAnalysis::CollectAllLocalNames(stmt_body, &available_capture_names);
+  ASTAnalysis::CollectCapturedLocalsFromStatements(
       stmt_body, available_capture_names, &st.captured_locals);
   auto lambda_capture_it = st.lambda_captures.find(emit_name);
   if (lambda_capture_it != st.lambda_captures.end()) {
@@ -5973,6 +6015,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     item.symbol = symbol;
     item.sig_name = "sig_import_" + std::to_string(st.imports.size());
     item.flags = 0;
+    item.external_c = true;
+    item.return_mutability = ext->return_mutability;
     std::vector<TypeRef> abi_params;
     abi_params.reserve(ext->params.size());
     for (const auto& param : ext->params) {
@@ -5998,6 +6042,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         if (!CloneTypeRef(param.type, &cloned_param)) return false;
       }
       abi_params.push_back(std::move(cloned_param));
+      item.param_mutabilities.push_back(param.mutability);
     }
     if (!IsSupportedDlAbiType(ext->return_type, st, true)) {
       if (error) {
@@ -6061,15 +6106,30 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         dyn_item.symbol = "call$" + std::to_string(dynamic_dl_call_index++);
         dyn_item.sig_name = "sig_import_" + std::to_string(st.imports.size());
         dyn_item.flags = 0;
+        dyn_item.external_c = true;
+        dyn_item.return_mutability = st.imports.back().return_mutability;
         TypeRef ptr_type;
         ptr_type.name = "void";
         ptr_type.pointer_depth = 1;
+        ptr_type.is_proc = true;
+        ptr_type.proc_return = std::make_unique<TypeRef>();
+        if (!CloneTypeRef(st.imports.back().ret,
+                          ptr_type.proc_return.get()) ||
+            !clone_params(st.imports.back().params,
+                          &ptr_type.proc_params)) {
+          return false;
+        }
         dyn_item.params.push_back(std::move(ptr_type));
+        dyn_item.param_mutabilities.push_back(Mutability::Immutable);
         for (const auto& param : st.imports.back().params) {
           TypeRef cloned_param;
           if (!CloneTypeRef(param, &cloned_param)) return false;
           dyn_item.params.push_back(std::move(cloned_param));
         }
+        dyn_item.param_mutabilities.insert(
+            dyn_item.param_mutabilities.end(),
+            st.imports.back().param_mutabilities.begin(),
+            st.imports.back().param_mutabilities.end());
         if (!CloneTypeRef(st.imports.back().ret, &dyn_item.ret)) return false;
         st.dl_call_import_ids_by_module[ext->module][symbol] = dyn_item.name;
         st.imports.push_back(std::move(dyn_item));
@@ -6523,7 +6583,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       EmitState::FieldLayout field_layout;
       field_layout.name = field.name;
       if (!CloneTypeRef(field.type, &field_layout.type)) return false;
-      field_layout.sir_type = FieldSirTypeName(field.type, st);
+      field_layout.sir_type = FieldSirTypeName(
+          field.type, field.mutability, artifact->is_data, st);
       uint32_t align = FieldAlignForType(field.type);
       uint32_t size = FieldSizeForType(field.type);
       offset = AlignTo(offset, align);
@@ -6547,7 +6608,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       EmitState::FieldLayout field_layout;
       field_layout.name = field.abi_name;
       if (!CloneTypeRef(field.type, &field_layout.type)) return false;
-      field_layout.sir_type = FieldSirTypeName(field.type, st);
+      field_layout.sir_type = FieldSirTypeName(
+          field.type, field.mutability, true, st);
       uint32_t align = FieldAlignForType(field.type);
       uint32_t size = FieldSizeForType(field.type);
       offset = AlignTo(offset, align);
@@ -6699,7 +6761,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     result << ") -> " << ret << "\n";
   }
   for (const auto& imp : st.imports) {
-    std::string ret = SigTypeNameFromType(imp.ret, st, error);
+    std::string ret = imp.external_c
+                          ? ExternalSigTypeName(imp.ret, imp.return_mutability,
+                                                st, error)
+                          : SigTypeNameFromType(imp.ret, st, error);
     if (ret.empty()) {
       if (error && error->empty()) *error = "unsupported return type in import signature";
       return false;
@@ -6708,7 +6773,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     bool first = true;
     for (size_t i = 0; i < imp.params.size(); ++i) {
       if (!first) result << ", ";
-      std::string param = SigTypeNameFromType(imp.params[i], st, error);
+      const Mutability mutability =
+          i < imp.param_mutabilities.size()
+              ? imp.param_mutabilities[i]
+              : Mutability::Immutable;
+      std::string param = imp.external_c
+                              ? ExternalSigTypeName(
+                                    imp.params[i], mutability, st, error)
+                              : SigTypeNameFromType(imp.params[i], st, error);
       if (param.empty()) {
         if (error && error->empty()) *error = "unsupported param type in import signature";
         return false;

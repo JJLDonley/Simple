@@ -670,7 +670,10 @@ pointer metadata, and the internal zero-pointer instruction advance syntax to
 2.3, SIR to 2.2, SBC/opcode metadata to 4, and the runtime ABI to 1.4. Exact
 external-C scalar validation, `usize`/`isize`, nullable-pointer niche lowering,
 typed external function pointers, and pointer casts advance syntax to 2.4, SIR
-to 2.3, SBC/opcode metadata to 5, and the runtime ABI to 1.5.
+to 2.3, SBC/opcode metadata to 5, and the runtime ABI to 1.5. Frozen pointer
+access, nullability, function-pointer, borrowed-ownership, and external-lifetime
+metadata advance SIR to 2.4, SBC to 6, and the runtime ABI to 1.6; source syntax
+remains 2.4.
 
 ### `v0.6` generic design
 
@@ -1639,7 +1642,7 @@ Extern declarations describe imported host or dynamic-library functions. Extern
 names may be module-qualified, and calls are checked for argument count, exact
 types, calling convention, and supported ABI layout.
 
-The current `v0.5.15` dynamic-library shape remains transitional:
+Dynamic-library declarations use the same typed external-C contract:
 
 ```simple
 module Examples.Reference
@@ -1655,8 +1658,9 @@ main :: i32 () {
 }
 ```
 
-The raw `i64` library handle and managed `string` declarations accepted by
-specific transitional paths are not the final external-C type model.
+The `i64` value is a typed generational library-resource handle at runtime; it
+is never a host pointer. Managed strings are accepted only by VM-native
+`System.FFI` operations and never by external-C declarations.
 
 ### `v0.6` ABI boundary
 
@@ -1671,10 +1675,10 @@ External-C scalar mappings are exact:
 |---|---|
 | `i8`/`u8` through `i64`/`u64` | matching fixed-width C integer |
 | `f32`/`f64` | C `float`/`double` of matching ABI |
-| `bool` | C `_Bool` only when the ABI metadata confirms that mapping |
 | `usize`/`isize` | host pointer-width unsigned/signed ABI integer |
-| enum | its explicitly declared fixed-width underlying integer |
-| `char` | no implicit C `char` mapping; Simple `char` is a Unicode scalar |
+| `bool` | rejected; no implicit C `_Bool` mapping |
+| enum | rejected until an explicit fixed-width C representation is declared |
+| `char` | rejected; Simple `char` is a Unicode scalar, not C `char` |
 
 `usize` and `isize` have checked portable SBC representation and explicit
 host-width marshaling. Platform-dependent C `char`, `short`, `int`, `long`,
@@ -1784,11 +1788,13 @@ escape through a return, global, heap field, closure, worker thread, callback,
 or async suspension unless explicit pin/static/owner metadata proves the full
 lifetime. Moving managed storage cannot be addressed without pinning.
 
-External pointer results are borrowed by default. Retaining, transferring, or
-freeing one requires metadata naming its owner, lifetime, and deallocator.
-Long-lived host resources use typed generational handles rather than untracked
-raw pointers. Pointer-to-pointer outputs require mutable destination provenance
-and the same ownership/nullability validation for the pointer written by C.
+External pointer results are borrowed. The compiler rejects their escape through
+Simple returns, globals, managed artifact fields, closures, and async suspension.
+The stable v0.6 surface has no owning-raw-pointer declaration: memory requiring
+a deallocator must use a typed generational resource handle whose metadata names
+the owner and cleanup operation. Pointer-to-pointer outputs require mutable
+external destination provenance and apply the same borrowing and nullability
+rules to the pointer written by C.
 
 Managed `string` never converts implicitly to `u8*` or a C string. C strings,
 borrowed string views, and byte views require explicit ABI wrapper/conversion

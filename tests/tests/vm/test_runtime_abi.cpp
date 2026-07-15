@@ -432,50 +432,59 @@ bool VmRuntimeAbiAcceptsExplicitExternalWrappers() {
 
 bool VmRuntimeAbiValidatesExternalCSignatures() {
   using Simple::Byte::TypeKind;
+  using Simple::Byte::TypeRow;
+  using Simple::VM::Runtime::AbiPointerAccess;
+  using Simple::VM::Runtime::AbiPointerOwnership;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
   using Simple::VM::Runtime::GetAggregateAbiTypeInfo;
   using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
-  using Simple::VM::Runtime::ValidateExternalCAbiSignature;
+  using Simple::VM::Runtime::GetSbcTypeAbiTypeInfo;
   using Simple::VM::Runtime::ValidateExternalCAbiTypeInfos;
 
+  TypeRow borrowed_pointer;
+  borrowed_pointer.kind = static_cast<uint8_t>(TypeKind::Ptr);
+  borrowed_pointer.size = 8;
+  borrowed_pointer.flags =
+      Simple::Byte::kTypeFlagPointerExternal |
+      Simple::Byte::kTypeFlagPointerBorrowed |
+      Simple::Byte::kTypeFlagPointerReadOnly;
+  const auto pointer = GetSbcTypeAbiTypeInfo(borrowed_pointer);
   std::string error;
-  if (!ValidateExternalCAbiSignature({TypeKind::I32, TypeKind::Ptr}, TypeKind::I64, &error) ||
+  if (!pointer.pointer_value || !pointer.external_pointer ||
+      pointer.pointer_access != AbiPointerAccess::ReadOnly ||
+      pointer.pointer_ownership != AbiPointerOwnership::Borrowed ||
+      !ValidateExternalCAbiTypeInfos(
+          {pointer}, GetPrimitiveAbiTypeInfo(TypeKind::I64), &error) ||
       !error.empty()) {
     return false;
   }
+
+  TypeRow unqualified_pointer;
+  unqualified_pointer.kind = static_cast<uint8_t>(TypeKind::Ptr);
+  unqualified_pointer.size = 8;
+  error.clear();
+  if (ValidateExternalCAbiTypeInfos(
+          {GetSbcTypeAbiTypeInfo(unqualified_pointer)},
+          GetPrimitiveAbiTypeInfo(TypeKind::I32), &error) ||
+      error.find("lifetime metadata") == std::string::npos) {
+    return false;
+  }
+
   const auto stable_data = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout({
       GetPrimitiveAbiTypeInfo(TypeKind::I32),
       GetPrimitiveAbiTypeInfo(TypeKind::F64),
   }));
-  if (!ValidateExternalCAbiTypeInfos({stable_data}, stable_data, &error) || !error.empty()) {
+  error.clear();
+  if (!ValidateExternalCAbiTypeInfos({stable_data}, stable_data, &error) ||
+      !error.empty()) {
     return false;
   }
   const auto managed_data = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout({
       GetPrimitiveAbiTypeInfo(TypeKind::I32),
       GetPrimitiveAbiTypeInfo(TypeKind::String),
   }));
-  if (ValidateExternalCAbiTypeInfos({managed_data}, stable_data, &error) ||
-      error.find("parameter 0") == std::string::npos) {
-    return false;
-  }
-  error.clear();
-  if (ValidateExternalCAbiSignature({TypeKind::String}, TypeKind::I32, &error) ||
-      error.find("string") == std::string::npos) {
-    return false;
-  }
-  error.clear();
-  if (ValidateExternalCAbiSignature({TypeKind::Ref}, TypeKind::I32, &error) ||
-      error.find("ref") == std::string::npos) {
-    return false;
-  }
-  error.clear();
-  if (ValidateExternalCAbiSignature({TypeKind::I32}, TypeKind::Result, &error) ||
-      error.find("result") == std::string::npos) {
-    return false;
-  }
-  error.clear();
-  return !ValidateExternalCAbiSignature({TypeKind::I32}, TypeKind::Optional, &error) &&
-         error.find("optional") != std::string::npos;
+  return !ValidateExternalCAbiTypeInfos({managed_data}, stable_data, &error) &&
+         error.find("parameter 0") != std::string::npos;
 }
 
 bool VmRuntimeAbiValidatesCallableSignatures() {
@@ -483,21 +492,19 @@ bool VmRuntimeAbiValidatesCallableSignatures() {
   using Simple::VM::Runtime::ValidateAbiCallableSignature;
 
   std::string error;
-  if (!ValidateAbiCallableSignature({TypeKind::I32, TypeKind::String}, TypeKind::I64,
-                                    false, &error) || !error.empty()) {
+  if (!ValidateAbiCallableSignature(
+          {TypeKind::I32, TypeKind::String}, TypeKind::I64, &error) ||
+      !error.empty()) {
     return false;
   }
-  if (ValidateAbiCallableSignature({TypeKind::Void}, TypeKind::I32, false, &error) ||
+  if (ValidateAbiCallableSignature(
+          {TypeKind::Void}, TypeKind::I32, &error) ||
       error.find("parameter 0") == std::string::npos) {
     return false;
   }
   error.clear();
-  if (ValidateAbiCallableSignature({TypeKind::String}, TypeKind::I32, true, &error) ||
-      error.find("parameter 0") == std::string::npos) {
-    return false;
-  }
-  error.clear();
-  return !ValidateAbiCallableSignature({TypeKind::I32}, TypeKind::Never, false, &error) &&
+  return !ValidateAbiCallableSignature(
+             {TypeKind::I32}, TypeKind::Never, &error) &&
          error.find("never") != std::string::npos;
 }
 
@@ -639,9 +646,14 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   Simple::Byte::TypeRow ptr;
   ptr.kind = static_cast<uint8_t>(TypeKind::Ptr);
   ptr.size = 8;
+  ptr.flags = Simple::Byte::kTypeFlagPointerExternal |
+              Simple::Byte::kTypeFlagPointerBorrowed |
+              Simple::Byte::kTypeFlagPointerFunction |
+              Simple::Byte::kTypeFlagPointerReadOnly;
   module.types.push_back(ptr);
   Simple::Byte::TypeRow point;
   point.kind = static_cast<uint8_t>(TypeKind::Unspecified);
+  point.flags = Simple::Byte::kTypeFlagStableData;
   point.size = 8;
   point.field_start = 0;
   point.field_count = 2;
@@ -650,8 +662,10 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   module.fields.push_back(Simple::Byte::FieldRow{0, 0, 4, 0});
 
   auto scalar = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 0});
-  if (!scalar.abi_valid || !scalar.vm_marshal_supported || !scalar.jit_helper_safe || !scalar.jit_loop_safe ||
-      scalar.may_allocate || scalar.needs_roots) {
+  if (!scalar.abi_valid || !scalar.vm_marshal_supported ||
+      !scalar.jit_helper_safe || scalar.jit_loop_safe ||
+      scalar.may_allocate || scalar.needs_roots ||
+      scalar.reason.find("interpreter runtime boundary") == std::string::npos) {
     return false;
   }
 

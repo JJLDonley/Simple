@@ -9,7 +9,7 @@
 namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
-constexpr uint16_t kSbcVersion = 0x0005u;
+constexpr uint16_t kSbcVersion = 0x0006u;
 constexpr size_t kSbcHeaderSize = 32u;
 constexpr size_t kSbcSectionRowSize = 16u;
 constexpr size_t kSbcHeaderMagicOffset = 0x00u;
@@ -63,8 +63,16 @@ enum class SectionId : uint32_t {
 constexpr uint8_t kTypeFlagManagedArtifact = 0x01u;
 constexpr uint8_t kTypeFlagStableData = 0x02u;
 constexpr uint8_t kTypeFlagOpaqueHandle = 0x04u;
-constexpr uint8_t kTypeFlagsKnownMask = kTypeFlagManagedArtifact | kTypeFlagStableData |
-                                        kTypeFlagOpaqueHandle;
+constexpr uint8_t kTypeFlagPointerReadOnly = 0x08u;
+constexpr uint8_t kTypeFlagPointerNullable = 0x10u;
+constexpr uint8_t kTypeFlagPointerFunction = 0x20u;
+constexpr uint8_t kTypeFlagPointerBorrowed = 0x40u;
+constexpr uint8_t kTypeFlagPointerExternal = 0x80u;
+constexpr uint8_t kTypeFlagsKnownMask =
+    kTypeFlagManagedArtifact | kTypeFlagStableData | kTypeFlagOpaqueHandle |
+    kTypeFlagPointerReadOnly | kTypeFlagPointerNullable |
+    kTypeFlagPointerFunction | kTypeFlagPointerBorrowed |
+    kTypeFlagPointerExternal;
 
 enum class TypeKind : uint8_t {
   Unspecified = 0,
@@ -145,6 +153,18 @@ inline bool IsStableDataType(const TypeRow& row) {
 
 inline bool IsOpaqueHandleType(const TypeRow& row) {
   return (row.flags & kTypeFlagOpaqueHandle) != 0u;
+}
+
+inline bool IsExternalPointerType(const TypeRow& row) {
+  return static_cast<TypeKind>(row.kind) == TypeKind::Ptr &&
+         (row.flags & (kTypeFlagPointerExternal |
+                       kTypeFlagPointerBorrowed)) ==
+             (kTypeFlagPointerExternal | kTypeFlagPointerBorrowed);
+}
+
+inline bool IsExternalFunctionPointerType(const TypeRow& row) {
+  return IsExternalPointerType(row) &&
+         (row.flags & kTypeFlagPointerFunction) != 0u;
 }
 
 inline uint16_t OpaqueHandleResourceKindId(const TypeRow& row) {

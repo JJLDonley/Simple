@@ -1,0 +1,8 @@
+extern source :: i32*? ()
+extern write : void (destination : i32*?)
+
+main :: i32 () {
+  pointer : i32*? = source()
+  write(pointer)
+  return 0
+}

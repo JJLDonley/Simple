@@ -22,12 +22,29 @@ enum class AbiClass {
   Opaque,
 };
 
+enum class AbiPointerAccess {
+  None,
+  ReadOnly,
+  Mutable,
+};
+
+enum class AbiPointerOwnership {
+  None,
+  Borrowed,
+};
+
 struct AbiTypeInfo {
   AbiClass abi_class = AbiClass::Invalid;
   uint32_t size = 0;
   uint32_t align = 0;
   bool native_callable = false;
   bool external_ffi_callable = false;
+  bool pointer_value = false;
+  bool external_pointer = false;
+  bool pointer_nullable = false;
+  bool function_pointer = false;
+  AbiPointerAccess pointer_access = AbiPointerAccess::None;
+  AbiPointerOwnership pointer_ownership = AbiPointerOwnership::None;
 };
 
 enum class AbiPassMode {
@@ -163,11 +180,7 @@ bool ValidateNoRecursiveValueContainment(
     std::string* error);
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,
-                                  bool external_ffi,
                                   std::string* error);
-bool ValidateExternalCAbiSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
-                                   Simple::Byte::TypeKind result_type,
-                                   std::string* error);
 bool ValidateExternalCAbiTypeInfos(const std::vector<AbiTypeInfo>& parameter_types,
                                    const AbiTypeInfo& result_type,
                                    std::string* error);

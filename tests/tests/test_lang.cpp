@@ -1002,7 +1002,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 2.3\n", 0) == 0 &&
+  return sir.rfind("sir version 2.4\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2332,6 +2332,15 @@ bool LangPointerLifetimeAndOperationErrors() {
       {"tests/simple_bad/pointer_uninitialized.simple", "pointer is not usable before assignment"},
       {"tests/simple_bad/extern_pointer_cast_mismatch.simple", "pointer cast requires identical pointee type or void pointer"},
       {"tests/simple_bad/pointer_index_unbounded.simple", "pointer indexing requires proven VM extent"},
+      {"tests/simple_bad/extern_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
+      {"tests/simple_bad/extern_optional_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
+      {"tests/simple_bad/extern_data_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
+      {"tests/simple_bad/extern_pointer_return_escape.simple", "cannot return borrowed external pointer"},
+      {"tests/simple_bad/extern_data_pointer_return_escape.simple", "cannot return borrowed external pointer"},
+      {"tests/simple_bad/extern_pointer_field_escape.simple", "cannot store borrowed external pointer in artifact field"},
+      {"tests/simple_bad/extern_pointer_closure_escape.simple", "closure cannot capture borrowed external pointer"},
+      {"tests/simple_bad/pointer_async_parameter.simple", "async function cannot retain pointer parameter"},
+      {"tests/simple_bad/pointer_async_suspension.simple", "pointer local cannot cross async suspension"},
   };
   for (const auto& [path, expected] : cases) {
     int exit_code = 0;
@@ -2339,6 +2348,24 @@ bool LangPointerLifetimeAndOperationErrors() {
     if (exit_code == 0 || error.find(expected) == std::string::npos) return false;
   }
   return true;
+}
+
+bool LangExternalPointerContractsReachSir() {
+  const char* src =
+      "View :: data { data :: i32* }\n"
+      "extern probe :: i32* (input :: i32*, output : i32**, "
+      "maybe :: i32*?, callback :: fn i32 (i32)*, view :: View)\n"
+      "main :: i32 () { return 0 }\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
+  return sir.find("ptr.external.borrowed.readonly") != std::string::npos &&
+         sir.find("ptr.external.borrowed.mutable") != std::string::npos &&
+         sir.find("ptr.external.borrowed.nullable.readonly") !=
+             std::string::npos &&
+         sir.find("ptr.external.borrowed.function") != std::string::npos &&
+         sir.find("field data ptr.external.borrowed.readonly") !=
+             std::string::npos;
 }
 
 bool LangExternManagedTypesRejected() {
@@ -3994,6 +4021,7 @@ const TestCase kLangTests[] = {
   {"lang_pointer_deref_parses", LangPointerDerefParses},
   {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
   {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
+  {"lang_external_pointer_contracts_reach_sir", LangExternalPointerContractsReachSir},
   {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
   {"lang_pointer_null_init_rejected", LangPointerNullInitRejected},
   {"lang_pointer_to_ref_shapes_validate", LangPointerToRefShapesValidate},
