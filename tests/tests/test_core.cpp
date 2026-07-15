@@ -1375,6 +1375,7 @@ std::vector<uint8_t> BuildBadUpvalueIndexModule() {
   std::vector<uint8_t> entry;
   AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstNull));
   AppendU8(entry, static_cast<uint8_t>(OpCode::NewClosure));
   AppendU32(entry, 1);
   AppendU8(entry, 1);

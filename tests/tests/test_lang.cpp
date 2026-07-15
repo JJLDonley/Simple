@@ -652,6 +652,14 @@ bool LangStressLambdasJit() {
   return RunCliSvm({"run", "tests/simple_stress/lambdas.simple"}) == 0;
 }
 
+bool LangStressClosures() {
+  return RunSimpleFileExpectExit("tests/simple_stress/closures.simple", 0);
+}
+
+bool LangStressClosuresJit() {
+  return RunCliSvm({"run", "tests/simple_stress/closures.simple"}) == 0;
+}
+
 bool LangTaggedValuesImportRuntime() {
   return RunCliSvm({"run", "tests/simple_modules/tagged_values_import_main.simple"}) == 42;
 }
@@ -769,16 +777,40 @@ bool LangStressProcedureMemberCallRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
-bool LangStressProcedureClosureCaptureRejected() {
+bool LangStressProcedureClosureCaptureRuns() {
   const char* src =
       "main : i32 () {\n"
       "  x : i32 = 41\n"
       "  f : fn i32 () = () { return x + 1 }\n"
       "  return f()\n"
       "}";
+  std::string sir;
+  std::string error;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         RunSirTextExpectExit(sir, 42);
+}
+
+bool LangClosureUnknownCaptureRejected() {
+  const char* src =
+      "main : i32 () {\n"
+      "  f : fn i32 () = () { return missing }\n"
+      "  return f()\n"
+      "}";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
-  return error.find("undeclared identifier: x") != std::string::npos;
+  return error.find("undeclared identifier: missing") != std::string::npos;
+}
+
+bool LangClosureImmutableCaptureAssignmentRejected() {
+  const char* src =
+      "main : i32 () {\n"
+      "  value :: i32 = 1\n"
+      "  f : fn i32 () = () { value += 1; return value }\n"
+      "  return f()\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("cannot assign to immutable local: value") != std::string::npos;
 }
 
 bool LangStressProcedureNestedLambdasRun() {
@@ -3931,6 +3963,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_tagged_values", LangStressTaggedValues},
   {"lang_stress_lambdas", LangStressLambdas},
   {"lang_stress_lambdas_jit", LangStressLambdasJit},
+  {"lang_stress_closures", LangStressClosures},
+  {"lang_stress_closures_jit", LangStressClosuresJit},
   {"lang_tagged_values_import_runtime", LangTaggedValuesImportRuntime},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
@@ -3961,7 +3995,10 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
   {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
   {"lang_stress_procedure_member_call_runtime", LangStressProcedureMemberCallRuntime},
-  {"lang_stress_procedure_closure_capture_rejected", LangStressProcedureClosureCaptureRejected},
+  {"lang_stress_procedure_closure_capture_runs", LangStressProcedureClosureCaptureRuns},
+  {"lang_closure_unknown_capture_rejected", LangClosureUnknownCaptureRejected},
+  {"lang_closure_immutable_capture_assignment_rejected",
+   LangClosureImmutableCaptureAssignmentRejected},
   {"lang_stress_procedure_nested_lambdas_run", LangStressProcedureNestedLambdasRun},
   {"lang_stress_procedure_list_runs", LangStressProcedureListRuns},
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},

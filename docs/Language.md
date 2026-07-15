@@ -1557,11 +1557,10 @@ main :: i32 () {
 }
 ```
 
-Function literals use `(parameters) { body }`. Parameters may be target-typed or explicitly typed, as in `(value : i32) { return value + 1 }`. Literals are supported in local, global, namespace, field, argument, return, generic, list, and fixed-array contexts. Nested no-capture literals and direct anonymous invocation are supported when a result type is available from context. Interpreter and LLVM execution both use heap-backed callable references for source literals.
+Function literals use `(parameters) { body }`. Parameters may be target-typed or explicitly typed, as in `(value : i32) { return value + 1 }`. Literals are supported in local, global, namespace, field, argument, return, generic, list, and fixed-array contexts. Nested literals, lexical capture, escaping closures, and direct anonymous invocation are supported when a result type is available from context. Interpreter execution uses heap-backed callable references and rooted capture cells; LLVM rejects captured closure lowering before execution and uses the interpreter path.
 
 Unsupported/rejected procedure cases include:
 
-- lexical capture; free local bindings are rejected until closure environments are completed
 - procedure values at extern ABI boundaries
 - direct anonymous invocation without a typed result context
 
@@ -1574,8 +1573,8 @@ globals, namespaces, fields, supported collections, and concrete generic
 specialization. Generic lambda behavior uses ordinary monomorphization; no
 runtime-erased callable or library-specific lambda syntax is introduced.
 
-Closures are part of language completion because async jobs, callbacks, and
-resource-safe composition require behavior plus captured state. Function
+Closures complete the callable language surface needed by async jobs, callbacks,
+and resource-safe composition. Function
 literals keep the existing `fn` procedure type and lexical body syntax:
 
 ```simple
@@ -1588,17 +1587,18 @@ main :: i32 () {
 }
 ```
 
-The target semantics are:
+The implemented semantics are:
 
 - free lexical bindings referenced by the literal are captured automatically;
-- immutable bindings are captured by value;
+- immutable bindings have capture-by-value source semantics and cannot be assigned through the closure;
 - mutable bindings are captured through a VM-owned rooted cell, so mutations
   are visible to the defining scope and every closure sharing that binding;
 - an escaping closure extends the lifetime of its environment and mutable
   cells; it never retains a raw pointer into an expired stack frame;
 - nested closures may capture an outer closure's environment;
-- closure environments participate in precise GC tracing and deterministic
-  cleanup of owned resources;
+- closure environments participate in precise GC tracing; capturing a native
+  resource handle neither transfers ownership nor adds implicit close behavior,
+  so its declared explicit/runtime-owned lifecycle remains unchanged;
 - closure values are not implicitly comparable, serializable, or valid at an
   extern/FFI boundary;
 - host worker threads do not execute closures or access their environments
@@ -1609,12 +1609,13 @@ implementation detail recorded in TAST/SIR/SBC metadata, not part of source type
 identity. Two literals with the same `fn` signature are callable through that
 signature but retain distinct environments.
 
-Lambda and closure completion requires tests for contextual/explicit typing,
-direct invocation, immutable and mutable capture, escaping lifetimes, nested
-and shared environments, generic lambdas and captures, GC during
-calls/suspension, async callbacks, cancellation, resource cleanup, and
-interpreter/JIT parity. These are release gates for `v0.6.0`; native library
-work cannot defer any of them.
+Closure conformance covers contextual/explicit typing, direct invocation,
+immutable and mutable capture, escaping lifetimes, nested and sibling-shared
+environments, recursive and generic closures, receiver capture, imports,
+managed payloads, and GC pressure. Captured machine-code lowering remains an
+explicit pre-execution LLVM fallback; suspension, async callbacks,
+cancellation, and suspension cleanup are completed with async/await before
+`v0.6.0`.
 
 ## Extern declarations and FFI ABI
 
@@ -1816,8 +1817,7 @@ Current tests intentionally reject or limit:
 
 - the planned `async` return modifier and `await` expression
 - language-level `Promise<T>` layout and execution semantics
-- closure capture for procedure literals
-- procedure values at extern boundaries
+- procedure values and closures at extern boundaries
 - recursive artifact ABI for extern/FFI
 - using modules/functions as types or enum types as values
 

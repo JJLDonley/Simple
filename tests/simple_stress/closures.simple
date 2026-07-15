@@ -1,0 +1,90 @@
+module Tests.Stress.Closures
+
+Box :: artifact {
+  value : i32
+}
+
+ClosurePair :: artifact {
+  increment : fn i32 ()
+  addTen : fn i32 ()
+}
+
+Counter :: artifact {
+  value : i32
+
+  makeIncrementer :: fn i32 () () {
+    return () { self.value += 1; return self.value }
+  }
+}
+
+makePair :: ClosurePair (start : i32) {
+  value : i32 = start
+  return {
+    () { value += 1; return value },
+    () { value += 10; return value }
+  }
+}
+
+makeNested :: fn i32 () (start : i32) {
+  value : i32 = start
+  outer : fn fn i32 () () = () {
+    return () { value += 1; return value }
+  }
+  return outer()
+}
+
+captureGeneric<T> :: fn T () (value : T) {
+  return () { return value }
+}
+
+main :: i32 () {
+  pair : ClosurePair = makePair(5)
+  if (pair.increment() != 6) { return 1 }
+  if (pair.addTen() != 16) { return 2 }
+  if (pair.increment() != 17) { return 3 }
+
+  nested : fn i32 () = makeNested(40)
+  if (nested() != 41 || nested() != 42) { return 4 }
+
+  genericInt : fn i32 () = captureGeneric<i32>(42)
+  genericText : fn string () = captureGeneric<string>("captured")
+  if (genericInt() != 42 || genericText() != "captured") { return 5 }
+
+  optionalGetter : fn i32? () = captureGeneric<i32?>({ 42 })
+  capturedOptional : i32? = optionalGetter()
+  optionalValue : i32 = switch (capturedOptional) {
+    { value } => return value
+    {} => return 0
+  }
+  resultGetter : fn Result<i32, i32> () =
+      captureGeneric<Result<i32, i32>>({ .value = 42 })
+  capturedResult : Result<i32, i32> = resultGetter()
+  resultValue : i32 = switch (capturedResult) {
+    { .value = value } => return value
+    { .error = error } => return error
+  }
+  if (optionalValue != 42 || resultValue != 42) { return 6 }
+
+  counter : Counter = { 40 }
+  incrementCounter : fn i32 () = counter.makeIncrementer()
+  if (incrementCounter() != 41 || counter.value != 41) { return 7 }
+
+  box : Box = { 40 }
+  values : i32[] = [2]
+  helper : fn i32 (i32) = (value) { return value }
+  composed : fn i32 () = () { return helper(box.value + values[0]) }
+
+  garbage : Box[] = []
+  for (i : i32 = 0; i < 5000; i += 1) {
+    garbage.push({ i })
+  }
+  if (composed() != 42) { return 8 }
+
+  even : fn bool (i32) = (n) { return false }
+  odd : fn bool (i32) = (n) { return false }
+  even = (n) { if (n == 0) { return true } else { return odd(n - 1) } }
+  odd = (n) { if (n == 0) { return false } else { return even(n - 1) } }
+  if (!even(20) || !odd(21)) { return 9 }
+
+  return 0
+}

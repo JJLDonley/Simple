@@ -264,7 +264,7 @@ bool LspDidOpenAcceptsLambdas() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"main :: i32 () { f : fn i32 (i32) = (x : i32) { return x + 1 }; return f(41) }\"}}}";
+      "\"text\":\"main :: i32 () { base : i32 = 40; f : fn i32 (i32) = (x : i32) { return base + x }; return f(2) }\"}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input = BuildLspFrame(init_req) + BuildLspFrame(open_req) +

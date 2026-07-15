@@ -1563,6 +1563,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
             VerifyResult r = check_type(t, ValType::Ref, "NEW_CLOSURE upvalue type mismatch");
             if (!r.ok) return r;
           }
+          extra_pops = upvalue_count;
           push_type(ValType::Ref);
           break;
         }

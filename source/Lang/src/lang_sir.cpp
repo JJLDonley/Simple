@@ -1,4 +1,5 @@
 #include "IRE/sir_emitter.h"
+#include "IRE/capture_analysis.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -37,6 +38,13 @@ struct EmitState {
   std::unordered_map<std::string, TypeRef> local_types;
   std::unordered_map<std::string, std::string> local_dl_modules;
   std::unordered_map<std::string, uint16_t> local_indices;
+  std::unordered_set<std::string> captured_locals;
+  struct CaptureInfo {
+    TypeRef type;
+    uint16_t index = 0;
+  };
+  std::unordered_map<std::string, CaptureInfo> current_upvalues;
+  std::unordered_map<std::string, std::vector<std::pair<std::string, TypeRef>>> lambda_captures;
   uint16_t next_local = 0;
 
   std::unordered_map<std::string, uint32_t> func_ids;
@@ -1310,6 +1318,7 @@ bool IsDirectFnLiteralCall(const Expr& expr) {
   return expr.kind == ExprKind::Call && !expr.children.empty() &&
          expr.children[0].kind == ExprKind::FnLiteral;
 }
+
 bool InferBinaryOperandTypes(const Expr& expr,
                              const EmitState& st,
                              TypeRef* left,
@@ -1544,6 +1553,10 @@ bool InferExprType(const Expr& expr,
       if (it != st.local_types.end()) {
         return CloneTypeRef(it->second, out);
       }
+      auto upvalue_it = st.current_upvalues.find(expr.text);
+      if (upvalue_it != st.current_upvalues.end()) {
+        return CloneTypeRef(upvalue_it->second.type, out);
+      }
       auto git = st.global_types.find(expr.text);
       if (git != st.global_types.end()) {
         return CloneTypeRef(git->second, out);
@@ -1730,6 +1743,19 @@ bool InferExprType(const Expr& expr,
         auto local_it = st.local_types.find(callee.text);
         if (local_it != st.local_types.end() && local_it->second.is_proc) {
           if (local_it->second.proc_return) return CloneTypeRef(*local_it->second.proc_return, out);
+          out->name = "void";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
+        auto upvalue_it = st.current_upvalues.find(callee.text);
+        if (upvalue_it != st.current_upvalues.end() && upvalue_it->second.type.is_proc) {
+          if (upvalue_it->second.type.proc_return) {
+            return CloneTypeRef(*upvalue_it->second.type.proc_return, out);
+          }
           out->name = "void";
           out->type_args.clear();
           out->dims.clear();
@@ -2037,6 +2063,148 @@ const char* AssignOpToBinaryOp(const std::string& op) {
   return nullptr;
 }
 
+bool EmitCaptureCellRef(EmitState& st,
+                        const std::string& name,
+                        std::string* error) {
+  auto local_it = st.local_indices.find(name);
+  if (local_it != st.local_indices.end() && st.captured_locals.find(name) != st.captured_locals.end()) {
+    (*st.out) << "  ldloc " << local_it->second << "\n";
+    return PushStack(st, 1);
+  }
+  auto upvalue_it = st.current_upvalues.find(name);
+  if (upvalue_it != st.current_upvalues.end()) {
+    (*st.out) << "  ldupv " << name << "\n";
+    return PushStack(st, 1);
+  }
+  if (error) *error = "unknown captured binding '" + name + "'";
+  return false;
+}
+
+bool EmitCaptureCellLoad(EmitState& st,
+                         const std::string& name,
+                         const TypeRef& type,
+                         std::string* error) {
+  if (!EmitCaptureCellRef(st, name, error)) return false;
+  const char* suffix = VmOpSuffixForType(type, st);
+  if (!suffix) {
+    if (error) *error = "unsupported captured binding type for '" + name + "'";
+    return false;
+  }
+  (*st.out) << "  const i32 0\n";
+  PushStack(st, 1);
+  (*st.out) << "  list.get " << suffix << "\n";
+  PopStack(st, 2);
+  return PushStack(st, 1);
+}
+
+bool EmitCaptureCellCreate(EmitState& st,
+                           const std::string& name,
+                           uint16_t local_index,
+                           const TypeRef& type,
+                           const Expr* initializer,
+                           std::string* error) {
+  const char* type_name = VmTypeNameForElement(type, st);
+  const char* suffix = VmOpSuffixForType(type, st);
+  if (!type_name || !suffix) {
+    if (error) *error = "unsupported captured binding type for '" + name + "'";
+    return false;
+  }
+  (*st.out) << "  newlist " << type_name << " 1\n";
+  PushStack(st, 1);
+  (*st.out) << "  dup\n";
+  PushStack(st, 1);
+  if (initializer) {
+    if (!EmitExpr(st, *initializer, &type, error)) return false;
+  } else if (!EmitDefaultInit(st, type, error)) {
+    return false;
+  }
+  (*st.out) << "  list.push " << suffix << "\n";
+  PopStack(st, 2);
+  (*st.out) << "  stloc " << local_index << "\n";
+  return PopStack(st, 1);
+}
+
+bool EmitCaptureCellBoxExistingLocal(EmitState& st,
+                                     const std::string& name,
+                                     uint16_t source_index,
+                                     uint16_t cell_index,
+                                     const TypeRef& type,
+                                     std::string* error) {
+  const char* type_name = VmTypeNameForElement(type, st);
+  const char* suffix = VmOpSuffixForType(type, st);
+  if (!type_name || !suffix) {
+    if (error) *error = "unsupported captured parameter type for '" + name + "'";
+    return false;
+  }
+  (*st.out) << "  newlist " << type_name << " 1\n";
+  PushStack(st, 1);
+  (*st.out) << "  dup\n";
+  PushStack(st, 1);
+  (*st.out) << "  ldloc " << source_index << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  list.push " << suffix << "\n";
+  PopStack(st, 2);
+  (*st.out) << "  stloc " << cell_index << "\n";
+  return PopStack(st, 1);
+}
+
+bool EmitCapturedAssignment(EmitState& st,
+                            const std::string& name,
+                            const TypeRef& type,
+                            const Expr& value,
+                            const std::string& op,
+                            bool return_value,
+                            std::string* error) {
+  const char* suffix = VmOpSuffixForType(type, st);
+  if (!suffix) {
+    if (error) *error = "unsupported captured assignment type for '" + name + "'";
+    return false;
+  }
+  if (!EmitCaptureCellRef(st, name, error)) return false;
+  if (op == "=") {
+    (*st.out) << "  const i32 0\n";
+    PushStack(st, 1);
+    if (!EmitExpr(st, value, &type, error)) return false;
+  } else {
+    (*st.out) << "  dup\n";
+    PushStack(st, 1);
+    (*st.out) << "  const i32 0\n";
+    PushStack(st, 1);
+    (*st.out) << "  list.get " << suffix << "\n";
+    PopStack(st, 2);
+    PushStack(st, 1);
+    if (!EmitExpr(st, value, &type, error)) return false;
+    const char* bin_op = AssignOpToBinaryOp(op);
+    const char* op_type = bin_op && (std::string(bin_op) == "&" || std::string(bin_op) == "|" ||
+                                     std::string(bin_op) == "^" || std::string(bin_op) == "<<" ||
+                                     std::string(bin_op) == ">>")
+                              ? NormalizeBitwiseOpType(type.name)
+                              : NormalizeNumericOpType(type.name);
+    if (!bin_op || !op_type) {
+      if (error) *error = "unsupported captured assignment operator '" + op + "'";
+      return false;
+    }
+    PopStack(st, 1);
+    if (std::string(bin_op) == "+") (*st.out) << "  add " << op_type << "\n";
+    else if (std::string(bin_op) == "-") (*st.out) << "  sub " << op_type << "\n";
+    else if (std::string(bin_op) == "*") (*st.out) << "  mul " << op_type << "\n";
+    else if (std::string(bin_op) == "/") (*st.out) << "  div " << op_type << "\n";
+    else if (std::string(bin_op) == "%") (*st.out) << "  mod " << op_type << "\n";
+    else if (std::string(bin_op) == "&") (*st.out) << "  and " << op_type << "\n";
+    else if (std::string(bin_op) == "|") (*st.out) << "  or " << op_type << "\n";
+    else if (std::string(bin_op) == "^") (*st.out) << "  xor " << op_type << "\n";
+    else if (std::string(bin_op) == "<<") (*st.out) << "  shl " << op_type << "\n";
+    else if (std::string(bin_op) == ">>") (*st.out) << "  shr " << op_type << "\n";
+    (*st.out) << "  const i32 0\n";
+    PushStack(st, 1);
+    (*st.out) << "  swap\n";
+  }
+  (*st.out) << "  list.set " << suffix << "\n";
+  PopStack(st, 3);
+  if (return_value) return EmitCaptureCellLoad(st, name, type, error);
+  return true;
+}
+
 bool EmitLocalAssignment(EmitState& st,
                          const std::string& name,
                          const TypeRef& type,
@@ -2044,6 +2212,10 @@ bool EmitLocalAssignment(EmitState& st,
                          const std::string& op,
                          bool return_value,
                          std::string* error) {
+  if (st.captured_locals.find(name) != st.captured_locals.end() ||
+      st.current_upvalues.find(name) != st.current_upvalues.end()) {
+    return EmitCapturedAssignment(st, name, type, value, op, return_value, error);
+  }
   auto it = st.local_indices.find(name);
   if (it == st.local_indices.end()) {
     if (error) *error = "unknown local '" + name + "'";
@@ -2199,6 +2371,11 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
     auto type_it = st.local_types.find(target.text);
     if (type_it != st.local_types.end()) {
       return EmitLocalAssignment(st, target.text, type_it->second, expr.children[1], expr.op, true, error);
+    }
+    auto upvalue_it = st.current_upvalues.find(target.text);
+    if (upvalue_it != st.current_upvalues.end()) {
+      return EmitCapturedAssignment(
+          st, target.text, upvalue_it->second.type, expr.children[1], expr.op, true, error);
     }
     auto gtype_it = st.global_types.find(target.text);
     if (gtype_it != st.global_types.end()) {
@@ -2483,7 +2660,17 @@ bool EmitUnary(EmitState& st,
       return false;
     }
     if (expr.children[0].kind == ExprKind::Identifier) {
-      auto it = st.local_indices.find(expr.children[0].text);
+      const std::string& name = expr.children[0].text;
+      if (st.captured_locals.find(name) != st.captured_locals.end() ||
+          st.current_upvalues.find(name) != st.current_upvalues.end()) {
+        Expr one;
+        one.kind = ExprKind::Literal;
+        one.literal_kind = LiteralKind::Integer;
+        one.text = "1";
+        return EmitCapturedAssignment(
+            st, name, *use_type, one, expr.op == "++" ? "+=" : "-=", true, error);
+      }
+      auto it = st.local_indices.find(name);
       if (it == st.local_indices.end()) {
         if (error) *error = "unknown local '" + expr.children[0].text + "'";
         return false;
@@ -2572,7 +2759,18 @@ bool EmitUnary(EmitState& st,
       return false;
     }
     if (expr.children[0].kind == ExprKind::Identifier) {
-      auto it = st.local_indices.find(expr.children[0].text);
+      const std::string& name = expr.children[0].text;
+      if (st.captured_locals.find(name) != st.captured_locals.end() ||
+          st.current_upvalues.find(name) != st.current_upvalues.end()) {
+        if (!EmitCaptureCellLoad(st, name, *use_type, error)) return false;
+        Expr one;
+        one.kind = ExprKind::Literal;
+        one.literal_kind = LiteralKind::Integer;
+        one.text = "1";
+        return EmitCapturedAssignment(
+            st, name, *use_type, one, expr.op == "post++" ? "+=" : "-=", false, error);
+      }
+      auto it = st.local_indices.find(name);
       if (it == st.local_indices.end()) {
         if (error) *error = "unknown local '" + expr.children[0].text + "'";
         return false;
@@ -3025,8 +3223,17 @@ bool EmitExpr(EmitState& st,
     case ExprKind::Identifier: {
       auto it = st.local_indices.find(expr.text);
       if (it != st.local_indices.end()) {
+        auto type_it = st.local_types.find(expr.text);
+        if (st.captured_locals.find(expr.text) != st.captured_locals.end() &&
+            type_it != st.local_types.end()) {
+          return EmitCaptureCellLoad(st, expr.text, type_it->second, error);
+        }
         (*st.out) << "  ldloc " << it->second << "\n";
         return PushStack(st, 1);
+      }
+      auto upvalue_it = st.current_upvalues.find(expr.text);
+      if (upvalue_it != st.current_upvalues.end()) {
+        return EmitCaptureCellLoad(st, expr.text, upvalue_it->second.type, error);
       }
       auto git = st.global_indices.find(expr.text);
       if (git != st.global_indices.end()) {
@@ -4029,6 +4236,10 @@ bool EmitExpr(EmitState& st,
         if (local_it != st.local_types.end()) {
           return emit_indirect_call(local_it->second, name);
         }
+        auto upvalue_it = st.current_upvalues.find(name);
+        if (upvalue_it != st.current_upvalues.end()) {
+          return emit_indirect_call(upvalue_it->second.type, name);
+        }
         auto global_it = st.global_types.find(name);
         if (global_it != st.global_types.end() && global_it->second.is_proc) {
           return emit_indirect_call(global_it->second, name);
@@ -4455,6 +4666,34 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "fn literal parameter count mismatch";
         return false;
       }
+      std::vector<std::pair<std::string, TypeRef>> captures;
+      const auto free_names = IRE::FindFnLiteralFreeNames(expr);
+      std::vector<std::string> ordered_names(free_names.begin(), free_names.end());
+      std::sort(ordered_names.begin(), ordered_names.end());
+      for (const auto& name : ordered_names) {
+        auto local_type_it = st.local_types.find(name);
+        if (local_type_it != st.local_types.end()) {
+          if (st.captured_locals.find(name) == st.captured_locals.end()) {
+            if (error) *error = "captured local was not cell-lowered: " + name;
+            return false;
+          }
+          TypeRef type;
+          if (!CloneTypeRef(local_type_it->second, &type)) return false;
+          captures.emplace_back(name, std::move(type));
+          continue;
+        }
+        auto upvalue_it = st.current_upvalues.find(name);
+        if (upvalue_it != st.current_upvalues.end()) {
+          TypeRef type;
+          if (!CloneTypeRef(upvalue_it->second.type, &type)) return false;
+          captures.emplace_back(name, std::move(type));
+        }
+      }
+      if (captures.size() > std::numeric_limits<uint8_t>::max()) {
+        if (error) *error = "fn literal captures too many bindings";
+        return false;
+      }
+
       FuncDecl lambda;
       lambda.name = "__lambda" + std::to_string(st.lambda_counter++);
       lambda.return_mutability = expected->proc_return_mutability;
@@ -4493,9 +4732,15 @@ bool EmitExpr(EmitState& st,
         params.push_back(std::move(cloned));
       }
       st.func_params.emplace(lambda.name, std::move(params));
+      st.lambda_captures[lambda.name] = captures;
+      for (const auto& capture : captures) {
+        if (!EmitCaptureCellRef(st, capture.first, error)) return false;
+      }
       st.lambda_funcs.push_back(std::move(lambda));
 
-      (*st.out) << "  newclosure " << st.lambda_funcs.back().name << " 0\n";
+      (*st.out) << "  newclosure " << st.lambda_funcs.back().name << " "
+                << captures.size() << "\n";
+      PopStack(st, static_cast<uint32_t>(captures.size()));
       return PushStack(st, 1);
     }
     case ExprKind::Member: {
@@ -4745,20 +4990,29 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           st.local_dl_modules[var.name] = manifest_module;
         }
       }
+      if (st.captured_locals.find(var.name) != st.captured_locals.end()) {
+        return EmitCaptureCellCreate(
+            st, var.name, index, var.type, var.has_init_expr ? &var.init_expr : nullptr, error);
+      }
       if (var.has_init_expr) {
-      if (!EmitExpr(st, var.init_expr, &var.type, error)) return false;
-    } else {
-      if (!EmitDefaultInit(st, var.type, error)) return false;
-    }
-    (*st.out) << "  stloc " << index << "\n";
-    PopStack(st, 1);
-    return true;
+        if (!EmitExpr(st, var.init_expr, &var.type, error)) return false;
+      } else {
+        if (!EmitDefaultInit(st, var.type, error)) return false;
+      }
+      (*st.out) << "  stloc " << index << "\n";
+      PopStack(st, 1);
+      return true;
   }
     case StmtKind::Assign: {
       if (stmt.target.kind == ExprKind::Identifier) {
         auto type_it = st.local_types.find(stmt.target.text);
         if (type_it != st.local_types.end()) {
           return EmitLocalAssignment(st, stmt.target.text, type_it->second, stmt.expr, stmt.assign_op, false, error);
+        }
+        auto upvalue_it = st.current_upvalues.find(stmt.target.text);
+        if (upvalue_it != st.current_upvalues.end()) {
+          return EmitCapturedAssignment(
+              st, stmt.target.text, upvalue_it->second.type, stmt.expr, stmt.assign_op, false, error);
         }
         auto gtype_it = st.global_types.find(stmt.target.text);
         if (gtype_it != st.global_types.end()) {
@@ -5091,6 +5345,23 @@ bool EmitFunction(EmitState& st,
   st.local_indices.clear();
   st.local_types.clear();
   st.local_dl_modules.clear();
+  st.captured_locals.clear();
+  st.current_upvalues.clear();
+  std::unordered_set<std::string> available_capture_names;
+  if (implicit_self) available_capture_names.insert("self");
+  for (const auto& param : fn.params) available_capture_names.insert(param.name);
+  IRE::CollectAllLocalNames(stmt_body, &available_capture_names);
+  IRE::CollectCapturedLocalsFromStatements(
+      stmt_body, available_capture_names, &st.captured_locals);
+  auto lambda_capture_it = st.lambda_captures.find(emit_name);
+  if (lambda_capture_it != st.lambda_captures.end()) {
+    for (size_t i = 0; i < lambda_capture_it->second.size(); ++i) {
+      EmitState::CaptureInfo info;
+      if (!CloneTypeRef(lambda_capture_it->second[i].second, &info.type)) return false;
+      info.index = static_cast<uint16_t>(i);
+      st.current_upvalues.emplace(lambda_capture_it->second[i].first, std::move(info));
+    }
+  }
   st.next_local = 0;
   st.stack_cur = 0;
   st.stack_max = 0;
@@ -5110,6 +5381,12 @@ bool EmitFunction(EmitState& st,
   st.out = &func_out;
 
   (*st.out) << "func " << emit_name << " locals=" << total_locals << " stack=0 sig=" << emit_name << "\n";
+  if (lambda_capture_it != st.lambda_captures.end()) {
+    for (size_t i = 0; i < lambda_capture_it->second.size(); ++i) {
+      (*st.out) << "  upvalue " << lambda_capture_it->second[i].first
+                << " ref " << i << "\n";
+    }
+  }
   (*st.out) << "  enter " << total_locals << "\n";
 
   if (implicit_self) {
@@ -5126,6 +5403,23 @@ bool EmitFunction(EmitState& st,
     TypeRef cloned;
     if (!CloneTypeRef(param.type, &cloned)) return false;
     st.local_types.emplace(param.name, std::move(cloned));
+  }
+
+  std::vector<std::string> ordered_captured_locals(
+      st.captured_locals.begin(), st.captured_locals.end());
+  std::sort(ordered_captured_locals.begin(), ordered_captured_locals.end());
+  for (const auto& name : ordered_captured_locals) {
+    auto local_it = st.local_indices.find(name);
+    auto type_it = st.local_types.find(name);
+    if (local_it != st.local_indices.end() && type_it != st.local_types.end()) {
+      const uint16_t source_index = local_it->second;
+      const uint16_t cell_index = st.next_local++;
+      if (!EmitCaptureCellBoxExistingLocal(
+              st, name, source_index, cell_index, type_it->second, error)) {
+        return false;
+      }
+      st.local_indices[name] = cell_index;
+    }
   }
 
   if (!st.global_init_func_name.empty() &&
@@ -5185,10 +5479,13 @@ bool EmitFunction(EmitState& st,
   std::string header = func_body.substr(0, header_end);
   std::string body_text = func_body.substr(header_end + 1);
   total_locals = st.next_local;
-  size_t enter_end = body_text.find('\n');
-  if (enter_end != std::string::npos &&
-      body_text.rfind("  enter ", 0) == 0) {
-    body_text = "  enter " + std::to_string(total_locals) + body_text.substr(enter_end);
+  const size_t enter_start = body_text.find("  enter ");
+  const size_t enter_end = enter_start == std::string::npos
+                               ? std::string::npos
+                               : body_text.find('\n', enter_start);
+  if (enter_end != std::string::npos) {
+    body_text.replace(
+        enter_start, enter_end - enter_start, "  enter " + std::to_string(total_locals));
   }
 
   header = "func " + emit_name +
