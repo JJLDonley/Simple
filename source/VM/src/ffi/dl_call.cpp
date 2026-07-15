@@ -144,6 +144,7 @@ ffi_type* PrimitiveFfiType(TypeKind kind) {
     case TypeKind::I64: return &ffi_type_sint64;
     case TypeKind::ISize:
       return sizeof(intptr_t) == 8 ? &ffi_type_sint64 : &ffi_type_sint32;
+    case TypeKind::Bool:
     case TypeKind::U8:
       return &ffi_type_uint8;
     case TypeKind::U16: return &ffi_type_uint16;
@@ -324,6 +325,15 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       *static_cast<intptr_t*>(out_value) = narrowed;
       return true;
     }
+    case TypeKind::Bool: {
+      if (!require(1)) return false;
+      if (payload[offset] > 1u) {
+        if (out_error) *out_error = "System.FFI.call struct bool field is not canonical";
+        return false;
+      }
+      *static_cast<uint8_t*>(out_value) = payload[offset];
+      return true;
+    }
     case TypeKind::U8: {
       if (!require(1)) return false;
       *static_cast<uint8_t*>(out_value) = payload[offset];
@@ -432,6 +442,16 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
       if (!require(8)) return false;
       const int64_t expanded = static_cast<int64_t>(*static_cast<const intptr_t*>(value));
       std::memcpy(payload->data() + offset, &expanded, sizeof(expanded));
+      return true;
+    }
+    case TypeKind::Bool: {
+      if (!require(1)) return false;
+      const uint8_t boolean = *static_cast<const uint8_t*>(value);
+      if (boolean > 1u) {
+        if (out_error) *out_error = "System.FFI.call returned non-canonical struct bool field";
+        return false;
+      }
+      (*payload)[offset] = boolean;
       return true;
     }
     case TypeKind::U8: {
@@ -614,6 +634,15 @@ bool FillScalarArgStorage(const SbcModule& module,
     case TypeKind::I16: return ConvertDlArg<int16_t>(slot, static_cast<int16_t*>(out_value), out_error);
     case TypeKind::I32: return ConvertDlArg<int32_t>(slot, static_cast<int32_t*>(out_value), out_error);
     case TypeKind::I64: return ConvertDlArg<int64_t>(slot, static_cast<int64_t*>(out_value), out_error);
+    case TypeKind::Bool: {
+      const int32_t value = UnpackI32(slot);
+      if (value != 0 && value != 1) {
+        if (out_error) *out_error = "System.FFI.call bool argument is not canonical";
+        return false;
+      }
+      *static_cast<uint8_t*>(out_value) = static_cast<uint8_t>(value);
+      return true;
+    }
     case TypeKind::U8:
       return ConvertDlArg<uint8_t>(slot, static_cast<uint8_t*>(out_value), out_error);
     case TypeKind::U16:
@@ -667,6 +696,7 @@ bool IsDlScalarParamMarshalSupported(TypeKind kind) {
     case TypeKind::I16:
     case TypeKind::I32:
     case TypeKind::I64:
+    case TypeKind::Bool:
     case TypeKind::U8:
     case TypeKind::U16:
     case TypeKind::U32:
@@ -972,6 +1002,15 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     case TypeKind::I16: return PackDlReturn<int16_t>(*reinterpret_cast<int16_t*>(ret_storage.data()), out_ret, out_error);
     case TypeKind::I32: return PackDlReturn<int32_t>(*reinterpret_cast<int32_t*>(ret_storage.data()), out_ret, out_error);
     case TypeKind::I64: return PackDlReturn<int64_t>(*reinterpret_cast<int64_t*>(ret_storage.data()), out_ret, out_error);
+    case TypeKind::Bool: {
+      const uint8_t value = *reinterpret_cast<uint8_t*>(ret_storage.data());
+      if (value > 1u) {
+        if (out_error) *out_error = "System.FFI.call returned non-canonical bool";
+        return false;
+      }
+      *out_ret = PackI32(value != 0 ? 1 : 0);
+      return true;
+    }
     case TypeKind::U8: return PackDlReturn<uint8_t>(*reinterpret_cast<uint8_t*>(ret_storage.data()), out_ret, out_error);
     case TypeKind::U16: return PackDlReturn<uint16_t>(*reinterpret_cast<uint16_t*>(ret_storage.data()), out_ret, out_error);
     case TypeKind::U32: return PackDlReturn<uint32_t>(*reinterpret_cast<uint32_t*>(ret_storage.data()), out_ret, out_error);

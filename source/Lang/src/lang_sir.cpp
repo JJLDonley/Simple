@@ -1115,6 +1115,11 @@ bool EmitExternalNullablePointerReturn(EmitState& st,
   return true;
 }
 
+bool IsExternalCStringLiteral(const Expr& expr, const TypeRef& expected);
+bool EmitExternalCStringLiteral(EmitState& st,
+                                const Expr& expr,
+                                std::string* error);
+
 bool EmitDynamicDlCall(EmitState& st,
                        const Expr& handle,
                        const std::string& dl_module,
@@ -1183,6 +1188,8 @@ bool EmitDynamicDlCall(EmitState& st,
     }
     if (abi_param) {
       if (!EmitAbiPackArtifactArg(st, args[i], params[i], *abi_param, error)) return false;
+    } else if (IsExternalCStringLiteral(args[i], params[i])) {
+      if (!EmitExternalCStringLiteral(st, args[i], error)) return false;
     } else if (ExternalNullablePointerValueType(params[i], st)) {
       if (!EmitExternalNullablePointerArgument(st, args[i], params[i], error)) return false;
     } else {
@@ -2164,6 +2171,25 @@ bool InferBinaryOperandTypes(const Expr& expr,
     return InferExprType(expr.children[1], st, right, error);
   }
   return true;
+}
+
+bool IsExternalCStringLiteral(const Expr& expr, const TypeRef& expected) {
+  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::String &&
+         expected.name == "u8" && expected.pointer_depth == 1 &&
+         expected.dims.empty() && !expected.is_optional_syntax;
+}
+
+bool EmitExternalCStringLiteral(EmitState& st,
+                                const Expr& expr,
+                                std::string* error) {
+  if (expr.text.find('\0') != std::string::npos) {
+    if (error) *error = "C string literal cannot contain an embedded NUL byte";
+    return false;
+  }
+  std::string name;
+  if (!AddStringConst(st, expr.text, &name)) return false;
+  (*st.out) << "  const cstr " << name << "\n";
+  return PushStack(st, 1);
 }
 
 bool EmitConstForType(EmitState& st,
@@ -4247,6 +4273,11 @@ bool EmitExpr(EmitState& st,
                 }
                 if (abi_param) {
                   if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+                } else if (IsExternalCStringLiteral(expr.args[i], params[i])) {
+                  if (!EmitExternalCStringLiteral(st, expr.args[i], error)) return false;
+                } else if (ExternalNullablePointerValueType(params[i], st)) {
+                  if (!EmitExternalNullablePointerArgument(
+                          st, expr.args[i], params[i], error)) return false;
                 } else {
                   if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
                 }
@@ -4516,6 +4547,8 @@ bool EmitExpr(EmitState& st,
             }
             if (abi_param) {
               if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+            } else if (IsExternalCStringLiteral(expr.args[i], params[i])) {
+              if (!EmitExternalCStringLiteral(st, expr.args[i], error)) return false;
             } else if (ExternalNullablePointerValueType(params[i], st)) {
               if (!EmitExternalNullablePointerArgument(st, expr.args[i], params[i], error)) return false;
             } else {

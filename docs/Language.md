@@ -675,6 +675,9 @@ access, nullability, function-pointer, borrowed-ownership, and external-lifetime
 metadata advance SIR to 2.4, SBC to 6, and the runtime ABI to 1.6. The breaking
 parameter-first procedure declaration and callable-type grammar advances source
 syntax to 3.0; SIR, SBC, opcode metadata, and the runtime ABI remain unchanged.
+Contextual immutable external-C string literals and exact C `_Bool` lowering
+advance syntax to 3.1, SIR to 2.5, SBC to 7, opcode metadata to 6, and the
+runtime ABI to 1.7.
 
 ### `v0.6` generic design
 
@@ -1661,7 +1664,9 @@ main :: () -> i32 {
 
 The `i64` value is a typed generational library-resource handle at runtime; it
 is never a host pointer. Managed strings are accepted only by VM-native
-`System.FFI` operations and never by external-C declarations.
+`System.FFI` operations and never by external-C declarations. A literal used
+for an immutable external `u8*` parameter is lowered as module-owned C-string
+constant storage without creating or exposing a managed string.
 
 ### `v0.6` ABI boundary
 
@@ -1797,10 +1802,14 @@ the owner and cleanup operation. Pointer-to-pointer outputs require mutable
 external destination provenance and apply the same borrowing and nullability
 rules to the pointer written by C.
 
-Managed `string` never converts implicitly to `u8*` or a C string. C strings,
+Managed `string` values never convert implicitly to `u8*` or a C string. A
+string literal in the contextual position of an immutable external-C `u8*`
+parameter is instead emitted directly as immutable UTF-8, NUL-terminated module
+storage. It is valid only for that call boundary, cannot contain an embedded
+NUL, and is rejected for mutable pointer parameters. Non-literal strings,
 borrowed string views, and byte views require explicit ABI wrapper/conversion
-metadata with encoding, terminator, extent, and call-duration lifetime. A
-native function retaining a view must copy it into owned storage.
+metadata with encoding, terminator, extent, and lifetime. A native function
+retaining a view must copy it into owned storage.
 
 Dereference, indexing, and `->` require provenance and sufficient known extent.
 An unbounded foreign pointer is pass/compare/round-trip only. External C remains

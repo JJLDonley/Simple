@@ -1145,6 +1145,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackRef(handle));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::ConstCStr: {
+              int32_t const_raw = UnpackI32(Pop(stack));
+              if (const_raw < 0) return Trap("CONST_CSTR bad const id");
+              uint32_t const_id = static_cast<uint32_t>(const_raw);
+              if (const_id + 8 > module.const_pool.size()) return Trap("CONST_CSTR out of bounds");
+              if (ReadU32Payload(module.const_pool, const_id) != 0u) {
+                return Trap("CONST_CSTR wrong const kind");
+              }
+              uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
+              if (str_offset >= module.const_pool.size()) return Trap("CONST_CSTR bad offset");
+              const uintptr_t address = reinterpret_cast<uintptr_t>(
+                  module.const_pool.data() + str_offset);
+              Push(stack, static_cast<Slot>(address));
+              break;
+            }
             case Simple::Byte::ExtendedOpCode::ConstBytes:
             case Simple::Byte::ExtendedOpCode::ConstData:
             case Simple::Byte::ExtendedOpCode::LoadDataRef: {

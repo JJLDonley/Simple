@@ -8,7 +8,8 @@ namespace {
 bool IsAbiScalar(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
          name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
-         name == "isize" || name == "usize" || name == "f32" || name == "f64";
+         name == "isize" || name == "usize" || name == "f32" || name == "f64" ||
+         name == "bool";
 }
 
 bool IsExternalNullablePointer(const Simple::Lang::AST::TypeRef& type) {

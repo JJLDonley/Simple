@@ -766,7 +766,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
     return false;
   }
   if (layout.size != 16 || layout.align != 8 || !layout.pass_by_value) return false;
-  if (!layout.native_callable || layout.external_ffi_callable || layout.contains_references) {
+  if (!layout.native_callable || !layout.external_ffi_callable || layout.contains_references) {
     return false;
   }
 

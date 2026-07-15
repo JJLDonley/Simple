@@ -1897,7 +1897,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return t == "i8" || t == "i16" || t == "i32" || t == "i64" ||
                t == "u8" || t == "u16" || t == "u32" || t == "u64" ||
                t == "isize" || t == "usize" || t == "f32" || t == "f64" || t == "bool" || t == "char" ||
-               t == "string" || t == "ref" || t == "null";
+               t == "string" || t == "cstr" || t == "ref" || t == "null";
       };
       auto has_legacy_typed_suffix = [&](const std::string& mnemonic) {
         const std::vector<std::string> prefixes = {
@@ -2744,12 +2744,17 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConstChar(static_cast<uint16_t>(value));
         continue;
       }
-      if (op == "const.string") {
+      if (op == "const.string" || op == "const.cstr") {
         uint32_t const_id = 0;
         if (args.size() != 1 || !resolve_const_string_id(args[0], &const_id)) {
-          return fail("const.string expects const_id");
+          return fail(op + " expects const_id");
         }
-        builder.EmitConstString(const_id);
+        if (op == "const.string") {
+          builder.EmitConstString(const_id);
+        } else {
+          builder.EmitConstI32(static_cast<int32_t>(const_id));
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::ConstCStr);
+        }
         continue;
       }
       if (op == "const.bytes" || op == "const.data" || op == "load.dataref") {

@@ -49,7 +49,7 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
     case TypeKind::Unspecified:
       return AbiTypeInfo{AbiClass::Void, 0, 1, true, true};
     case TypeKind::Bool:
-      return AbiTypeInfo{AbiClass::Scalar, 1, 1, true, false};
+      return AbiTypeInfo{AbiClass::Scalar, 1, 1, true, true};
     case TypeKind::I8:
     case TypeKind::U8:
       return AbiTypeInfo{AbiClass::Scalar, 1, 1, true, true};

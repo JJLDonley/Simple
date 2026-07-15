@@ -2247,6 +2247,23 @@ bool CheckCallArgTypes(const Expr& call_expr,
   for (size_t i = 0; i < info.params.size() && i < call_expr.args.size(); ++i) {
     TypeRef expected;
     if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
+    const bool c_string_literal =
+        info.is_external_c && call_expr.args[i].kind == ExprKind::Literal &&
+        call_expr.args[i].literal_kind == LiteralKind::String &&
+        expected.name == "u8" && expected.pointer_depth == 1 &&
+        expected.dims.empty() && !expected.is_optional_syntax;
+    if (c_string_literal) {
+      if (i >= info.param_mutabilities.size() ||
+          info.param_mutabilities[i] != Mutability::Immutable) {
+        if (error) *error = "C string literal requires an immutable external u8 pointer parameter";
+        return false;
+      }
+      if (call_expr.args[i].text.find('\0') != std::string::npos) {
+        if (error) *error = "C string literal cannot contain an embedded NUL byte";
+        return false;
+      }
+      continue;
+    }
     TypeRef actual;
     if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) {
       if (!ValidateExprAgainstExpected(

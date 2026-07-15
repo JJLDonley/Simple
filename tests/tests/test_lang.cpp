@@ -1002,7 +1002,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 2.4\n", 0) == 0 &&
+  return sir.rfind("sir version 2.5\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2348,6 +2348,23 @@ bool LangPointerLifetimeAndOperationErrors() {
     if (exit_code == 0 || error.find(expected) == std::string::npos) return false;
   }
   return true;
+}
+
+bool LangExternalCStringLiteralContext() {
+  const char* valid =
+      "extern ffi.measure : (text :: u8*) -> i32\n"
+      "main :: () -> i32 { return ffi.measure(\"This string is a title\") }\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::IRE::EmitSirFromString(valid, &sir, &error)) return false;
+  if (sir.find("const cstr") == std::string::npos) return false;
+
+  const char* mutable_param =
+      "extern ffi.mutate : (text : u8*) -> void\n"
+      "main :: () -> void { ffi.mutate(\"immutable\") }\n";
+  if (Simple::Lang::ValidateProgramFromString(mutable_param, &error)) return false;
+  return error.find("C string literal requires an immutable external u8 pointer parameter") !=
+         std::string::npos;
 }
 
 bool LangExternalPointerContractsReachSir() {
@@ -4021,6 +4038,7 @@ const TestCase kLangTests[] = {
   {"lang_pointer_deref_parses", LangPointerDerefParses},
   {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
   {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
+  {"lang_external_c_string_literal_context", LangExternalCStringLiteralContext},
   {"lang_external_pointer_contracts_reach_sir", LangExternalPointerContractsReachSir},
   {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
   {"lang_pointer_null_init_rejected", LangPointerNullInitRejected},

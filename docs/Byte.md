@@ -114,9 +114,10 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `26` | `ISize` | `isize` | checked host pointer-width signed integer |
 | ✅ | `27` | `USize` | `usize` | checked host pointer-width unsigned integer |
 
-SBC v6 retains structural optional/Result, managed async layouts, and
-pointer-width integer identities while adding verifier-visible external pointer
-access, nullability, function-pointer, borrowed-ownership, and lifetime flags.
+SBC v7 retains structural optional/Result, managed async layouts, pointer-width
+integer identities, and verifier-visible external pointer contracts while adding
+the verified `ConstCStr` operation for immutable contextual external-C string
+literals.
 `MakeFuture` carries function id and argument count; `Await` carries the result
 type id needed for exact verifier stack and GC maps. No compatibility aliases or
 old-opcode translations remain.
@@ -157,14 +158,14 @@ old-opcode translations remain.
 | Status | Area | Contract |
 |:---:|---|---|
 | ✅ | magic | `SBC0` / `0x30434253` |
-| ✅ | version | current binary version `0x0006` |
+| ✅ | version | current binary version `0x0007` |
 | ✅ | endian | loader validates header endian marker |
 | ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
 
-SBC v6 is intentionally incompatible with v5 because external pointer contracts
-are encoded in type metadata. The loader rejects older modules instead of
-applying a compatibility translation. Opcode metadata remains version `5`; the
-corresponding runtime ABI is `1.6`.
+SBC v7 is intentionally incompatible with v6 because contextual C-string
+constants add a verifier-visible operation. The loader rejects older modules
+instead of applying a compatibility translation. Opcode metadata is version `6`;
+the corresponding runtime ABI is `1.7`.
 
 ## Opcodes
 
