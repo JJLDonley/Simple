@@ -61,6 +61,16 @@ struct CallTargetInfo {
   bool is_proc = false;
 };
 
+bool CloneFunctionCallReturn(const FuncDecl& function, TypeRef* out) {
+  if (!function.is_async) return TAST::CloneTypeRef(function.return_type, out);
+  *out = TypeRef{};
+  out->name = "Promise";
+  TypeRef result;
+  if (!TAST::CloneTypeRef(function.return_type, &result)) return false;
+  out->type_args.push_back(std::move(result));
+  return true;
+}
+
 struct TaggedTypeInfo {
   TaggedArtifactKind kind = TaggedArtifactKind::None;
   const TypeRef* value_type = nullptr;
@@ -624,7 +634,9 @@ bool CheckTypeRef(const TypeRef& type,
       return false;
     }
     for (const auto& arg : type.type_args) {
-      if (!CheckTypeRef(arg, ctx, type_params, TypeUse::Value, error)) return false;
+      const TypeUse argument_use =
+          type.name == "Promise" && arg.name == "void" ? TypeUse::Return : TypeUse::Value;
+      if (!CheckTypeRef(arg, ctx, type_params, argument_use, error)) return false;
     }
   }
 
@@ -844,6 +856,13 @@ bool InferExprType(const Expr& expr,
         TaggedTypeInfo tagged;
         if (!ResolveTaggedType(operand, ctx, &tagged) || !tagged.value_type) return false;
         return CloneTypeRef(*tagged.value_type, out);
+      }
+      if (op == "await") {
+        if (operand.name != "Promise" || operand.type_args.size() != 1 ||
+            operand.pointer_depth != 0 || !operand.dims.empty()) {
+          return false;
+        }
+        return CloneTypeRef(operand.type_args[0], out);
       }
       if (!IsScalarType(operand)) return false;
       if (op == "!") {
@@ -1583,7 +1602,15 @@ bool PopulateArtifactCallTarget(const TypeRef& instance_type,
   }
   if (const FuncDecl* method = FindArtifactMethod(artifact, member)) {
     out->params.clear();
-    if (!SubstituteTypeParams(method->return_type, substitutions, &out->return_type)) return false;
+    TypeRef resolved_return;
+    if (!SubstituteTypeParams(method->return_type, substitutions, &resolved_return)) return false;
+    if (method->is_async) {
+      out->return_type = TypeRef{};
+      out->return_type.name = "Promise";
+      out->return_type.type_args.push_back(std::move(resolved_return));
+    } else {
+      out->return_type = std::move(resolved_return);
+    }
     out->return_mutability = method->return_mutability;
     out->type_params = method->generics;
     out->is_proc = false;
@@ -1631,7 +1658,7 @@ bool GetCallTargetInfo(const Expr& callee,
     auto fn_it = ctx.functions.find(callee.text);
     if (fn_it != ctx.functions.end()) {
       out->params.clear();
-      if (!CloneTypeRef(fn_it->second->return_type, &out->return_type)) return false;
+      if (!CloneFunctionCallReturn(*fn_it->second, &out->return_type)) return false;
       out->return_mutability = fn_it->second->return_mutability;
       out->type_params = fn_it->second->generics;
       out->is_proc = false;
@@ -1722,7 +1749,7 @@ bool GetCallTargetInfo(const Expr& callee,
         const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
         if (!method) return false;
         out->params.clear();
-        if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+        if (!CloneFunctionCallReturn(*method, &out->return_type)) return false;
         out->return_mutability = method->return_mutability;
         out->type_params = method->generics;
         out->is_proc = false;
@@ -1759,7 +1786,7 @@ bool GetCallTargetInfo(const Expr& callee,
         const FuncDecl* fn = FindModuleFunc(module_it->second, callee.text);
         if (fn) {
           out->params.clear();
-          if (!CloneTypeRef(fn->return_type, &out->return_type)) return false;
+          if (!CloneFunctionCallReturn(*fn, &out->return_type)) return false;
           out->return_mutability = fn->return_mutability;
           out->type_params = fn->generics;
           out->is_proc = false;
@@ -1865,6 +1892,17 @@ bool GetCallTargetInfo(const Expr& callee,
     }
     TypeRef instance_type;
     if (InferExprType(base, ctx, scopes, current_artifact, &instance_type)) {
+      if (instance_type.name == "Promise" && instance_type.type_args.size() == 1 &&
+          instance_type.dims.empty() && instance_type.pointer_depth == 0 &&
+          (callee.text == "cancel" || callee.text == "isDone" ||
+           callee.text == "isCancelled")) {
+        out->params.clear();
+        out->return_type = MakeSimpleType("bool");
+        out->return_mutability = Mutability::Mutable;
+        out->type_params.clear();
+        out->is_proc = false;
+        return true;
+      }
       const auto artifact_it = ctx.artifacts.find(instance_type.name);
       const ArtifactDecl* artifact =
           artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
@@ -3723,11 +3761,95 @@ bool CheckExpr(const Expr& expr,
   return true;
 }
 
+bool ValidateAwaitPlacementInStmt(const Stmt& stmt,
+                                  bool async_context,
+                                  std::string* error);
+
+bool ValidateAwaitPlacementInExpr(const Expr& expr,
+                                  bool async_context,
+                                  std::string* error) {
+  if (expr.kind == ExprKind::Unary && expr.op == "await" && !async_context) {
+    if (error) *error = "await is valid only inside async functions";
+    return false;
+  }
+  for (const auto& child : expr.children) {
+    if (!ValidateAwaitPlacementInExpr(child, async_context, error)) return false;
+  }
+  for (const auto& arg : expr.args) {
+    if (!ValidateAwaitPlacementInExpr(arg, async_context, error)) return false;
+  }
+  for (const auto& value : expr.field_values) {
+    if (!ValidateAwaitPlacementInExpr(value, async_context, error)) return false;
+  }
+  for (const auto& branch : expr.switch_branches) {
+    if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None &&
+        !ValidateAwaitPlacementInExpr(branch.condition, async_context, error)) {
+      return false;
+    }
+    if (branch.is_block) {
+      for (const auto& stmt : branch.block) {
+        if (!ValidateAwaitPlacementInStmt(stmt, async_context, error)) return false;
+      }
+    } else if (branch.has_inline_value &&
+               !ValidateAwaitPlacementInExpr(branch.value, async_context, error)) {
+      return false;
+    }
+  }
+  if (expr.kind == ExprKind::FnLiteral) {
+    for (const auto& stmt : expr.fn_body) {
+      if (!ValidateAwaitPlacementInStmt(stmt, false, error)) return false;
+    }
+  }
+  return true;
+}
+
+bool ValidateAwaitPlacementInStmt(const Stmt& stmt,
+                                  bool async_context,
+                                  std::string* error) {
+  if (!ValidateAwaitPlacementInExpr(stmt.expr, async_context, error) ||
+      !ValidateAwaitPlacementInExpr(stmt.target, async_context, error) ||
+      !ValidateAwaitPlacementInExpr(stmt.loop_cond, async_context, error) ||
+      !ValidateAwaitPlacementInExpr(stmt.loop_iter, async_context, error) ||
+      !ValidateAwaitPlacementInExpr(stmt.loop_step, async_context, error)) {
+    return false;
+  }
+  if (stmt.var_decl.has_init_expr &&
+      !ValidateAwaitPlacementInExpr(stmt.var_decl.init_expr, async_context, error)) {
+    return false;
+  }
+  if (stmt.has_loop_var_decl && stmt.loop_var_decl.has_init_expr &&
+      !ValidateAwaitPlacementInExpr(stmt.loop_var_decl.init_expr, async_context, error)) {
+    return false;
+  }
+  for (const auto& branch : stmt.if_branches) {
+    if (!ValidateAwaitPlacementInExpr(branch.first, async_context, error)) return false;
+    for (const auto& nested : branch.second) {
+      if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+    }
+  }
+  for (const auto& nested : stmt.else_branch) {
+    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+  }
+  for (const auto& nested : stmt.if_then) {
+    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+  }
+  for (const auto& nested : stmt.if_else) {
+    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+  }
+  for (const auto& nested : stmt.loop_body) {
+    if (!ValidateAwaitPlacementInStmt(nested, async_context, error)) return false;
+  }
+  return true;
+}
+
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
                        const std::unordered_set<std::string>& type_params,
                        const ArtifactDecl* current_artifact,
                        std::string* error) {
+  for (const auto& stmt : fn.body) {
+    if (!ValidateAwaitPlacementInStmt(stmt, fn.is_async, error)) return false;
+  }
   std::vector<std::unordered_map<std::string, LocalInfo>> scopes;
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
@@ -3908,6 +4030,7 @@ static bool ValidateProgramImpl(
     TypeRef script_return;
     script_return.name = "i32";
     for (const auto& stmt : program.top_level_stmts) {
+      if (!ValidateAwaitPlacementInStmt(stmt, false, error)) return false;
       if (!CheckTopLevelStmtAllowsReturn(stmt, error)) return false;
       if (!CheckStmt(stmt,
                      ctx,
@@ -3979,6 +4102,7 @@ static bool ValidateProgramImpl(
             if (!CheckUniqueNamedMember(field.name, &names, "duplicate artifact member: ", error)) return false;
             if (!CheckTypeRef(field.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (field.has_init_expr) {
+              if (!ValidateAwaitPlacementInExpr(field.init_expr, false, error)) return false;
               if (!ValidateVarInitExpr(field,
                                        ctx,
                                        empty_scopes,
@@ -4017,6 +4141,7 @@ static bool ValidateProgramImpl(
             std::unordered_set<std::string> type_params;
             if (!CheckTypeRef(var.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (var.has_init_expr) {
+              if (!ValidateAwaitPlacementInExpr(var.init_expr, false, error)) return false;
               if (!ValidateVarInitExpr(var,
                                        ctx,
                                        empty_scopes,
@@ -4074,6 +4199,7 @@ static bool ValidateProgramImpl(
           std::unordered_set<std::string> type_params;
           if (!CheckTypeRef(decl.var.type, ctx, type_params, TypeUse::Value, error)) return false;
           if (decl.var.has_init_expr) {
+            if (!ValidateAwaitPlacementInExpr(decl.var.init_expr, false, error)) return false;
             if (!ValidateVarInitExpr(decl.var,
                                      ctx,
                                      empty_scopes,

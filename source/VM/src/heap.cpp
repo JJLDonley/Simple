@@ -258,6 +258,29 @@ void Heap::Mark(uint32_t handle) {
       }
       return;
     }
+    case ObjectKind::Promise: {
+      if (obj->payload.size() < HeapLayout::kPromiseArgumentDataOffset) return;
+      const uint32_t state = ReadU32Payload(obj->payload, HeapLayout::kPromiseStateOffset);
+      if (state == HeapLayout::kPromiseStateCompleted &&
+          ReadU32Payload(obj->payload, HeapLayout::kPromiseResultIsRefOffset) != 0) {
+        const uint32_t ref = static_cast<uint32_t>(
+            ReadU64Payload(obj->payload, HeapLayout::kPromiseResultOffset));
+        if (ref != HeapLayout::kNullRef) Mark(ref);
+      }
+      if (state != HeapLayout::kPromiseStatePending &&
+          state != HeapLayout::kPromiseStateRunning) return;
+      const uint32_t count =
+          ReadU32Payload(obj->payload, HeapLayout::kPromiseArgumentCountOffset);
+      for (uint32_t i = 0; i < count; ++i) {
+        const std::size_t value_offset = HeapLayout::PromiseArgumentValueOffset(i);
+        const std::size_t flag_offset = HeapLayout::PromiseArgumentIsRefOffset(i);
+        if (flag_offset + 4 > obj->payload.size()) break;
+        if (ReadU32Payload(obj->payload, flag_offset) == 0) continue;
+        const uint32_t ref = static_cast<uint32_t>(ReadU64Payload(obj->payload, value_offset));
+        if (ref != HeapLayout::kNullRef) Mark(ref);
+      }
+      return;
+    }
   }
 }
 

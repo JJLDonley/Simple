@@ -32,7 +32,7 @@ An SBC file contains:
 3. Metadata sections.
 4. Code bytes.
 
-The current magic is `SBC0`; the current binary format version is `0x0002`.
+The current magic is `SBC0`; the current binary format version is `0x0003`.
 
 ## Header
 
@@ -112,9 +112,10 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `24` | `Optional` | `optional<T>` | managed optional metadata for source `T?` |
 | ✅ | `25` | `Vector` | `vec<T,N>` | SIMD/vector metadata |
 
-SBC v2 removes the experimental Result marker opcodes and the `Option` metadata
-name. Source `T?` and `Result<T,E>` lower to concrete managed layouts and normal
-object/field/control-flow opcodes; no compatibility aliases remain.
+SBC v3 retains the structural optional/Result layouts introduced by v2 and adds
+verified operands for managed async execution. `MakeFuture` carries function id
+and argument count; `Await` carries the result type id needed for exact verifier
+stack and GC maps. No compatibility aliases or old-opcode translations remain.
 
 ## Binary row schemas
 
@@ -152,14 +153,14 @@ object/field/control-flow opcodes; no compatibility aliases remain.
 | Status | Area | Contract |
 |:---:|---|---|
 | ✅ | magic | `SBC0` / `0x30434253` |
-| ✅ | version | current binary version `0x0002` |
+| ✅ | version | current binary version `0x0003` |
 | ✅ | endian | loader validates header endian marker |
 | ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
 
-SBC v2 is intentionally incompatible with v1. It records the `Optional` type
-identity and removes the experimental Result marker opcode range; the loader
+SBC v3 is intentionally incompatible with v2 because async extended opcodes now
+carry verified immediates rather than placeholder stack identities. The loader
 rejects older modules instead of applying a compatibility translation. Opcode
-metadata version is `2`, and the corresponding runtime ABI is `1.2`.
+metadata version is `3`, and the corresponding runtime ABI is `1.3`.
 
 ## Opcodes
 
@@ -856,11 +857,11 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 | ✅ | ext `109` | `Spawn` | 0 | 1 | 1 |
 | ✅ | ext `110` | `Join` | 0 | 1 | 1 |
 | ✅ | ext `111` | `Detach` | 0 | 1 | 0 |
-| ✅ | ext `112` | `Await` | 0 | 1 | 1 |
+| ✅ | ext `112` | `Await` | 4 | 1 | 0/1 |
 | ✅ | `0x0E` | `Yield` | 0 | 0 | 0 |
 | ✅ | ext `113` | `Resume` | 0 | 1 | 0 |
 | ✅ | ext `114` | `Suspend` | 0 | 0 | 1 |
-| ✅ | ext `115` | `MakeFuture` | 0 | 1 | 1 |
+| ✅ | ext `115` | `MakeFuture` | 5 | N | 1 |
 | ✅ | ext `116` | `PollFuture` | 0 | 1 | 1 |
 | ✅ | ext `117` | `ChannelSend` | 0 | 2 | 0 |
 | ✅ | ext `118` | `ChannelRecv` | 0 | 1 | 1 |
@@ -939,6 +940,7 @@ Reserved vector/SIMD opcode space. `<T,N>` is element type plus lane count.
 | ✅ | ext `145` | `VecAnd` | 0 | 2 | 1 |
 | ✅ | ext `146` | `VecOr` | 0 | 2 | 1 |
 | ✅ | ext `147` | `VecXor` | 0 | 2 | 1 |
+| ✅ | ext `148` | `CancelFuture` | 0 | 1 | 1 |
 
 ## Loader contract
 

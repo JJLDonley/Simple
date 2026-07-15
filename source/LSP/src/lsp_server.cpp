@@ -791,6 +791,7 @@ struct SimpleLspFact {
   std::string type;
   std::string return_type;
   std::vector<SimpleLspParamFact> params;
+  bool is_async = false;
   bool immutable = false;
   size_t token_index = 0;
 };
@@ -1263,16 +1264,22 @@ bool ResolveFunctionSignatureInRefs(const std::vector<TokenRef>& refs,
     if (refs[i].token.kind != TK::Identifier) continue;
     if (refs[i].token.text != name) continue;
     if (!IsFunctionDeclNameAt(refs, i)) continue;
-    std::string return_type;
-    if (i + 2 < refs.size() &&
-        refs[i + 1].token.kind == TK::Colon &&
-        refs[i + 2].token.kind == TK::Identifier) {
-      return_type = refs[i + 2].token.text;
+    if (i + 2 >= refs.size() ||
+        (refs[i + 1].token.kind != TK::Colon &&
+         refs[i + 1].token.kind != TK::DoubleColon)) {
+      continue;
     }
-    if (i + 3 >= refs.size() || refs[i + 3].token.kind != TK::LParen) continue;
+    size_t type_index = i + 2;
+    const bool is_async = refs[type_index].token.kind == TK::KwAsync;
+    if (is_async) ++type_index;
+    if (type_index >= refs.size() || refs[type_index].token.kind != TK::Identifier) continue;
+    std::string return_type =
+        (is_async ? "async " : "") + refs[type_index].token.text;
+    const size_t lparen_index = type_index + 1;
+    if (lparen_index >= refs.size() || refs[lparen_index].token.kind != TK::LParen) continue;
     std::vector<std::string> params;
     int depth = 1;
-    for (size_t j = i + 4; j < refs.size() && depth > 0; ++j) {
+    for (size_t j = lparen_index + 1; j < refs.size() && depth > 0; ++j) {
       const auto& tk = refs[j].token;
       if (tk.kind == TK::LParen) {
         ++depth;
@@ -1480,7 +1487,9 @@ std::string EnclosingNamespaceNameAt(const std::vector<NamespaceSpan>& spans, si
 
 std::string FormatSimpleFunctionFact(const SimpleLspFact& fact) {
   std::string out = fact.qualified_name.empty() ? fact.name : fact.qualified_name;
-  if (!fact.return_type.empty()) out += " : " + fact.return_type;
+  if (!fact.return_type.empty()) {
+    out += fact.is_async ? " : async " + fact.return_type : " : " + fact.return_type;
+  }
   out += " (";
   for (size_t i = 0; i < fact.params.size(); ++i) {
     if (i > 0) out += ", ";
@@ -1491,6 +1500,9 @@ std::string FormatSimpleFunctionFact(const SimpleLspFact& fact) {
     }
   }
   out += ")";
+  if (fact.is_async && !fact.return_type.empty()) {
+    out += " -> Promise<" + fact.return_type + ">";
+  }
   return out;
 }
 
@@ -1641,15 +1653,25 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
 
   for (size_t i = 0; i + 3 < refs.size(); ++i) {
     if (!IsFunctionDeclNameAt(refs, i)) continue;
+    const bool unqualified_extern = i > 0 && refs[i - 1].token.kind == TK::KwExtern;
+    const bool qualified_extern = i >= 3 && refs[i - 1].token.kind == TK::Dot &&
+        refs[i - 3].token.kind == TK::KwExtern;
+    if (unqualified_extern || qualified_extern) continue;
     SimpleLspFact fact;
     fact.kind = SimpleLspFact::Kind::Function;
     fact.name = refs[i].token.text;
     const std::string namespace_name = EnclosingNamespaceNameAt(namespace_spans, i);
     fact.qualified_name = namespace_name.empty() ? fact.name : (namespace_name + "." + fact.name);
-    fact.return_type = BuildDeclaredTypeTextAt(refs, i + 2);
+    size_t type_index = i + 2;
+    fact.is_async = type_index < refs.size() && refs[type_index].token.kind == TK::KwAsync;
+    if (fact.is_async) ++type_index;
+    if (type_index >= refs.size()) continue;
+    fact.return_type = BuildDeclaredTypeTextAt(refs, type_index);
     fact.token_index = i;
+    const size_t lparen_index = type_index + 1;
+    if (lparen_index >= refs.size() || refs[lparen_index].token.kind != TK::LParen) continue;
     int depth = 1;
-    for (size_t j = i + 4; j < refs.size() && depth > 0; ++j) {
+    for (size_t j = lparen_index + 1; j < refs.size() && depth > 0; ++j) {
       if (refs[j].token.kind == TK::LParen) { ++depth; continue; }
       if (refs[j].token.kind == TK::RParen) { --depth; continue; }
       if (depth != 1 || refs[j].token.kind != TK::Identifier) continue;
@@ -1936,7 +1958,8 @@ void ReplyCompletion(std::ostream& out,
                      uint32_t character,
                      const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kKeywords = {
-      "fn", "callback", "module", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
+      "fn", "async", "await", "module", "import", "extern", "if", "else",
+      "while", "for", "return", "break", "skip"};
   std::vector<std::string> labels;
 
   auto doc_it = open_docs.find(uri);
@@ -1982,6 +2005,9 @@ void ReplyCompletion(std::ostream& out,
       static const std::vector<std::string> kListMethods = {
           "list.len", "list.push", "list.pop", "list.insert", "list.remove", "list.clear"};
       for (const auto& label : kListMethods) add_label(label, &seen);
+      static const std::vector<std::string> kPromiseMethods = {
+          "Promise.cancel", "Promise.isDone", "Promise.isCancelled"};
+      for (const auto& label : kPromiseMethods) add_label(label, &seen);
       const auto enum_labels = CollectEnumMemberLabels(doc_it->second);
       for (const auto& label : enum_labels) add_label(label, &seen);
       const auto artifact_labels = CollectArtifactFieldLabels(doc_it->second);
@@ -2021,9 +2047,11 @@ void ReplyCompletion(std::ostream& out,
       const std::string right = LowerAscii(label.substr(dot + 1));
       const bool receiver_is_list = receiver_type_lc.size() >= 2 &&
           receiver_type_lc.rfind("[]") == receiver_type_lc.size() - 2;
+      const bool receiver_is_promise = receiver_type_lc.rfind("promise<", 0) == 0;
       if (left != receiver_lc &&
           (receiver_type_lc.empty() || left != receiver_type_lc) &&
-          !(receiver_is_list && left == "list")) {
+          !(receiver_is_list && left == "list") &&
+          !(receiver_is_promise && left == "promise")) {
         continue;
       }
       if (!prefix_lc.empty() && right.rfind(prefix_lc, 0) != 0) continue;
@@ -2333,6 +2361,8 @@ bool IsKeywordToken(Simple::Lang::TokenKind kind) {
     case TK::KwElse:
     case TK::KwDefault:
     case TK::KwFn:
+    case TK::KwAsync:
+    case TK::KwAwait:
     case TK::KwSelf:
     case TK::KwArtifact:
     case TK::KwEnum:
@@ -2451,9 +2481,16 @@ bool IsFunctionSignatureLParenAt(const std::vector<TokenRef>& refs, size_t i) {
 bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size() || refs[i].token.kind != TK::Identifier) return false;
-  return i + 3 < refs.size() &&
-         refs[i + 1].token.kind == TK::Colon &&
-         refs[i + 3].token.kind == TK::LParen;
+  if (i + 3 >= refs.size() ||
+      (refs[i + 1].token.kind != TK::Colon &&
+       refs[i + 1].token.kind != TK::DoubleColon)) {
+    return false;
+  }
+  size_t type_index = i + 2;
+  if (refs[type_index].token.kind == TK::KwAsync) ++type_index;
+  return type_index + 1 < refs.size() &&
+         refs[type_index].token.kind == TK::Identifier &&
+         refs[type_index + 1].token.kind == TK::LParen;
 }
 
 bool IsParameterDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
@@ -4421,13 +4458,14 @@ bool ResolveCallReturnType(const std::string& text,
     return true;
   }
   const auto current_refs = LexTokenRefs(text);
-  if (call_name.find('.') != std::string::npos) {
-    for (const auto& fact : BuildSimpleLspFacts(current_refs)) {
-      if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name &&
-          IsInlayReturnTypeInteresting(fact.return_type)) {
-        *out_return_type = fact.return_type;
-        return true;
-      }
+  for (const auto& fact : BuildSimpleLspFacts(current_refs)) {
+    const bool matches = call_name.find('.') != std::string::npos
+        ? fact.qualified_name == call_name
+        : fact.name == call_name;
+    if (fact.kind == SimpleLspFact::Kind::Function && matches &&
+        IsInlayReturnTypeInteresting(fact.return_type)) {
+      *out_return_type = fact.return_type;
+      return true;
     }
   }
   std::vector<std::string> params;
@@ -4443,13 +4481,14 @@ bool ResolveCallReturnType(const std::string& text,
     params.clear();
     return_type.clear();
     const auto other_refs = LexTokenRefs(other_text);
-    if (call_name.find('.') != std::string::npos) {
-      for (const auto& fact : BuildSimpleLspFacts(other_refs)) {
-        if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name &&
-            IsInlayReturnTypeInteresting(fact.return_type)) {
-          *out_return_type = fact.return_type;
-          return true;
-        }
+    for (const auto& fact : BuildSimpleLspFacts(other_refs)) {
+      const bool matches = call_name.find('.') != std::string::npos
+          ? fact.qualified_name == call_name
+          : fact.name == call_name;
+      if (fact.kind == SimpleLspFact::Kind::Function && matches &&
+          IsInlayReturnTypeInteresting(fact.return_type)) {
+        *out_return_type = fact.return_type;
+        return true;
       }
     }
     if (ResolveFunctionSignaturePartsInRefs(other_refs, call_name, &params, &return_type) &&

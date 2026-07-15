@@ -15,6 +15,7 @@ enum class ObjectKind : uint8_t {
   List,
   Artifact,
   Closure,
+  Promise,
 };
 
 struct ObjHeader {
@@ -97,9 +98,32 @@ constexpr std::size_t ClosureUpvalueOffset(uint32_t index) {
   return kClosureUpvalueDataOffset + static_cast<std::size_t>(index) * 4u;
 }
 
+constexpr uint32_t kPromiseStatePending = 0;
+constexpr uint32_t kPromiseStateCompleted = 1;
+constexpr uint32_t kPromiseStateCancelled = 2;
+constexpr uint32_t kPromiseStateRunning = 3;
+constexpr std::size_t kPromiseStateOffset = 0;
+constexpr std::size_t kPromiseFunctionIdOffset = 4;
+constexpr std::size_t kPromiseArgumentCountOffset = 8;
+constexpr std::size_t kPromiseResultIsRefOffset = 12;
+constexpr std::size_t kPromiseResultOffset = 16;
+constexpr std::size_t kPromiseArgumentDataOffset = 24;
+constexpr std::size_t kPromiseArgumentStride = 12;
+constexpr std::size_t PromiseArgumentValueOffset(uint32_t index) {
+  return kPromiseArgumentDataOffset + static_cast<std::size_t>(index) * kPromiseArgumentStride;
+}
+constexpr std::size_t PromiseArgumentIsRefOffset(uint32_t index) {
+  return PromiseArgumentValueOffset(index) + 8;
+}
+constexpr std::size_t PromisePayloadSize(uint32_t argument_count) {
+  return kPromiseArgumentDataOffset +
+         static_cast<std::size_t>(argument_count) * kPromiseArgumentStride;
+}
+
 constexpr bool IsRefKind(ObjectKind kind) {
   return kind == ObjectKind::String || kind == ObjectKind::Bytes || kind == ObjectKind::Array ||
-         kind == ObjectKind::List || kind == ObjectKind::Artifact || kind == ObjectKind::Closure;
+         kind == ObjectKind::List || kind == ObjectKind::Artifact || kind == ObjectKind::Closure ||
+         kind == ObjectKind::Promise;
 }
 
 } // namespace HeapLayout

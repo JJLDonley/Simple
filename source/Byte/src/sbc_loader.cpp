@@ -734,7 +734,12 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           uint32_t ext_id = 0;
           if (ReadU32At(module.code, pc + 1, &ext_id) &&
               IsExtendedOpcodePrefix(opcode, ext_id, module.code[pc + 5])) {
-            operand_bytes = 7;
+            uint16_t raw_ext = 0;
+            if (!ReadU16At(module.code, pc + 6, &raw_ext)) {
+              return Fail("extended opcode operand out of bounds");
+            }
+            operand_bytes = 7 + GetExtendedOperandWidth(
+                static_cast<ExtendedOpCode>(raw_ext));
           }
         }
         if (opcode == static_cast<uint8_t>(OpCode::JmpTable)) {

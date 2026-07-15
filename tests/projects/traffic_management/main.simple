@@ -1,0 +1,42 @@
+module Tests.Projects.Traffic.Main
+
+import Standard.FS
+import "./controller.simple"
+
+main :: async i32 () {
+  fixture : string = Standard.FS.readText(
+      "tests/projects/traffic_management/demand.txt")
+  if (fixture != "north=8\neast=3\nwest=5\n") { return 1 }
+
+  intersections : Intersection[] = [
+    { "North", Signal.Red, 0, 0 },
+    { "East", Signal.Red, 0, 0 },
+    { "West", Signal.Red, 0, 0 }
+  ]
+  demands : i32[] = [8, 3, 5]
+  policies : PolicySet = makePolicy(2)
+
+  firstOutcome : Result<i32, TrafficError> =
+      await runCycle(intersections, demands, policies.apply)
+  first : i32 = switch (firstOutcome) {
+    { .value = value } => return value
+    { .error = error } => return -1
+  }
+  secondOutcome : Result<i32, TrafficError> =
+      await runCycle(intersections, demands, policies.apply)
+  second : i32 = switch (secondOutcome) {
+    { .value = value } => return value
+    { .error = error } => return -1
+  }
+
+  if (first != 22 || second != 22) { return 2 }
+  if (policies.observations() != 6) { return 3 }
+  if (intersections[0].ticks != 20 || intersections[1].ticks != 10 ||
+      intersections[2].ticks != 14) { return 4 }
+  if (intersections[0].carsPassed != 8 || intersections[1].carsPassed != 3 ||
+      intersections[2].carsPassed != 5) { return 5 }
+  if (intersections[0].signal != Signal.Yellow ||
+      intersections[1].signal != Signal.Yellow ||
+      intersections[2].signal != Signal.Yellow) { return 6 }
+  return 0
+}

@@ -8296,19 +8296,16 @@ bool RunLlvmJitAddressTaskOpsSmokeTest() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 0);
   AppendExtendedOpcode(code, ExtendedOpCode::AddressOfLocal);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 0);
-  AppendExtendedOpcode(code, ExtendedOpCode::CaptureLocal);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
   AppendExtendedOpcode(code, ExtendedOpCode::MakeFuture);
+  AppendU32(code, 0);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 2);
-  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
 
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 3));
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;
@@ -8316,15 +8313,11 @@ bool RunLlvmJitAddressTaskOpsSmokeTest() {
   Simple::VM::Interpreter::Slot ret = 0;
   bool has_ret = false;
   std::string error;
-  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
-    std::cerr << "LLVM JIT address/task ops run failed: " << error << "\n";
+  if (backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT unexpectedly accepted async Promise execution\n";
     return false;
   }
-  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
-    std::cerr << "expected LLVM JIT address/task ops return 42\n";
-    return false;
-  }
-  return true;
+  return error == "unsupported: async Promise execution needs interpreter scheduler";
 }
 
 bool RunLlvmJitPseudoExtendedOpsSmokeTest() {

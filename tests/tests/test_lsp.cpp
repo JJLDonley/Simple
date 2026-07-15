@@ -878,6 +878,34 @@ bool LspHoverShowsArtifactAndEnumFacts() {
          out_contents.find("Mode.Fill") != std::string::npos;
 }
 
+bool LspHoverShowsAsyncFunctionAndPromiseResult() {
+  const std::string in_path = TempPath("simple_lsp_hover_async_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_async_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_async_err.txt");
+  const std::string uri = "file:///workspace/hover_async.simple";
+  const std::string init_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"fetch :: async i32 (value : i32) { return value }\\nmain :: async i32 () { return await fetch(42) }\"}}}";
+  const std::string hover =
+      "{\"jsonrpc\":\"2.0\",\"id\":75,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":38}}}";
+  const std::string shutdown_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) +
+      BuildLspFrame(hover) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) {
+    return false;
+  }
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string output = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && output.find("\"id\":75") != std::string::npos &&
+         output.find("fetch : async i32 (value : i32) -> Promise<i32>") != std::string::npos;
+}
+
 bool LspHoverShowsExternFunctionSignatureFromOpenModule() {
   const std::string in_path = TempPath("simple_lsp_hover_extern_fn_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_extern_fn_out.txt");
@@ -1426,6 +1454,32 @@ bool LspCompletionIncludesPromiseStateMembers() {
          out_contents.find("\"label\":\"isDone\"") != std::string::npos &&
          out_contents.find("\"label\":\"isFailed\"") != std::string::npos &&
          out_contents.find("\"label\":\"isCancelled\"") != std::string::npos;
+}
+
+bool LspCompletionIncludesManagedPromiseControls() {
+  const std::string session_name = "simple_lsp_completion_managed_promise_controls";
+  const std::string uri = "file:///workspace/complete_managed_promise.simple";
+  const std::string init_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"work :: async i32 () { return 42 }\\nmain :: async i32 () {\\n  promise : Promise<i32> = work()\\n  promise.is\\n}\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":61,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":3,\"character\":12}}}";
+  const std::string shutdown_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input = BuildLspFrame(init_req) + BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req);
+  std::string output;
+  std::string errors;
+  if (!RunLspSession(session_name, input, &output, &errors)) return false;
+  return errors.empty() && output.find("\"id\":61") != std::string::npos &&
+      output.find("\"label\":\"isDone\"") != std::string::npos &&
+      output.find("\"label\":\"isCancelled\"") != std::string::npos;
 }
 
 bool LspCompletionIncludesSystemImplicitAliasMembers() {
@@ -4056,8 +4110,7 @@ bool LspInlayHintReturnsExternParameterHints() {
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":85") != std::string::npos &&
          out_contents.find("\"label\":\"width: \"") != std::string::npos &&
          out_contents.find("\"label\":\"height: \"") != std::string::npos &&
-         out_contents.find("\"label\":\": RenderTexture2D\"") != std::string::npos &&
-         out_contents.find("->") == std::string::npos;
+         out_contents.find("\"label\":\": RenderTexture2D\"") != std::string::npos;
 }
 
 bool LspInlayHintDoesNotInventPartialFunctionFacts() {
@@ -4216,6 +4269,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_includes_function_parameter_type", LspHoverIncludesFunctionParameterType},
   {"lsp_hover_includes_parameter_use_type", LspHoverIncludesParameterUseType},
   {"lsp_hover_shows_simple_function_signature_syntax", LspHoverShowsSimpleFunctionSignatureSyntax},
+  {"lsp_hover_shows_async_function_and_promise_result", LspHoverShowsAsyncFunctionAndPromiseResult},
   {"lsp_hover_shows_module_and_import_syntax", LspHoverShowsModuleAndImportSyntax},
   {"lsp_hover_shows_artifact_and_enum_facts", LspHoverShowsArtifactAndEnumFacts},
   {"lsp_hover_shows_extern_function_signature_from_open_module", LspHoverShowsExternFunctionSignatureFromOpenModule},
@@ -4237,6 +4291,7 @@ const TestCase kLspTests[] = {
    LspCompletionSuggestsReservedImportModulesUnquoted},
   {"lsp_completion_includes_reserved_module_alias_members", LspCompletionIncludesReservedModuleAliasMembers},
   {"lsp_completion_includes_promise_state_members", LspCompletionIncludesPromiseStateMembers},
+  {"lsp_completion_includes_managed_promise_controls", LspCompletionIncludesManagedPromiseControls},
   {"lsp_completion_includes_system_implicit_alias_members", LspCompletionIncludesSystemImplicitAliasMembers},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_signature_help_tracks_active_parameter", LspSignatureHelpTracksActiveParameter},

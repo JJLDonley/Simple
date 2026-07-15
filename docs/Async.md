@@ -1,18 +1,15 @@
 # Jobs, promises, and async design
 
-`System.Job` and `Standard.Promise` provide the experimental `v0.5.2` runtime
-foundation. The tables in this document describe that **current transitional
-API**. It does not yet implement the accepted `v0.6` language syntax, and its
-`await` members and raw `i64` promise handles are not the final public design.
-Job imports currently force interpreter fallback so async state remains owned
-by the executing VM's resource registry.
+Language-level `Promise<T>`, `async`, prefix `await`, cooperative suspension,
+and structural cancellation are implemented in `v0.5.21`. `System.Job` and
+`Standard.Promise` remain the experimental `v0.5.2` raw-handle runtime API; the
+tables below document that **transitional library API**, not the managed
+language Promise representation. Job imports and language Promise opcodes force
+pre-execution LLVM fallback so async state remains owned by the executing VM.
 
-## Target language surface
+## Language surface
 
-`v0.5.15` implements the optional/Result/ZII and postfix-propagation pieces
-below. `Promise<T>`, `async`, `await`, and suspension remain target behavior.
-
-The accepted language design is:
+The implemented language design is:
 
 ```simple
 fetchBody :: async Result<string, HttpError> (url : string) {
@@ -59,7 +56,7 @@ present and completes `consumeData` with absence otherwise. The combined form
 `value :: i32 = await getDataFromAlgo()?` means
 `(await getDataFromAlgo())?`.
 
-## Target `Promise<T>` state model
+## `Promise<T>` state model
 
 `Promise<T>` is a managed language type, not an `i64` convention or a Result
 alias. It owns three states: `Pending`, `Completed(T)`, and `Cancelled`.
@@ -78,6 +75,16 @@ For example, `Promise<i32?>` distinguishes all outcomes:
 | Completed with `{}` | produce absent `i32?` |
 | Completed with `{ 0 }` | produce present integer zero |
 
+Calling an async function allocates a managed Pending Promise containing the
+producer function and copied VM slots for its typed arguments. The cooperative
+scheduler starts a pending producer when it is awaited, suspends the awaiting
+frame on the interpreter call stack, and atomically publishes its result before
+resuming the parent. A terminal result is cached, so repeated awaits observe the
+same value without re-running the producer. Pending arguments, suspended frame
+locals, closure environments, and completed managed payloads participate in
+precise GC tracing. A dropped, unreachable pending Promise and its producer
+arguments are reclaimed without executing source code.
+
 `Completed` means asynchronous production finished; it does not claim the
 operation represented by `T` succeeded. Expected failures belong in `T`, usually
 as `Promise<Result<Value, DomainError>>`. Such a Promise completes with a Result
@@ -90,7 +97,7 @@ constructor names:
 response :: Response = await Standard.HTTP.get(url)?
 ```
 
-The final Promise design does not carry a separate copied-string
+The managed Promise design does not carry a separate copied-string
 failed/rejected state. Cancellation is structured asynchronous control rather
 than a domain error:
 
@@ -105,10 +112,13 @@ state/control APIs. Resolution and cancellation race atomically, with exactly
 one terminal winner. Cancellation wakes suspended continuations and is
 idempotent after reaching a terminal state.
 
-Managed promises do not expose public `close`. The VM owns pending state, roots
-continuations and payloads, and releases terminal state when runtime ownership
-and GC reachability allow. The current raw job handle and explicit `close` API
-remain transitional implementation behavior.
+Managed promises expose `cancel()`, `isDone()`, and `isCancelled()` control
+methods. `cancel()` returns true only when that request wins a Pending-to-Cancelled
+transition; later requests are harmless and return false. Both Completed and
+Cancelled are done. Managed promises do not expose public `close`: the VM owns
+pending state, roots continuations and payloads, and releases terminal state
+when GC reachability permits. The current raw job handle and explicit `close`
+API remain transitional implementation behavior.
 
 ## Library naming policy
 

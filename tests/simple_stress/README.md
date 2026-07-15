@@ -21,6 +21,7 @@ VM, then validates a known result.
 | `generic_type_system.simple` | globals, nested explicit/inferred types, wrappers, procedure arguments, array/list modifiers, and mutual recursion |
 | `lambdas.simple` | typed and target-typed lambdas, generic passing/returning, nested lambdas, direct calls, globals, namespaces, fields, arrays, and lists |
 | `closures.simple` | escaping, nested, shared mutable, recursive, generic, receiver, procedure, artifact/list/string captures, and GC pressure |
+| `async.simple` | generic and recursive async functions, Promise lists and repeated awaits, methods, callbacks, optional/Result propagation, suspended-frame roots, and GC pressure |
 | `tagged_values.simple` | ZII optional/Result construction, patterns, propagation, nesting, generics, and GC pressure |
 
 Workloads are deliberately bounded so they remain suitable for normal CI while

@@ -1,0 +1,3 @@
+work :: async i32 () { return 42 }
+value : i32 = await work()
+main :: i32 () { return value }

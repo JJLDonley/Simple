@@ -71,6 +71,19 @@ bool LangLexesKeywordsAndOps() {
 }
 
 
+bool LangLexesAsyncTokens() {
+  Simple::Lang::Lexer lex("work :: async i32 () { return await next() }");
+  if (!lex.Lex()) return false;
+  const auto& tokens = lex.Tokens();
+  bool saw_async = false;
+  bool saw_await = false;
+  for (const auto& token : tokens) {
+    saw_async = saw_async || token.kind == Simple::Lang::TokenKind::KwAsync;
+    saw_await = saw_await || token.kind == Simple::Lang::TokenKind::KwAwait;
+  }
+  return saw_async && saw_await;
+}
+
 bool LangLexesOptionalAndPropagationTokens() {
   Simple::Lang::Lexer lexer("value : i32? = source?");
   if (!lexer.Lex()) return false;
@@ -175,6 +188,7 @@ bool LangLexRejectsInvalidCharEscape() {
 const TestCase kLangLexerTests[] = {
   {"lang_split_lexer_tokenizes_basic_program", LangSplitLexerTokenizesBasicProgram},
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
+  {"lang_lex_async_tokens", LangLexesAsyncTokens},
   {"lang_lex_optional_and_propagation_tokens", LangLexesOptionalAndPropagationTokens},
   {"lang_lex_range_op", LangLexesRangeOp},
   {"lang_lex_switch_arrow", LangLexesSwitchArrow},

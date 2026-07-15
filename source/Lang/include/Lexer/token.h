@@ -25,6 +25,8 @@ enum class TokenKind : uint8_t {
   KwDefault,
   KwSwitch,
   KwFn,
+  KwAsync,
+  KwAwait,
   KwSelf,
   KwArtifact,
   KwEnum,

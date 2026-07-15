@@ -1877,6 +1877,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         uint16_t ext = ReadU16(module.code, scan_pc);
         switch (static_cast<Simple::Byte::ExtendedOpCode>(ext)) {
+          case Simple::Byte::ExtendedOpCode::MakeFuture:
+          case Simple::Byte::ExtendedOpCode::Await:
+          case Simple::Byte::ExtendedOpCode::PollFuture:
+          case Simple::Byte::ExtendedOpCode::CancelFuture:
+            reason = "unsupported: async Promise execution needs interpreter scheduler";
+            return false;
           case Simple::Byte::ExtendedOpCode::CheckedAddI32:
           case Simple::Byte::ExtendedOpCode::CheckedSubI32:
           case Simple::Byte::ExtendedOpCode::CheckedMulI32:
@@ -1945,7 +1951,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           case Simple::Byte::ExtendedOpCode::AddressOfLocal:
           case Simple::Byte::ExtendedOpCode::AddressOfGlobal:
           case Simple::Byte::ExtendedOpCode::Spawn:
-          case Simple::Byte::ExtendedOpCode::MakeFuture:
           case Simple::Byte::ExtendedOpCode::EnumTag:
           case Simple::Byte::ExtendedOpCode::VariantTag:
           case Simple::Byte::ExtendedOpCode::EnumPayload:
@@ -1959,8 +1964,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           case Simple::Byte::ExtendedOpCode::IteratorHasNext:
           case Simple::Byte::ExtendedOpCode::IteratorValue:
           case Simple::Byte::ExtendedOpCode::Join:
-          case Simple::Byte::ExtendedOpCode::Await:
-          case Simple::Byte::ExtendedOpCode::PollFuture:
           case Simple::Byte::ExtendedOpCode::Detach:
           case Simple::Byte::ExtendedOpCode::Resume:
           case Simple::Byte::ExtendedOpCode::Suspend:

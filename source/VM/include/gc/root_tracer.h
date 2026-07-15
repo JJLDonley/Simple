@@ -15,6 +15,8 @@ struct RootTraceFrame {
   size_t locals_base = 0;
   uint16_t locals_count = 0;
   const std::vector<uint8_t>* locals_ref_bits = nullptr;
+  uint32_t closure_ref = HeapLayout::kNullRef;
+  uint32_t completing_promise_ref = HeapLayout::kNullRef;
 };
 
 struct RootTraceContext {

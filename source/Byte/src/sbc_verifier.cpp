@@ -319,7 +319,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
       if (!GetOperandWidth(opcode, &operand_bytes)) {
         return scan_fail("unknown opcode in verifier", pc - func.code_offset, opcode);
       }
-      if (ReadExtendedOpcode(code, pc, nullptr)) operand_bytes = 7;
+      Simple::Byte::ExtendedOpCode scanned_ext{};
+      if (ReadExtendedOpcode(code, pc, &scanned_ext)) {
+        operand_bytes = 7 + GetExtendedOperandWidth(scanned_ext);
+      }
       size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (next > end) {
         return scan_fail("opcode operands out of bounds", pc - func.code_offset, opcode);
@@ -424,7 +427,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
       GetOpVerifierRule(opcode, &verifier_rule);
       Simple::Byte::ExtendedOpCode ext_opcode{};
       bool is_extended_opcode = ReadExtendedOpcode(code, pc, &ext_opcode);
-      if (is_extended_opcode) operand_bytes = 7;
+      if (is_extended_opcode) {
+        operand_bytes = 7 + GetExtendedOperandWidth(ext_opcode);
+      }
       size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (opcode == static_cast<uint8_t>(OpCode::Line) ||
           opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
@@ -1157,8 +1162,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
-          case Simple::Byte::ExtendedOpCode::Spawn:
-          case Simple::Byte::ExtendedOpCode::MakeFuture: {
+          case Simple::Byte::ExtendedOpCode::Spawn: {
             ValType function_type = pop_type();
             VerifyResult r = check_type(function_type, ValType::I32, "TASK_CREATE function id type mismatch");
             if (!r.ok) return r;
@@ -1166,11 +1170,74 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
-          case Simple::Byte::ExtendedOpCode::Join:
-          case Simple::Byte::ExtendedOpCode::Await:
-          case Simple::Byte::ExtendedOpCode::PollFuture: {
+          case Simple::Byte::ExtendedOpCode::MakeFuture: {
+            uint32_t func_id = 0;
+            if (!ReadU32(code, current_pc + 8, &func_id) || current_pc + 12 >= code.size()) {
+              return fail_at("FUTURE_MAKE operands out of bounds", current_pc, current_opcode);
+            }
+            const uint8_t arg_count = code[current_pc + 12];
+            if (func_id >= module.functions.size()) {
+              return fail_at("FUTURE_MAKE function id out of range", current_pc, current_opcode);
+            }
+            const uint32_t method_id = module.functions[func_id].method_id;
+            if (method_id >= module.methods.size()) {
+              return fail_at("FUTURE_MAKE method id out of range", current_pc, current_opcode);
+            }
+            const uint32_t sig_id = module.methods[method_id].sig_id;
+            if (sig_id >= module.sigs.size() || module.sigs[sig_id].param_count != arg_count) {
+              return fail_at("FUTURE_MAKE argument count mismatch", current_pc, current_opcode);
+            }
+            if (stack_types.size() < arg_count) {
+              return fail_at("FUTURE_MAKE stack underflow", current_pc, current_opcode);
+            }
+            for (uint8_t i = 0; i < arg_count; ++i) (void)pop_type();
+            push_type(ValType::Ref);
+            stack_height -= arg_count;
+            stack_height += 1;
+            if (static_cast<uint32_t>(stack_height) > func.stack_max) {
+              return fail_at("stack exceeds max", current_pc, current_opcode);
+            }
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Join: {
             ValType handle = pop_type();
             push_type(handle);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::PollFuture:
+          case Simple::Byte::ExtendedOpCode::CancelFuture: {
+            ValType handle = pop_type();
+            VerifyResult handle_result = check_type(
+                handle, ValType::Ref,
+                ext_opcode == Simple::Byte::ExtendedOpCode::PollFuture
+                    ? "FUTURE_POLL requires Promise<T> reference"
+                    : "FUTURE_CANCEL requires Promise<T> reference");
+            if (!handle_result.ok) return handle_result;
+            push_type(ext_opcode == Simple::Byte::ExtendedOpCode::PollFuture
+                          ? ValType::I32
+                          : ValType::Bool);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Await: {
+            ValType handle = pop_type();
+            VerifyResult handle_result =
+                check_type(handle, ValType::Ref, "AWAIT requires Promise<T> reference");
+            if (!handle_result.ok) return handle_result;
+            uint32_t result_type_id = 0;
+            if (!ReadU32(code, current_pc + 8, &result_type_id) ||
+                result_type_id >= module.types.size()) {
+              return fail_at("AWAIT result type out of range", current_pc, current_opcode);
+            }
+            const bool returns_void =
+                static_cast<TypeKind>(module.types[result_type_id].kind) == TypeKind::Void;
+            if (returns_void) {
+              stack_height -= 1;
+            } else {
+              push_type(resolve_type(result_type_id));
+            }
             pc = next;
             continue;
           }

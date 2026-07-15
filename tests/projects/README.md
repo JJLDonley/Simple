@@ -13,8 +13,9 @@ Rules:
 - each project includes `PROJECT.md` with its feature matrix and expected results;
 - native test assets remain under `_vendor/` and are never packaged as runtime dependencies.
 
-The local canonical backlog is `.notes/TestProjects.md`. The first project activated
-for the completed closure gate is the multi-module Text-Based Adventure Game.
+The local canonical backlog is `.notes/TestProjects.md`. Active applications are
+the multi-module Text-Based Adventure Game for closures and Traffic Management
+for managed Promise/async/await composition.
 
 Graphics projects use raylib 6.0 from `_vendor/raylib/6.0/`:
 

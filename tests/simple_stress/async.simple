@@ -1,0 +1,90 @@
+Failure :: enum {
+  Rejected = 0
+}
+
+Counter :: artifact {
+  value : i32
+
+  add : async i32 (amount : i32) {
+    self.value += amount
+    return self.value
+  }
+}
+
+identity<T> :: async T (value : T) {
+  return value
+}
+
+sumTo :: async i32 (value : i32) {
+  if (value == 0) { return 0 }
+  return value + await sumTo(value - 1)
+}
+
+load :: async Result<i32, Failure> (accepted : bool) {
+  if (accepted) { return { .value = 40 } }
+  return { .error = Failure.Rejected }
+}
+
+pipeline :: async Result<i32, Failure> () {
+  value : i32 = await load(true)?
+  return { .value = value + 2 }
+}
+
+optionalValue :: async i32? (present : bool) {
+  if (present) { return { 21 } }
+  return {}
+}
+
+optionalPipeline :: async i32? () {
+  value : i32 = await optionalValue(true)?
+  return { value * 2 }
+}
+
+apply :: async i32 (callback : fn i32 (i32), value : i32) {
+  return callback(value)
+}
+
+main :: async i32 () {
+  if (await identity(42) != 42) { return 1 }
+  if (await sumTo(9) != 45) { return 2 }
+
+  counter : Counter = { 40 }
+  if (await counter.add(2) != 42 || counter.value != 42) { return 3 }
+
+  result : Result<i32, Failure> = await pipeline()
+  resultValue : i32 = switch (result) {
+    { .value = value } => return value
+    { .error = error } => return 0
+  }
+  if (resultValue != 42) { return 4 }
+
+  optional : i32? = await optionalPipeline()
+  optionalResult : i32 = switch (optional) {
+    { value } => return value
+    {} => return 0
+  }
+  if (optionalResult != 42) { return 5 }
+
+  promises : Promise<i32>[] = [identity(20), identity(22)]
+  if (await promises[0] + await promises[1] != 42) { return 6 }
+
+  shared : Promise<i32> = identity(42)
+  if (shared.isDone() || shared.isCancelled()) { return 7 }
+  if (await shared != 42 || await shared != 42 || !shared.isDone()) { return 7 }
+
+  canceled : Promise<i32> = identity(99)
+  if (!canceled.cancel() || !canceled.isCancelled() || canceled.cancel()) { return 8 }
+
+  textPromise : Promise<string> = identity("forty-two")
+  offset : i32 = 2
+  callback : fn i32 (i32) = (value) { return value + offset }
+  callbackPromise : Promise<i32> = apply(callback, 40)
+  garbage : string[] = []
+  for (i : i32 = 0; i < 5000; i += 1) {
+    garbage.push("garbage")
+  }
+  if (await textPromise != "forty-two") { return 9 }
+  if (await callbackPromise != 42) { return 10 }
+
+  return 0
+}

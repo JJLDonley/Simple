@@ -5950,7 +5950,7 @@ std::vector<uint8_t> BuildBadHeaderVersionLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> module = BuildModule(code, 0, 0);
-  WriteU16(module, 0x04, 0x0003u);
+  WriteU16(module, 0x04, 0x0002u);
   return module;
 }
 
@@ -16156,13 +16156,13 @@ bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 2);
   static_assert(Simple::Lang::kSirVersionMajor == 2);
   static_assert(Simple::Lang::kStdlibVersionMajor == 2);
-  static_assert(Simple::Byte::kSbcVersion == 0x0002u);
-  static_assert(Simple::Byte::kOpcodeMetadataVersion == 2);
+  static_assert(Simple::Byte::kSbcVersion == 0x0003u);
+  static_assert(Simple::Byte::kOpcodeMetadataVersion == 3);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 1 &&
-         Simple::Lang::kSirVersionMinor == 0 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 2 &&
+         Simple::Lang::kSirVersionMinor == 1 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 2;
+         Simple::VM::kRuntimeAbiVersionMinor == 3;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {

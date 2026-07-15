@@ -1,0 +1,3 @@
+north=8
+east=3
+west=5

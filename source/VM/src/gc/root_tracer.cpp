@@ -20,6 +20,10 @@ void MarkSlot(Heap& heap, Slot value) {
 }
 
 void TraceLocals(Heap& heap, const std::vector<Slot>& locals, const RootTraceFrame& frame) {
+  if (frame.closure_ref != HeapLayout::kNullRef) heap.Mark(frame.closure_ref);
+  if (frame.completing_promise_ref != HeapLayout::kNullRef) {
+    heap.Mark(frame.completing_promise_ref);
+  }
   if (!frame.locals_ref_bits || frame.locals_base > locals.size()) return;
   const size_t available = locals.size() - frame.locals_base;
   const size_t count = frame.locals_count < available ? frame.locals_count : available;

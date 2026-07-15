@@ -50,6 +50,8 @@ bool IsKeywordToken(TokenKind kind) {
     case TokenKind::KwDefault:
     case TokenKind::KwSwitch:
     case TokenKind::KwFn:
+    case TokenKind::KwAsync:
+    case TokenKind::KwAwait:
     case TokenKind::KwSelf:
     case TokenKind::KwArtifact:
     case TokenKind::KwEnum:
@@ -321,6 +323,7 @@ bool Parser::ParseDecl(Decl* out) {
       return false;
     }
 
+    const bool is_async = Match(TokenKind::KwAsync);
     TypeRef return_type;
     if (!ParseTypeInner(&return_type)) return false;
     if (!Match(TokenKind::LParen)) {
@@ -331,6 +334,7 @@ bool Parser::ParseDecl(Decl* out) {
       out->kind = DeclKind::Function;
       out->func.name = name_tok.text;
       out->func.generics = std::move(generics);
+      out->func.is_async = is_async;
       out->func.return_mutability = mut;
       out->func.return_type = std::move(return_type);
     }
@@ -502,6 +506,7 @@ bool Parser::ParseDecl(Decl* out) {
       return ParseEnumDecl(name_tok, out);
     }
     Mutability mut = Mutability::Immutable;
+    const bool is_async = Match(TokenKind::KwAsync);
     TypeRef return_or_type;
     if (!ParseTypeInner(&return_or_type)) return false;
     if (Match(TokenKind::LParen)) {
@@ -509,12 +514,17 @@ bool Parser::ParseDecl(Decl* out) {
         out->kind = DeclKind::Function;
         out->func.name = name_tok.text;
         out->func.generics = std::move(generics);
+        out->func.is_async = is_async;
         out->func.return_mutability = mut;
         out->func.return_type = std::move(return_or_type);
       }
       if (!ParseParamList(&out->func.params)) return false;
       if (!ParseBlockStmts(&out->func.body)) return false;
       return true;
+    }
+    if (is_async) {
+      error_ = "async is valid only on function declarations";
+      return false;
     }
     if (out) {
       out->kind = DeclKind::Variable;
@@ -545,6 +555,7 @@ bool Parser::ParseDecl(Decl* out) {
     return false;
   }
 
+  const bool is_async = Match(TokenKind::KwAsync);
   TypeRef return_or_type;
   if (!ParseTypeInner(&return_or_type)) return false;
 
@@ -553,6 +564,7 @@ bool Parser::ParseDecl(Decl* out) {
       out->kind = DeclKind::Function;
       out->func.name = name_tok.text;
       out->func.generics = std::move(generics);
+      out->func.is_async = is_async;
       out->func.return_mutability = mut;
       out->func.return_type = std::move(return_or_type);
     }
@@ -561,6 +573,10 @@ bool Parser::ParseDecl(Decl* out) {
     return true;
   }
 
+  if (is_async) {
+    error_ = "async is valid only on function declarations";
+    return false;
+  }
   if (out) {
     out->kind = DeclKind::Variable;
     out->var.name = name_tok.text;
@@ -699,6 +715,7 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     return false;
   }
 
+  const bool is_async = Match(TokenKind::KwAsync);
   TypeRef type;
   if (!ParseTypeInner(&type)) return false;
 
@@ -710,6 +727,7 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     FuncDecl fn;
     fn.name = name_tok.text;
     fn.generics = std::move(generics);
+    fn.is_async = is_async;
     fn.return_mutability = mut;
     fn.return_type = std::move(type);
     if (!ParseParamList(&fn.params)) return false;
@@ -718,6 +736,10 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     return true;
   }
 
+  if (is_async) {
+    error_ = "async is valid only on function declarations";
+    return false;
+  }
   if (!generics.empty()) {
     error_ = "artifact fields do not support generic parameters";
     return false;
@@ -825,6 +847,7 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
     return false;
   }
 
+  const bool is_async = Match(TokenKind::KwAsync);
   TypeRef type;
   if (!ParseTypeInner(&type)) return false;
 
@@ -832,6 +855,7 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
     FuncDecl fn;
     fn.name = name_tok.text;
     fn.generics = std::move(generics);
+    fn.is_async = is_async;
     fn.return_mutability = mut;
     fn.return_type = std::move(type);
     if (!ParseParamList(&fn.params)) return false;
@@ -840,6 +864,10 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
     return true;
   }
 
+  if (is_async) {
+    error_ = "async is valid only on function declarations";
+    return false;
+  }
   if (!generics.empty()) {
     error_ = "module variables do not support generic parameters";
     return false;
@@ -1545,14 +1573,21 @@ bool Parser::ParseUnaryExpr(Expr* out) {
     return true;
   }
   if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus ||
-      tok.kind == TokenKind::Amp ||
+      tok.kind == TokenKind::Amp || tok.kind == TokenKind::KwAwait ||
       tok.kind == TokenKind::PlusPlus || tok.kind == TokenKind::MinusMinus) {
     Advance();
     Expr operand;
     if (!ParseUnaryExpr(&operand)) return false;
     Expr expr;
     expr.kind = ExprKind::Unary;
-    expr.op = tok.text;
+    expr.op = tok.kind == TokenKind::KwAwait ? "await" : tok.text;
+    if (tok.kind == TokenKind::KwAwait && operand.kind == ExprKind::Unary &&
+        operand.op == "post?" && operand.children.size() == 1) {
+      expr.children.push_back(std::move(operand.children[0]));
+      operand.children[0] = std::move(expr);
+      if (out) *out = std::move(operand);
+      return true;
+    }
     expr.children.push_back(std::move(operand));
     if (out) *out = std::move(expr);
     return true;
@@ -1605,7 +1640,7 @@ bool Parser::ParsePostfixExpr(Expr* out) {
     if (Match(TokenKind::Dot) || Match(TokenKind::Arrow)) {
       const std::string op = tokens_[index_ - 1].text;
       const Token& name = Peek();
-      if (name.kind != TokenKind::Identifier) {
+      if (name.kind != TokenKind::Identifier && name.kind != TokenKind::KwAwait) {
         error_ = "expected member name after '" + op + "'";
         return false;
       }

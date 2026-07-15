@@ -653,15 +653,18 @@ Postfix `T?` directly replaces the experimental generic optional name; no alias
 or compatibility lowering remains. Contextual optional and Result literals,
 exhaustive structural patterns, and postfix propagation are implemented across
 validation, specialization, SIR/SBC emission, verification, the interpreter,
-and LLVM JIT fallback. `Promise<T>`, `async`, and `await` remain
-language-completion work.
+and LLVM JIT fallback. Managed `Promise<T>`, `async`, typed `await`, and
+cooperative suspended-frame execution are now implemented as the next
+language-completion layer.
 
 This breaking transition sets language syntax to 2.0, SIR to 2.0, SBC and
 opcode metadata to version 2, runtime ABI to 1.2, and the standard-library
 catalog to 2.0. Versioned old inputs are rejected; no translation shim or alias
 is retained. The completed lambda grammar advances the current language syntax
 version to 2.1; SIR remains 2.0 because lambda bodies lower through existing
-function, closure, and indirect-call instructions.
+function, closure, and indirect-call instructions. Async syntax advances the
+language version to 2.2 and typed Promise instructions advance SIR to 2.1, SBC
+metadata to version 3, and the runtime ABI to 1.3.
 
 ### `v0.6` generic design
 
@@ -727,12 +730,12 @@ redesign ordinary source syntax.
 
 ## Async functions and explicit failure design
 
-> **Completion status:** optional `T?`, Result contextual literals/patterns,
-> and postfix propagation are implemented in `v0.5.15`. The `async` and `await`
-> placement and semantics in this section remain the accepted `v0.6` design
-> target, not current functionality. No constructor names are implied. The
-> transitional `System.Job` and `Standard.Promise` calls remain documented in
-> [Jobs, promises, and async design](Async.md).
+> **Completion status:** `Promise<T>`, `async`, prefix `await`, suspension,
+> structural cancellation propagation, optional/Result composition, and rooted
+> managed payloads are implemented in `v0.5.21`. No constructor names are
+> implied. The transitional raw-handle `System.Job` and `Standard.Promise` calls
+> remain separately documented in [Jobs, promises, and async design](Async.md)
+> until their v0.7 library migration.
 
 ### `async` return modifier
 
@@ -758,7 +761,9 @@ part of async lowering.
 
 `async` marks a function as suspendable. It is not part of a library member's
 name and does not create names such as `getAsync`. Both mutable (`:`) and
-immutable (`::`) function declarations may carry the modifier.
+immutable (`::`) function declarations may carry the modifier. Generic,
+namespace-owned, recursive, and artifact methods preserve the modifier through
+specialization; procedure arguments captured by pending calls remain rooted.
 
 ### `await`
 
@@ -770,9 +775,12 @@ value :: Result<Response, HttpError> = await Standard.HTTP.get(url)
 ```
 
 `await` is legal only within a function declared `async`. Awaiting a non-promise
-value, or using `await` in an ordinary function, is a compile error. Suspension
-must preserve typed locals, control-flow position, live GC roots, and owned
-resources; it must not block a VM worker thread as an implementation shortcut.
+value, or using `await` in an ordinary function, is a compile error. The VM's
+cooperative interpreter scheduler suspends the parent frame while executing a
+pending producer, preserving typed locals, control-flow position, closure and
+Promise roots, managed arguments/results, and owned resources. LLVM rejects
+Promise execution before entry and uses interpreter fallback rather than
+partially compiling a suspension boundary.
 
 ### `Result<T, E>`
 

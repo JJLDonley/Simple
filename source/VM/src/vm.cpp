@@ -92,6 +92,14 @@ using Simple::VM::Runtime::UnpackI64;
 using Simple::VM::Runtime::UnpackRef;
 using Simple::VM::Runtime::UnpackU32Bits;
 using Simple::VM::Runtime::UnpackU64Bits;
+
+bool IsManagedPromiseSlotType(TypeKind kind) {
+  return kind == TypeKind::Ref || kind == TypeKind::String ||
+         kind == TypeKind::Array || kind == TypeKind::List ||
+         kind == TypeKind::Function || kind == TypeKind::Result ||
+         kind == TypeKind::Optional;
+}
+
 constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
 
 bool CheckedMulOverflowI64(int64_t a, int64_t b, int64_t* out) {
@@ -1263,19 +1271,176 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, iter);
               break;
             }
-            case Simple::Byte::ExtendedOpCode::Spawn:
-            case Simple::Byte::ExtendedOpCode::MakeFuture: {
+            case Simple::Byte::ExtendedOpCode::Spawn: {
               Slot func = Pop(stack);
               int32_t id = UnpackI32(func);
-              if (id < 0 || static_cast<uint32_t>(id) >= module.functions.size()) return Trap("TASK_CREATE invalid function id");
+              if (id < 0 || static_cast<uint32_t>(id) >= module.functions.size()) {
+                return Trap("TASK_CREATE invalid function id");
+              }
               Push(stack, func);
               break;
             }
-            case Simple::Byte::ExtendedOpCode::Join:
-            case Simple::Byte::ExtendedOpCode::Await:
-            case Simple::Byte::ExtendedOpCode::PollFuture: {
+            case Simple::Byte::ExtendedOpCode::MakeFuture: {
+              const uint32_t func_id = ReadU32(module.code, pc);
+              const uint8_t arg_count = ReadU8(module.code, pc);
+              if (func_id >= module.functions.size() || stack.size() < arg_count) {
+                return Trap("FUTURE_MAKE invalid function or arguments");
+              }
+              const uint32_t method_id = module.functions[func_id].method_id;
+              if (method_id >= module.methods.size()) return Trap("FUTURE_MAKE invalid method");
+              const uint32_t sig_id = module.methods[method_id].sig_id;
+              if (sig_id >= module.sigs.size()) return Trap("FUTURE_MAKE invalid signature");
+              const auto& sig = module.sigs[sig_id];
+              if (sig.param_count != arg_count) return Trap("FUTURE_MAKE argument count mismatch");
+              const uint32_t size = static_cast<uint32_t>(
+                  HeapLayout::PromisePayloadSize(arg_count));
+              const uint32_t promise_ref = heap.Allocate(ObjectKind::Promise, sig.ret_type_id, size);
+              HeapObject* promise = heap.Get(promise_ref);
+              if (!promise) return Trap("FUTURE_MAKE allocation failed");
+              WriteU32Payload(promise->payload, HeapLayout::kPromiseStateOffset,
+                              HeapLayout::kPromiseStatePending);
+              WriteU32Payload(promise->payload, HeapLayout::kPromiseFunctionIdOffset, func_id);
+              WriteU32Payload(promise->payload, HeapLayout::kPromiseArgumentCountOffset, arg_count);
+              bool result_is_ref = false;
+              if (sig.ret_type_id < module.types.size()) {
+                const TypeKind kind = static_cast<TypeKind>(module.types[sig.ret_type_id].kind);
+                result_is_ref = IsManagedPromiseSlotType(kind);
+              }
+              WriteU32Payload(promise->payload, HeapLayout::kPromiseResultIsRefOffset,
+                              result_is_ref ? 1u : 0u);
+              for (int32_t i = static_cast<int32_t>(arg_count) - 1; i >= 0; --i) {
+                const Slot value = Pop(stack);
+                const uint32_t index = static_cast<uint32_t>(i);
+                WriteU64Payload(promise->payload,
+                                HeapLayout::PromiseArgumentValueOffset(index), value);
+                bool is_ref = false;
+                if (sig.param_type_start + index < module.param_types.size()) {
+                  const uint32_t type_id = module.param_types[sig.param_type_start + index];
+                  if (type_id < module.types.size()) {
+                    const TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
+                    is_ref = IsManagedPromiseSlotType(kind);
+                  }
+                }
+                WriteU32Payload(promise->payload,
+                                HeapLayout::PromiseArgumentIsRefOffset(index),
+                                is_ref ? 1u : 0u);
+              }
+              Push(stack, PackRef(promise_ref));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Join: {
               Slot handle = Pop(stack);
               Push(stack, handle);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PollFuture: {
+              const uint32_t promise_ref = UnpackRef(Pop(stack));
+              if (promise_ref == kNullRef) {
+                Push(stack, PackI32(
+                    static_cast<int32_t>(HeapLayout::kPromiseStateCancelled)));
+                break;
+              }
+              HeapObject* promise = heap.Get(promise_ref);
+              if (!promise || promise->header.kind != ObjectKind::Promise) {
+                return Trap("FUTURE_POLL requires Promise<T>");
+              }
+              const uint32_t state =
+                  ReadU32Payload(promise->payload, HeapLayout::kPromiseStateOffset);
+              Push(stack, PackI32(state == HeapLayout::kPromiseStateRunning
+                                      ? static_cast<int32_t>(HeapLayout::kPromiseStatePending)
+                                      : static_cast<int32_t>(state)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CancelFuture: {
+              const uint32_t promise_ref = UnpackRef(Pop(stack));
+              if (promise_ref == kNullRef) {
+                Push(stack, PackI32(0));
+                break;
+              }
+              HeapObject* promise = heap.Get(promise_ref);
+              if (!promise || promise->header.kind != ObjectKind::Promise) {
+                return Trap("FUTURE_CANCEL requires Promise<T>");
+              }
+              const uint32_t state =
+                  ReadU32Payload(promise->payload, HeapLayout::kPromiseStateOffset);
+              if (state == HeapLayout::kPromiseStatePending) {
+                WriteU32Payload(promise->payload, HeapLayout::kPromiseStateOffset,
+                                HeapLayout::kPromiseStateCancelled);
+                Push(stack, PackI32(1));
+              } else {
+                Push(stack, PackI32(0));
+              }
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Await: {
+              const uint32_t result_type_id = ReadU32(module.code, pc);
+              const Slot promise_slot = Pop(stack);
+              const uint32_t promise_ref = UnpackRef(promise_slot);
+              auto propagate_cancellation = [&]() -> ExecResult {
+                for (;;) {
+                  if (current.completing_promise_ref != kNullRef) {
+                    HeapObject* completing = heap.Get(current.completing_promise_ref);
+                    if (completing && completing->header.kind == ObjectKind::Promise) {
+                      WriteU32Payload(completing->payload,
+                                      HeapLayout::kPromiseStateOffset,
+                                      HeapLayout::kPromiseStateCancelled);
+                    }
+                  }
+                  if (call_stack.empty()) break;
+                  Simple::VM::Interpreter::FrameState caller = call_stack.back();
+                  call_stack.pop_back();
+                  stack.resize(caller.stack_base);
+                  locals_arena.resize(caller.locals_base + caller.locals_count);
+                  current = caller;
+                }
+                return Trap("async execution canceled");
+              };
+              if (promise_ref == kNullRef) return propagate_cancellation();
+              HeapObject* promise = heap.Get(promise_ref);
+              if (!promise || promise->header.kind != ObjectKind::Promise) {
+                return Trap("AWAIT requires Promise<T>");
+              }
+              const uint32_t state =
+                  ReadU32Payload(promise->payload, HeapLayout::kPromiseStateOffset);
+              if (state == HeapLayout::kPromiseStateCancelled) {
+                return propagate_cancellation();
+              }
+              if (state == HeapLayout::kPromiseStateRunning) {
+                return Trap("AWAIT dependency cycle");
+              }
+              const bool returns_void = result_type_id < module.types.size() &&
+                  static_cast<TypeKind>(module.types[result_type_id].kind) == TypeKind::Void;
+              if (state == HeapLayout::kPromiseStateCompleted) {
+                if (!returns_void) {
+                  Push(stack, ReadU64Payload(promise->payload,
+                                            HeapLayout::kPromiseResultOffset));
+                }
+                break;
+              }
+              const uint32_t func_id =
+                  ReadU32Payload(promise->payload, HeapLayout::kPromiseFunctionIdOffset);
+              const uint32_t arg_count =
+                  ReadU32Payload(promise->payload, HeapLayout::kPromiseArgumentCountOffset);
+              if (func_id >= module.functions.size()) return Trap("AWAIT invalid async function");
+              WriteU32Payload(promise->payload, HeapLayout::kPromiseStateOffset,
+                              HeapLayout::kPromiseStateRunning);
+              current.return_pc = pc;
+              current.stack_base = stack.size();
+              if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) {
+                return Trap("runtime limit exceeded: call depth");
+              }
+              call_stack.push_back(current);
+              current = Simple::VM::Interpreter::BuildFrame(
+                  module, locals_arena, func_id, pc, stack.size(), kNullRef);
+              current.completing_promise_ref = promise_ref;
+              for (uint32_t i = 0; i < arg_count && i < current.locals_count; ++i) {
+                locals_arena[current.locals_base + i] = ReadU64Payload(
+                    promise->payload, HeapLayout::PromiseArgumentValueOffset(i));
+              }
+              const auto& async_func = module.functions[func_id];
+              func_start = async_func.code_offset;
+              pc = func_start;
+              end = func_start + async_func.code_size;
               break;
             }
             case Simple::Byte::ExtendedOpCode::Detach:
@@ -3871,6 +4036,17 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!stack.empty()) {
           ret = Pop(stack);
           has_ret = true;
+        }
+        if (current.completing_promise_ref != kNullRef) {
+          HeapObject* promise = heap.Get(current.completing_promise_ref);
+          if (!promise || promise->header.kind != ObjectKind::Promise) {
+            return Trap("async completion lost Promise<T>");
+          }
+          if (has_ret) {
+            WriteU64Payload(promise->payload, HeapLayout::kPromiseResultOffset, ret);
+          }
+          WriteU32Payload(promise->payload, HeapLayout::kPromiseStateOffset,
+                          HeapLayout::kPromiseStateCompleted);
         }
         if (call_stack.empty()) {
           ExecResult result;

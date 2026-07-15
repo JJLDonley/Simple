@@ -189,6 +189,7 @@ struct SwitchBranch {
 struct FuncDecl {
   std::string name;
   std::vector<std::string> generics;
+  bool is_async = false;
   Mutability return_mutability = Mutability::Mutable;
   TypeRef return_type;
   std::vector<ParamDecl> params;

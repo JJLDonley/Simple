@@ -45,6 +45,8 @@ class IrBuilder {
   void EmitCallImport(uint32_t func_id, uint8_t arg_count);
   void EmitCallNative(uint32_t func_id, uint8_t arg_count);
   void EmitExtended(Simple::Byte::ExtendedOpCode op);
+  void EmitFutureMake(uint32_t func_id, uint8_t arg_count);
+  void EmitAwait(uint32_t result_type_id);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallCheck();

@@ -3,12 +3,14 @@
 
 #include <cstdint>
 
+#include "ir_lang.h"
+
 namespace Simple::Lang {
 
 constexpr uint16_t kLangSyntaxVersionMajor = 2;
-constexpr uint16_t kLangSyntaxVersionMinor = 1;
-constexpr uint16_t kSirVersionMajor = 2;
-constexpr uint16_t kSirVersionMinor = 0;
+constexpr uint16_t kLangSyntaxVersionMinor = 2;
+constexpr uint16_t kSirVersionMajor = Simple::IR::Text::kSirVersionMajor;
+constexpr uint16_t kSirVersionMinor = Simple::IR::Text::kSirVersionMinor;
 constexpr uint16_t kStdlibVersionMajor = 2;
 constexpr uint16_t kStdlibVersionMinor = 0;
 

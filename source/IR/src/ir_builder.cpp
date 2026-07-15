@@ -146,6 +146,17 @@ void IrBuilder::EmitExtended(Simple::Byte::ExtendedOpCode op) {
   EmitU16(static_cast<uint16_t>(op));
 }
 
+void IrBuilder::EmitFutureMake(uint32_t func_id, uint8_t arg_count) {
+  EmitExtended(Simple::Byte::ExtendedOpCode::MakeFuture);
+  EmitU32(func_id);
+  EmitU8(arg_count);
+}
+
+void IrBuilder::EmitAwait(uint32_t result_type_id) {
+  EmitExtended(Simple::Byte::ExtendedOpCode::Await);
+  EmitU32(result_type_id);
+}
+
 void IrBuilder::EmitCallIndirect(uint32_t sig_id, uint8_t arg_count) {
   EmitOp(OpCode::CallIndirect);
   EmitU32(sig_id);

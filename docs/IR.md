@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.0`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.1`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -944,12 +944,13 @@ Thread/job/channel/atomic/monitor operations.
 | ✅ | `ext 109` | `spawn <func>` | `function` | `ConstI32` + `Ext.Spawn` | creates task handle |
 | ✅ | `ext 110` | `join` | `none` | `Ext.Join` | joins task handle/result |
 | ✅ | `ext 111` | `detach` | `none` | `Ext.Detach` | detaches task handle |
-| ✅ | `ext 112` | `await` | `none` | `Ext.Await` | awaits future/task handle |
+| ✅ | `ext 112` | `await <result-type>` | `type id` | `Ext.Await type_id` | suspends for `Promise<T>` and produces typed `T` |
 | ✅ | `0x0E` | `yield` | `none` | `Yield` | scheduler yield marker |
 | ✅ | `ext 113` | `resume` | `none` | `Ext.Resume` | resumes continuation |
 | ✅ | `ext 114` | `suspend` | `none` | `Ext.Suspend` | suspends and returns continuation |
-| ✅ | `ext 115` | `future.make <func>` | `function` | `ConstI32` + `Ext.MakeFuture` | creates future handle |
-| ✅ | `ext 116` | `future.poll` | `none` | `Ext.PollFuture` | polls future handle |
+| ✅ | `ext 115` | `future.make <func> <argc>` | `function, u8 argc` | `Ext.MakeFuture func_id, argc` | snapshots typed arguments into a managed pending Promise |
+| ✅ | `ext 116` | `future.poll` | `none` | `Ext.PollFuture` | returns Pending/Completed/Cancelled state code |
+| ✅ | `ext 148` | `future.cancel` | `none` | `Ext.CancelFuture` | atomically transitions a Pending managed Promise to Cancelled |
 | ✅ | `ext 117` | `channel.send.<T>` | `none` | `Ext.ChannelSend` | sends value to channel handle |
 | ✅ | `ext 118` | `channel.recv.<T>` | `none` | `Ext.ChannelRecv` | receives value from channel handle |
 | ✅ | `ext 119` | `channel.try.recv.<T>` | `none` | `Ext.ChannelTryRecv` | nonblocking receive status/value |

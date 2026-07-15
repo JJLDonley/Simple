@@ -5,7 +5,7 @@
 
 namespace Simple::Byte {
 
-constexpr uint16_t kOpcodeMetadataVersion = 2;
+constexpr uint16_t kOpcodeMetadataVersion = 3;
 
 enum class ExtendedOpCode : uint16_t {
   CheckedAddI32 = 1,
@@ -149,6 +149,7 @@ enum class ExtendedOpCode : uint16_t {
   VecAnd = 145,
   VecOr = 146,
   VecXor = 147,
+  CancelFuture = 148,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;
@@ -490,6 +491,11 @@ enum class OpVmDispatch : uint8_t {
 // OpInfo operand widths are ABI-frozen; loader/verifier rely on this table.
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
 bool GetOperandWidth(uint8_t opcode, int* operand_bytes);
+constexpr int GetExtendedOperandWidth(ExtendedOpCode opcode) {
+  if (opcode == ExtendedOpCode::MakeFuture) return 5;
+  if (opcode == ExtendedOpCode::Await) return 4;
+  return 0;
+}
 bool GetStackEffect(uint8_t opcode, int* pops, int* pushes);
 bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule);
 bool GetOpControlFlow(uint8_t opcode, OpControlFlow* flow);

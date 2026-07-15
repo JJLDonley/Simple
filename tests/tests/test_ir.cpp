@@ -3624,7 +3624,7 @@ bool RunIrTextDuplicateExportFailsTest() {
 
 bool RunIrTextSirVersionDirectiveTest() {
   const char* text =
-      "sir version 2.0\n"
+      "sir version 2.1\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 10\n"
@@ -4056,23 +4056,22 @@ bool RunIrTextConcurrencyMarkerOpsTest() {
       "  const i32 99\n"
       "  ret\n"
       "end\n"
-      "func main locals=0 stack=8\n"
+      "func main locals=0 stack=4\n"
       "  enter 0\n"
-      "  spawn worker\n"
-      "  detach\n"
-      "  future.make worker\n"
-      "  await\n"
+      "  future.make worker 0\n"
+      "  dup\n"
+      "  future.poll\n"
       "  pop\n"
-      "  suspend\n"
-      "  resume\n"
-      "  future.make worker\n"
+      "  dup\n"
+      "  await i32\n"
+      "  pop\n"
       "  future.poll\n"
       "  ret\n"
       "end\n"
       "entry main\n";
   auto module = BuildIrTextModule(text, "ir_text_concurrency_marker_ops");
   if (module.empty()) return false;
-  return RunExpectExit(module, 0);
+  return RunExpectExit(module, 1);
 }
 
 bool RunIrTextConcurrencyMarkerBadTest() {

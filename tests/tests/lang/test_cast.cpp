@@ -872,6 +872,27 @@ bool LangParsesForLoopRangeDefaultType() {
 }
 
 
+bool LangParsesAsyncAwaitOrdering() {
+  const char* source =
+      "get :: async Result<i32, string> () { return { .value = 1 } }\n"
+      "pipeline :: async Result<i32, string> () {\n"
+      "  value : i32 = await get()?\n"
+      "  return { .value = value }\n"
+      "}\n";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(source, &program, &error)) return false;
+  if (program.decls.size() != 2 || !program.decls[0].func.is_async ||
+      !program.decls[1].func.is_async || program.decls[1].func.body.empty()) {
+    return false;
+  }
+  const auto& init = program.decls[1].func.body[0].var_decl.init_expr;
+  return init.kind == Simple::Lang::ExprKind::Unary && init.op == "post?" &&
+         init.children.size() == 1 &&
+         init.children[0].kind == Simple::Lang::ExprKind::Unary &&
+         init.children[0].op == "await";
+}
+
 const TestCase kLangCastTests[] = {
   {"lang_split_cast_parses_function_decl", LangSplitCastParsesFunctionDecl},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
@@ -921,6 +942,7 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_for_loop_range", LangParsesForLoopRange},
   {"lang_parse_nested_generic_call_type_arguments", LangParsesNestedGenericCallTypeArguments},
   {"lang_parse_tagged_patterns_and_propagation", LangParsesTaggedPatternsAndPropagation},
+  {"lang_parse_async_await_ordering", LangParsesAsyncAwaitOrdering},
   {"lang_parse_for_loop_range_default_type", LangParsesForLoopRangeDefaultType},
 };
 

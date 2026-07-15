@@ -33,13 +33,15 @@ void MaybeCollectWithStackMap(bool have_meta,
   for (const auto& frame : call_stack) {
     if (frame.func_index >= verify_result.methods.size()) continue;
     root_call_stack.push_back({frame.locals_base, frame.locals_count,
-                               &verify_result.methods[frame.func_index].locals_ref_bits});
+                               &verify_result.methods[frame.func_index].locals_ref_bits,
+                               frame.closure_ref, frame.completing_promise_ref});
   }
   RootTraceFrame root_current{};
   const RootTraceFrame* current_root = nullptr;
   if (current.func_index < verify_result.methods.size()) {
     root_current = {current.locals_base, current.locals_count,
-                    &verify_result.methods[current.func_index].locals_ref_bits};
+                    &verify_result.methods[current.func_index].locals_ref_bits,
+                    current.closure_ref, current.completing_promise_ref};
     current_root = &root_current;
   }
   RootTraceContext root_context;

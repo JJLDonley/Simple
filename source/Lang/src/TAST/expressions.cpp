@@ -117,6 +117,14 @@ bool CheckUnaryOpTypeRules(const std::string& expr_op,
     return true;
   }
   if (op == "?") return true;
+  if (op == "await") {
+    if (operand.name != "Promise" || operand.type_args.size() != 1 ||
+        operand.pointer_depth != 0 || !operand.dims.empty()) {
+      if (error) *error = "await requires Promise<T> operand";
+      return false;
+    }
+    return true;
+  }
   if (!RequireScalar(operand, expr_op, error)) return false;
   if (op == "!") {
     if (!IsBoolTypeName(operand.name)) {

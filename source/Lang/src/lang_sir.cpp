@@ -50,6 +50,7 @@ struct EmitState {
   std::unordered_map<std::string, uint32_t> func_ids;
   std::unordered_map<std::string, TypeRef> func_returns;
   std::unordered_map<std::string, std::vector<TypeRef>> func_params;
+  std::unordered_set<std::string> async_funcs;
   std::unordered_map<std::string, std::string> module_func_names;
   std::unordered_map<std::string, std::string> artifact_method_names;
   uint32_t base_func_count = 0;
@@ -143,6 +144,32 @@ bool PushStack(EmitState& st, uint32_t count);
 bool PopStack(EmitState& st, uint32_t count);
 bool AddStringConst(EmitState& st, const std::string& value, std::string* out_name);
 bool CloneTypeRef(const TypeRef& src, TypeRef* out);
+bool CloneCallReturn(const EmitState& state,
+                     const std::string& function_name,
+                     const TypeRef& declared,
+                     TypeRef* out) {
+  if (state.async_funcs.find(function_name) == state.async_funcs.end()) {
+    return CloneTypeRef(declared, out);
+  }
+  *out = TypeRef{};
+  out->name = "Promise";
+  TypeRef value;
+  if (!CloneTypeRef(declared, &value)) return false;
+  out->type_args.push_back(std::move(value));
+  return true;
+}
+
+void EmitDirectCallOpcode(EmitState& state,
+                          const std::string& function_name,
+                          uint32_t function_id,
+                          size_t argument_count) {
+  if (state.async_funcs.find(function_name) != state.async_funcs.end()) {
+    (*state.out) << "  future.make " << function_id << " " << argument_count << "\n";
+  } else {
+    (*state.out) << "  call " << function_id << " " << argument_count << "\n";
+  }
+}
+
 bool EmitExpr(EmitState& st,
               const Expr& expr,
               const TypeRef* expected,
@@ -655,7 +682,10 @@ bool EmitPrintNewline(EmitState& st, std::string* error) {
 }
 
 bool IsSupportedType(const TypeRef& type) {
-  if (!type.type_args.empty()) return false;
+  if (!type.type_args.empty()) {
+    return type.name == "Promise" && type.type_args.size() == 1 &&
+           type.pointer_depth == 0 && !type.is_proc;
+  }
   if (type.pointer_depth > 0) return true;
   if (type.is_proc) return true;
   if (!type.dims.empty()) {
@@ -1184,6 +1214,7 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
   if (!type.dims.empty()) return "ref";
   if (type.name == "void") return "void";
   if (type.name == "string") return "string";
+  if (type.name == "Promise" && type.type_args.size() == 1) return "ref";
   if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.artifacts.find(type.name) != st.artifacts.end()) return type.name;
   if (st.abi_types.find(type.name) != st.abi_types.end()) return type.name;
@@ -1589,6 +1620,14 @@ bool InferExprType(const Expr& expr,
         }
         return CloneTypeRef(*tagged.value_type, out);
       }
+      if (expr.op == "await") {
+        if (operand.name != "Promise" || operand.type_args.size() != 1 ||
+            operand.pointer_depth != 0 || !operand.dims.empty()) {
+          if (error) *error = "await requires Promise<T> operand";
+          return false;
+        }
+        return CloneTypeRef(operand.type_args[0], out);
+      }
       return CloneTypeRef(operand, out);
     }
     case ExprKind::Binary: {
@@ -1734,7 +1773,7 @@ bool InferExprType(const Expr& expr,
         }
         auto it = st.func_returns.find(callee.text);
         if (it != st.func_returns.end()) {
-          return CloneTypeRef(it->second, out);
+          return CloneCallReturn(st, callee.text, it->second, out);
         }
         auto ext_it = st.extern_returns.find(callee.text);
         if (ext_it != st.extern_returns.end()) {
@@ -1904,12 +1943,19 @@ bool InferExprType(const Expr& expr,
           if (module_it != st.module_func_names.end()) {
             auto ret_it = st.func_returns.find(module_it->second);
             if (ret_it != st.func_returns.end()) {
-              return CloneTypeRef(ret_it->second, out);
+              return CloneCallReturn(st, module_it->second, ret_it->second, out);
             }
           }
         }
         TypeRef base_type;
         if (InferExprType(base, st, &base_type, nullptr)) {
+          if (base_type.name == "Promise" && base_type.type_args.size() == 1 &&
+              base_type.dims.empty() &&
+              (callee.text == "cancel" || callee.text == "isDone" ||
+               callee.text == "isCancelled")) {
+            out->name = "bool";
+            return true;
+          }
           if (!base_type.dims.empty() && base_type.dims.front().is_list) {
             TypeRef element_type;
             if (!CloneElementType(base_type, &element_type)) return false;
@@ -1940,7 +1986,7 @@ bool InferExprType(const Expr& expr,
           if (method_it != st.artifact_method_names.end()) {
             auto ret_it = st.func_returns.find(method_it->second);
             if (ret_it != st.func_returns.end()) {
-              return CloneTypeRef(ret_it->second, out);
+              return CloneCallReturn(st, method_it->second, ret_it->second, out);
             }
           }
         }
@@ -2160,11 +2206,18 @@ bool EmitCapturedAssignment(EmitState& st,
     if (error) *error = "unsupported captured assignment type for '" + name + "'";
     return false;
   }
+  std::string rhs_temp_name;
+  uint16_t rhs_temp_index = 0;
+  if (!AllocateTempLocal(st, type, &rhs_temp_name, &rhs_temp_index, error)) return false;
+  if (!EmitExpr(st, value, &type, error)) return false;
+  (*st.out) << "  stloc " << rhs_temp_index << "\n";
+  PopStack(st, 1);
   if (!EmitCaptureCellRef(st, name, error)) return false;
   if (op == "=") {
     (*st.out) << "  const i32 0\n";
     PushStack(st, 1);
-    if (!EmitExpr(st, value, &type, error)) return false;
+    (*st.out) << "  ldloc " << rhs_temp_index << "\n";
+    PushStack(st, 1);
   } else {
     (*st.out) << "  dup\n";
     PushStack(st, 1);
@@ -2173,7 +2226,8 @@ bool EmitCapturedAssignment(EmitState& st,
     (*st.out) << "  list.get " << suffix << "\n";
     PopStack(st, 2);
     PushStack(st, 1);
-    if (!EmitExpr(st, value, &type, error)) return false;
+    (*st.out) << "  ldloc " << rhs_temp_index << "\n";
+    PushStack(st, 1);
     const char* bin_op = AssignOpToBinaryOp(op);
     const char* op_type = bin_op && (std::string(bin_op) == "&" || std::string(bin_op) == "|" ||
                                      std::string(bin_op) == "^" || std::string(bin_op) == "<<" ||
@@ -2237,9 +2291,16 @@ bool EmitLocalAssignment(EmitState& st,
     if (error) *error = "unsupported assignment operator '" + op + "'";
     return false;
   }
+  std::string rhs_temp_name;
+  uint16_t rhs_temp_index = 0;
+  if (!AllocateTempLocal(st, type, &rhs_temp_name, &rhs_temp_index, error)) return false;
+  if (!EmitExpr(st, value, &type, error)) return false;
+  (*st.out) << "  stloc " << rhs_temp_index << "\n";
+  PopStack(st, 1);
   (*st.out) << "  ldloc " << it->second << "\n";
   PushStack(st, 1);
-  if (!EmitExpr(st, value, &type, error)) return false;
+  (*st.out) << "  ldloc " << rhs_temp_index << "\n";
+  PushStack(st, 1);
   PopStack(st, 1);
   const char* op_type = nullptr;
   if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
@@ -2568,6 +2629,24 @@ bool EmitUnary(EmitState& st,
   }
   TypeRef operand_type;
   if (!InferExprType(expr.children[0], st, &operand_type, error)) return false;
+  if (expr.op == "await") {
+    if (operand_type.name != "Promise" || operand_type.type_args.size() != 1 ||
+        operand_type.pointer_depth != 0 || !operand_type.dims.empty()) {
+      if (error) *error = "await requires Promise<T> operand";
+      return false;
+    }
+    const bool returns_void = operand_type.type_args[0].name == "void";
+    const char* result_type =
+        returns_void ? "void" : VmTypeNameForElement(operand_type.type_args[0], st);
+    if (!result_type) {
+      if (error) *error = "await result type is unsupported";
+      return false;
+    }
+    if (!EmitExpr(st, expr.children[0], &operand_type, error)) return false;
+    (*st.out) << "  await " << result_type << "\n";
+    if (returns_void) PopStack(st, 1);
+    return true;
+  }
   if (expr.op == "post?") {
     TaggedTypeInfo operand_tagged;
     if (!ResolveTaggedType(operand_type, st, &operand_tagged) || !operand_tagged.value_type) {
@@ -3961,14 +4040,15 @@ bool EmitExpr(EmitState& st,
               if (error) *error = "unknown function '" + key + "'";
               return false;
             }
-            (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+            EmitDirectCallOpcode(st, hoisted, id_it->second, params.size());
             if (st.stack_cur >= params.size()) {
               st.stack_cur -= static_cast<uint32_t>(params.size());
             } else {
               st.stack_cur = 0;
             }
             auto ret_it = st.func_returns.find(hoisted);
-            if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+            if (st.async_funcs.find(hoisted) != st.async_funcs.end() ||
+                (ret_it != st.func_returns.end() && ret_it->second.name != "void")) {
               PushStack(st, 1);
             }
             return true;
@@ -4056,6 +4136,27 @@ bool EmitExpr(EmitState& st,
           if (error) *error = "call target not supported in SIR emission";
           return false;
         }
+        if (base_type.name == "Promise" && base_type.type_args.size() == 1 &&
+            base_type.dims.empty() &&
+            (callee.text == "cancel" || callee.text == "isDone" ||
+             callee.text == "isCancelled")) {
+          if (!expr.args.empty()) {
+            if (error) *error = "Promise control method expects no arguments";
+            return false;
+          }
+          if (!EmitExpr(st, base, &base_type, error)) return false;
+          if (callee.text == "cancel") {
+            (*st.out) << "  future.cancel\n";
+            return true;
+          }
+          (*st.out) << "  future.poll\n";
+          (*st.out) << "  const i32 " << (callee.text == "isCancelled" ? 2 : 0) << "\n";
+          PushStack(st, 1);
+          (*st.out) << (callee.text == "isCancelled" ? "  cmp.eq i32\n"
+                                                      : "  cmp.ne i32\n");
+          PopStack(st, 1);
+          return true;
+        }
         const std::string key = base_type.name + "." + callee.text;
         auto method_it = st.artifact_method_names.find(key);
         if (method_it != st.artifact_method_names.end()) {
@@ -4079,14 +4180,15 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "unknown function '" + key + "'";
             return false;
           }
-          (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+          EmitDirectCallOpcode(st, hoisted, id_it->second, params.size());
           if (st.stack_cur >= params.size()) {
             st.stack_cur -= static_cast<uint32_t>(params.size());
           } else {
             st.stack_cur = 0;
           }
           auto ret_it = st.func_returns.find(hoisted);
-          if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+          if (st.async_funcs.find(hoisted) != st.async_funcs.end() ||
+              (ret_it != st.func_returns.end() && ret_it->second.name != "void")) {
             PushStack(st, 1);
           }
           return true;
@@ -4315,14 +4417,15 @@ bool EmitExpr(EmitState& st,
         for (size_t i = 0; i < params.size(); ++i) {
           if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
         }
-        (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+        EmitDirectCallOpcode(st, name, id_it->second, params.size());
         if (st.stack_cur >= params.size()) {
           st.stack_cur -= static_cast<uint32_t>(params.size());
         } else {
           st.stack_cur = 0;
         }
         auto ret_it = st.func_returns.find(name);
-        if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+        if (st.async_funcs.find(name) != st.async_funcs.end() ||
+            (ret_it != st.func_returns.end() && ret_it->second.name != "void")) {
           PushStack(st, 1);
         }
         return true;
@@ -4916,6 +5019,10 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
       }
       (*st.out) << "  newarray " << type_name << " " << static_cast<uint32_t>(size) << "\n";
     }
+    return PushStack(st, 1);
+  }
+  if (type.name == "Promise") {
+    (*st.out) << "  const null\n";
     return PushStack(st, 1);
   }
   if (type.name == "string") {
@@ -5690,6 +5797,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     TypeRef ret;
     if (!CloneTypeRef(functions[i].decl->return_type, &ret)) return false;
     st.func_returns.emplace(functions[i].emit_name, std::move(ret));
+    if (functions[i].decl->is_async) st.async_funcs.insert(functions[i].emit_name);
     std::vector<TypeRef> params;
     params.reserve(functions[i].decl->params.size() + (functions[i].has_self ? 1u : 0u));
     if (functions[i].has_self) {

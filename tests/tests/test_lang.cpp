@@ -660,6 +660,57 @@ bool LangStressClosuresJit() {
   return RunCliSvm({"run", "tests/simple_stress/closures.simple"}) == 0;
 }
 
+bool LangStressAsyncInterpreter() {
+  return RunCliSvm(
+             {"run", "--interpreter", "tests/simple_stress/async.simple"}) == 0;
+}
+
+bool LangStressAsyncJitFallback() {
+  return RunCliSvm({"run", "tests/simple_stress/async.simple"}) == 0;
+}
+
+bool LangAwaitOutsideAsyncRejected() {
+  int exit_code = 0;
+  const std::string error = RunCommandCaptureStderr(
+      {"check", "tests/simple_bad/await_non_async.simple"}, &exit_code);
+  return exit_code != 0 &&
+         error.find("await is valid only inside async functions") != std::string::npos;
+}
+
+bool LangAwaitTopLevelRejected() {
+  int exit_code = 0;
+  const std::string error = RunCommandCaptureStderr(
+      {"check", "tests/simple_bad/await_top_level.simple"}, &exit_code);
+  return exit_code != 0 &&
+         error.find("await is valid only inside async functions") != std::string::npos;
+}
+
+bool LangAwaitNonPromiseRejected() {
+  int exit_code = 0;
+  const std::string error = RunCommandCaptureStderr(
+      {"check", "tests/simple_bad/await_non_promise.simple"}, &exit_code);
+  return exit_code != 0 &&
+         error.find("await requires Promise<T> operand") != std::string::npos;
+}
+
+bool LangAwaitCancellationPropagates() {
+  int exit_code = 0;
+  const std::string error = RunCommandCaptureStderr(
+      {"run", "--interpreter", "tests/simple_bad/await_cancelled.simple"}, &exit_code);
+  return exit_code != 0 && error.find("async execution canceled") != std::string::npos;
+}
+
+bool LangProjectTrafficManagementInterpreter() {
+  return RunCliSvm(
+             {"run", "--interpreter",
+              "tests/projects/traffic_management/main.simple"}) == 0;
+}
+
+bool LangProjectTrafficManagementJitFallback() {
+  return RunCliSvm(
+             {"run", "tests/projects/traffic_management/main.simple"}) == 0;
+}
+
 bool LangProjectTextAdventureInterpreter() {
   return RunCliSvm(
              {"run", "--interpreter", "tests/projects/text_adventure/main.simple"}) == 0;
@@ -955,7 +1006,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 2.0\n", 0) == 0 &&
+  return sir.rfind("sir version 2.1\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -4001,6 +4052,14 @@ const TestCase kLangTests[] = {
   {"lang_stress_lambdas_jit", LangStressLambdasJit},
   {"lang_stress_closures", LangStressClosures},
   {"lang_stress_closures_jit", LangStressClosuresJit},
+  {"lang_stress_async_interpreter", LangStressAsyncInterpreter},
+  {"lang_stress_async_jit_fallback", LangStressAsyncJitFallback},
+  {"lang_await_outside_async_rejected", LangAwaitOutsideAsyncRejected},
+  {"lang_await_top_level_rejected", LangAwaitTopLevelRejected},
+  {"lang_await_non_promise_rejected", LangAwaitNonPromiseRejected},
+  {"lang_await_cancellation_propagates", LangAwaitCancellationPropagates},
+  {"lang_project_traffic_management_interpreter", LangProjectTrafficManagementInterpreter},
+  {"lang_project_traffic_management_jit_fallback", LangProjectTrafficManagementJitFallback},
   {"lang_project_text_adventure_interpreter", LangProjectTextAdventureInterpreter},
   {"lang_project_text_adventure_jit", LangProjectTextAdventureJit},
   {"lang_tagged_values_import_runtime", LangTaggedValuesImportRuntime},

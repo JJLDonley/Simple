@@ -1013,7 +1013,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   out->capabilities_bytes.clear();
   out->debug_bytes.clear();
   out->entry_method_id = text.entry_index;
-  if (text.has_version && (text.version_major != 2 || text.version_minor != 0)) {
+  if (text.has_version &&
+      (text.version_major != kSirVersionMajor || text.version_minor != kSirVersionMinor)) {
     if (error) *error = "unsupported SIR version: " + std::to_string(text.version_major) + "." + std::to_string(text.version_minor);
     return false;
   }
@@ -2134,14 +2135,23 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExitSandbox();
         continue;
       }
-      if (op == "spawn" || op == "future.make") {
+      if (op == "spawn") {
         uint32_t func_id = 0;
         if (args.size() != 1 || !resolve_func_id(args[0], &func_id)) {
-          return fail(op + " expects function");
+          return fail("spawn expects function");
         }
         builder.EmitConstI32(static_cast<int32_t>(func_id));
-        builder.EmitExtended(op == "spawn" ? Simple::Byte::ExtendedOpCode::Spawn
-                                             : Simple::Byte::ExtendedOpCode::MakeFuture);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Spawn);
+        continue;
+      }
+      if (op == "future.make") {
+        uint32_t func_id = 0;
+        uint64_t arg_count = 0;
+        if (args.size() != 2 || !resolve_func_id(args[0], &func_id) ||
+            !ParseUint(args[1], &arg_count) || !FitsUnsigned<uint8_t>(arg_count)) {
+          return fail("future.make expects function and argument count");
+        }
+        builder.EmitFutureMake(func_id, static_cast<uint8_t>(arg_count));
         continue;
       }
       if (op == "join") {
@@ -2150,13 +2160,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op == "await") {
-        if (!args.empty()) return fail("await expects no operands");
-        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Await);
+        uint32_t result_type_id = 0;
+        if (args.size() != 1 || !resolve_type_id(args[0], &result_type_id)) {
+          return fail("await expects result type");
+        }
+        builder.EmitAwait(result_type_id);
         continue;
       }
       if (op == "future.poll") {
         if (!args.empty()) return fail("future.poll expects no operands");
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::PollFuture);
+        continue;
+      }
+      if (op == "future.cancel") {
+        if (!args.empty()) return fail("future.cancel expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CancelFuture);
         continue;
       }
       if (op == "detach") {
