@@ -1251,6 +1251,28 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     }
     return true;
   };
+  auto sig_has_managed_param = [&](const Simple::Byte::SigRow& row) -> bool {
+    if (row.param_type_start + row.param_count > module.param_types.size()) return true;
+    for (uint16_t i = 0; i < row.param_count; ++i) {
+      const uint32_t type_id = module.param_types[row.param_type_start + i];
+      if (type_id >= module.types.size()) return true;
+      const auto& type = module.types[type_id];
+      if (Simple::Byte::IsManagedArtifactType(type)) return true;
+      switch (static_cast<Simple::Byte::TypeKind>(type.kind)) {
+        case Simple::Byte::TypeKind::Ref:
+        case Simple::Byte::TypeKind::String:
+        case Simple::Byte::TypeKind::Array:
+        case Simple::Byte::TypeKind::List:
+        case Simple::Byte::TypeKind::Function:
+        case Simple::Byte::TypeKind::Result:
+        case Simple::Byte::TypeKind::Optional:
+          return true;
+        default:
+          break;
+      }
+    }
+    return false;
+  };
   auto signature_type_kinds = [&](const Simple::Byte::SigRow& row,
                                   std::vector<Simple::Byte::TypeKind>* params,
                                   Simple::Byte::TypeKind* result) -> bool {
@@ -2352,6 +2374,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   }
   if (saw_call && !options_.allow_runtime_calls) {
     return reject_cached("unsupported: runtime/helper calls need LLVM runtime ABI");
+  }
+  if (sig_has_managed_param(sig)) {
+    return reject_cached(
+        "unsupported: managed parameter needs interpreter runtime ABI");
   }
   if (saw_call) {
     if (method.local_count > 64 || func.stack_max > 64) {

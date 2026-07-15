@@ -440,6 +440,14 @@ bool LangSimpleFixtureArtifactMethod() {
   return RunSimpleFileExpectExit("tests/simple/artifact_method.simple", 7);
 }
 
+bool LangManagedMethodStateInterpreter() {
+  return RunSimpleFileExpectExit("tests/simple/jit_managed_method_state.simple", 0);
+}
+
+bool LangManagedMethodStateJit() {
+  return RunCliSvm({"run", "tests/simple/jit_managed_method_state.simple"}) == 0;
+}
+
 bool LangSimpleFixtureModuleMulti() {
   return RunSimpleFileExpectExit("tests/simple/module_multi.simple", 6);
 }
@@ -3890,6 +3898,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_list_index", LangSimpleFixtureListIndex},
   {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
   {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
+  {"lang_managed_method_state_interpreter", LangManagedMethodStateInterpreter},
+  {"lang_managed_method_state_jit", LangManagedMethodStateJit},
   {"lang_simple_fixture_artifact_named_init", LangSimpleFixtureArtifactNamedInit},
   {"lang_simple_fixture_array_nested", LangSimpleFixtureArrayNested},
   {"lang_simple_fixture_bool_ops", LangSimpleFixtureBoolOps},

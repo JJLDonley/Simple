@@ -1,0 +1,52 @@
+Vector2 :: artifact {
+  x : f32
+  y : f32
+}
+
+Player :: artifact {
+  position : Vector2
+  velocity : Vector2
+  size : Vector2
+  grounded : bool
+
+  Update :: void () {
+    self.velocity.y -= 0.6
+    self.position.y -= self.velocity.y
+  }
+
+  CanLand :: bool (previousBottom : f32, platformY : f32) {
+    currentBottom : f32 = self.position.y + self.size.y
+    return self.velocity.y <= 0.0 &&
+           previousBottom < platformY && currentBottom >= platformY
+  }
+
+  Land :: void (platformY : f32) {
+    self.position.y = platformY - self.size.y
+    self.velocity.y = 0.0
+    self.grounded = true
+  }
+}
+
+main :: i32 () {
+  player : Player = {
+    .position = { 0.0, 420.0 },
+    .velocity = { 0.0, 0.0 },
+    .size = { 42.0, 58.0 },
+    .grounded = false
+  }
+  landCount : i32 = 0
+  for (frame : i32 = 0; frame < 9; frame += 1) {
+    previousBottom : f32 = player.position.y + player.size.y
+    player.Update()
+    player.grounded = false
+    if (player.CanLand(previousBottom, 500.0)) {
+      player.Land(500.0)
+      landCount += 1
+    }
+  }
+  if (landCount != 1) { return 1 }
+  if (!player.grounded) { return 2 }
+  if (player.position.y != 442.0) { return 3 }
+  if (player.velocity.y != 0.0) { return 4 }
+  return 0
+}
