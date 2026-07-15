@@ -52,9 +52,9 @@ extern ffi.simple_add_usize : (a : usize, b : usize) -> usize
 extern ffi.simple_add_isize : (a : isize, b : isize) -> isize
 extern ffi.simple_i32_pointer : () -> i32*
 extern ffi.simple_maybe_i32_pointer : (present : i32) -> i32*?
-extern ffi.simple_write_i32_pointer : (pointer : i32*, value :: i32) -> void
+extern ffi.simple_write_i32_pointer : (pointer : out i32*, value :: i32) -> void
 extern ffi.simple_i32_pointer_slot : () -> i32**
-extern ffi.simple_write_i32_pointer_slot : (destination : i32**, value :: i32*) -> void
+extern ffi.simple_write_i32_pointer_slot : (destination : out i32**, value :: i32*) -> void
 extern ffi.simple_read_i32_pointer_slot : (slot :: i32**) -> i32
 extern ffi.simple_i32_view : () -> I32View
 extern ffi.simple_read_i32_view : (view :: I32View) -> i32

@@ -91,6 +91,7 @@ struct EmitState {
     bool external_c = false;
     std::vector<TypeRef> params;
     std::vector<Mutability> param_mutabilities;
+    std::vector<ParamFlow> param_flows;
     TypeRef ret;
     Mutability return_mutability = Mutability::Immutable;
   };
@@ -1250,13 +1251,22 @@ uint32_t AlignTo(uint32_t value, uint32_t align) {
 
 std::string ExternalPointerSirTypeName(const TypeRef& pointer,
                                        Mutability mutability,
-                                       bool nullable) {
+                                       ParamFlow flow,
+                                       bool nullable,
+                                       bool result = false) {
   std::string name = "ptr.external.borrowed.";
   if (nullable) name += "nullable.";
-  if (pointer.is_proc) {
-    name += "function";
-  } else {
+  if (result) {
+    name += "result.";
     name += mutability == Mutability::Mutable ? "mutable" : "readonly";
+  } else if (pointer.is_proc) {
+    name += "function";
+  } else if (flow == ParamFlow::Output) {
+    name += "output";
+  } else if (flow == ParamFlow::InOut) {
+    name += "inout";
+  } else {
+    name += mutability == Mutability::Mutable ? "inout" : "readonly";
   }
   return name;
 }
@@ -1273,7 +1283,7 @@ std::string FieldSirTypeName(const TypeRef& type,
                              const EmitState& st) {
   if (type.pointer_depth > 0) {
     return stable_struct
-               ? ExternalPointerSirTypeName(type, mutability, false)
+               ? ExternalPointerSirTypeName(type, mutability, ParamFlow::Value, false)
                : "ptr";
   }
   if (type.is_proc) return "ref";
@@ -1304,13 +1314,16 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
 
 std::string ExternalSigTypeName(const TypeRef& type,
                                 Mutability mutability,
+                                ParamFlow flow,
+                                bool result,
                                 const EmitState& st,
                                 std::string* error) {
   const TypeRef* pointer = ExternalNullablePointerValueType(type, st);
   const bool nullable = pointer != nullptr;
   if (!pointer && type.pointer_depth > 0) pointer = &type;
   if (!pointer) return SigTypeNameFromType(type, st, error);
-  return ExternalPointerSirTypeName(*pointer, mutability, nullable);
+  return ExternalPointerSirTypeName(*pointer, mutability, flow, nullable,
+                                    result);
 }
 
 std::string GetProcSigName(EmitState& st,
@@ -1387,11 +1400,13 @@ bool EnsureExternalPointerCallImport(EmitState& st,
   if (!CloneTypeRef(proc_type, &pointer_param)) return false;
   item.params.push_back(std::move(pointer_param));
   item.param_mutabilities.push_back(Mutability::Immutable);
+  item.param_flows.push_back(ParamFlow::Value);
   for (const auto& param : proc_type.proc_params) {
     TypeRef copy;
     if (!CloneTypeRef(param, &copy)) return false;
     item.params.push_back(std::move(copy));
     item.param_mutabilities.push_back(Mutability::Immutable);
+    item.param_flows.push_back(ParamFlow::Value);
   }
   if (!CloneTypeRef(*proc_type.proc_return, &item.ret)) return false;
   *out_import = item.name;
@@ -6189,6 +6204,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       }
       abi_params.push_back(std::move(cloned_param));
       item.param_mutabilities.push_back(param.mutability);
+      item.param_flows.push_back(param.flow);
     }
     if (!IsSupportedDlAbiType(ext->return_type, st, true)) {
       if (error) {
@@ -6267,6 +6283,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         }
         dyn_item.params.push_back(std::move(ptr_type));
         dyn_item.param_mutabilities.push_back(Mutability::Immutable);
+        dyn_item.param_flows.push_back(ParamFlow::Value);
         for (const auto& param : st.imports.back().params) {
           TypeRef cloned_param;
           if (!CloneTypeRef(param, &cloned_param)) return false;
@@ -6276,6 +6293,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
             dyn_item.param_mutabilities.end(),
             st.imports.back().param_mutabilities.begin(),
             st.imports.back().param_mutabilities.end());
+        dyn_item.param_flows.insert(
+            dyn_item.param_flows.end(), st.imports.back().param_flows.begin(),
+            st.imports.back().param_flows.end());
         if (!CloneTypeRef(st.imports.back().ret, &dyn_item.ret)) return false;
         st.dl_call_import_ids_by_module[ext->module][symbol] = dyn_item.name;
         st.imports.push_back(std::move(dyn_item));
@@ -6918,7 +6938,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   for (const auto& imp : st.imports) {
     std::string ret = imp.external_c
                           ? ExternalSigTypeName(imp.ret, imp.return_mutability,
-                                                st, error)
+                                                ParamFlow::Value, true, st,
+                                                error)
                           : SigTypeNameFromType(imp.ret, st, error);
     if (ret.empty()) {
       if (error && error->empty()) *error = "unsupported return type in import signature";
@@ -6932,9 +6953,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
           i < imp.param_mutabilities.size()
               ? imp.param_mutabilities[i]
               : Mutability::Immutable;
+      const ParamFlow flow =
+          i < imp.param_flows.size() ? imp.param_flows[i] : ParamFlow::Value;
       std::string param = imp.external_c
                               ? ExternalSigTypeName(
-                                    imp.params[i], mutability, st, error)
+                                    imp.params[i], mutability, flow, false, st, error)
                               : SigTypeNameFromType(imp.params[i], st, error);
       if (param.empty()) {
         if (error && error->empty()) *error = "unsupported param type in import signature";

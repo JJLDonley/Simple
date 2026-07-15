@@ -25,7 +25,16 @@ enum class AbiClass {
 enum class AbiPointerAccess {
   None,
   ReadOnly,
-  Mutable,
+  ReadWrite,
+  WriteOnly,
+};
+
+enum class AbiPointerFlow {
+  None,
+  Input,
+  InOut,
+  Output,
+  Result,
 };
 
 enum class AbiPointerOwnership {
@@ -44,6 +53,7 @@ struct AbiTypeInfo {
   bool pointer_nullable = false;
   bool function_pointer = false;
   AbiPointerAccess pointer_access = AbiPointerAccess::None;
+  AbiPointerFlow pointer_flow = AbiPointerFlow::None;
   AbiPointerOwnership pointer_ownership = AbiPointerOwnership::None;
 };
 

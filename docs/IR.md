@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `3.2`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `3.3`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -157,8 +157,9 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 | ✅ | `void` | `Void` / `17` | 0 | no-result signature spelling / metadata type |
 | ✅ | `never` | `Never` / `18` | 0 | non-returning metadata type |
 | ✅ | `ptr` | `Ptr` / `19` | word | VM pointer value via `kind=ptr` |
-| ✅ | `ptr.external.borrowed.mutable` / `.readonly` | `Ptr` / `19` plus flags | word | non-null external pointer access/borrow contract |
-| ✅ | `ptr.external.borrowed.nullable.mutable` / `.readonly` | `Ptr` / `19` plus flags | word | nullable external pointer niche contract |
+| ✅ | `ptr.external.borrowed.inout` / `.output` / `.readonly` | `Ptr` / `19` plus flags | word | non-null external pointer access/borrow contract |
+| ✅ | `ptr.external.borrowed.nullable.inout` / `.readonly` | `Ptr` / `19` plus flags | word | nullable external parameter pointer contract |
+| ✅ | `ptr.external.borrowed[.nullable].result.mutable` / `.readonly` | `Ptr` / `19` plus flags | word | borrowed function-scope external result pointer contract |
 | ✅ | `ptr.external.borrowed.function` / `.nullable.function` | `Ptr` / `19` plus flags | word | external function-pointer contract |
 | ✅ | `array<T>` | `Array` / `20` | ref | aggregate metadata via `kind=array` |
 | ✅ | `list<T>` | `List` / `21` | ref | aggregate metadata via `kind=list` |

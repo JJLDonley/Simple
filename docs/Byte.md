@@ -173,6 +173,11 @@ reference and produces a borrowed external pointer whose UTF-8, embedded-NUL,
 size-limit, and post-call destruction checks are enforced by the interpreter.
 Opcode metadata is version 7 and the corresponding runtime ABI is `1.9`.
 
+SBC v10 replaces ambiguous mutable external-pointer metadata with explicit
+input, in/out, and output flow plus call-duration lifetime in each external
+pointer type row. Output destinations are non-null. The corresponding runtime
+ABI is `1.10`; opcode metadata remains version 7.
+
 ## Opcodes
 
 Opcodes are defined in `source/Byte/include/opcode.h` with metadata in `source/Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.

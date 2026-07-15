@@ -946,10 +946,17 @@ bool Parser::ParseParam(ParamDecl* out) {
     error_ = "expected ':' or '::' after parameter name";
     return false;
   }
+  ParamFlow flow = ParamFlow::Value;
+  if (mut == Mutability::Mutable && Peek().kind == TokenKind::Identifier &&
+      (Peek().text == "inout" || Peek().text == "out")) {
+    flow = Peek().text == "out" ? ParamFlow::Output : ParamFlow::InOut;
+    Advance();
+  }
   TypeRef type;
   if (!ParseTypeInner(&type)) return false;
   out->name = name_tok.text;
   out->mutability = mut;
+  out->flow = flow;
   out->type = std::move(type);
   return true;
 }

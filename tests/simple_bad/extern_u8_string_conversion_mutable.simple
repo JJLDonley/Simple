@@ -1,4 +1,4 @@
-extern consume : (text : u8*) -> i32
+extern consume : (text : inout u8*) -> i32
 
 main :: () -> i32 {
   text : string = "managed"

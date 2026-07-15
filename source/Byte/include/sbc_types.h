@@ -9,7 +9,7 @@
 namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
-constexpr uint16_t kSbcVersion = 0x0009u;
+constexpr uint16_t kSbcVersion = 0x000Au;
 constexpr size_t kSbcHeaderSize = 32u;
 constexpr size_t kSbcSectionRowSize = 16u;
 constexpr size_t kSbcHeaderMagicOffset = 0x00u;
@@ -68,6 +68,22 @@ constexpr uint8_t kTypeFlagPointerNullable = 0x10u;
 constexpr uint8_t kTypeFlagPointerFunction = 0x20u;
 constexpr uint8_t kTypeFlagPointerBorrowed = 0x40u;
 constexpr uint8_t kTypeFlagPointerExternal = 0x80u;
+enum class ExternalPointerFlow : uint16_t {
+  None = 0,
+  Input = 1,
+  InOut = 2,
+  Output = 3,
+  Result = 4,
+};
+
+constexpr uint16_t kExternalPointerFlowMask = 0x0007u;
+constexpr uint16_t kExternalPointerLifetimeCall = 0x0008u;
+constexpr uint16_t kExternalPointerLifetimeScope = 0x0010u;
+constexpr uint16_t kExternalPointerLifetimeMask =
+    kExternalPointerLifetimeCall | kExternalPointerLifetimeScope;
+constexpr uint16_t kExternalPointerContractKnownMask =
+    kExternalPointerFlowMask | kExternalPointerLifetimeMask;
+
 constexpr uint8_t kTypeFlagsKnownMask =
     kTypeFlagManagedClass | kTypeFlagStableStruct | kTypeFlagOpaqueHandle |
     kTypeFlagPointerReadOnly | kTypeFlagPointerNullable |
@@ -160,6 +176,24 @@ inline bool IsExternalPointerType(const TypeRow& row) {
          (row.flags & (kTypeFlagPointerExternal |
                        kTypeFlagPointerBorrowed)) ==
              (kTypeFlagPointerExternal | kTypeFlagPointerBorrowed);
+}
+
+inline ExternalPointerFlow GetExternalPointerFlow(const TypeRow& row) {
+  if (!IsExternalPointerType(row)) return ExternalPointerFlow::None;
+  return static_cast<ExternalPointerFlow>(row.reserved &
+                                          kExternalPointerFlowMask);
+}
+
+inline bool HasCallDurationPointerLifetime(const TypeRow& row) {
+  return IsExternalPointerType(row) &&
+         (row.reserved & kExternalPointerLifetimeMask) ==
+             kExternalPointerLifetimeCall;
+}
+
+inline bool HasScopePointerLifetime(const TypeRow& row) {
+  return IsExternalPointerType(row) &&
+         (row.reserved & kExternalPointerLifetimeMask) ==
+             kExternalPointerLifetimeScope;
 }
 
 inline bool IsExternalFunctionPointerType(const TypeRow& row) {

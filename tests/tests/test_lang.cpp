@@ -1009,7 +1009,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 3.2\n", 0) == 0 &&
+  return sir.rfind("sir version 3.3\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2258,7 +2258,7 @@ bool LangValidateExternRecursiveAggregateRejected() {
 bool LangValidateExternPointerCallOk() {
   const char* src =
       "Node :: struct { next: Node* }\n"
-      "extern C.walk : (head : Node*) -> Node*\n"
+      "extern C.walk : (head : inout Node*) -> Node*\n"
       "main : () -> i32 { return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -2359,6 +2359,10 @@ bool LangPointerLifetimeAndOperationErrors() {
       {"tests/simple_bad/extern_pointer_cast_mismatch.simple", "pointer cast requires identical pointee type or void pointer"},
       {"tests/simple_bad/pointer_index_unbounded.simple", "pointer indexing requires proven VM extent"},
       {"tests/simple_bad/extern_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
+      {"tests/simple_bad/extern_pointer_missing_flow.simple", "requires explicit inout or out flow"},
+      {"tests/simple_bad/extern_out_non_pointer.simple", "inout/out requires an extern pointer parameter"},
+      {"tests/simple_bad/extern_out_nullable.simple", "out pointer destination cannot be nullable"},
+      {"tests/simple_bad/non_extern_pointer_flow.simple", "inout/out parameter flow is only valid on extern declarations"},
       {"tests/simple_bad/extern_u8_string_conversion_mutable.simple", "managed string conversion requires an immutable external u8 pointer parameter"},
       {"tests/simple_bad/extern_u8_string_conversion_escape.simple", "pointer cast requires matching pointer depth"},
       {"tests/simple_bad/extern_optional_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
@@ -2397,7 +2401,7 @@ bool LangExternalU8StringLiteralContext() {
   }
 
   const char* mutable_param =
-      "extern ffi.mutate : (text : u8*) -> void\n"
+      "extern ffi.mutate : (text : inout u8*) -> void\n"
       "main :: () -> void { ffi.mutate(\"immutable\") }\n";
   if (Simple::Lang::ValidateProgramFromString(mutable_param, &error)) return false;
   return error.find("external u8 string literal requires an immutable external u8 pointer parameter") !=
@@ -2407,17 +2411,19 @@ bool LangExternalU8StringLiteralContext() {
 bool LangExternalPointerContractsReachSir() {
   const char* src =
       "View :: struct { data :: i32* }\n"
-      "extern probe :: (input :: i32*, output : i32**, "
+      "extern probe :: (input :: i32*, buffer : inout i32*, output : out i32**, "
       "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32*\n"
       "main :: () -> i32 { return 0 }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return sir.find("ptr.external.borrowed.readonly") != std::string::npos &&
-         sir.find("ptr.external.borrowed.mutable") != std::string::npos &&
+         sir.find("ptr.external.borrowed.inout") != std::string::npos &&
+         sir.find("ptr.external.borrowed.output") != std::string::npos &&
          sir.find("ptr.external.borrowed.nullable.readonly") !=
              std::string::npos &&
          sir.find("ptr.external.borrowed.function") != std::string::npos &&
+         sir.find("ptr.external.borrowed.result.readonly") != std::string::npos &&
          sir.find("field data ptr.external.borrowed.readonly") !=
              std::string::npos;
 }
@@ -3039,7 +3045,7 @@ bool LangValidateNamespaceExternManifestAndCall() {
     std::ofstream raylib(dir / "raylib.simple", std::ios::binary);
     raylib << "module Raylib\n"
            << "import System.FFI\n"
-           << "Raylib :: namespace { extern InitWindow : (w : i32, h : i32, title : u8*?) -> void }\n"
+           << "Raylib :: namespace { extern InitWindow : (w : i32, h : i32, title :: u8*?) -> void }\n"
            << "lib :: i64 = System.FFI.open(\"libraylib.so\", Raylib)\n";
   }
   {

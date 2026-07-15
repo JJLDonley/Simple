@@ -1,4 +1,4 @@
-extern consume : (value : i32*) -> void
+extern consume : (value : inout i32*) -> void
 
 main :: () -> i32 {
   value : i32 = 1

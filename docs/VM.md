@@ -63,6 +63,11 @@ whose payload is traced according to its concrete type.
 
 ## Runtime ABI classifier
 
+External pointer type rows encode input, in/out, output, or result flow in the
+reserved contract word. Parameter pointers are call-duration; borrowed results
+are function-scope. Readonly parameters are input-only, and output destinations
+are non-null.
+
 VM pointers use generation-checked runtime descriptors rather than integer or
 managed-reference aliases. Local descriptors retain frame provenance, global
 descriptors retain global storage identity, and field descriptors root their

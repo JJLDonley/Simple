@@ -133,6 +133,8 @@ top-decl       = var-decl | func-decl | class-decl | struct-decl | namespace-dec
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
 func-decl      = ident (":" | "::") [ "async" ] "(" [ params ] ")" "->" type block ;
+params         = param { "," param } ;
+param          = ident ( "::" type | ":" [ "inout" | "out" ] type ) ;
 class-decl     = ident "::" "class" "{" { field-decl | func-decl } "}" ;
 struct-decl    = ident "::" "struct" "{" { field-decl } "}" ;
 namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
@@ -685,7 +687,9 @@ underlying types and their canonical external-C lowering advance syntax to
 4.1 and SIR to 3.1; SBC, opcode metadata, and the runtime ABI remain unchanged.
 Scoped managed-string conversion to immutable external `u8*` advances SIR to
 3.2, SBC to 9, opcode metadata to 7, and the runtime ABI to 1.9; source syntax
-remains 4.1.
+remains 4.1. Explicit external pointer `inout`/`out` flow advances syntax to
+4.2, SIR to 3.3, SBC to 10, and the runtime ABI to 1.10; opcode metadata
+remains 7.
 
 ### `v0.6` generic design
 
@@ -1800,9 +1804,10 @@ pointer forms. Casts use explicit `@Target(pointer)` syntax and preserve
 optionality and mutability; only ABI-compatible typed-pointer/`void*`
 conversions are accepted.
 
-Declaration markers carry pointer mutability into provenance and extern
-metadata. An immutable `::` pointer parameter is an input/read-only pointee
-view; mutable `:` permits the declared output or in/out access:
+Declaration markers and explicit flow carry pointer access into provenance and
+extern metadata. An immutable `::` pointer parameter is input/read-only.
+Mutable extern pointers must state `inout` or `out`; mutable pointer flow is
+never inferred silently. `out` destinations must be non-null:
 
 ```simple
 extern ffi.findByte : (
@@ -1812,14 +1817,16 @@ extern ffi.findByte : (
 ) -> u8*?
 
 extern ffi.copyBytes : (
-  destination : u8*,
+  destination : out u8*,
   source :: u8*,
   count :: usize
 ) -> void
 ```
 
-The compiler rejects writes through immutable provenance even if a later alias
-uses a mutable binding.
+Use `inout` when native code may read the pointee before writing it. Flow
+markers are rejected on non-pointer or non-extern parameters. The compiler
+rejects writes through immutable provenance even if a later alias uses a
+mutable binding.
 
 ### Pointer lifetime and ownership
 
@@ -1829,7 +1836,8 @@ escape through a return, global, heap field, closure, worker thread, callback,
 or async suspension unless explicit pin/static/owner metadata proves the full
 lifetime. Moving managed storage cannot be addressed without pinning.
 
-External pointer results are borrowed. The compiler rejects their escape through
+External pointer results are borrowed with function-scope lifetime metadata;
+parameter pointers are call-duration. The compiler rejects result escape through
 Simple returns, globals, managed class fields, closures, and async suspension.
 The stable v0.6 surface has no owning-raw-pointer declaration: memory requiring
 a deallocator must use a typed generational resource handle whose metadata names

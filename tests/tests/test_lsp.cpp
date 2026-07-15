@@ -751,22 +751,27 @@ bool LspHoverIncludesFunctionParameterType() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"use : (x : i32, y :: i64) -> i32 { return x; }\"}}}";
+      "\"text\":\"use : (x : i32, y :: i64, z : out i32*) -> i32 { return x; }\"}}}";
   const std::string hover_x =
       "{\"jsonrpc\":\"2.0\",\"id\":69,\"method\":\"textDocument/hover\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":8}}}";
   const std::string hover_y =
       "{\"jsonrpc\":\"2.0\",\"id\":70,\"method\":\"textDocument/hover\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":17}}}";
+  const std::string hover_z =
+      "{\"jsonrpc\":\"2.0\",\"id\":73,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":26}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
-  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_x) + BuildLspFrame(hover_y) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_x) + BuildLspFrame(hover_y) + BuildLspFrame(hover_z) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":69") != std::string::npos &&
          out_contents.find("x : i32") != std::string::npos &&
          out_contents.find("\"id\":70") != std::string::npos &&
-         out_contents.find("y :: i64") != std::string::npos;
+         out_contents.find("y :: i64") != std::string::npos &&
+         out_contents.find("\"id\":73") != std::string::npos &&
+         out_contents.find("z : out i32*") != std::string::npos;
 }
 
 bool LspHoverIncludesParameterUseType() {

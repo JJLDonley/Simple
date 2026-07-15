@@ -1044,6 +1044,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     uint32_t name_str = 0;
     uint8_t kind = 0;
     uint8_t flags = 0;
+    uint16_t reserved = 0;
     uint32_t size = 0;
     uint32_t field_start = 0;
     uint32_t field_count = 0;
@@ -1110,16 +1111,33 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   constexpr uint8_t kExternalBorrowed =
       Simple::Byte::kTypeFlagPointerExternal |
       Simple::Byte::kTypeFlagPointerBorrowed;
-  if (!add_type("ptr.external.borrowed.mutable", Simple::Byte::TypeKind::Ptr,
+  if (!add_type("ptr.external.borrowed.inout", Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed, 8)) return false;
+  if (!add_type("ptr.external.borrowed.output", Simple::Byte::TypeKind::Ptr,
                 kExternalBorrowed, 8)) return false;
   if (!add_type("ptr.external.borrowed.readonly", Simple::Byte::TypeKind::Ptr,
                 kExternalBorrowed | Simple::Byte::kTypeFlagPointerReadOnly,
                 8)) return false;
-  if (!add_type("ptr.external.borrowed.nullable.mutable",
+  if (!add_type("ptr.external.borrowed.result.mutable",
+                Simple::Byte::TypeKind::Ptr, kExternalBorrowed, 8)) return false;
+  if (!add_type("ptr.external.borrowed.result.readonly",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerReadOnly,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.nullable.inout",
                 Simple::Byte::TypeKind::Ptr,
                 kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable,
                 8)) return false;
   if (!add_type("ptr.external.borrowed.nullable.readonly",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable |
+                    Simple::Byte::kTypeFlagPointerReadOnly,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.nullable.result.mutable",
+                Simple::Byte::TypeKind::Ptr,
+                kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable,
+                8)) return false;
+  if (!add_type("ptr.external.borrowed.nullable.result.readonly",
                 Simple::Byte::TypeKind::Ptr,
                 kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable |
                     Simple::Byte::kTypeFlagPointerReadOnly,
@@ -1135,6 +1153,43 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
                     Simple::Byte::kTypeFlagPointerNullable |
                     Simple::Byte::kTypeFlagPointerReadOnly,
                 8)) return false;
+
+  const auto set_pointer_contract = [&](const std::string& name,
+                                        Simple::Byte::ExternalPointerFlow flow) {
+    auto it = type_ids.find(name);
+    if (it == type_ids.end()) return false;
+    types[it->second].reserved =
+        static_cast<uint16_t>(flow) |
+        (flow == Simple::Byte::ExternalPointerFlow::Result
+             ? Simple::Byte::kExternalPointerLifetimeScope
+             : Simple::Byte::kExternalPointerLifetimeCall);
+    return true;
+  };
+  if (!set_pointer_contract("ptr.external.borrowed.readonly",
+                            Simple::Byte::ExternalPointerFlow::Input) ||
+      !set_pointer_contract("ptr.external.borrowed.nullable.readonly",
+                            Simple::Byte::ExternalPointerFlow::Input) ||
+      !set_pointer_contract("ptr.external.borrowed.function",
+                            Simple::Byte::ExternalPointerFlow::Input) ||
+      !set_pointer_contract("ptr.external.borrowed.nullable.function",
+                            Simple::Byte::ExternalPointerFlow::Input) ||
+      !set_pointer_contract("ptr.external.borrowed.inout",
+                            Simple::Byte::ExternalPointerFlow::InOut) ||
+      !set_pointer_contract("ptr.external.borrowed.nullable.inout",
+                            Simple::Byte::ExternalPointerFlow::InOut) ||
+      !set_pointer_contract("ptr.external.borrowed.output",
+                            Simple::Byte::ExternalPointerFlow::Output) ||
+      !set_pointer_contract("ptr.external.borrowed.result.mutable",
+                            Simple::Byte::ExternalPointerFlow::Result) ||
+      !set_pointer_contract("ptr.external.borrowed.result.readonly",
+                            Simple::Byte::ExternalPointerFlow::Result) ||
+      !set_pointer_contract("ptr.external.borrowed.nullable.result.mutable",
+                            Simple::Byte::ExternalPointerFlow::Result) ||
+      !set_pointer_contract("ptr.external.borrowed.nullable.result.readonly",
+                            Simple::Byte::ExternalPointerFlow::Result)) {
+    if (error) *error = "failed to define external pointer contract metadata";
+    return false;
+  }
 
   auto parse_type_kind = [&](const std::string& kind_text,
                              Simple::Byte::TypeKind* out_kind,
@@ -1503,7 +1558,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     Simple::Byte::sbc::AppendU32(out->types_bytes, row.name_str);
     Simple::Byte::sbc::AppendU8(out->types_bytes, row.kind);
     Simple::Byte::sbc::AppendU8(out->types_bytes, row.flags);
-    Simple::Byte::sbc::AppendU16(out->types_bytes, 0);
+    Simple::Byte::sbc::AppendU16(out->types_bytes, row.reserved);
     Simple::Byte::sbc::AppendU32(out->types_bytes, row.size);
     Simple::Byte::sbc::AppendU32(out->types_bytes, row.field_start);
     Simple::Byte::sbc::AppendU32(out->types_bytes, row.field_count);

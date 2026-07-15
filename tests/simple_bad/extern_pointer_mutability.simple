@@ -1,5 +1,5 @@
 extern source :: () -> i32*
-extern write : (destination : i32*, value :: i32) -> void
+extern write : (destination : inout i32*, value :: i32) -> void
 
 main :: () -> i32 {
   pointer : i32* = source()

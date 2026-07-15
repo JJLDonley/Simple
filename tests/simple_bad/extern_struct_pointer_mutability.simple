@@ -3,7 +3,7 @@ View :: struct {
 }
 
 extern source : () -> View
-extern write : (destination : i32*) -> void
+extern write : (destination : inout i32*) -> void
 
 main :: () -> i32 {
   view : View = source()

@@ -436,6 +436,7 @@ bool VmRuntimeAbiValidatesExternalCSignatures() {
   using Simple::Byte::TypeKind;
   using Simple::Byte::TypeRow;
   using Simple::VM::Runtime::AbiPointerAccess;
+  using Simple::VM::Runtime::AbiPointerFlow;
   using Simple::VM::Runtime::AbiPointerOwnership;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
   using Simple::VM::Runtime::GetAggregateAbiTypeInfo;
@@ -450,14 +451,43 @@ bool VmRuntimeAbiValidatesExternalCSignatures() {
       Simple::Byte::kTypeFlagPointerExternal |
       Simple::Byte::kTypeFlagPointerBorrowed |
       Simple::Byte::kTypeFlagPointerReadOnly;
+  borrowed_pointer.reserved =
+      static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::Input) |
+      Simple::Byte::kExternalPointerLifetimeCall;
   const auto pointer = GetSbcTypeAbiTypeInfo(borrowed_pointer);
   std::string error;
   if (!pointer.pointer_value || !pointer.external_pointer ||
       pointer.pointer_access != AbiPointerAccess::ReadOnly ||
+      pointer.pointer_flow != AbiPointerFlow::Input ||
       pointer.pointer_ownership != AbiPointerOwnership::Borrowed ||
       !ValidateExternalCAbiTypeInfos(
           {pointer}, GetPrimitiveAbiTypeInfo(TypeKind::I64), &error) ||
       !error.empty()) {
+    return false;
+  }
+  TypeRow inout_pointer = borrowed_pointer;
+  inout_pointer.flags &= static_cast<uint8_t>(
+      ~Simple::Byte::kTypeFlagPointerReadOnly);
+  inout_pointer.reserved =
+      static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::InOut) |
+      Simple::Byte::kExternalPointerLifetimeCall;
+  TypeRow output_pointer = inout_pointer;
+  output_pointer.reserved =
+      static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::Output) |
+      Simple::Byte::kExternalPointerLifetimeCall;
+  const auto inout = GetSbcTypeAbiTypeInfo(inout_pointer);
+  const auto output = GetSbcTypeAbiTypeInfo(output_pointer);
+  TypeRow result_pointer = inout_pointer;
+  result_pointer.reserved =
+      static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::Result) |
+      Simple::Byte::kExternalPointerLifetimeScope;
+  const auto result = GetSbcTypeAbiTypeInfo(result_pointer);
+  if (inout.pointer_access != AbiPointerAccess::ReadWrite ||
+      inout.pointer_flow != AbiPointerFlow::InOut ||
+      output.pointer_access != AbiPointerAccess::WriteOnly ||
+      output.pointer_flow != AbiPointerFlow::Output ||
+      result.pointer_access != AbiPointerAccess::ReadWrite ||
+      result.pointer_flow != AbiPointerFlow::Result) {
     return false;
   }
 
@@ -629,6 +659,9 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
               Simple::Byte::kTypeFlagPointerBorrowed |
               Simple::Byte::kTypeFlagPointerFunction |
               Simple::Byte::kTypeFlagPointerReadOnly;
+  ptr.reserved =
+      static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::Input) |
+      Simple::Byte::kExternalPointerLifetimeCall;
   module.types.push_back(ptr);
   Simple::Byte::TypeRow point;
   point.kind = static_cast<uint8_t>(TypeKind::Unspecified);

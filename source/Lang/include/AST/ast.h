@@ -74,9 +74,16 @@ struct TypeRef {
   TypeRef& operator=(TypeRef&&) noexcept = default;
 };
 
+enum class ParamFlow : uint8_t {
+  Value,
+  InOut,
+  Output,
+};
+
 struct ParamDecl {
   std::string name;
   Mutability mutability = Mutability::Mutable;
+  ParamFlow flow = ParamFlow::Value;
   TypeRef type;
 };
 
