@@ -73,9 +73,7 @@ class LlvmJitBackend {
                                  const Simple::VM::ExecOptions* exec_options,
                                  Simple::VM::Interpreter::Slot& out_ret,
                                  bool& out_has_ret,
-                                 std::string& reason,
-                                 int32_t* ffi_errno = nullptr,
-                                 uint32_t* ffi_platform_error = nullptr) const;
+                                 std::string& reason) const;
 
  private:
   LlvmJitOptions options_;

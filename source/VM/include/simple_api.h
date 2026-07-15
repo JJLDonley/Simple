@@ -5,7 +5,7 @@
 
 namespace Simple::VM {
 constexpr uint16_t kRuntimeAbiVersionMajor = 1;
-constexpr uint16_t kRuntimeAbiVersionMinor = 11;
+constexpr uint16_t kRuntimeAbiVersionMinor = 12;
 } // namespace Simple::VM
 
 #if defined(_WIN32) || defined(__CYGWIN__)

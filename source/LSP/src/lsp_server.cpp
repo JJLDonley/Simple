@@ -1644,17 +1644,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
            refs[j + 1].token.kind != TK::DoubleColon)) continue;
       SimpleLspParamFact param;
       param.name = refs[j].token.text;
-      size_t type_index = j + 2;
-      std::string flow;
-      if (refs[j + 1].token.kind == TK::Colon &&
-          refs[type_index].token.kind == TK::Identifier &&
-          (refs[type_index].token.text == "inout" ||
-           refs[type_index].token.text == "out")) {
-        flow = refs[type_index].token.text;
-        ++type_index;
-      }
-      param.type = (flow.empty() ? std::string() : flow + " ") +
-                   BuildDeclaredTypeTextAt(refs, type_index);
+      param.type = BuildDeclaredTypeTextAt(refs, j + 2);
       param.immutable = refs[j + 1].token.kind == TK::DoubleColon;
       param.token_index = j;
       fact.params.push_back(std::move(param));
@@ -1698,17 +1688,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
            refs[j + 1].token.kind != TK::DoubleColon)) continue;
       SimpleLspParamFact param;
       param.name = refs[j].token.text;
-      size_t type_index = j + 2;
-      std::string flow;
-      if (refs[j + 1].token.kind == TK::Colon &&
-          refs[type_index].token.kind == TK::Identifier &&
-          (refs[type_index].token.text == "inout" ||
-           refs[type_index].token.text == "out")) {
-        flow = refs[type_index].token.text;
-        ++type_index;
-      }
-      param.type = (flow.empty() ? std::string() : flow + " ") +
-                   BuildDeclaredTypeTextAt(refs, type_index);
+      param.type = BuildDeclaredTypeTextAt(refs, j + 2);
       param.immutable = refs[j + 1].token.kind == TK::DoubleColon;
       param.token_index = j;
       fact.params.push_back(param);

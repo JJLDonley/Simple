@@ -36,16 +36,13 @@ without adding C-derived primitive or string types. Enums default to `i32` or de
 underlying type; that width and signedness are preserved in stable struct
 layouts and external calls.
 
-Immutable external pointers are input-only. Mutable external pointers require
-explicit `inout` or non-null `out` flow, encoded with call-duration lifetime in
-portable metadata. External nullable pointers use source `T*?`. The marshaler maps absent to C
+External nullable pointers use source `T*?`. The marshaler maps absent to C
 address zero and nonzero C addresses to present pointers without exposing a
 source null type. General tagged `T?`, Result, Promise, managed references, and
-closures have no implicit external-C representation. Calling conventions, aggregate layout, callback pointers, alignment, pointee
-mutability, provenance, ownership, and lifetime must be validated for the
-selected host ABI before a call executes. Explicit `capture(errno)` preserves
-signed C `errno` as `i32`; `capture(platform)` preserves the platform-native
-error code as `u32` (POSIX uses the nonnegative `errno` value).
+closures have no implicit external-C representation. Calling conventions,
+aggregate layout, callback pointers, alignment, pointee mutability, provenance,
+ownership, and lifetime must be validated for the selected host ABI before a
+call executes.
 
 Portable SBC does not encode a host address as a distributable constant. Raw
 external pointers are runtime-local borrowed values and cannot survive artifact

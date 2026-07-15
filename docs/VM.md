@@ -63,11 +63,6 @@ whose payload is traced according to its concrete type.
 
 ## Runtime ABI classifier
 
-External pointer type rows encode input, in/out, output, or result flow in the
-reserved contract word. Parameter pointers are call-duration; borrowed results
-are function-scope. Readonly parameters are input-only, and output destinations
-are non-null.
-
 VM pointers use generation-checked runtime descriptors rather than integer or
 managed-reference aliases. Local descriptors retain frame provenance, global
 descriptors retain global storage identity, and field descriptors root their
@@ -135,10 +130,6 @@ The synchronized transitional `PromiseRegistry` keeps pending, completed, failed
 The public experimental boundary carries only copied `i64` results and copied failure strings. Worker threads never access the heap, VM frames, globals, closures, or other resource handles. Native metadata marks job creation as host-allocating, `await` as blocking, and all async state boundaries as potential safepoints. See [Jobs and promises](Async.md).
 
 ## Dynamic libraries / FFI
-
-Native imports may request immediate `errno` and platform-error capture through
-verified import flags. Captured values are execution-local exact `i32` and
-`u32` values; unmarked imports leave them unchanged.
 
 `System.FFI` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime validates library handles, argument count and types, return shape, and ABI support. Recursive class ABI is rejected. Closing or shutting down the owning runtime releases the platform dynamic-library handle.
 

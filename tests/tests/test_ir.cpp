@@ -3624,7 +3624,7 @@ bool RunIrTextDuplicateExportFailsTest() {
 
 bool RunIrTextSirVersionDirectiveTest() {
   const char* text =
-      "sir version 3.4\n"
+      "sir version 3.5\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 10\n"

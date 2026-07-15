@@ -1,3 +1,0 @@
-extern fail : () -> i32 capture(errno)
-
-main :: () -> i32 { return 0 }

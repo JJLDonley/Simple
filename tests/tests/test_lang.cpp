@@ -475,11 +475,6 @@ bool LangSimpleFixtureCoreDlOpen() {
   return RunSimpleFileExpectExit("tests/simple/System_dl_open.simple", 1);
 }
 
-bool LangSimpleFixtureCoreDlErrorCapture() {
-  return RunSimpleFileExpectExit(
-      "tests/simple/System_dl_error_capture.simple", 1);
-}
-
 bool LangSimpleFixtureCoreDlOpenGlobal() {
   return RunSimpleFileExpectExit("tests/simple/System_dl_open_global.simple", 1);
 }
@@ -1014,7 +1009,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 3.4\n", 0) == 0 &&
+  return sir.rfind("sir version 3.5\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2263,7 +2258,7 @@ bool LangValidateExternRecursiveAggregateRejected() {
 bool LangValidateExternPointerCallOk() {
   const char* src =
       "Node :: struct { next: Node* }\n"
-      "extern C.walk : (head : inout Node*) -> Node*\n"
+      "extern C.walk : (head : Node*) -> Node*\n"
       "main : () -> i32 { return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -2364,10 +2359,6 @@ bool LangPointerLifetimeAndOperationErrors() {
       {"tests/simple_bad/extern_pointer_cast_mismatch.simple", "pointer cast requires identical pointee type or void pointer"},
       {"tests/simple_bad/pointer_index_unbounded.simple", "pointer indexing requires proven VM extent"},
       {"tests/simple_bad/extern_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
-      {"tests/simple_bad/extern_pointer_missing_flow.simple", "requires explicit inout or out flow"},
-      {"tests/simple_bad/extern_out_non_pointer.simple", "inout/out requires an extern pointer parameter"},
-      {"tests/simple_bad/extern_out_nullable.simple", "out pointer destination cannot be nullable"},
-      {"tests/simple_bad/non_extern_pointer_flow.simple", "inout/out parameter flow is only valid on extern declarations"},
       {"tests/simple_bad/extern_u8_string_conversion_mutable.simple", "managed string conversion requires an immutable external u8 pointer parameter"},
       {"tests/simple_bad/extern_u8_string_conversion_escape.simple", "pointer cast requires matching pointer depth"},
       {"tests/simple_bad/extern_optional_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
@@ -2406,43 +2397,39 @@ bool LangExternalU8StringLiteralContext() {
   }
 
   const char* mutable_param =
-      "extern ffi.mutate : (text : inout u8*) -> void\n"
+      "extern ffi.mutate : (text : u8*) -> void\n"
       "main :: () -> void { ffi.mutate(\"immutable\") }\n";
   if (Simple::Lang::ValidateProgramFromString(mutable_param, &error)) return false;
   return error.find("external u8 string literal requires an immutable external u8 pointer parameter") !=
          std::string::npos;
 }
 
-bool LangExternErrorCaptureSyntaxErrors() {
-  return Simple::VM::Tests::RunSimpleFileExpectError(
-             "tests/simple_bad/extern_capture_unknown.simple",
-             "extern capture expects 'errno' or 'platform'") &&
-         Simple::VM::Tests::RunSimpleFileExpectError(
-             "tests/simple_bad/extern_capture_duplicate.simple",
-             "duplicate extern error capture") &&
-         Simple::VM::Tests::RunSimpleFileExpectError(
-             "tests/simple_bad/extern_capture_unqualified.simple",
-             "native error capture requires a qualified extern module");
+bool LangRemovedExternContractsRejected() {
+  for (const char* source : {
+           "extern ffi.write : (value : inout i32*) -> void\n",
+           "extern ffi.write : (value : out i32*) -> void\n",
+           "extern ffi.fail : () -> i32 capture(errno)\n",
+       }) {
+    std::string error;
+    if (Simple::Lang::ValidateProgramFromString(source, &error)) return false;
+  }
+  return true;
 }
 
 bool LangExternalPointerContractsReachSir() {
   const char* src =
       "View :: struct { data :: i32* }\n"
-      "extern ffi.probe :: (input :: i32*, buffer : inout i32*, output : out i32**, "
-      "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32* "
-      "capture(errno, platform)\n"
+      "extern probe :: (input :: i32*, output : i32**, "
+      "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32*\n"
       "main :: () -> i32 { return 0 }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return sir.find("ptr.external.borrowed.readonly") != std::string::npos &&
-         sir.find("ptr.external.borrowed.inout") != std::string::npos &&
-         sir.find("ptr.external.borrowed.output") != std::string::npos &&
+         sir.find("ptr.external.borrowed.mutable") != std::string::npos &&
          sir.find("ptr.external.borrowed.nullable.readonly") !=
              std::string::npos &&
          sir.find("ptr.external.borrowed.function") != std::string::npos &&
-         sir.find("ptr.external.borrowed.result.readonly") != std::string::npos &&
-         sir.find("flags=3") != std::string::npos &&
          sir.find("field data ptr.external.borrowed.readonly") !=
              std::string::npos;
 }
@@ -3064,7 +3051,7 @@ bool LangValidateNamespaceExternManifestAndCall() {
     std::ofstream raylib(dir / "raylib.simple", std::ios::binary);
     raylib << "module Raylib\n"
            << "import System.FFI\n"
-           << "Raylib :: namespace { extern InitWindow : (w : i32, h : i32, title :: u8*?) -> void }\n"
+           << "Raylib :: namespace { extern InitWindow : (w : i32, h : i32, title : u8*?) -> void }\n"
            << "lib :: i64 = System.FFI.open(\"libraylib.so\", Raylib)\n";
   }
   {
@@ -4110,7 +4097,7 @@ const TestCase kLangTests[] = {
   {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
   {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
   {"lang_external_u8_string_literal_context", LangExternalU8StringLiteralContext},
-  {"lang_extern_error_capture_syntax_errors", LangExternErrorCaptureSyntaxErrors},
+  {"lang_removed_extern_contracts_rejected", LangRemovedExternContractsRejected},
   {"lang_external_pointer_contracts_reach_sir", LangExternalPointerContractsReachSir},
   {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
   {"lang_struct_managed_field_rejected", LangStructManagedFieldRejected},
@@ -4226,8 +4213,6 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
   {"lang_simple_fixture_System_dl_open", LangSimpleFixtureCoreDlOpen},
-  {"lang_simple_fixture_System_dl_error_capture",
-   LangSimpleFixtureCoreDlErrorCapture},
   {"lang_simple_fixture_System_dl_open_global", LangSimpleFixtureCoreDlOpenGlobal},
   {"lang_simple_fixture_float_literal_context", LangSimpleFixtureFloatLiteralContext},
   {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},

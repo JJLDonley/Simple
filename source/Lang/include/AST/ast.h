@@ -74,16 +74,9 @@ struct TypeRef {
   TypeRef& operator=(TypeRef&&) noexcept = default;
 };
 
-enum class ParamFlow : uint8_t {
-  Value,
-  InOut,
-  Output,
-};
-
 struct ParamDecl {
   std::string name;
   Mutability mutability = Mutability::Mutable;
-  ParamFlow flow = ParamFlow::Value;
   TypeRef type;
 };
 
@@ -247,8 +240,6 @@ struct ExternDecl {
   std::string module;
   bool has_module = false;
   Mutability return_mutability = Mutability::Immutable;
-  bool capture_errno = false;
-  bool capture_platform_error = false;
   TypeRef return_type;
   std::vector<ParamDecl> params;
 };

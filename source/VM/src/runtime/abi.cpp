@@ -122,32 +122,10 @@ AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row) {
         (row.flags & Simple::Byte::kTypeFlagPointerNullable) != 0u;
     info.function_pointer =
         (row.flags & Simple::Byte::kTypeFlagPointerFunction) != 0u;
-    const Simple::Byte::ExternalPointerFlow flow =
-        Simple::Byte::GetExternalPointerFlow(row);
-    if ((row.flags & Simple::Byte::kTypeFlagPointerReadOnly) != 0u) {
-      info.pointer_access = AbiPointerAccess::ReadOnly;
-    } else if (flow == Simple::Byte::ExternalPointerFlow::Output) {
-      info.pointer_access = AbiPointerAccess::WriteOnly;
-    } else {
-      info.pointer_access = AbiPointerAccess::ReadWrite;
-    }
-    switch (flow) {
-      case Simple::Byte::ExternalPointerFlow::Input:
-        info.pointer_flow = AbiPointerFlow::Input;
-        break;
-      case Simple::Byte::ExternalPointerFlow::InOut:
-        info.pointer_flow = AbiPointerFlow::InOut;
-        break;
-      case Simple::Byte::ExternalPointerFlow::Output:
-        info.pointer_flow = AbiPointerFlow::Output;
-        break;
-      case Simple::Byte::ExternalPointerFlow::Result:
-        info.pointer_flow = AbiPointerFlow::Result;
-        break;
-      case Simple::Byte::ExternalPointerFlow::None:
-        info.pointer_flow = AbiPointerFlow::None;
-        break;
-    }
+    info.pointer_access =
+        (row.flags & Simple::Byte::kTypeFlagPointerReadOnly) != 0u
+            ? AbiPointerAccess::ReadOnly
+            : AbiPointerAccess::Mutable;
     info.pointer_ownership = AbiPointerOwnership::Borrowed;
   }
   return info;

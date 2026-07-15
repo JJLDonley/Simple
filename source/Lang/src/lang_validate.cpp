@@ -4459,10 +4459,6 @@ bool CheckFunctionBody(const FuncDecl& fn,
   const bool return_is_void = fn.return_type.name == "void";
   if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
-    if (param.flow != ParamFlow::Value) {
-      if (error) *error = "inout/out parameter flow is only valid on extern declarations";
-      return false;
-    }
     if (!CheckUniqueParamName(param.name, &param_names, "duplicate parameter name: ", error)) return false;
     if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
     LocalInfo info;
@@ -4718,13 +4714,6 @@ static bool ValidateProgramImpl(
         break;
       case DeclKind::Extern:
         {
-          if ((decl.ext.capture_errno || decl.ext.capture_platform_error) &&
-              !decl.ext.has_module) {
-            if (error) {
-              *error = "native error capture requires a qualified extern module";
-            }
-            return false;
-          }
           std::unordered_set<std::string> param_names;
           std::unordered_set<std::string> type_params;
           if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
@@ -4738,28 +4727,6 @@ static bool ValidateProgramImpl(
           }
           for (const auto& param : decl.ext.params) {
             if (!CheckUniqueParamName(param.name, &param_names, "duplicate extern parameter name: ", error)) return false;
-            const bool pointer_parameter = IsRawPointerShape(param.type);
-            if (!pointer_parameter && param.flow != ParamFlow::Value) {
-              if (error) *error = "inout/out requires an extern pointer parameter";
-              return false;
-            }
-            if (pointer_parameter && param.mutability == Mutability::Mutable &&
-                param.flow == ParamFlow::Value) {
-              if (error) {
-                *error = "mutable extern pointer parameter requires explicit inout or out flow";
-              }
-              return false;
-            }
-            if (pointer_parameter && param.mutability == Mutability::Immutable &&
-                param.flow != ParamFlow::Value) {
-              if (error) *error = "immutable extern pointer parameter is input-only";
-              return false;
-            }
-            if (param.flow == ParamFlow::Output &&
-                TAST::IsOptionalType(param.type)) {
-              if (error) *error = "out pointer destination cannot be nullable";
-              return false;
-            }
             if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (!CheckExternAbiType(param.type,
                                     ctx.enum_types,

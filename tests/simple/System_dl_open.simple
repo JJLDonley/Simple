@@ -36,8 +36,6 @@ EnumPacket :: struct {
 extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32
 extern ffi.simple_u8_length : (text :: u8*) -> i32
 extern ffi.simple_bool_not : (value :: bool) -> bool
-extern ffi.simple_fail_errno : (code : i32) -> i32 capture(errno)
-extern ffi.simple_fail_platform : (code : u32) -> i32 capture(platform)
 extern ffi.simple_apply_i32 : (callback :: (fn (i32, i32) -> i32)*, a : i32, b : i32) -> i32
 extern ffi.simple_add_i8 : (a : i8, b : i8) -> i8
 extern ffi.simple_add_i16 : (a : i16, b : i16) -> i16
@@ -54,9 +52,9 @@ extern ffi.simple_add_usize : (a : usize, b : usize) -> usize
 extern ffi.simple_add_isize : (a : isize, b : isize) -> isize
 extern ffi.simple_i32_pointer : () -> i32*
 extern ffi.simple_maybe_i32_pointer : (present : i32) -> i32*?
-extern ffi.simple_write_i32_pointer : (pointer : out i32*, value :: i32) -> void
+extern ffi.simple_write_i32_pointer : (pointer : i32*, value :: i32) -> void
 extern ffi.simple_i32_pointer_slot : () -> i32**
-extern ffi.simple_write_i32_pointer_slot : (destination : out i32**, value :: i32*) -> void
+extern ffi.simple_write_i32_pointer_slot : (destination : i32**, value :: i32*) -> void
 extern ffi.simple_read_i32_pointer_slot : (slot :: i32**) -> i32
 extern ffi.simple_i32_view : () -> I32View
 extern ffi.simple_read_i32_view : (view :: I32View) -> i32
@@ -75,12 +73,6 @@ main :: () -> i32 {
   if (library.simple_u8_length(@u8*(managed_text)) != 16) { return 0 }
   if (!library.simple_bool_not(false)) { return 0 }
   if (library.simple_bool_not(true)) { return 0 }
-  if (library.simple_fail_errno(34) != -1) { return 0 }
-  if (System.FFI.errno() != 34) { return 0 }
-  if (library.simple_add_i32(1, 1) != 2) { return 0 }
-  if (System.FFI.errno() != 34) { return 0 }
-  if (library.simple_fail_platform(87) != -1) { return 0 }
-  if (System.FFI.platformError() != 87) { return 0 }
   if (library.simple_add_i8(60, 7) != 67) { return 0 }
   if (library.simple_add_i16(200, 44) != 244) { return 0 }
   if (library.simple_add_u8(100, 23) != 123) { return 0 }

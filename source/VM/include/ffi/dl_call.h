@@ -53,9 +53,6 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                            const std::vector<Simple::VM::Interpreter::Slot>& args,
                            size_t arg_base,
                            Heap& heap,
-                           uint32_t capture_flags,
-                           int32_t* captured_errno,
-                           uint32_t* captured_platform_error,
                            Simple::VM::Interpreter::Slot* out_ret,
                            std::string* out_error);
 

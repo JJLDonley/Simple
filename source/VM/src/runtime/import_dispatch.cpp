@@ -19,8 +19,6 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                               Simple::VM::Native::NativeResourceRegistry& resource_registry,
                               const std::shared_ptr<PromiseRegistry>& promise_registry,
                               std::string& dl_last_error,
-                              int32_t& ffi_errno,
-                              uint32_t& ffi_platform_error,
                               uint32_t func_id,
                               const std::vector<Slot>& args,
                               Slot& out_ret,
@@ -94,8 +92,6 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
   native_context.argv = &options.argv;
   native_context.file_handles = &file_handles;
   native_context.dl_last_error = &dl_last_error;
-  native_context.ffi_errno = &ffi_errno;
-  native_context.ffi_platform_error = &ffi_platform_error;
   native_context.resource_registry = &resource_registry;
   native_context.promise_registry = promise_registry;
   native_context.capability_policy = &options.capability_policy;
@@ -196,9 +192,6 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                                                   marshaled_args,
                                                   1,
                                                   heap,
-                                                  row.flags,
-                                                  &ffi_errno,
-                                                  &ffi_platform_error,
                                                   &out_ret,
                                                   &out_error)) {
         return false;

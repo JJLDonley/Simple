@@ -202,6 +202,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
       if ((row.flags & ~kTypeFlagsKnownMask) != 0u) return Fail("type flags invalid");
+      if (!IsOpaqueHandleType(row) && row.reserved != 0) return Fail("type reserved invalid");
       if (row.kind > static_cast<uint8_t>(TypeKind::USize)) return Fail("type kind invalid");
       auto kind = static_cast<TypeKind>(row.kind);
       const uint8_t pointer_flags = static_cast<uint8_t>(
@@ -220,33 +221,6 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       }
       if (!external_pointer && pointer_flags != 0u) {
         return Fail("pointer contract flags require external pointer");
-      }
-      if (IsOpaqueHandleType(row)) {
-        // The reserved word carries the native resource kind id.
-      } else if (external_pointer) {
-        if ((row.reserved & ~kExternalPointerContractKnownMask) != 0u ||
-            GetExternalPointerFlow(row) == ExternalPointerFlow::None ||
-            (!HasCallDurationPointerLifetime(row) &&
-             !HasScopePointerLifetime(row))) {
-          return Fail("external pointer contract metadata invalid");
-        }
-        const ExternalPointerFlow flow = GetExternalPointerFlow(row);
-        if ((pointer_flags & kTypeFlagPointerReadOnly) != 0u &&
-            flow != ExternalPointerFlow::Input &&
-            flow != ExternalPointerFlow::Result) {
-          return Fail("readonly external pointer flow invalid");
-        }
-        if ((pointer_flags & kTypeFlagPointerNullable) != 0u &&
-            flow == ExternalPointerFlow::Output) {
-          return Fail("output external pointer cannot be nullable");
-        }
-        if (flow == ExternalPointerFlow::Result
-                ? !HasScopePointerLifetime(row)
-                : !HasCallDurationPointerLifetime(row)) {
-          return Fail("external pointer flow lifetime invalid");
-        }
-      } else if (row.reserved != 0u) {
-        return Fail("type reserved invalid");
       }
       const uint8_t layout_flags = static_cast<uint8_t>(row.flags &
           (kTypeFlagManagedClass | kTypeFlagStableStruct | kTypeFlagOpaqueHandle));
@@ -884,9 +858,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         return Fail("import symbol name offset invalid");
       }
       if (row.sig_id >= module.sigs.size()) return Fail("import signature id out of range");
-      if ((row.flags & ~kImportFlagsKnownMask) != 0u) {
-        return Fail("import flags invalid");
-      }
+      if ((row.flags & ~0x000Fu) != 0u) return Fail("import flags invalid");
       std::string mod = ReadStringAt(module.const_pool, row.module_name_str);
       std::string sym = ReadStringAt(module.const_pool, row.symbol_name_str);
       std::string key = mod + '\0' + sym;

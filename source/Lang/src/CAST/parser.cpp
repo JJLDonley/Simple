@@ -422,19 +422,12 @@ bool Parser::ParseDecl(Decl* out) {
     TypeRef return_type;
     std::vector<ParamDecl> params;
     if (!ParseCallableSignature(&return_type, &params)) return false;
-    bool capture_errno = false;
-    bool capture_platform_error = false;
-    if (!ParseExternErrorCapture(&capture_errno, &capture_platform_error)) {
-      return false;
-    }
     if (out) {
       out->kind = DeclKind::Extern;
       out->ext.name = extern_name;
       out->ext.module = module_name;
       out->ext.has_module = has_module;
       out->ext.return_mutability = mut;
-      out->ext.capture_errno = capture_errno;
-      out->ext.capture_platform_error = capture_platform_error;
       out->ext.return_type = std::move(return_type);
       out->ext.params = std::move(params);
     }
@@ -793,19 +786,12 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
     TypeRef return_type;
     std::vector<ParamDecl> params;
     if (!ParseCallableSignature(&return_type, &params)) return false;
-    bool capture_errno = false;
-    bool capture_platform_error = false;
-    if (!ParseExternErrorCapture(&capture_errno, &capture_platform_error)) {
-      return false;
-    }
     if (out) {
       ExternDecl ext;
       ext.name = extern_name;
       ext.module = has_module ? module_name : out->name;
       ext.has_module = true;
       ext.return_mutability = mut;
-      ext.capture_errno = capture_errno;
-      ext.capture_platform_error = capture_platform_error;
       ext.return_type = std::move(return_type);
       ext.params = std::move(params);
       out->externs.push_back(std::move(ext));
@@ -939,44 +925,6 @@ bool Parser::ParseCallableSignature(TypeRef* return_type,
   return ParseTypeInner(return_type);
 }
 
-bool Parser::ParseExternErrorCapture(bool* capture_errno,
-                                     bool* capture_platform_error) {
-  if (!capture_errno || !capture_platform_error) return false;
-  *capture_errno = false;
-  *capture_platform_error = false;
-  if (Peek().kind != TokenKind::Identifier || Peek().text != "capture" ||
-      Peek().line != LastTokenLine()) {
-    return true;
-  }
-  Advance();
-  if (!Match(TokenKind::LParen)) {
-    error_ = "expected '(' after extern capture";
-    return false;
-  }
-  for (;;) {
-    const Token& kind = Peek();
-    if (kind.kind != TokenKind::Identifier ||
-        (kind.text != "errno" && kind.text != "platform")) {
-      error_ = "extern capture expects 'errno' or 'platform'";
-      return false;
-    }
-    bool* target = kind.text == "errno" ? capture_errno
-                                         : capture_platform_error;
-    if (*target) {
-      error_ = "duplicate extern error capture: " + kind.text;
-      return false;
-    }
-    *target = true;
-    Advance();
-    if (Match(TokenKind::Comma)) continue;
-    if (!Match(TokenKind::RParen)) {
-      error_ = "expected ',' or ')' after extern error capture";
-      return false;
-    }
-    return true;
-  }
-}
-
 bool Parser::ParseParam(ParamDecl* out) {
   const Token& name_tok = Peek();
   if (name_tok.kind != TokenKind::Identifier) {
@@ -998,17 +946,10 @@ bool Parser::ParseParam(ParamDecl* out) {
     error_ = "expected ':' or '::' after parameter name";
     return false;
   }
-  ParamFlow flow = ParamFlow::Value;
-  if (mut == Mutability::Mutable && Peek().kind == TokenKind::Identifier &&
-      (Peek().text == "inout" || Peek().text == "out")) {
-    flow = Peek().text == "out" ? ParamFlow::Output : ParamFlow::InOut;
-    Advance();
-  }
   TypeRef type;
   if (!ParseTypeInner(&type)) return false;
   out->name = name_tok.text;
   out->mutability = mut;
-  out->flow = flow;
   out->type = std::move(type);
   return true;
 }

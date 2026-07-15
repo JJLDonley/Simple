@@ -128,15 +128,11 @@ program        = module-header-decl { import-decl | using-decl | extern-decl | t
 module-header-decl   = "module" qualified-name ;
 import-decl    = "import" ( qualified-name | string-literal ) [ "as" ident ] ;
 using-decl     = "using" qualified-name ;
-extern-decl    = "extern" [ qualified-name ] function-signature
-                 [ "capture" "(" error-kind { "," error-kind } ")" ] ;
-error-kind     = "errno" | "platform" ;
+extern-decl    = "extern" [ qualified-name ] function-signature ;
 top-decl       = var-decl | func-decl | class-decl | struct-decl | namespace-decl | enum-decl ;
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
 func-decl      = ident (":" | "::") [ "async" ] "(" [ params ] ")" "->" type block ;
-params         = param { "," param } ;
-param          = ident ( "::" type | ":" [ "inout" | "out" ] type ) ;
 class-decl     = ident "::" "class" "{" { field-decl | func-decl } "}" ;
 struct-decl    = ident "::" "struct" "{" { field-decl } "}" ;
 namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
@@ -689,10 +685,9 @@ underlying types and their canonical external-C lowering advance syntax to
 4.1 and SIR to 3.1; SBC, opcode metadata, and the runtime ABI remain unchanged.
 Scoped managed-string conversion to immutable external `u8*` advances SIR to
 3.2, SBC to 9, opcode metadata to 7, and the runtime ABI to 1.9; source syntax
-remains 4.1. Explicit external pointer `inout`/`out` flow advances syntax to
-4.2, SIR to 3.3, SBC to 10, and the runtime ABI to 1.10; opcode metadata
-remains 7. Explicit immediate native-error capture advances syntax to 4.3,
-SIR to 3.4, SBC to 11, and the runtime ABI to 1.11; opcode metadata remains 7.
+remains 4.1. Removing the experimental external pointer-flow and error-capture contracts restores the minimal `:`/`::` pointer surface and advances syntax to
+4.4, SIR to 3.5, SBC to 12, and the runtime ABI to 1.12; opcode metadata
+remains 7.
 
 ### `v0.6` generic design
 
@@ -1807,10 +1802,9 @@ pointer forms. Casts use explicit `@Target(pointer)` syntax and preserve
 optionality and mutability; only ABI-compatible typed-pointer/`void*`
 conversions are accepted.
 
-Declaration markers and explicit flow carry pointer access into provenance and
-extern metadata. An immutable `::` pointer parameter is input/read-only.
-Mutable extern pointers must state `inout` or `out`; mutable pointer flow is
-never inferred silently. `out` destinations must be non-null:
+Declaration markers carry pointer mutability into provenance and extern
+metadata. An immutable `::` pointer parameter cannot be used to modify its
+pointee; mutable `:` permits native code to modify the pointee:
 
 ```simple
 extern ffi.findByte : (
@@ -1820,16 +1814,14 @@ extern ffi.findByte : (
 ) -> u8*?
 
 extern ffi.copyBytes : (
-  destination : out u8*,
+  destination : u8*,
   source :: u8*,
   count :: usize
 ) -> void
 ```
 
-Use `inout` when native code may read the pointee before writing it. Flow
-markers are rejected on non-pointer or non-extern parameters. The compiler
-rejects writes through immutable provenance even if a later alias uses a
-mutable binding.
+The compiler rejects writes through immutable provenance even if a later alias
+uses a mutable binding.
 
 ### Pointer lifetime and ownership
 
@@ -1839,8 +1831,7 @@ escape through a return, global, heap field, closure, worker thread, callback,
 or async suspension unless explicit pin/static/owner metadata proves the full
 lifetime. Moving managed storage cannot be addressed without pinning.
 
-External pointer results are borrowed with function-scope lifetime metadata;
-parameter pointers are call-duration. The compiler rejects result escape through
+External pointer results are borrowed. The compiler rejects their escape through
 Simple returns, globals, managed class fields, closures, and async suspension.
 The stable v0.6 surface has no owning-raw-pointer declaration: memory requiring
 a deallocator must use a typed generational resource handle whose metadata names
@@ -1866,22 +1857,6 @@ An unbounded foreign pointer is pass/compare/round-trip only. External C remains
 capability-gated because a lying host ABI cannot be made memory-safe by source
 types, but malformed declarations and known lifetime/nullability violations are
 rejected before execution.
-
-### Native error capture
-
-External declarations opt into immediate error capture explicitly:
-
-```simple
-extern ffi.read : (fd : i32, data : out u8*, size : usize) -> isize capture(errno)
-extern ffi.platformCall : () -> i32 capture(platform)
-```
-
-`System.FFI.errno()` returns the captured `i32`; `System.FFI.platformError()`
-returns the captured platform-native code as `u32`. Capture occurs immediately
-around the native call before return unmarshalling can overwrite thread-local
-error state. Unmarked calls leave the previous captured values unchanged.
-Capture requires a qualified external module. Duplicate or unknown capture
-kinds are rejected.
 
 ## Diagnostics
 

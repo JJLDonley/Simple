@@ -288,9 +288,7 @@ std::vector<uint8_t> BuildTypesI32RefStringI64ExternalPtrs() {
     AppendU32(types, 0);
     AppendU8(types, static_cast<uint8_t>(Simple::Byte::TypeKind::Ptr));
     AppendU8(types, flags);
-    AppendU16(types,
-              static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::Input) |
-                  Simple::Byte::kExternalPointerLifetimeCall);
+    AppendU16(types, 0);
     AppendU32(types, 8);
     AppendU32(types, 0);
     AppendU32(types, 0);

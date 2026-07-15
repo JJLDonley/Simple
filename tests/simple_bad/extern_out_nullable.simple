@@ -1,3 +1,0 @@
-extern produce : (value : out i32*?) -> void
-
-main :: () -> i32 { return 0 }

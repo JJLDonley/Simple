@@ -1,4 +1,4 @@
-extern consume : (value : inout i32*) -> void
+extern consume : (value : i32*) -> void
 
 global_value : i32 = 1
 

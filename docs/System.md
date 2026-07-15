@@ -87,13 +87,6 @@ compatibility facades. Planned read-only editor definitions are described in
 [Library pseudo-sources](library/README.md), with a representative
 [`System.Job`](library/System.Job.md) definition.
 
-## Native error state
-
-`System.FFI.errno() -> i32` and `System.FFI.platformError() -> u32` expose only
-values requested by an extern declaration's `capture(errno)` or
-`capture(platform)` contract. Capture is immediate and execution-local;
-ordinary FFI calls do not silently reset either value.
-
 ## Migration rule
 
 Short imports are rejected. Public code must use:

@@ -12698,13 +12698,12 @@ std::vector<uint8_t> BuildBadImportCallParamVerifyModule() {
 }
 
 std::vector<uint8_t> BuildTypeFlagsLoadModule(Simple::Byte::TypeKind kind,
-                                              uint8_t flags,
-                                              uint16_t reserved = 0) {
+                                              uint8_t flags) {
   std::vector<uint8_t> types;
   AppendU32(types, 0);
   AppendU8(types, static_cast<uint8_t>(kind));
   AppendU8(types, flags);
-  AppendU16(types, reserved);
+  AppendU16(types, 0);
   AppendU32(types, kind == Simple::Byte::TypeKind::I32 ? 4 : 8);
   AppendU32(types, 0);
   AppendU32(types, 0);
@@ -16170,13 +16169,13 @@ bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 4);
   static_assert(Simple::Lang::kSirVersionMajor == 3);
   static_assert(Simple::Lang::kStdlibVersionMajor == 2);
-  static_assert(Simple::Byte::kSbcVersion == 0x000Bu);
+  static_assert(Simple::Byte::kSbcVersion == 0x000Cu);
   static_assert(Simple::Byte::kOpcodeMetadataVersion == 7);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 3 &&
-         Simple::Lang::kSirVersionMinor == 4 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 4 &&
+         Simple::Lang::kSirVersionMinor == 5 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 11;
+         Simple::VM::kRuntimeAbiVersionMinor == 12;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {
@@ -18720,27 +18719,6 @@ bool RunExternalPointerRequiresBorrowLoadTest() {
       "RunExternalPointerRequiresBorrowLoadTest");
 }
 
-bool RunExternalPointerFlowMetadataLoadTest() {
-  constexpr uint8_t kExternalBorrowed =
-      Simple::Byte::kTypeFlagPointerExternal |
-      Simple::Byte::kTypeFlagPointerBorrowed;
-  const uint16_t output_call =
-      static_cast<uint16_t>(Simple::Byte::ExternalPointerFlow::Output) |
-      Simple::Byte::kExternalPointerLifetimeCall;
-  return RunExpectLoadFail(
-             BuildTypeFlagsLoadModule(
-                 Simple::Byte::TypeKind::Ptr,
-                 kExternalBorrowed | Simple::Byte::kTypeFlagPointerReadOnly,
-                 output_call),
-             "RunReadonlyOutputPointerLoadTest") &&
-         RunExpectLoadFail(
-             BuildTypeFlagsLoadModule(
-                 Simple::Byte::TypeKind::Ptr,
-                 kExternalBorrowed | Simple::Byte::kTypeFlagPointerNullable,
-                 output_call),
-             "RunNullableOutputPointerLoadTest");
-}
-
 bool RunBadTypeKindRefSizeLoadTest() {
   return RunExpectLoadFail(BuildBadTypeKindRefSizeLoadModule(), "RunBadTypeKindRefSizeLoadTest");
 }
@@ -20456,7 +20434,6 @@ static const TestCase kCoreTests[] = {
   {"bad_type_kind_size_load", RunBadTypeKindSizeLoadTest},
   {"pointer_flags_require_pointer_type_load", RunPointerFlagsRequirePointerTypeLoadTest},
   {"external_pointer_requires_borrow_load", RunExternalPointerRequiresBorrowLoadTest},
-  {"external_pointer_flow_metadata_load", RunExternalPointerFlowMetadataLoadTest},
   {"bad_type_kind_ref_size_load", RunBadTypeKindRefSizeLoadTest},
   {"bad_type_kind_fields_load", RunBadTypeKindFieldsLoadTest},
   {"bad_type_kind_ref_fields_load", RunBadTypeKindRefFieldsLoadTest},
