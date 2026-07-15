@@ -1,0 +1,5 @@
+Tiny :: enum : i8 {
+  TooLarge = 128
+}
+
+main :: () -> i32 { return 0 }

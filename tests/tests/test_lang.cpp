@@ -1009,7 +1009,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 3.0\n", 0) == 0 &&
+  return sir.rfind("sir version 3.1\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -1277,6 +1277,25 @@ bool LangSimpleBadEnumUnqualified() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "tests/simple_bad/enum_unqualified.simple",
       "enum");
+}
+
+bool LangSimpleEnumUnderlying() {
+  return RunSimpleFileExpectExit("tests/simple/enum_underlying.simple", 0);
+}
+
+bool LangSimpleBadEnumInvalidUnderlying() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "tests/simple_bad/enum_invalid_underlying.simple", "fixed-width integer");
+}
+
+bool LangSimpleBadEnumValueOutOfRange() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "tests/simple_bad/enum_value_out_of_range.simple", "out of range");
+}
+
+bool LangSimpleBadEnumNegativeUnsigned() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "tests/simple_bad/enum_negative_unsigned.simple", "signed underlying type");
 }
 
 bool LangSimpleBadBreakOutsideLoop() {
@@ -4233,6 +4252,10 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_import_unknown", LangSimpleBadImportUnknown},
   {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
   {"lang_simple_bad_enum_unknown_member", LangSimpleBadEnumUnknownMember},
+  {"lang_simple_enum_underlying", LangSimpleEnumUnderlying},
+  {"lang_simple_bad_enum_invalid_underlying", LangSimpleBadEnumInvalidUnderlying},
+  {"lang_simple_bad_enum_value_out_of_range", LangSimpleBadEnumValueOutOfRange},
+  {"lang_simple_bad_enum_negative_unsigned", LangSimpleBadEnumNegativeUnsigned},
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_module_var_access", LangSimpleModuleVarAccess},
   {"lang_simple_bad_self_outside_aggregate", LangSimpleBadSelfOutsideAggregate},

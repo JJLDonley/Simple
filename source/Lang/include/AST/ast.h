@@ -220,6 +220,7 @@ struct EnumMember {
 
 struct EnumDecl {
   std::string name;
+  TypeRef underlying_type;
   std::vector<EnumMember> members;
 };
 

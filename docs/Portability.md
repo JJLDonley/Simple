@@ -30,7 +30,9 @@ The `v0.6` language contract keeps portable SBC values separate from host C ABI
 marshaling. `usize`/`isize` carry pointer-width ABI intent and are range-checked
 when lowered for the host; pointers are never represented in source as
 `i64`/`u64`. Fixed-width Simple integers map only to matching fixed-width C
-integers.
+integers. Enums default to `i32` or declare an exact fixed-width integer
+underlying type; that width and signedness are preserved in stable struct
+layouts and external calls.
 
 External nullable pointers use source `T*?`. The marshaler maps absent to C
 address zero and nonzero C addresses to present pointers without exposing a

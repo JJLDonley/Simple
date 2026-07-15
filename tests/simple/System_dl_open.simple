@@ -13,6 +13,26 @@ I32View :: struct {
   length :: usize
 }
 
+Code :: enum : u8 {
+  Idle = 1,
+  Ready = 2
+}
+
+WideCode :: enum : u32 {
+  Start = 4294967294,
+  End = 4294967295
+}
+
+Delta :: enum : i16 {
+  Backward = -7,
+  Forward = 9
+}
+
+EnumPacket :: struct {
+  code : Code
+  delta : Delta
+}
+
 extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32
 extern ffi.simple_cstr_length : (text :: u8*) -> i32
 extern ffi.simple_bool_not : (value :: bool) -> bool
@@ -23,6 +43,8 @@ extern ffi.simple_add_u8 : (a : u8, b : u8) -> u8
 extern ffi.simple_add_u16 : (a : u16, b : u16) -> u16
 extern ffi.simple_add_u32 : (a : u32, b : u32) -> u32
 extern ffi.simple_add_u64 : (a : u64, b : u64) -> u64
+extern ffi.simple_enum_next : (value : Code) -> Code
+extern ffi.simple_enum_packet_sum : (packet : EnumPacket) -> i32
 extern ffi.simple_mix_i32_f64 : (a : i32, b : f64) -> f64
 extern ffi.simple_sink_i32 : (value : i32) -> void
 extern ffi.simple_color_sum : (color : Color) -> i32
@@ -55,6 +77,10 @@ main :: () -> i32 {
   if (library.simple_add_u16(400, 23) != 423) { return 0 }
   if (library.simple_add_u32(1000, 23) != 1023) { return 0 }
   if (library.simple_add_u64(5000, 23) != 5023) { return 0 }
+  if (library.simple_enum_next(Code.Idle) != Code.Ready) { return 0 }
+  packet : EnumPacket = { Code.Ready, Delta.Backward }
+  if (library.simple_enum_packet_sum(packet) != -5) { return 0 }
+  if (WideCode.End == WideCode.Start) { return 0 }
   if (library.simple_mix_i32_f64(3, 0.5) != 3.5) { return 0 }
   library.simple_sink_i32(42)
 

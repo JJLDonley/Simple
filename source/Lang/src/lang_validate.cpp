@@ -29,6 +29,7 @@ namespace {
 struct ValidateContext {
   std::unordered_set<std::string> enum_members;
   std::unordered_set<std::string> enum_types;
+  std::unordered_map<std::string, TypeRef> enum_underlying_types;
   std::unordered_map<std::string, std::unordered_set<std::string>> enum_members_by_type;
   std::unordered_set<std::string> top_level;
   std::unordered_map<std::string, const AggregateDecl*> aggregates;
@@ -305,6 +306,8 @@ using RAST::CheckUsingImportHasPriorAlias;
 using TAST::CheckArrayListLiteralTargetShape;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckEnumMemberValue;
+using TAST::IsCanonicalEnumUnderlyingType;
+using TAST::ParseCanonicalEnumValue;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckReturnStmtValuePresence;
@@ -2821,9 +2824,14 @@ bool ValidateExprAgainstExpected(
   }
   if (expr.kind == ExprKind::Member && !expr.children.empty() &&
       expr.children[0].kind == ExprKind::Identifier &&
-      ctx.enum_types.find(expr.children[0].text) != ctx.enum_types.end() &&
-      (expected.name == expr.children[0].text || expected.name == "i32")) {
-    return CheckExpr(expr, ctx, scopes, current_aggregate, error);
+      ctx.enum_types.find(expr.children[0].text) != ctx.enum_types.end()) {
+    const std::string& enum_name = expr.children[0].text;
+    const auto underlying = ctx.enum_underlying_types.find(enum_name);
+    if (expected.name == enum_name ||
+        (underlying != ctx.enum_underlying_types.end() &&
+         TypeEquals(expected, underlying->second))) {
+      return CheckExpr(expr, ctx, scopes, current_aggregate, error);
+    }
   }
   if (!CheckExpr(expr, ctx, scopes, current_aggregate, error)) return false;
   TypeRef actual;
@@ -4513,15 +4521,35 @@ static bool ValidateProgramImpl(
       case DeclKind::Enum:
         name_ptr = &decl.enm.name;
         {
+          if (!IsCanonicalEnumUnderlyingType(decl.enm.underlying_type)) {
+            if (error) *error = "enum underlying type must be a fixed-width integer";
+            return false;
+          }
           std::unordered_set<std::string> local_members;
           for (const auto& member : decl.enm.members) {
             if (!CheckEnumMemberValue(member, error)) return false;
+            uint64_t value = 0;
+            if (!ParseCanonicalEnumValue(member.value_text,
+                                         decl.enm.underlying_type,
+                                         &value, error)) {
+              if (error && !error->empty()) {
+                *error = "invalid enum member '" + decl.enm.name + "." +
+                         member.name + "': " + *error;
+              }
+              return false;
+            }
             if (!CheckUniqueNamedMember(member.name, &local_members, "duplicate enum member: ", error)) return false;
             ctx.enum_members.insert(member.name);
           }
           ctx.enum_members_by_type[decl.enm.name] = std::move(local_members);
         }
         ctx.enum_types.insert(decl.enm.name);
+        {
+          TypeRef underlying_type;
+          if (!CloneTypeRef(decl.enm.underlying_type, &underlying_type)) return false;
+          ctx.enum_underlying_types.emplace(decl.enm.name,
+                                            std::move(underlying_type));
+        }
         break;
       case DeclKind::Aggregate:
         name_ptr = &decl.aggregate.name;

@@ -1,0 +1,23 @@
+ByteCode :: enum : u8 {
+  Zero = 0,
+  Maximum = 255
+}
+
+SignedCode :: enum : i16 {
+  Minimum = -32768,
+  Maximum = 32767
+}
+
+WideCode :: enum : u64 {
+  Maximum = 18446744073709551615
+}
+
+main :: () -> i32 {
+  byte : ByteCode = ByteCode.Maximum
+  signed : SignedCode = SignedCode.Minimum
+  wide : WideCode = WideCode.Maximum
+  if (byte != ByteCode.Maximum) { return 1 }
+  if (signed != SignedCode.Minimum) { return 2 }
+  if (wide != WideCode.Maximum) { return 3 }
+  return 0
+}

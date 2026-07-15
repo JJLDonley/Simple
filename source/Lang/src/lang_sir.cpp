@@ -23,6 +23,7 @@
 #include "TAST/types.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
+#include "TAST/statements.h"
 #include "intrinsic_ids.h"
 
 namespace Simple::Lang {
@@ -109,7 +110,8 @@ struct EmitState {
 
   std::unordered_map<std::string, const AggregateDecl*> aggregates;
   std::unordered_map<std::string, AggregateLayout> aggregate_layouts;
-  std::unordered_map<std::string, std::unordered_map<std::string, int64_t>> enum_values;
+  std::unordered_map<std::string, std::unordered_map<std::string, uint64_t>> enum_values;
+  std::unordered_map<std::string, TypeRef> enum_underlying_types;
 
   uint32_t temp_counter = 0;
   struct AbiFieldPath {
@@ -181,6 +183,9 @@ bool EmitExpr(EmitState& st,
               const Expr& expr,
               const TypeRef* expected,
               std::string* error);
+
+const std::string* EnumSirTypeName(const EmitState& st,
+                                   const std::string& name);
 
 bool IsIntegerLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
@@ -263,8 +268,8 @@ bool CollectAbiFieldsForAggregate(const std::string& name,
     item.path.push_back(field.name);
     if (!CloneTypeRef(field.type, &item.type)) return false;
     item.mutability = field.mutability;
-    if (st.enum_values.find(item.type.name) != st.enum_values.end()) {
-      item.type.name = "i32";
+    if (const std::string* underlying = EnumSirTypeName(st, item.type.name)) {
+      item.type.name = *underlying;
       item.type.type_args.clear();
       item.type.dims.clear();
       item.type.pointer_depth = 0;
@@ -731,30 +736,6 @@ std::string EscapeStringLiteral(const std::string& value, std::string* error) {
   return out;
 }
 
-bool ParseIntegerLiteralText(const std::string& text, int64_t* out) {
-  if (!out) return false;
-  try {
-    if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
-      *out = static_cast<int64_t>(std::stoull(text.substr(2), nullptr, 16));
-      return true;
-    }
-    if (text.size() > 2 && text[0] == '0' && (text[1] == 'b' || text[1] == 'B')) {
-      uint64_t value = 0;
-      for (size_t i = 2; i < text.size(); ++i) {
-        char c = text[i];
-        if (c != '0' && c != '1') return false;
-        value = (value << 1) | static_cast<uint64_t>(c - '0');
-      }
-      *out = static_cast<int64_t>(value);
-      return true;
-    }
-    *out = static_cast<int64_t>(std::stoll(text, nullptr, 10));
-    return true;
-  } catch (const std::exception&) {
-    return false;
-  }
-}
-
 std::string NewLabel(EmitState& st, const std::string& prefix) {
   return prefix + std::to_string(st.label_counter++);
 }
@@ -817,7 +798,10 @@ const char* VmOpSuffixForType(const TypeRef& type, const EmitState& st) {
       type.name == "isize" || type.name == "usize") return "i64";
   if (type.name == "f32") return "f32";
   if (type.name == "f64") return "f64";
-  if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
+  const auto enum_type = st.enum_underlying_types.find(type.name);
+  if (enum_type != st.enum_underlying_types.end()) {
+    return VmOpSuffixForType(enum_type->second, st);
+  }
   return "ref";
 }
 
@@ -1270,6 +1254,12 @@ std::string ExternalPointerSirTypeName(const TypeRef& pointer,
   return name;
 }
 
+const std::string* EnumSirTypeName(const EmitState& st,
+                                   const std::string& name) {
+  const auto it = st.enum_underlying_types.find(name);
+  return it == st.enum_underlying_types.end() ? nullptr : &it->second.name;
+}
+
 std::string FieldSirTypeName(const TypeRef& type,
                              Mutability mutability,
                              bool stable_struct,
@@ -1285,7 +1275,7 @@ std::string FieldSirTypeName(const TypeRef& type,
   if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.aggregates.find(type.name) != st.aggregates.end()) return type.name;
   if (st.abi_types.find(type.name) != st.abi_types.end()) return "ref";
-  if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
+  if (const std::string* underlying = EnumSirTypeName(st, type.name)) return *underlying;
   return "ref";
 }
 
@@ -1300,7 +1290,7 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
   if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.aggregates.find(type.name) != st.aggregates.end()) return type.name;
   if (st.abi_types.find(type.name) != st.abi_types.end()) return type.name;
-  if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
+  if (const std::string* underlying = EnumSirTypeName(st, type.name)) return *underlying;
   if (error) *error = "unsupported type in signature: " + type.name;
   return {};
 }
@@ -3379,8 +3369,10 @@ bool EmitBinary(EmitState& st,
       (*st.out) << (expr.op == "==" ? "  string.eq\n" : "  string.ne\n");
       return true;
     }
-    const bool is_enum = st.enum_values.find(type.name) != st.enum_values.end();
-    const char* op_type = is_enum ? "i32" : NormalizeNumericOpType(type.name);
+    const std::string* enum_underlying = EnumSirTypeName(st, type.name);
+    const char* op_type = enum_underlying
+                              ? NormalizeNumericOpType(*enum_underlying)
+                              : NormalizeNumericOpType(type.name);
     if (!op_type) {
       if (error) *error = "unsupported operand type for '" + expr.op + "'";
       return false;
@@ -5146,7 +5138,15 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "unknown enum member '" + expr.text + "'";
             return false;
           }
-          (*st.out) << "  const i32 " << member_it->second << "\n";
+          const auto underlying = st.enum_underlying_types.find(base.text);
+          if (underlying == st.enum_underlying_types.end()) {
+            if (error) *error = "missing enum underlying type";
+            return false;
+          }
+          (*st.out) << "  const " << underlying->second.name << " "
+                    << TAST::FormatCanonicalEnumValue(
+                           member_it->second, underlying->second)
+                    << "\n";
           return PushStack(st, 1);
         }
         const std::string qualified = base.text + "." + expr.text;
@@ -5265,8 +5265,8 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
     }
     return true;
   }
-  if (st.enum_values.find(type.name) != st.enum_values.end()) {
-    (*st.out) << "  const i32 0\n";
+  if (const std::string* underlying = EnumSirTypeName(st, type.name)) {
+    (*st.out) << "  const " << *underlying << " 0\n";
     return PushStack(st, 1);
   }
   if (!type.dims.empty()) {
@@ -5990,14 +5990,21 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       }
     } else if (decl.kind == DeclKind::Enum) {
       enums.push_back(&decl.enm);
-      std::unordered_map<std::string, int64_t> values;
+      TypeRef underlying_type;
+      if (!CloneTypeRef(decl.enm.underlying_type, &underlying_type)) return false;
+      st.enum_underlying_types.emplace(decl.enm.name,
+                                       std::move(underlying_type));
+      std::unordered_map<std::string, uint64_t> values;
       for (const auto& member : decl.enm.members) {
-        int64_t value = 0;
-        if (member.has_value) {
-          if (!ParseIntegerLiteralText(member.value_text, &value)) {
-            if (error) *error = "invalid enum value for " + decl.enm.name + "." + member.name;
-            return false;
+        uint64_t value = 0;
+        if (!TAST::ParseCanonicalEnumValue(member.value_text,
+                                           decl.enm.underlying_type,
+                                           &value, error)) {
+          if (error && !error->empty()) {
+            *error = "invalid enum value for " + decl.enm.name + "." +
+                     member.name + ": " + *error;
           }
+          return false;
         }
         values.emplace(member.name, value);
       }
@@ -6811,7 +6818,16 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       }
     }
     for (const auto* enm : enums) {
-      result << "  type " << enm->name << " size=4 kind=i32\n";
+      const std::string& underlying = enm->underlying_type.name;
+      const uint32_t size = (underlying == "i8" || underlying == "u8")
+                                ? 1u
+                                : ((underlying == "i16" || underlying == "u16")
+                                       ? 2u
+                                       : ((underlying == "i64" || underlying == "u64")
+                                              ? 8u
+                                              : 4u));
+      result << "  type " << enm->name << " size=" << size
+             << " kind=" << underlying << "\n";
     }
   }
 

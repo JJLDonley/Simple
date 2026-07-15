@@ -1272,7 +1272,10 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   Simple::Lang::AST::TypeRef point_type = Simple::Lang::TAST::MakeSimpleType("Point");
   if (!Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, aggregates, false)) return false;
   Simple::Lang::AST::TypeRef enum_type = Simple::Lang::TAST::MakeSimpleType("Mode");
-  if (Simple::Lang::TAST::IsSupportedDlAbiType(enum_type, enum_types, aggregates, false)) return false;
+  if (!Simple::Lang::TAST::IsSupportedDlAbiType(enum_type, enum_types, aggregates, false)) return false;
+  Simple::Lang::AST::TypeRef enum_pointer = enum_type;
+  enum_pointer.pointer_depth = 1;
+  if (!Simple::Lang::TAST::IsSupportedDlAbiType(enum_pointer, enum_types, aggregates, false)) return false;
   Simple::Lang::AST::ExternDecl ext;
   ext.module = "ffi";
   ext.name = "add";

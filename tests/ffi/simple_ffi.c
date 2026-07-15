@@ -47,6 +47,19 @@ uint64_t simple_add_u64(uint64_t a, uint64_t b) {
   return a + b;
 }
 
+uint32_t simple_enum_next(uint32_t value) {
+  return value + 1u;
+}
+
+typedef struct SimpleEnumPacket {
+  uint8_t code;
+  int16_t delta;
+} SimpleEnumPacket;
+
+int32_t simple_enum_packet_sum(SimpleEnumPacket packet) {
+  return (int32_t)packet.code + (int32_t)packet.delta;
+}
+
 double simple_mix_i32_f64(int32_t a, double b) {
   return (double)a + b;
 }

@@ -136,7 +136,7 @@ func-decl      = ident (":" | "::") [ "async" ] "(" [ params ] ")" "->" type blo
 class-decl     = ident "::" "class" "{" { field-decl | func-decl } "}" ;
 struct-decl    = ident "::" "struct" "{" { field-decl } "}" ;
 namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
-enum-decl      = ident "::" "enum" "{" enum-member { enum-member } "}" ;
+enum-decl      = ident "::" "enum" [ ":" fixed-int-type ] "{" enum-member { enum-member } "}" ;
 
 stmt           = var-decl | assign-stmt | expr-stmt | if-stmt | switch-stmt | while-stmt | for-stmt |
                  break-stmt | skip-stmt | return-stmt | block ;
@@ -680,7 +680,9 @@ Contextual immutable external-C string literals and exact C `_Bool` lowering
 advance syntax to 3.1, SIR to 2.5, SBC to 7, opcode metadata to 6, and the
 runtime ABI to 1.7. Replacing `artifact`/`data` with managed-reference `class`
 and true-value `struct` semantics advances syntax to 4.0, SIR to 3.0, SBC to 8,
-and the runtime ABI to 1.8; opcode metadata remains 6.
+and the runtime ABI to 1.8; opcode metadata remains 6. Exact fixed-width enum
+underlying types and their canonical external-C lowering advance syntax to
+4.1 and SIR to 3.1; SBC, opcode metadata, and the runtime ABI remain unchanged.
 
 ### `v0.6` generic design
 
@@ -1474,7 +1476,7 @@ Enums use `:: enum` and require qualified access:
 ```simple
 module Examples.Reference
 
-Color :: enum {
+Color :: enum : u8 {
   Red = 1,
   Green = 2
 }
@@ -1484,15 +1486,19 @@ main :: () -> i32 {
 }
 ```
 
-Qualified enum members are contextual constants. An expected enum type or the
-current `i32` enum representation may consume `Color.Green`, including at a
-call-argument site. The member does not independently synthesize a type and
-therefore cannot infer a generic type parameter; generic calls need another
-independently typed argument or explicit type arguments. Values of the same
-enum type support `==` and `!=`; ordering and arithmetic remain invalid rather
-than implicitly coercing enums to integers. Tests reject unqualified variants
-(`Green` instead of `Color.Green`), unknown members, mismatched enum types, and
-using the enum type itself as a value.
+Qualified enum members are contextual constants. Enums default to `i32`; an
+explicit underlying type must be one of `i8`, `i16`, `i32`, `i64`, `u8`, `u16`,
+`u32`, or `u64`. Every member value is range-checked against that type. An
+expected enum type or its exact underlying type may consume `Color.Green`,
+including at a call-argument site. The member does not independently synthesize
+a type and therefore cannot infer a generic type parameter; generic calls need
+another independently typed argument or explicit type arguments. Values of the
+same enum type support `==` and `!=`; ordering and arithmetic remain invalid
+rather than implicitly coercing enums to integers. Stable structs and external
+C signatures preserve the selected width and signedness. Tests reject
+unqualified variants (`Green` instead of `Color.Green`), unknown members,
+mismatched enum types, invalid underlying types, out-of-range values, and using
+the enum type itself as a value.
 
 ## Imports and `using`
 

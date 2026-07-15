@@ -594,9 +594,17 @@ bool Parser::ParseModuleDecl(const Token& name_tok, Decl* out) {
 }
 
 bool Parser::ParseEnumDecl(const Token& name_tok, Decl* out) {
+  TypeRef underlying_type;
+  underlying_type.name = "i32";
+  underlying_type.line = name_tok.line;
+  underlying_type.column = name_tok.column;
+  if (Match(TokenKind::Colon)) {
+    if (!ParseTypeInner(&underlying_type)) return false;
+  }
   if (out) {
     out->kind = DeclKind::Enum;
     out->enm.name = name_tok.text;
+    out->enm.underlying_type = std::move(underlying_type);
   }
   if (!Match(TokenKind::LBrace)) {
     error_ = "expected '{' to start enum body";
@@ -613,13 +621,14 @@ bool Parser::ParseEnumDecl(const Token& name_tok, Decl* out) {
     EnumMember member;
     member.name = member_tok.text;
     if (Match(TokenKind::Assign)) {
+      const bool negative = Match(TokenKind::Minus);
       const Token& value_tok = Peek();
       if (value_tok.kind != TokenKind::Integer) {
         error_ = "expected integer literal for enum value";
         return false;
       }
       member.has_value = true;
-      member.value_text = value_tok.text;
+      member.value_text = negative ? "-" + value_tok.text : value_tok.text;
       Advance();
     }
     if (out) out->enm.members.push_back(std::move(member));

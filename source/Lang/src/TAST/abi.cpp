@@ -41,13 +41,16 @@ bool IsSupportedDlAbiAggregate(
       return false;
     }
     if (field.type.pointer_depth > 0) continue;
-    if (field.type.is_proc || !IsAbiScalar(field.type.name)) {
+    if (field.type.is_proc ||
+        (!IsAbiScalar(field.type.name) &&
+         enum_types.find(field.type.name) == enum_types.end())) {
       if (aggregates.find(field.type.name) == aggregates.end()) {
         visiting->erase(name);
         return false;
       }
     }
-    if (IsAbiScalar(field.type.name)) continue;
+    if (IsAbiScalar(field.type.name) ||
+        enum_types.find(field.type.name) != enum_types.end()) continue;
     if (aggregates.find(field.type.name) != aggregates.end()) {
       if (!IsSupportedDlAbiAggregate(field.type.name, enum_types, aggregates, visiting)) {
         visiting->erase(name);
@@ -89,11 +92,15 @@ bool IsSupportedDlAbiType(
       return true;
     }
     return type.name == "void" || IsAbiScalar(type.name) ||
-           (aggregates.find(type.name) != aggregates.end() && aggregates.at(type.name)->is_struct);
+           enum_types.find(type.name) != enum_types.end() ||
+           (aggregates.find(type.name) != aggregates.end() &&
+            aggregates.at(type.name)->is_struct);
   }
   if (type.is_proc) return false;
   if (allow_void && type.name == "void") return true;
-  if (IsAbiScalar(type.name)) return true;
+  if (IsAbiScalar(type.name) || enum_types.find(type.name) != enum_types.end()) {
+    return true;
+  }
   if (aggregates.find(type.name) != aggregates.end()) {
     std::unordered_set<std::string> visiting;
     return IsSupportedDlAbiAggregate(type.name, enum_types, aggregates, &visiting);
