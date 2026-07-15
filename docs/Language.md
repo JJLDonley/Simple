@@ -1437,7 +1437,13 @@ main :: i32 () {
 }
 ```
 
-Tests reject unqualified enum variants (`Green` instead of `Color.Green`), unknown enum members, and using the enum type itself as a value.
+Qualified enum members are contextual constants. An expected enum type or the
+current `i32` enum representation may consume `Color.Green`, including at a
+call-argument site. The member does not independently synthesize a type and
+therefore cannot infer a generic type parameter; generic calls need another
+independently typed argument or explicit type arguments. Tests reject
+unqualified variants (`Green` instead of `Color.Green`), unknown members, and
+using the enum type itself as a value.
 
 ## Imports and `using`
 

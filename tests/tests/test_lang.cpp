@@ -2282,6 +2282,27 @@ bool LangValidateEnumQualified() {
   return true;
 }
 
+bool LangEnumMemberTargetContextRuntime() {
+  const char* src =
+      "Key :: enum { Right = 42 } "
+      "consume :: i32 (key : i32) { return key } "
+      "main :: i32 () { return consume(Key.Right) }";
+  std::string sir;
+  std::string error;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         RunSirTextExpectExit(sir, 42);
+}
+
+bool LangEnumMemberDoesNotInferGenericType() {
+  const char* src =
+      "Key :: enum { Right = 42 } "
+      "identity<T> :: T (value : T) { return value } "
+      "main :: i32 () { return identity(Key.Right) }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("cannot infer type arguments for call") != std::string::npos;
+}
+
 bool LangValidateEnumQualifiedDot() {
   const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color::Red; }";
   std::string error;
@@ -4048,6 +4069,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_fn_shorthand_assign_call", LangSirEmitsFnShorthandAssignAndCall},
   {"lang_sir_emit_fn_param_fn_arg_call", LangSirEmitsFnParamWithFnArgCall},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
+  {"lang_enum_member_target_context_runtime", LangEnumMemberTargetContextRuntime},
+  {"lang_enum_member_does_not_infer_generic_type", LangEnumMemberDoesNotInferGenericType},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},

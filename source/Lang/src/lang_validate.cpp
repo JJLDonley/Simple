@@ -2428,8 +2428,8 @@ bool ValidateExprAgainstExpected(
   }
   if (expr.kind == ExprKind::Member && !expr.children.empty() &&
       expr.children[0].kind == ExprKind::Identifier &&
-      expr.children[0].text == expected.name &&
-      ctx.enum_types.find(expected.name) != ctx.enum_types.end()) {
+      ctx.enum_types.find(expr.children[0].text) != ctx.enum_types.end() &&
+      (expected.name == expr.children[0].text || expected.name == "i32")) {
     return CheckExpr(expr, ctx, scopes, current_artifact, error);
   }
   if (!CheckExpr(expr, ctx, scopes, current_artifact, error)) return false;
