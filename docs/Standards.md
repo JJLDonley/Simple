@@ -279,6 +279,8 @@ The complete suite must pass with empty unexpected stderr. Changes touching opti
 
 Safety, ownership, allocator, parser, loader, and broad runtime changes also require the applicable ASan/UBSan/LSan build. Concurrency changes require TSan. Broad boundary refactors require the configured static analyzer. Record which configurations ran; do not replace a required check with an unrelated green build.
 
+Focused and stress tests are not sufficient for a completed feature gate. Run every realistic conformance project activated for that gate from its canonical source under all applicable interpreter/JIT, sanitizer, and platform configurations. Projects live under `tests/projects/`, use deterministic automated inputs/state checks, and may not use future API mocks, compatibility paths, or reduced duplicate sources. Interactive graphics tests separate deterministic simulation checks from manual rendering/input smoke tests; graphics test assets remain test-only dependencies.
+
 Platform-specific changes that cannot be executed locally require the corresponding CI job. Do not claim success for an untested host; inspect the job result and repeat until the relevant required or experimental job passes.
 
 ### 13.4 Documentation-only validation
