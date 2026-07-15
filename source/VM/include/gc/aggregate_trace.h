@@ -8,7 +8,7 @@
 
 namespace Simple::VM::Gc {
 
-std::vector<ArtifactTraceDescriptor> BuildArtifactTraceDescriptors(
+std::vector<AggregateTraceDescriptor> BuildAggregateTraceDescriptors(
     const Simple::Byte::SbcModule& module);
 
 } // namespace Simple::VM::Gc

@@ -1,4 +1,4 @@
-View :: data {
+View :: struct {
   data :: i32*
 }
 

@@ -194,12 +194,12 @@ bool LangTastCallsCheckFormatAndPrintArgTypes() {
   std::string error;
   auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
   auto char_type = Simple::Lang::TAST::MakeSimpleType("char");
-  auto artifact = Simple::Lang::TAST::MakeSimpleType("Point");
+  auto aggregate = Simple::Lang::TAST::MakeSimpleType("Point");
   auto list_i32 = i32;
   list_i32.dims.push_back(Simple::Lang::AST::TypeDim{true, false, 0});
   std::vector<Simple::Lang::AST::TypeRef> args = {i32, Simple::Lang::TAST::MakeSimpleType("string")};
   if (!Simple::Lang::TAST::CheckFormatCallArgTypes(args, &error)) return false;
-  args = {artifact};
+  args = {aggregate};
   if (Simple::Lang::TAST::CheckFormatCallArgTypes(args, &error)) return false;
   if (error.find("format supports numeric, bool, or string") == std::string::npos) return false;
   args = {list_i32};
@@ -207,7 +207,7 @@ bool LangTastCallsCheckFormatAndPrintArgTypes() {
   if (error.find("Standard.IO.print expects scalar argument") == std::string::npos) return false;
   args = {char_type};
   if (!Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
-  args = {artifact};
+  args = {aggregate};
   if (Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
   return error.find("Standard.IO.print supports numeric, bool, char, or string") != std::string::npos;
 }
@@ -346,9 +346,9 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
 
   Simple::Lang::AST::Program program;
   Simple::Lang::AST::Decl box;
-  box.kind = DeclKind::Artifact;
-  box.artifact.name = "Box";
-  box.artifact.generics = {"T"};
+  box.kind = DeclKind::Aggregate;
+  box.aggregate.name = "Box";
+  box.aggregate.generics = {"T"};
   program.decls.push_back(box);
 
   Simple::Lang::AST::Decl value;
@@ -386,7 +386,7 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
     return false;
   }
 
-  program.decls[0].artifact.generics = {"T", "T"};
+  program.decls[0].aggregate.generics = {"T", "T"};
   plan.clear();
   return !BuildSpecializationPlanFromProgram(program, &plan, &error) &&
          error.find("duplicate generic parameter: T") != std::string::npos;
@@ -455,7 +455,7 @@ bool LangGenSpecializesConcreteDeclarations() {
   using Simple::Lang::AST::DeclKind;
   using Simple::Lang::GEN::BuildSpecializationPlanFromProgram;
   using Simple::Lang::GEN::GenericSpecializationPlan;
-  using Simple::Lang::GEN::SpecializeArtifactLayoutDeclaration;
+  using Simple::Lang::GEN::SpecializeAggregateLayoutDeclaration;
   using Simple::Lang::GEN::SpecializeFunctionDeclaration;
 
   Simple::Lang::AST::Program program;
@@ -476,13 +476,13 @@ bool LangGenSpecializesConcreteDeclarations() {
   program.decls.push_back(fn_decl);
 
   Simple::Lang::AST::Decl box_decl;
-  box_decl.kind = DeclKind::Artifact;
-  box_decl.artifact.name = "Box";
-  box_decl.artifact.generics = {"T"};
+  box_decl.kind = DeclKind::Aggregate;
+  box_decl.aggregate.name = "Box";
+  box_decl.aggregate.generics = {"T"};
   Simple::Lang::AST::VarDecl field;
   field.name = "value";
   field.type = Simple::Lang::TAST::MakeSimpleType("T");
-  box_decl.artifact.fields.push_back(field);
+  box_decl.aggregate.fields.push_back(field);
   program.decls.push_back(box_decl);
 
   Simple::Lang::AST::Decl value;
@@ -506,11 +506,11 @@ bool LangGenSpecializesConcreteDeclarations() {
   std::string error;
   if (!BuildSpecializationPlanFromProgram(program, &plan, &error) || plan.size() != 2) return false;
   Simple::Lang::AST::FuncDecl concrete_fn;
-  Simple::Lang::AST::ArtifactDecl concrete_box;
+  Simple::Lang::AST::AggregateDecl concrete_box;
   const GenericSpecializationPlan* fn_plan = plan[0].request.base_name == "id" ? &plan[0] : &plan[1];
   const GenericSpecializationPlan* box_plan = plan[0].request.base_name == "Box" ? &plan[0] : &plan[1];
   if (!SpecializeFunctionDeclaration(program.decls[0].func, *fn_plan, &concrete_fn, &error)) return false;
-  if (!SpecializeArtifactLayoutDeclaration(program.decls[1].artifact, *box_plan, &concrete_box, &error)) {
+  if (!SpecializeAggregateLayoutDeclaration(program.decls[1].aggregate, *box_plan, &concrete_box, &error)) {
     return false;
   }
   return concrete_fn.generics.empty() && concrete_fn.name == fn_plan->specialized_symbol &&
@@ -550,13 +550,13 @@ bool LangGenMaterializesConcreteProgram() {
   program.decls.push_back(fn_decl);
 
   Simple::Lang::AST::Decl box_decl;
-  box_decl.kind = DeclKind::Artifact;
-  box_decl.artifact.name = "Box";
-  box_decl.artifact.generics = {"T"};
+  box_decl.kind = DeclKind::Aggregate;
+  box_decl.aggregate.name = "Box";
+  box_decl.aggregate.generics = {"T"};
   Simple::Lang::AST::VarDecl field;
   field.name = "value";
   field.type = Simple::Lang::TAST::MakeSimpleType("T");
-  box_decl.artifact.fields.push_back(field);
+  box_decl.aggregate.fields.push_back(field);
   program.decls.push_back(box_decl);
 
   Simple::Lang::AST::Decl use_box;
@@ -604,9 +604,9 @@ bool LangGenMaterializesConcreteProgram() {
       concrete_fn_name = decl.func.name;
       saw_fn = true;
     }
-    if (decl.kind == DeclKind::Artifact) {
-      if (!decl.artifact.generics.empty() || decl.artifact.name == "Box" ||
-          decl.artifact.fields[0].type.name != "i32") {
+    if (decl.kind == DeclKind::Aggregate) {
+      if (!decl.aggregate.generics.empty() || decl.aggregate.name == "Box" ||
+          decl.aggregate.fields[0].type.name != "i32") {
         return false;
       }
       saw_box = true;
@@ -629,7 +629,7 @@ bool LangGenMaterializesConcreteProgram() {
     return false;
   }
   bool ir_has_specialized_box = false;
-  for (const auto& layout : module.ir.artifact_layouts) {
+  for (const auto& layout : module.ir.aggregate_layouts) {
     if (layout.name.find("Box__g_") != std::string::npos) ir_has_specialized_box = true;
   }
   if (!ir_has_specialized_box) return false;
@@ -806,14 +806,14 @@ bool LangTastCollectsGenericDeclarationMetadata() {
   program.decls.push_back(function);
 
   Simple::Lang::AST::Decl data;
-  data.kind = DeclKind::Artifact;
-  data.artifact.name = "Box";
-  data.artifact.is_data = true;
-  data.artifact.generics = {"T"};
+  data.kind = DeclKind::Aggregate;
+  data.aggregate.name = "Box";
+  data.aggregate.is_struct = true;
+  data.aggregate.generics = {"T"};
   Simple::Lang::AST::FuncDecl method;
   method.name = "map";
   method.generics = {"U"};
-  data.artifact.methods.push_back(method);
+  data.aggregate.methods.push_back(method);
   program.decls.push_back(data);
 
   std::vector<GenericDeclarationMetadata> metadata;
@@ -835,7 +835,7 @@ bool LangTastCollectsGenericDeclarationMetadata() {
     return false;
   }
 
-  program.decls[1].artifact.methods[0].generics = {"T"};
+  program.decls[1].aggregate.methods[0].generics = {"T"};
   metadata.clear();
   return !Simple::Lang::TAST::CollectGenericDeclarationMetadata(program, &metadata, &error) &&
          error.find("duplicate generic parameter: T") != std::string::npos;
@@ -976,38 +976,38 @@ bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   array.kind = Simple::Lang::AST::ExprKind::ArrayLiteral;
   if (!Simple::Lang::TAST::IsPositionalBraceLiteralExpr(array)) return false;
 
-  Simple::Lang::AST::Expr positional_artifact;
-  positional_artifact.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
-  if (!Simple::Lang::TAST::IsPositionalBraceLiteralExpr(positional_artifact)) return false;
+  Simple::Lang::AST::Expr positional_aggregate;
+  positional_aggregate.kind = Simple::Lang::AST::ExprKind::AggregateLiteral;
+  if (!Simple::Lang::TAST::IsPositionalBraceLiteralExpr(positional_aggregate)) return false;
 
-  Simple::Lang::AST::Expr named_artifact;
-  named_artifact.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
-  named_artifact.field_names.push_back("x");
-  if (Simple::Lang::TAST::IsPositionalBraceLiteralExpr(named_artifact)) return false;
-  Simple::Lang::AST::Expr artifact_values;
-  artifact_values.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
-  artifact_values.children.resize(2);
-  if (!Simple::Lang::TAST::CheckArtifactLiteralPositionalCount(artifact_values, 2, &shape_error)) return false;
-  if (Simple::Lang::TAST::CheckArtifactLiteralPositionalCount(artifact_values, 1, &shape_error)) return false;
-  if (shape_error.find("too many positional values in artifact literal") == std::string::npos) return false;
+  Simple::Lang::AST::Expr named_aggregate;
+  named_aggregate.kind = Simple::Lang::AST::ExprKind::AggregateLiteral;
+  named_aggregate.field_names.push_back("x");
+  if (Simple::Lang::TAST::IsPositionalBraceLiteralExpr(named_aggregate)) return false;
+  Simple::Lang::AST::Expr aggregate_values;
+  aggregate_values.kind = Simple::Lang::AST::ExprKind::AggregateLiteral;
+  aggregate_values.children.resize(2);
+  if (!Simple::Lang::TAST::CheckAggregateLiteralPositionalCount(aggregate_values, 2, &shape_error)) return false;
+  if (Simple::Lang::TAST::CheckAggregateLiteralPositionalCount(aggregate_values, 1, &shape_error)) return false;
+  if (shape_error.find("too many positional values in aggregate literal") == std::string::npos) return false;
   Simple::Lang::AST::Expr duplicate_fields;
-  duplicate_fields.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
+  duplicate_fields.kind = Simple::Lang::AST::ExprKind::AggregateLiteral;
   duplicate_fields.field_names = {"x", "x"};
-  if (Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
-  if (shape_error.find("duplicate named field in artifact literal: x") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckAggregateLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
+  if (shape_error.find("duplicate named field in aggregate literal: x") == std::string::npos) return false;
   duplicate_fields.field_names = {"x", "y"};
-  if (!Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
+  if (!Simple::Lang::TAST::CheckAggregateLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
   std::unordered_set<std::string> seen_fields = {"x"};
-  if (Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("x", seen_fields, &shape_error)) return false;
-  if (shape_error.find("field specified twice in artifact literal: x") == std::string::npos) return false;
-  if (!Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("y", seen_fields, &shape_error)) return false;
-  if (!Simple::Lang::TAST::CheckArtifactLiteralKnownField("x", seen_fields, &shape_error)) return false;
-  if (Simple::Lang::TAST::CheckArtifactLiteralKnownField("z", seen_fields, &shape_error)) return false;
-  if (shape_error.find("unknown artifact field: z") == std::string::npos) return false;
-  if (!Simple::Lang::TAST::CheckArtifactLiteralRequiredField("x", false, seen_fields, &shape_error)) return false;
-  if (!Simple::Lang::TAST::CheckArtifactLiteralRequiredField("z", true, seen_fields, &shape_error)) return false;
-  if (Simple::Lang::TAST::CheckArtifactLiteralRequiredField("z", false, seen_fields, &shape_error)) return false;
-  if (shape_error.find("missing artifact field: z") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckAggregateLiteralFieldSpecifiedOnce("x", seen_fields, &shape_error)) return false;
+  if (shape_error.find("field specified twice in aggregate literal: x") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckAggregateLiteralFieldSpecifiedOnce("y", seen_fields, &shape_error)) return false;
+  if (!Simple::Lang::TAST::CheckAggregateLiteralKnownField("x", seen_fields, &shape_error)) return false;
+  if (Simple::Lang::TAST::CheckAggregateLiteralKnownField("z", seen_fields, &shape_error)) return false;
+  if (shape_error.find("unknown aggregate field: z") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckAggregateLiteralRequiredField("x", false, seen_fields, &shape_error)) return false;
+  if (!Simple::Lang::TAST::CheckAggregateLiteralRequiredField("z", true, seen_fields, &shape_error)) return false;
+  if (Simple::Lang::TAST::CheckAggregateLiteralRequiredField("z", false, seen_fields, &shape_error)) return false;
+  if (shape_error.find("missing aggregate field: z") == std::string::npos) return false;
   Simple::Lang::AST::TypeRef scalar_target;
   scalar_target.name = "i32";
   if (Simple::Lang::TAST::CheckArrayListLiteralTargetShape(scalar_target, list, &shape_error)) return false;
@@ -1260,19 +1260,19 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   if (mapped.name != "i32" || mapped.dims.size() != 1 || !mapped.dims[0].is_list) return false;
 
   std::unordered_set<std::string> enum_types = {"Mode"};
-  std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*> artifacts;
-  Simple::Lang::AST::ArtifactDecl point;
+  std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*> aggregates;
+  Simple::Lang::AST::AggregateDecl point;
   point.name = "Point";
-  point.is_data = true;
+  point.is_struct = true;
   Simple::Lang::AST::VarDecl x;
   x.name = "x";
   x.type = Simple::Lang::TAST::MakeSimpleType("i32");
   point.fields.push_back(x);
-  artifacts[point.name] = &point;
+  aggregates[point.name] = &point;
   Simple::Lang::AST::TypeRef point_type = Simple::Lang::TAST::MakeSimpleType("Point");
-  if (!Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false)) return false;
+  if (!Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, aggregates, false)) return false;
   Simple::Lang::AST::TypeRef enum_type = Simple::Lang::TAST::MakeSimpleType("Mode");
-  if (Simple::Lang::TAST::IsSupportedDlAbiType(enum_type, enum_types, artifacts, false)) return false;
+  if (Simple::Lang::TAST::IsSupportedDlAbiType(enum_type, enum_types, aggregates, false)) return false;
   Simple::Lang::AST::ExternDecl ext;
   ext.module = "ffi";
   ext.name = "add";
@@ -1281,27 +1281,27 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   param.name = "x";
   param.type = point_type;
   ext.params.push_back(param);
-  if (!Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, artifacts, &error)) return false;
+  if (!Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, aggregates, &error)) return false;
   if (!Simple::Lang::TAST::CheckExternAbiType(point_type,
                                              enum_types,
-                                             artifacts,
+                                             aggregates,
                                              false,
                                              "extern ABI parameter type is not supported",
                                              &error)) {
     return false;
   }
   point.fields[0].type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
-  if (Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false)) return false;
+  if (Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, aggregates, false)) return false;
   if (Simple::Lang::TAST::CheckExternAbiType(point_type,
                                              enum_types,
-                                             artifacts,
+                                             aggregates,
                                              false,
                                              "extern ABI parameter type is not supported",
                                              &error)) {
     return false;
   }
   if (error.find("extern ABI parameter type is not supported") == std::string::npos) return false;
-  if (Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, artifacts, &error)) return false;
+  if (Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, aggregates, &error)) return false;
   return error.find("dynamic DL parameter type for 'ffi.add' is not ABI-supported") != std::string::npos;
 }
 
@@ -1329,15 +1329,15 @@ bool LangTastSubstituteTypeParamsRewritesNestedTypes() {
   if (!Simple::Lang::TAST::SubstituteTypeParams(pointer_to_t, substitutions, &applied)) return false;
   if (applied.name != "i32" || applied.pointer_depth != 1) return false;
 
-  Simple::Lang::AST::ArtifactDecl artifact;
-  artifact.name = "Box";
-  artifact.generics.push_back("T");
+  Simple::Lang::AST::AggregateDecl aggregate;
+  aggregate.name = "Box";
+  aggregate.generics.push_back("T");
   Simple::Lang::AST::TypeRef instance;
   instance.name = "Box";
   instance.type_args.push_back(replacement);
   Simple::Lang::TAST::GenericSubstitutionMap map;
   std::string error;
-  if (!Simple::Lang::TAST::BuildArtifactTypeParamMap(instance, &artifact, &map, &error)) return false;
+  if (!Simple::Lang::TAST::BuildAggregateTypeParamMap(instance, &aggregate, &map, &error)) return false;
   if (map.size() != 1 || map["T"].name != "i32") return false;
   std::vector<std::string> explicit_params = {"T"};
   std::vector<Simple::Lang::AST::TypeRef> explicit_args = {replacement};
@@ -1470,7 +1470,7 @@ bool LangTastCheckAssignmentValidatesShape() {
 
 bool LangTastInfersGenericMethodOnIndexedReceiver() {
   const std::string source =
-      "Box<T> :: artifact { item : T; choose<U> :: (value : U) -> U { return value } }\n"
+      "Box<T> :: class { item : T; choose<U> :: (value : U) -> U { return value } }\n"
       "main :: () -> i32 { boxes : Box<i32>[] = []; box : Box<i32> = { 1 }; "
       "boxes.push(box); return boxes[0].choose(42) }";
   Simple::Lang::AST::Program program;

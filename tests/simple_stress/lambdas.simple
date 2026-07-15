@@ -1,6 +1,6 @@
 module Tests.Stress.Lambdas
 
-Box :: artifact {
+Box :: class {
   callable : fn (i32) -> i32
 }
 

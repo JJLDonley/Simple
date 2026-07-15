@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "gc/artifact_trace.h"
+#include "gc/aggregate_trace.h"
 #include "gc/root_tracer.h"
 #include "heap.h"
 #include "runtime/values.h"
@@ -49,11 +49,11 @@ bool VmGcTracesOnlyActiveTaggedPayload() {
   };
 
   Simple::VM::Heap heap;
-  heap.SetArtifactTraceDescriptors(
-      Simple::VM::Gc::BuildArtifactTraceDescriptors(module));
+  heap.SetAggregateTraceDescriptors(
+      Simple::VM::Gc::BuildAggregateTraceDescriptors(module));
   const uint32_t value_active = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
   const uint32_t error_inactive = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
-  const uint32_t value_result = heap.Allocate(Simple::VM::ObjectKind::Artifact, 2, 12);
+  const uint32_t value_result = heap.Allocate(Simple::VM::ObjectKind::Aggregate, 2, 12);
   Simple::VM::HeapObject* value_object = heap.Get(value_result);
   if (!value_object) return false;
   Simple::VM::WriteU32Payload(value_object->payload, 0, 0);
@@ -62,7 +62,7 @@ bool VmGcTracesOnlyActiveTaggedPayload() {
 
   const uint32_t error_active = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
   const uint32_t value_inactive = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
-  const uint32_t error_result = heap.Allocate(Simple::VM::ObjectKind::Artifact, 2, 12);
+  const uint32_t error_result = heap.Allocate(Simple::VM::ObjectKind::Aggregate, 2, 12);
   Simple::VM::HeapObject* error_object = heap.Get(error_result);
   if (!error_object) return false;
   Simple::VM::WriteU32Payload(error_object->payload, 0, 1);

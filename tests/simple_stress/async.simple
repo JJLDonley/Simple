@@ -2,7 +2,7 @@ Failure :: enum {
   Rejected = 0
 }
 
-Counter :: artifact {
+Counter :: class {
   value : i32
 
   add : async (amount : i32) -> i32 {

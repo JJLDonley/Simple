@@ -1,6 +1,6 @@
 module Tests.Stress.GenericChains
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 
   choose<U> :: (other : U) -> U {

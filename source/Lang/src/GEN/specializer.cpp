@@ -200,22 +200,22 @@ bool CollectFromFunction(const Simple::Lang::AST::FuncDecl& fn,
   return CollectFromStmtList(fn.body, out);
 }
 
-const Simple::Lang::AST::ArtifactDecl* FindArtifactForMethodCollection(
+const Simple::Lang::AST::AggregateDecl* FindAggregateForMethodCollection(
     const Simple::Lang::AST::Program& program,
     const std::string& name) {
   for (const auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact && decl.artifact.name == name) {
-      return &decl.artifact;
+    if (decl.kind == Simple::Lang::AST::DeclKind::Aggregate && decl.aggregate.name == name) {
+      return &decl.aggregate;
     }
   }
   return nullptr;
 }
 
 const Simple::Lang::AST::FuncDecl* FindGenericMethodForCollection(
-    const Simple::Lang::AST::ArtifactDecl* artifact,
+    const Simple::Lang::AST::AggregateDecl* aggregate,
     const std::string& name) {
-  if (!artifact) return nullptr;
-  for (const auto& method : artifact->methods) {
+  if (!aggregate) return nullptr;
+  for (const auto& method : aggregate->methods) {
     if (method.name == name && !method.generics.empty()) return &method;
   }
   return nullptr;
@@ -226,14 +226,14 @@ using MethodTypeScope = std::unordered_map<std::string, Simple::Lang::AST::TypeR
 bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
                              const Simple::Lang::AST::Program& program,
                              const MethodTypeScope& scope,
-                             const Simple::Lang::AST::ArtifactDecl* current_artifact,
+                             const Simple::Lang::AST::AggregateDecl* current_aggregate,
                              Simple::Lang::AST::TypeRef* out) {
   if (!out) return false;
   if (expr.kind == Simple::Lang::AST::ExprKind::Identifier) {
-    if (expr.text == "self" && current_artifact) {
-      out->name = current_artifact->name;
+    if (expr.text == "self" && current_aggregate) {
+      out->name = current_aggregate->name;
       out->type_args.clear();
-      for (const auto& generic : current_artifact->generics) {
+      for (const auto& generic : current_aggregate->generics) {
         Simple::Lang::AST::TypeRef argument;
         argument.name = generic;
         out->type_args.push_back(std::move(argument));
@@ -276,12 +276,12 @@ bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
       }
       if (!function) {
         Simple::Lang::AST::TypeRef receiver;
-        if (InferMethodReceiverType(base, program, scope, current_artifact, &receiver)) {
-          const auto* artifact = FindArtifactForMethodCollection(program, receiver.name);
-          if (artifact &&
-              Simple::Lang::TAST::BuildArtifactTypeParamMap(receiver, artifact,
+        if (InferMethodReceiverType(base, program, scope, current_aggregate, &receiver)) {
+          const auto* aggregate = FindAggregateForMethodCollection(program, receiver.name);
+          if (aggregate &&
+              Simple::Lang::TAST::BuildAggregateTypeParamMap(receiver, aggregate,
                                                             &substitutions, nullptr)) {
-            for (const auto& candidate : artifact->methods) {
+            for (const auto& candidate : aggregate->methods) {
               if (candidate.name == callee.text) {
                 function = &candidate;
                 break;
@@ -308,7 +308,7 @@ bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
   }
   if (expr.kind == Simple::Lang::AST::ExprKind::Index && !expr.children.empty()) {
     Simple::Lang::AST::TypeRef container;
-    if (!InferMethodReceiverType(expr.children[0], program, scope, current_artifact, &container) ||
+    if (!InferMethodReceiverType(expr.children[0], program, scope, current_aggregate, &container) ||
         container.dims.empty()) {
       return false;
     }
@@ -332,16 +332,16 @@ bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
     }
   }
   Simple::Lang::AST::TypeRef base_type;
-  if (!InferMethodReceiverType(expr.children[0], program, scope, current_artifact, &base_type)) {
+  if (!InferMethodReceiverType(expr.children[0], program, scope, current_aggregate, &base_type)) {
     return false;
   }
-  const auto* artifact = FindArtifactForMethodCollection(program, base_type.name);
-  if (!artifact) return false;
+  const auto* aggregate = FindAggregateForMethodCollection(program, base_type.name);
+  if (!aggregate) return false;
   Simple::Lang::TAST::GenericSubstitutionMap substitutions;
-  if (!Simple::Lang::TAST::BuildArtifactTypeParamMap(base_type, artifact, &substitutions, nullptr)) {
+  if (!Simple::Lang::TAST::BuildAggregateTypeParamMap(base_type, aggregate, &substitutions, nullptr)) {
     return false;
   }
-  for (const auto& field : artifact->fields) {
+  for (const auto& field : aggregate->fields) {
     if (field.name == expr.text) {
       return Simple::Lang::TAST::SubstituteTypeParams(field.type, substitutions, out);
     }
@@ -352,32 +352,32 @@ bool InferMethodReceiverType(const Simple::Lang::AST::Expr& expr,
 bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
                                    const Simple::Lang::AST::Program& program,
                                    const MethodTypeScope& scope,
-                                   const Simple::Lang::AST::ArtifactDecl* current_artifact,
+                                   const Simple::Lang::AST::AggregateDecl* current_aggregate,
                                    std::vector<GenericInstantiationRequest>* out);
 
 bool CollectMethodRequestsFromStatements(
     const std::vector<Simple::Lang::AST::Stmt>& statements,
     const Simple::Lang::AST::Program& program,
     MethodTypeScope scope,
-    const Simple::Lang::AST::ArtifactDecl* current_artifact,
+    const Simple::Lang::AST::AggregateDecl* current_aggregate,
     std::vector<GenericInstantiationRequest>* out) {
   for (const auto& statement : statements) {
-    if (!CollectMethodRequestsFromExpr(statement.expr, program, scope, current_artifact, out) ||
-        !CollectMethodRequestsFromExpr(statement.target, program, scope, current_artifact, out) ||
-        !CollectMethodRequestsFromExpr(statement.if_cond, program, scope, current_artifact, out) ||
-        !CollectMethodRequestsFromExpr(statement.loop_iter, program, scope, current_artifact, out) ||
-        !CollectMethodRequestsFromExpr(statement.loop_cond, program, scope, current_artifact, out) ||
-        !CollectMethodRequestsFromExpr(statement.loop_step, program, scope, current_artifact, out)) {
+    if (!CollectMethodRequestsFromExpr(statement.expr, program, scope, current_aggregate, out) ||
+        !CollectMethodRequestsFromExpr(statement.target, program, scope, current_aggregate, out) ||
+        !CollectMethodRequestsFromExpr(statement.if_cond, program, scope, current_aggregate, out) ||
+        !CollectMethodRequestsFromExpr(statement.loop_iter, program, scope, current_aggregate, out) ||
+        !CollectMethodRequestsFromExpr(statement.loop_cond, program, scope, current_aggregate, out) ||
+        !CollectMethodRequestsFromExpr(statement.loop_step, program, scope, current_aggregate, out)) {
       return false;
     }
     if (statement.var_decl.has_init_expr &&
         !CollectMethodRequestsFromExpr(statement.var_decl.init_expr, program, scope,
-                                       current_artifact, out)) {
+                                       current_aggregate, out)) {
       return false;
     }
     for (const auto& branch : statement.if_branches) {
-      if (!CollectMethodRequestsFromExpr(branch.first, program, scope, current_artifact, out) ||
-          !CollectMethodRequestsFromStatements(branch.second, program, scope, current_artifact, out)) {
+      if (!CollectMethodRequestsFromExpr(branch.first, program, scope, current_aggregate, out) ||
+          !CollectMethodRequestsFromStatements(branch.second, program, scope, current_aggregate, out)) {
         return false;
       }
     }
@@ -386,13 +386,13 @@ bool CollectMethodRequestsFromStatements(
       loop_scope[statement.loop_var_decl.name] = statement.loop_var_decl.type;
     }
     if (!CollectMethodRequestsFromStatements(statement.else_branch, program, scope,
-                                              current_artifact, out) ||
+                                              current_aggregate, out) ||
         !CollectMethodRequestsFromStatements(statement.if_then, program, scope,
-                                              current_artifact, out) ||
+                                              current_aggregate, out) ||
         !CollectMethodRequestsFromStatements(statement.if_else, program, scope,
-                                              current_artifact, out) ||
+                                              current_aggregate, out) ||
         !CollectMethodRequestsFromStatements(statement.loop_body, program, std::move(loop_scope),
-                                              current_artifact, out)) {
+                                              current_aggregate, out)) {
       return false;
     }
     if (statement.kind == Simple::Lang::AST::StmtKind::VarDecl) {
@@ -426,18 +426,18 @@ bool ResolvePatternBindingType(const Simple::Lang::AST::TypeRef& subject,
 bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
                                    const Simple::Lang::AST::Program& program,
                                    const MethodTypeScope& scope,
-                                   const Simple::Lang::AST::ArtifactDecl* current_artifact,
+                                   const Simple::Lang::AST::AggregateDecl* current_aggregate,
                                    std::vector<GenericInstantiationRequest>* out) {
   if (expr.kind == Simple::Lang::AST::ExprKind::Call && !expr.children.empty()) {
     const auto& callee = expr.children[0];
     if (callee.kind == Simple::Lang::AST::ExprKind::Member && !callee.children.empty()) {
       Simple::Lang::AST::TypeRef receiver;
-      if (InferMethodReceiverType(callee.children[0], program, scope, current_artifact, &receiver)) {
-        const auto* artifact = FindArtifactForMethodCollection(program, receiver.name);
-        const auto* method = FindGenericMethodForCollection(artifact, callee.text);
-        if (artifact && method && expr.type_args.size() == method->generics.size()) {
+      if (InferMethodReceiverType(callee.children[0], program, scope, current_aggregate, &receiver)) {
+        const auto* aggregate = FindAggregateForMethodCollection(program, receiver.name);
+        const auto* method = FindGenericMethodForCollection(aggregate, callee.text);
+        if (aggregate && method && expr.type_args.size() == method->generics.size()) {
           GenericInstantiationRequest request;
-          request.base_name = artifact->name + "." + method->name;
+          request.base_name = aggregate->name + "." + method->name;
           request.line = callee.line;
           request.column = callee.column;
           for (const auto& argument : receiver.type_args) {
@@ -460,19 +460,19 @@ bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
     return false;
   }
   for (const auto& child : expr.children) {
-    if (!CollectMethodRequestsFromExpr(child, program, scope, current_artifact, out)) return false;
+    if (!CollectMethodRequestsFromExpr(child, program, scope, current_aggregate, out)) return false;
   }
   for (const auto& argument : expr.args) {
-    if (!CollectMethodRequestsFromExpr(argument, program, scope, current_artifact, out)) return false;
+    if (!CollectMethodRequestsFromExpr(argument, program, scope, current_aggregate, out)) return false;
   }
   for (const auto& value : expr.field_values) {
-    if (!CollectMethodRequestsFromExpr(value, program, scope, current_artifact, out)) return false;
+    if (!CollectMethodRequestsFromExpr(value, program, scope, current_aggregate, out)) return false;
   }
   Simple::Lang::AST::TypeRef switch_subject;
   const bool has_switch_subject =
       expr.kind == Simple::Lang::AST::ExprKind::Switch && !expr.children.empty() &&
       InferMethodReceiverType(
-          expr.children[0], program, scope, current_artifact, &switch_subject);
+          expr.children[0], program, scope, current_aggregate, &switch_subject);
   for (const auto& branch : expr.switch_branches) {
     MethodTypeScope branch_scope = scope;
     Simple::Lang::AST::TypeRef binding_type;
@@ -482,12 +482,12 @@ bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
     if ((!branch.is_default &&
          branch.pattern_kind == Simple::Lang::SwitchPatternKind::None &&
          !CollectMethodRequestsFromExpr(branch.condition, program, branch_scope,
-                                        current_artifact, out)) ||
+                                        current_aggregate, out)) ||
         (branch.has_inline_value &&
          !CollectMethodRequestsFromExpr(branch.value, program, branch_scope,
-                                        current_artifact, out)) ||
+                                        current_aggregate, out)) ||
         !CollectMethodRequestsFromStatements(
-            branch.block, program, std::move(branch_scope), current_artifact, out)) {
+            branch.block, program, std::move(branch_scope), current_aggregate, out)) {
       return false;
     }
   }
@@ -506,14 +506,14 @@ bool CollectMethodRequestsFromFunction(
 
 bool CollectSpecializedMethodDependencies(
     const Simple::Lang::AST::FuncDecl& function,
-    const Simple::Lang::AST::ArtifactDecl& artifact,
+    const Simple::Lang::AST::AggregateDecl& aggregate,
     const std::vector<Simple::Lang::AST::TypeRef>& receiver_arguments,
     const Simple::Lang::AST::Program& program,
     std::vector<GenericInstantiationRequest>* out) {
-  if (receiver_arguments.size() != artifact.generics.size()) return false;
+  if (receiver_arguments.size() != aggregate.generics.size()) return false;
   MethodTypeScope scope;
   Simple::Lang::AST::TypeRef receiver;
-  receiver.name = artifact.name;
+  receiver.name = aggregate.name;
   receiver.type_args = receiver_arguments;
   scope.emplace("self", std::move(receiver));
   for (const auto& param : function.params) scope[param.name] = param.type;
@@ -539,14 +539,14 @@ bool CollectMethodInstantiationRequests(const Simple::Lang::AST::Program& progra
       if (!CollectMethodRequestsFromStatements(decl.func.body, program, std::move(scope), nullptr, out)) {
         return false;
       }
-    } else if (decl.kind == Simple::Lang::AST::DeclKind::Artifact &&
-               decl.artifact.generics.empty()) {
-      for (const auto& method : decl.artifact.methods) {
+    } else if (decl.kind == Simple::Lang::AST::DeclKind::Aggregate &&
+               decl.aggregate.generics.empty()) {
+      for (const auto& method : decl.aggregate.methods) {
         if (!method.generics.empty()) continue;
         MethodTypeScope scope = globals;
         for (const auto& param : method.params) scope[param.name] = param.type;
         if (!CollectMethodRequestsFromStatements(method.body, program, std::move(scope),
-                                                  &decl.artifact, out)) {
+                                                  &decl.aggregate, out)) {
           return false;
         }
       }
@@ -588,12 +588,12 @@ bool CollectRootInstantiationRequests(const Simple::Lang::AST::Program& program,
       case Simple::Lang::AST::DeclKind::Function:
         if (decl.func.generics.empty() && !CollectFromFunction(decl.func, out)) return false;
         break;
-      case Simple::Lang::AST::DeclKind::Artifact:
-        if (!decl.artifact.generics.empty()) break;
-        for (const auto& field : decl.artifact.fields) {
+      case Simple::Lang::AST::DeclKind::Aggregate:
+        if (!decl.aggregate.generics.empty()) break;
+        for (const auto& field : decl.aggregate.fields) {
           if (!CollectFromVar(field, out)) return false;
         }
-        for (const auto& method : decl.artifact.methods) {
+        for (const auto& method : decl.aggregate.methods) {
           if (method.generics.empty() && !CollectFromFunction(method, out)) return false;
         }
         break;
@@ -710,24 +710,24 @@ bool ApplySubstitutionToFunction(Simple::Lang::AST::FuncDecl* fn,
   return true;
 }
 
-const Simple::Lang::AST::ArtifactDecl* FindArtifactDecl(
+const Simple::Lang::AST::AggregateDecl* FindAggregateDecl(
     const Simple::Lang::AST::Program& program,
     const std::string& name);
 
 bool ResolveSpecializedMethod(
     const Simple::Lang::AST::Program& program,
     const GenericSpecializationPlan& plan,
-    const Simple::Lang::AST::ArtifactDecl** out_artifact,
+    const Simple::Lang::AST::AggregateDecl** out_aggregate,
     Simple::Lang::AST::FuncDecl* out_method,
     std::vector<Simple::Lang::AST::TypeRef>* out_receiver_arguments,
     std::string* error) {
-  if (!out_artifact || !out_method || !out_receiver_arguments ||
+  if (!out_aggregate || !out_method || !out_receiver_arguments ||
       plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Method) {
     return false;
   }
-  const auto* artifact = FindArtifactDecl(program, plan.declaration.owner_name);
-  const auto* method = FindGenericMethodForCollection(artifact, plan.declaration.name);
-  if (!artifact || !method) {
+  const auto* aggregate = FindAggregateDecl(program, plan.declaration.owner_name);
+  const auto* method = FindGenericMethodForCollection(aggregate, plan.declaration.name);
+  if (!aggregate || !method) {
     if (error) {
       *error = "missing generic method declaration: " + plan.declaration.owner_name +
                "." + plan.declaration.name;
@@ -739,7 +739,7 @@ bool ResolveSpecializedMethod(
   *out_method = *method;
   out_method->generics.clear();
   if (!ApplySubstitutionToFunction(out_method, substitutions)) return false;
-  const size_t receiver_argument_count = artifact->generics.size();
+  const size_t receiver_argument_count = aggregate->generics.size();
   if (plan.request.argument_types.size() < receiver_argument_count) {
     if (error) *error = "generic method receiver specialization metadata is incomplete";
     return false;
@@ -747,7 +747,7 @@ bool ResolveSpecializedMethod(
   out_receiver_arguments->assign(
       plan.request.argument_types.begin(),
       plan.request.argument_types.begin() + receiver_argument_count);
-  *out_artifact = artifact;
+  *out_aggregate = aggregate;
   return true;
 }
 
@@ -755,8 +755,8 @@ bool IsConcreteDeclForMaterialization(const Simple::Lang::AST::Decl& decl) {
   switch (decl.kind) {
     case Simple::Lang::AST::DeclKind::Function:
       return decl.func.generics.empty();
-    case Simple::Lang::AST::DeclKind::Artifact:
-      return decl.artifact.generics.empty();
+    case Simple::Lang::AST::DeclKind::Aggregate:
+      return decl.aggregate.generics.empty();
     default:
       return true;
   }
@@ -772,8 +772,8 @@ const std::string* TopLevelDeclName(const Simple::Lang::AST::Decl& decl) {
       return &decl.func.name;
     case Simple::Lang::AST::DeclKind::Variable:
       return &decl.var.name;
-    case Simple::Lang::AST::DeclKind::Artifact:
-      return &decl.artifact.name;
+    case Simple::Lang::AST::DeclKind::Aggregate:
+      return &decl.aggregate.name;
     case Simple::Lang::AST::DeclKind::Module:
       return &decl.module.name;
     case Simple::Lang::AST::DeclKind::Enum:
@@ -831,11 +831,11 @@ std::string LocalSpecializedSymbol(const std::string& symbol) {
   return separator == std::string::npos ? symbol : symbol.substr(separator + 1);
 }
 
-const Simple::Lang::AST::ArtifactDecl* FindArtifactDecl(const Simple::Lang::AST::Program& program,
+const Simple::Lang::AST::AggregateDecl* FindAggregateDecl(const Simple::Lang::AST::Program& program,
                                                         const std::string& name) {
   for (const auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact && decl.artifact.name == name) {
-      return &decl.artifact;
+    if (decl.kind == Simple::Lang::AST::DeclKind::Aggregate && decl.aggregate.name == name) {
+      return &decl.aggregate;
     }
   }
   return nullptr;
@@ -856,21 +856,21 @@ void AppendCanonicalTaggedLayouts(Simple::Lang::AST::Program* program) {
   };
 
   Simple::Lang::AST::Decl optional;
-  optional.kind = Simple::Lang::AST::DeclKind::Artifact;
-  optional.artifact.name = Simple::Lang::kOptionalTypeInternalName;
-  optional.artifact.generics = {"T"};
-  optional.artifact.tagged_kind = Simple::Lang::TaggedArtifactKind::Optional;
-  optional.artifact.fields.push_back(make_field("value", "T"));
+  optional.kind = Simple::Lang::AST::DeclKind::Aggregate;
+  optional.aggregate.name = Simple::Lang::kOptionalTypeInternalName;
+  optional.aggregate.generics = {"T"};
+  optional.aggregate.tagged_kind = Simple::Lang::TaggedAggregateKind::Optional;
+  optional.aggregate.fields.push_back(make_field("value", "T"));
   program->decls.push_back(std::move(optional));
 
   Simple::Lang::AST::Decl result;
-  result.kind = Simple::Lang::AST::DeclKind::Artifact;
-  result.artifact.name = "Result";
-  result.artifact.generics = {"T", "E"};
-  result.artifact.tagged_kind = Simple::Lang::TaggedArtifactKind::Result;
-  result.artifact.fields.push_back(make_field("tag", "i32"));
-  result.artifact.fields.push_back(make_field("value", "T"));
-  result.artifact.fields.push_back(make_field("error", "E"));
+  result.kind = Simple::Lang::AST::DeclKind::Aggregate;
+  result.aggregate.name = "Result";
+  result.aggregate.generics = {"T", "E"};
+  result.aggregate.tagged_kind = Simple::Lang::TaggedAggregateKind::Result;
+  result.aggregate.fields.push_back(make_field("tag", "i32"));
+  result.aggregate.fields.push_back(make_field("value", "T"));
+  result.aggregate.fields.push_back(make_field("error", "E"));
   program->decls.push_back(std::move(result));
 }
 
@@ -955,12 +955,12 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
       case Simple::Lang::AST::DeclKind::Function:
         if (decl.func.generics.empty() && !CollectFromFunction(decl.func, out)) return false;
         break;
-      case Simple::Lang::AST::DeclKind::Artifact:
-        if (!decl.artifact.generics.empty()) break;
-        for (const auto& field : decl.artifact.fields) {
+      case Simple::Lang::AST::DeclKind::Aggregate:
+        if (!decl.aggregate.generics.empty()) break;
+        for (const auto& field : decl.aggregate.fields) {
           if (!CollectFromVar(field, out)) return false;
         }
-        for (const auto& method : decl.artifact.methods) {
+        for (const auto& method : decl.aggregate.methods) {
           if (method.generics.empty() && !CollectFromFunction(method, out)) return false;
         }
         break;
@@ -1182,15 +1182,15 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
           }
           break;
         }
-        case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
+        case Simple::Lang::TAST::GenericDeclarationKind::Aggregate:
         case Simple::Lang::TAST::GenericDeclarationKind::Data: {
-          const auto* source = FindArtifactDecl(program, plan.declaration.name);
+          const auto* source = FindAggregateDecl(program, plan.declaration.name);
           if (!source) {
-            if (error) *error = "missing generic artifact declaration: " + plan.declaration.name;
+            if (error) *error = "missing generic aggregate declaration: " + plan.declaration.name;
             return false;
           }
-          Simple::Lang::AST::ArtifactDecl specialized;
-          if (!SpecializeArtifactLayoutDeclaration(*source, plan, &specialized, error)) {
+          Simple::Lang::AST::AggregateDecl specialized;
+          if (!SpecializeAggregateLayoutDeclaration(*source, plan, &specialized, error)) {
             return false;
           }
           for (const auto& field : specialized.fields) {
@@ -1207,13 +1207,13 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
           break;
         }
         case Simple::Lang::TAST::GenericDeclarationKind::Method: {
-          const Simple::Lang::AST::ArtifactDecl* artifact = nullptr;
+          const Simple::Lang::AST::AggregateDecl* aggregate = nullptr;
           Simple::Lang::AST::FuncDecl specialized;
           std::vector<Simple::Lang::AST::TypeRef> receiver_arguments;
-          if (!ResolveSpecializedMethod(program, plan, &artifact, &specialized,
+          if (!ResolveSpecializedMethod(program, plan, &aggregate, &specialized,
                                         &receiver_arguments, error) ||
               !CollectFromFunction(specialized, &dependencies) ||
-              !CollectSpecializedMethodDependencies(specialized, *artifact,
+              !CollectSpecializedMethodDependencies(specialized, *aggregate,
                                                     receiver_arguments, program,
                                                     &dependencies)) {
             return false;
@@ -1313,14 +1313,14 @@ bool SpecializeFunctionDeclaration(const Simple::Lang::AST::FuncDecl& source,
   return true;
 }
 
-bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& source,
+bool SpecializeAggregateLayoutDeclaration(const Simple::Lang::AST::AggregateDecl& source,
                                          const GenericSpecializationPlan& plan,
-                                         Simple::Lang::AST::ArtifactDecl* out,
+                                         Simple::Lang::AST::AggregateDecl* out,
                                          std::string* error) {
   if (!out) return false;
-  if (plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Artifact &&
+  if (plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Aggregate &&
       plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Data) {
-    if (error) *error = "generic specialization plan is not an artifact";
+    if (error) *error = "generic specialization plan is not an aggregate";
     return false;
   }
   if (plan.declaration.name != source.name) {
@@ -1358,13 +1358,13 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   if (!CollectMethodInstantiationRequests(source, &method_rewrite_requests)) return false;
   for (const auto& decl : source.decls) {
     if (!IsConcreteDeclForMaterialization(decl)) continue;
-    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact) {
-      Simple::Lang::AST::Decl concrete_artifact = decl;
-      concrete_artifact.artifact.methods.clear();
-      for (const auto& method : decl.artifact.methods) {
-        if (method.generics.empty()) concrete_artifact.artifact.methods.push_back(method);
+    if (decl.kind == Simple::Lang::AST::DeclKind::Aggregate) {
+      Simple::Lang::AST::Decl concrete_aggregate = decl;
+      concrete_aggregate.aggregate.methods.clear();
+      for (const auto& method : decl.aggregate.methods) {
+        if (method.generics.empty()) concrete_aggregate.aggregate.methods.push_back(method);
       }
-      out->decls.push_back(std::move(concrete_artifact));
+      out->decls.push_back(std::move(concrete_aggregate));
       continue;
     }
     if (decl.kind != Simple::Lang::AST::DeclKind::Module) {
@@ -1383,7 +1383,7 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   for (const auto& plan : plans) materialization_order.push_back(&plan);
   auto materialization_priority = [](Simple::Lang::TAST::GenericDeclarationKind kind) {
     switch (kind) {
-      case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
+      case Simple::Lang::TAST::GenericDeclarationKind::Aggregate:
       case Simple::Lang::TAST::GenericDeclarationKind::Data:
         return 0;
       case Simple::Lang::TAST::GenericDeclarationKind::Function:
@@ -1437,19 +1437,19 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         }
         break;
       }
-      case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
+      case Simple::Lang::TAST::GenericDeclarationKind::Aggregate:
       case Simple::Lang::TAST::GenericDeclarationKind::Data: {
-        const auto* source_artifact = FindArtifactDecl(source, plan.declaration.name);
-        if (!source_artifact) {
-          if (error) *error = "missing generic artifact declaration: " + plan.declaration.name;
+        const auto* source_aggregate = FindAggregateDecl(source, plan.declaration.name);
+        if (!source_aggregate) {
+          if (error) *error = "missing generic aggregate declaration: " + plan.declaration.name;
           return false;
         }
-        decl.kind = Simple::Lang::AST::DeclKind::Artifact;
-        if (!SpecializeArtifactLayoutDeclaration(*source_artifact, plan, &decl.artifact, error)) {
+        decl.kind = Simple::Lang::AST::DeclKind::Aggregate;
+        if (!SpecializeAggregateLayoutDeclaration(*source_aggregate, plan, &decl.aggregate, error)) {
           return false;
         }
-        for (const auto& method : decl.artifact.methods) {
-          if (!CollectSpecializedMethodDependencies(method, *source_artifact,
+        for (const auto& method : decl.aggregate.methods) {
+          if (!CollectSpecializedMethodDependencies(method, *source_aggregate,
                                                     plan.request.argument_types, source,
                                                     &method_rewrite_requests)) {
             return false;
@@ -1459,24 +1459,24 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         break;
       }
       case Simple::Lang::TAST::GenericDeclarationKind::Method: {
-        const Simple::Lang::AST::ArtifactDecl* source_artifact = nullptr;
+        const Simple::Lang::AST::AggregateDecl* source_aggregate = nullptr;
         Simple::Lang::AST::FuncDecl specialized;
         std::vector<Simple::Lang::AST::TypeRef> receiver_arguments;
-        if (!ResolveSpecializedMethod(source, plan, &source_artifact, &specialized,
+        if (!ResolveSpecializedMethod(source, plan, &source_aggregate, &specialized,
                                       &receiver_arguments, error)) {
           return false;
         }
         specialized.name = LocalSpecializedSymbol(plan.specialized_symbol);
-        if (!CollectSpecializedMethodDependencies(specialized, *source_artifact,
+        if (!CollectSpecializedMethodDependencies(specialized, *source_aggregate,
                                                   receiver_arguments, source,
                                                   &method_rewrite_requests)) {
           return false;
         }
 
-        std::string receiver_name = source_artifact->name;
+        std::string receiver_name = source_aggregate->name;
         if (!receiver_arguments.empty()) {
           GenericInstantiationRequest receiver_request;
-          receiver_request.base_name = source_artifact->name;
+          receiver_request.base_name = source_aggregate->name;
           receiver_request.argument_types = receiver_arguments;
           for (const auto& argument : receiver_arguments) {
             receiver_request.argument_identities.push_back(TypeRefIdentity(argument));
@@ -1484,7 +1484,7 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
           const std::string receiver_key = InstantiationRequestKey(receiver_request);
           bool found_receiver_plan = false;
           for (const auto& candidate : plans) {
-            if ((candidate.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Artifact ||
+            if ((candidate.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Aggregate ||
                  candidate.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Data) &&
                 InstantiationRequestKey(candidate.request) == receiver_key) {
               receiver_name = candidate.specialized_symbol;
@@ -1500,9 +1500,9 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
 
         bool found_receiver = false;
         for (auto& output_decl : out->decls) {
-          if (output_decl.kind == Simple::Lang::AST::DeclKind::Artifact &&
-              output_decl.artifact.name == receiver_name) {
-            output_decl.artifact.methods.push_back(std::move(specialized));
+          if (output_decl.kind == Simple::Lang::AST::DeclKind::Aggregate &&
+              output_decl.aggregate.name == receiver_name) {
+            output_decl.aggregate.methods.push_back(std::move(specialized));
             found_receiver = true;
             break;
           }
@@ -1773,11 +1773,11 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     return true;
   };
 
-  auto artifact_instance_type = [&](const std::string& materialized_name,
+  auto aggregate_instance_type = [&](const std::string& materialized_name,
                                     Simple::Lang::AST::TypeRef* instance) -> bool {
     if (!instance) return false;
     for (const auto& plan : plans) {
-      if ((plan.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Artifact ||
+      if ((plan.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Aggregate ||
            plan.declaration.kind == Simple::Lang::TAST::GenericDeclarationKind::Data) &&
           plan.specialized_symbol == materialized_name) {
         instance->name = plan.declaration.name;
@@ -1785,8 +1785,8 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         return true;
       }
     }
-    const auto* artifact = FindArtifactDecl(source, materialized_name);
-    if (!artifact || !artifact->generics.empty()) return false;
+    const auto* aggregate = FindAggregateDecl(source, materialized_name);
+    if (!aggregate || !aggregate->generics.empty()) return false;
     instance->name = materialized_name;
     return true;
   };
@@ -1806,15 +1806,15 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         rewrite_scope = global_rewrite_scope;
         if (!rewrite_var(rewrite_expr, rewrite_type, &decl.var)) return false;
         break;
-      case Simple::Lang::AST::DeclKind::Artifact: {
+      case Simple::Lang::AST::DeclKind::Aggregate: {
         Simple::Lang::AST::TypeRef self_type;
-        if (!artifact_instance_type(decl.artifact.name, &self_type)) return false;
+        if (!aggregate_instance_type(decl.aggregate.name, &self_type)) return false;
         rewrite_scope = global_rewrite_scope;
         rewrite_scope["self"] = self_type;
-        for (auto& field : decl.artifact.fields) {
+        for (auto& field : decl.aggregate.fields) {
           if (!rewrite_var(rewrite_expr, rewrite_type, &field)) return false;
         }
-        for (auto& method : decl.artifact.methods) {
+        for (auto& method : decl.aggregate.methods) {
           if (!rewrite_function(&method, &self_type)) return false;
         }
         break;

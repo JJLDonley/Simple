@@ -13,7 +13,7 @@ enum class ObjectKind : uint8_t {
   Bytes,
   Array,
   List,
-  Artifact,
+  Aggregate,
   Closure,
   Promise,
 };
@@ -31,7 +31,7 @@ struct HeapObject {
   std::vector<uint8_t> payload;
 };
 
-struct ArtifactTraceDescriptor {
+struct AggregateTraceDescriptor {
   bool configured = false;
   uint32_t tag_offset = 0;
   bool branch_on_tag = false;
@@ -81,10 +81,10 @@ constexpr std::size_t ListElementOffset(uint32_t index, uint32_t elem_size) {
   return kListDataOffset + static_cast<std::size_t>(index) * elem_size;
 }
 
-constexpr std::size_t ArtifactPayloadSize(uint32_t byte_size) {
+constexpr std::size_t AggregatePayloadSize(uint32_t byte_size) {
   return byte_size;
 }
-constexpr std::size_t ArtifactFieldOffset(uint32_t byte_offset) {
+constexpr std::size_t AggregateFieldOffset(uint32_t byte_offset) {
   return byte_offset;
 }
 
@@ -122,7 +122,7 @@ constexpr std::size_t PromisePayloadSize(uint32_t argument_count) {
 
 constexpr bool IsRefKind(ObjectKind kind) {
   return kind == ObjectKind::String || kind == ObjectKind::Bytes || kind == ObjectKind::Array ||
-         kind == ObjectKind::List || kind == ObjectKind::Artifact || kind == ObjectKind::Closure ||
+         kind == ObjectKind::List || kind == ObjectKind::Aggregate || kind == ObjectKind::Closure ||
          kind == ObjectKind::Promise;
 }
 
@@ -147,7 +147,7 @@ std::vector<uint8_t> ReadBytes(const HeapObject* obj);
 class Heap {
  public:
   void SetLimits(uint32_t max_objects, uint64_t max_bytes);
-  void SetArtifactTraceDescriptors(std::vector<ArtifactTraceDescriptor> descriptors);
+  void SetAggregateTraceDescriptors(std::vector<AggregateTraceDescriptor> descriptors);
   uint32_t Allocate(ObjectKind kind, uint32_t type_id, uint32_t size);
   HeapObject* Get(uint32_t handle);
   const HeapObject* Get(uint32_t handle) const;
@@ -162,7 +162,7 @@ class Heap {
   uint64_t max_bytes_ = 0;
   uint32_t live_objects_ = 0;
   uint64_t live_bytes_ = 0;
-  std::vector<ArtifactTraceDescriptor> artifact_trace_descriptors_;
+  std::vector<AggregateTraceDescriptor> aggregate_trace_descriptors_;
 };
 
 } // namespace Simple::VM

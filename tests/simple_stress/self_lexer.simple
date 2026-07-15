@@ -2,7 +2,7 @@ module Tests.Stress.SelfLexer
 
 import System.FS
 
-ScanResult :: artifact {
+ScanResult :: class {
   tokens : i32
   line : i32
   column : i32

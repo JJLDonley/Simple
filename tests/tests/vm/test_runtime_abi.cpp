@@ -144,7 +144,7 @@ bool VmRuntimeAbiMapsOpaqueHandleTypeRows() {
 
   Simple::Byte::TypeRow tagged;
   tagged.kind = static_cast<uint8_t>(TypeKind::Result);
-  tagged.flags = Simple::Byte::kTypeFlagManagedArtifact;
+  tagged.flags = Simple::Byte::kTypeFlagManagedClass;
   tagged.size = 12;
   const auto tagged_info = GetSbcTypeAbiTypeInfo(tagged);
 
@@ -169,7 +169,7 @@ bool VmRuntimeAbiMapsStableSbcDataTypes() {
   module.types.push_back(i32);
   Simple::Byte::TypeRow data;
   data.kind = static_cast<uint8_t>(TypeKind::Unspecified);
-  data.flags = Simple::Byte::kTypeFlagStableData;
+  data.flags = Simple::Byte::kTypeFlagStableStruct;
   data.size = 8;
   data.field_start = 0;
   data.field_count = 2;
@@ -190,7 +190,7 @@ bool VmRuntimeAbiMapsStableSbcDataTypes() {
   module.fields[1].type_id = 1;
   error.clear();
   return !GetSbcModuleTypeAbiTypeInfo(module, 1, &info, &error) &&
-         error.find("recursive stable data ABI type") != std::string::npos;
+         error.find("recursive stable struct ABI type") != std::string::npos;
 }
 
 bool VmRuntimeAbiMapsEnumUnderlyingTypes() {
@@ -209,7 +209,7 @@ bool VmRuntimeAbiMapsEnumUnderlyingTypes() {
          wide_enum.align == 8 && bad_enum.abi_class == AbiClass::Invalid;
 }
 
-bool VmRuntimeAbiAlignsStableDataFields() {
+bool VmRuntimeAbiAlignsStableStructFields() {
   using Simple::VM::Runtime::AlignAbiOffset;
   using Simple::VM::Runtime::IsSmallAbiAggregate;
 
@@ -470,12 +470,12 @@ bool VmRuntimeAbiValidatesExternalCSignatures() {
     return false;
   }
 
-  const auto stable_data = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout({
+  const auto stable_struct = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout({
       GetPrimitiveAbiTypeInfo(TypeKind::I32),
       GetPrimitiveAbiTypeInfo(TypeKind::F64),
   }));
   error.clear();
-  if (!ValidateExternalCAbiTypeInfos({stable_data}, stable_data, &error) ||
+  if (!ValidateExternalCAbiTypeInfos({stable_struct}, stable_struct, &error) ||
       !error.empty()) {
     return false;
   }
@@ -483,7 +483,7 @@ bool VmRuntimeAbiValidatesExternalCSignatures() {
       GetPrimitiveAbiTypeInfo(TypeKind::I32),
       GetPrimitiveAbiTypeInfo(TypeKind::String),
   }));
-  return !ValidateExternalCAbiTypeInfos({managed_data}, stable_data, &error) &&
+  return !ValidateExternalCAbiTypeInfos({managed_data}, stable_struct, &error) &&
          error.find("parameter 0") != std::string::npos;
 }
 
@@ -570,29 +570,6 @@ bool VmRuntimeAbiComputesFixedArrayLayout() {
          !ref_array.external_ffi_callable;
 }
 
-bool VmRuntimeAbiDataMethodsDoNotAffectLayout() {
-  using Simple::Byte::TypeKind;
-  using Simple::VM::Runtime::AbiDataDeclaration;
-  using Simple::VM::Runtime::ComputeStableDataLayout;
-  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
-
-  AbiDataDeclaration without_methods;
-  without_methods.fields = {
-      GetPrimitiveAbiTypeInfo(TypeKind::I32),
-      GetPrimitiveAbiTypeInfo(TypeKind::F64),
-  };
-
-  AbiDataDeclaration with_methods = without_methods;
-  with_methods.method_count = 7;
-
-  const auto first = ComputeStableDataLayout(without_methods);
-  const auto second = ComputeStableDataLayout(with_methods);
-  return first.size == second.size && first.align == second.align &&
-         first.layout_hash == second.layout_hash && first.fields.size() == second.fields.size() &&
-         first.fields[0].offset == second.fields[0].offset &&
-         first.fields[1].offset == second.fields[1].offset;
-}
-
 bool VmRuntimeAbiRejectsRecursiveValueContainment() {
   using Simple::VM::Runtime::AbiContainmentField;
   using Simple::VM::Runtime::ValidateNoRecursiveValueContainment;
@@ -653,7 +630,7 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   module.types.push_back(ptr);
   Simple::Byte::TypeRow point;
   point.kind = static_cast<uint8_t>(TypeKind::Unspecified);
-  point.flags = Simple::Byte::kTypeFlagStableData;
+  point.flags = Simple::Byte::kTypeFlagStableStruct;
   point.size = 8;
   point.field_start = 0;
   point.field_count = 2;
@@ -789,7 +766,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_opaque_handle_type_rows", VmRuntimeAbiMapsOpaqueHandleTypeRows},
   {"vm_runtime_abi_maps_stable_sbc_data_types", VmRuntimeAbiMapsStableSbcDataTypes},
   {"vm_runtime_abi_maps_enum_underlying_types", VmRuntimeAbiMapsEnumUnderlyingTypes},
-  {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_abi_aligns_stable_struct_fields", VmRuntimeAbiAlignsStableStructFields},
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
   {"vm_runtime_promise_registry_waits_across_threads", VmRuntimePromiseRegistryWaitsAcrossThreads},
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
@@ -803,7 +780,6 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
   {"vm_runtime_abi_computes_nested_aggregate_layout", VmRuntimeAbiComputesNestedAggregateLayout},
   {"vm_runtime_abi_computes_fixed_array_layout", VmRuntimeAbiComputesFixedArrayLayout},
-  {"vm_runtime_abi_data_methods_do_not_affect_layout", VmRuntimeAbiDataMethodsDoNotAffectLayout},
   {"vm_runtime_abi_rejects_recursive_value_containment", VmRuntimeAbiRejectsRecursiveValueContainment},
   {"vm_runtime_abi_validates_dynamic_dl_abi", VmRuntimeAbiValidatesDynamicDlAbi},
   {"vm_runtime_abi_classifies_native_jit_calls", VmRuntimeAbiClassifiesNativeJitCalls},

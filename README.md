@@ -236,12 +236,12 @@ svm run hello.simple
 | [Programs and modules](docs/Language.md#program-structure-and-entry-points) | Entry points, top-level statements, source files, and module headers. |
 | [Declarations](docs/Language.md#declarations) | Mutable and immutable variables, functions, and `::` declarations. |
 | [Types](docs/Language.md#types) | Primitive types, arrays, lists, generics, procedures, and pointers. |
-| [Literals](docs/Language.md#literals) | Numeric, boolean, character, string, array, list, and artifact values. |
+| [Literals](docs/Language.md#literals) | Numeric, boolean, character, string, array, list, and class values. |
 | [Expressions](docs/Language.md#expressions) | Operators, calls, indexing, member access, assignment, and casts. |
 | [Control flow](docs/Language.md#statements-and-control-flow) | `if`, `else`, `while`, `for`, `switch`, and `return`. |
 | [Functions](docs/Language.md#functions-procedure-types-and-function-literals) | Parameters, return values, procedure types, and function literals. |
 | [Arrays and lists](docs/Language.md#arrays-and-lists) | Fixed-size arrays, growable lists, indexing, and list methods. |
-| [Artifacts](docs/Language.md#artifacts) | Structured values, fields, methods, initialization, and `self`. |
+| [Classes](docs/Language.md#classes) | Structured values, fields, methods, initialization, and `self`. |
 | [Enums](docs/Language.md#enums) | Named integer-backed values and scoped members. |
 | [Imports and `using`](docs/Language.md#imports-and-using) | Named project modules, explicit quoted source paths, aliases, and canonical library imports. |
 | [System and Standard libraries](docs/Language.md#reservedsystem-modules-and-standard-library) | Runtime-facing `System.*` modules and higher-level `Standard.*` modules. |
@@ -262,14 +262,14 @@ add :: (a : i32, b : i32) -> i32 {
 count = add(count, 1)
 ```
 
-### Artifacts
+### Classes
 
-Artifacts combine structured data and methods:
+Classes combine structured data and methods:
 
 ```simple
 module Examples.Reference
 
-Counter :: artifact {
+Counter :: class {
   value : i32
 
   increment :: () -> void {

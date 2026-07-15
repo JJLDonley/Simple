@@ -1,4 +1,4 @@
-Box :: artifact {
+Box :: class {
   value : i32
 }
 

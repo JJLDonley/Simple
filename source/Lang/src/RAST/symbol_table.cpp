@@ -62,8 +62,8 @@ const Symbol* ResolveDeclarationSymbol(const ResolvedProgram* program,
     case Simple::Lang::AST::DeclKind::Variable:
       qualified_name = decl.var.name;
       break;
-    case Simple::Lang::AST::DeclKind::Artifact:
-      qualified_name = decl.artifact.name;
+    case Simple::Lang::AST::DeclKind::Aggregate:
+      qualified_name = decl.aggregate.name;
       break;
     case Simple::Lang::AST::DeclKind::Module:
       qualified_name = decl.module.name;

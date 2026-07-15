@@ -1,6 +1,6 @@
 module Tests.Stress.ModuleGenericComposition
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 
   get :: () -> T { return self.value }

@@ -105,7 +105,7 @@ AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row) {
   if (Simple::Byte::IsOpaqueHandleType(row)) {
     return AbiTypeInfo{AbiClass::Handle, 8, 8, true, false};
   }
-  if (Simple::Byte::IsManagedArtifactType(row)) {
+  if (Simple::Byte::IsManagedClassType(row)) {
     return AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
   }
   AbiTypeInfo info =
@@ -146,7 +146,7 @@ bool GetSbcModuleTypeAbiTypeInfoImpl(const Simple::Byte::SbcModule& module,
     *out = GetSbcTypeAbiTypeInfo(row);
     return true;
   }
-  if (Simple::Byte::IsManagedArtifactType(row)) {
+  if (Simple::Byte::IsManagedClassType(row)) {
     *out = AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
     return true;
   }
@@ -155,16 +155,16 @@ bool GetSbcModuleTypeAbiTypeInfoImpl(const Simple::Byte::SbcModule& module,
     *out = GetSbcTypeAbiTypeInfo(row);
     return out->abi_class != AbiClass::Invalid;
   }
-  if (!Simple::Byte::IsStableDataType(row)) {
-    if (error) *error = "SBC aggregate type is not stable data";
+  if (!Simple::Byte::IsStableStructType(row)) {
+    if (error) *error = "SBC aggregate type is not a stable struct";
     return false;
   }
   if (!visiting.insert(type_id).second) {
-    if (error) *error = "recursive stable data ABI type";
+    if (error) *error = "recursive stable struct ABI type";
     return false;
   }
   if (row.field_start + row.field_count > module.fields.size()) {
-    if (error) *error = "stable data field range out of bounds";
+    if (error) *error = "stable struct field range out of bounds";
     visiting.erase(type_id);
     return false;
   }
@@ -451,10 +451,6 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
   layout.pass_by_value = layout.native_callable && IsSmallAbiAggregate(layout.size, layout.contains_references);
   layout.layout_hash = ComputeStableAggregateLayoutHash(layout);
   return layout;
-}
-
-AbiAggregateLayout ComputeStableDataLayout(const AbiDataDeclaration& declaration) {
-  return ComputeStableAggregateLayout(declaration.fields);
 }
 
 AbiFixedArrayLayout ComputeStableFixedArrayLayout(const AbiTypeInfo& element_type,

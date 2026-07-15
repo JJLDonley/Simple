@@ -778,8 +778,8 @@ struct SimpleLspFact {
     Function,
     Module,
     Namespace,
-    Artifact,
-    ArtifactField,
+    Aggregate,
+    AggregateField,
     Enum,
     EnumMember,
   };
@@ -1051,6 +1051,11 @@ std::string DefaultImportAlias(const std::string& path) {
   return base;
 }
 
+bool IsAggregateKeyword(Simple::Lang::TokenKind kind) {
+  return kind == Simple::Lang::TokenKind::KwClass ||
+         kind == Simple::Lang::TokenKind::KwStruct;
+}
+
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
   std::unordered_set<std::string> labels;
   size_t start = 0;
@@ -1113,37 +1118,37 @@ std::vector<std::string> CollectEnumMemberLabels(const std::string& text) {
   return labels;
 }
 
-std::vector<std::string> CollectArtifactFieldLabels(const std::string& text) {
+std::vector<std::string> CollectAggregateFieldLabels(const std::string& text) {
   std::vector<std::string> labels;
   const auto refs = LexTokenRefs(text);
   using TK = Simple::Lang::TokenKind;
-  std::string current_artifact;
-  bool in_artifact = false;
-  uint32_t artifact_depth = 0;
+  std::string current_aggregate;
+  bool in_aggregate = false;
+  uint32_t aggregate_depth = 0;
   for (size_t i = 0; i < refs.size(); ++i) {
     const auto& ref = refs[i];
-    if (!in_artifact) {
+    if (!in_aggregate) {
       if (ref.token.kind == TK::Identifier &&
           i + 2 < refs.size() &&
           refs[i + 1].token.kind == TK::DoubleColon &&
-          refs[i + 2].token.kind == TK::KwArtifact) {
-        current_artifact = ref.token.text;
+          IsAggregateKeyword(refs[i + 2].token.kind)) {
+        current_aggregate = ref.token.text;
         continue;
       }
-      if (!current_artifact.empty() && ref.token.kind == TK::LBrace) {
-        artifact_depth = ref.depth + 1;
-        in_artifact = true;
+      if (!current_aggregate.empty() && ref.token.kind == TK::LBrace) {
+        aggregate_depth = ref.depth + 1;
+        in_aggregate = true;
       }
       continue;
     }
-    if (ref.token.kind == TK::RBrace && ref.depth == artifact_depth) {
-      in_artifact = false;
-      current_artifact.clear();
+    if (ref.token.kind == TK::RBrace && ref.depth == aggregate_depth) {
+      in_aggregate = false;
+      current_aggregate.clear();
       continue;
     }
-    if (ref.depth != artifact_depth || ref.token.kind != TK::Identifier) continue;
+    if (ref.depth != aggregate_depth || ref.token.kind != TK::Identifier) continue;
     if (i + 1 >= refs.size() || refs[i + 1].token.kind != TK::Colon) continue;
-    labels.push_back(current_artifact + "." + ref.token.text);
+    labels.push_back(current_aggregate + "." + ref.token.text);
   }
   std::sort(labels.begin(), labels.end());
   labels.erase(std::unique(labels.begin(), labels.end()), labels.end());
@@ -1496,7 +1501,7 @@ std::string FormatSimpleLspFactHover(const SimpleLspFact& fact) {
   switch (fact.kind) {
     case SimpleLspFact::Kind::Variable:
     case SimpleLspFact::Kind::Parameter:
-    case SimpleLspFact::Kind::ArtifactField:
+    case SimpleLspFact::Kind::AggregateField:
       return (fact.qualified_name.empty() ? fact.name : fact.qualified_name) +
              (fact.immutable ? " :: " : " : ") + fact.type;
     case SimpleLspFact::Kind::Function:
@@ -1505,8 +1510,8 @@ std::string FormatSimpleLspFactHover(const SimpleLspFact& fact) {
       return "module " + fact.qualified_name;
     case SimpleLspFact::Kind::Namespace:
       return fact.qualified_name + " :: namespace";
-    case SimpleLspFact::Kind::Artifact:
-      return fact.qualified_name + " :: artifact";
+    case SimpleLspFact::Kind::Aggregate:
+      return fact.qualified_name + " :: " + fact.type;
     case SimpleLspFact::Kind::Enum:
       return fact.qualified_name + " :: enum";
     case SimpleLspFact::Kind::EnumMember:
@@ -1587,8 +1592,12 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     }
 
     if (refs[i].token.kind != TK::Identifier) continue;
-    if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwArtifact) {
-      push_type_decl(i, SimpleLspFact::Kind::Artifact, "artifact");
+    if (refs[i + 1].token.kind == TK::DoubleColon &&
+        refs[i + 2].token.kind == TK::KwClass) {
+      push_type_decl(i, SimpleLspFact::Kind::Aggregate, "class");
+    } else if (refs[i + 1].token.kind == TK::DoubleColon &&
+               refs[i + 2].token.kind == TK::KwStruct) {
+      push_type_decl(i, SimpleLspFact::Kind::Aggregate, "struct");
     } else if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwEnum) {
       push_type_decl(i, SimpleLspFact::Kind::Enum, "enum");
     } else if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwNamespace) {
@@ -1696,33 +1705,33 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     facts.push_back(std::move(fact));
   }
 
-  std::string current_artifact;
-  bool in_artifact = false;
-  uint32_t artifact_depth = 0;
+  std::string current_aggregate;
+  bool in_aggregate = false;
+  uint32_t aggregate_depth = 0;
   std::string current_enum;
   bool in_enum = false;
   uint32_t enum_depth = 0;
   for (size_t i = 0; i < refs.size(); ++i) {
     const auto& ref = refs[i];
-    if (!in_artifact && i + 2 < refs.size() && ref.token.kind == TK::Identifier &&
-        refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwArtifact) {
-      current_artifact = ref.token.text;
+    if (!in_aggregate && i + 2 < refs.size() && ref.token.kind == TK::Identifier &&
+        refs[i + 1].token.kind == TK::DoubleColon && IsAggregateKeyword(refs[i + 2].token.kind)) {
+      current_aggregate = ref.token.text;
       continue;
     }
-    if (!current_artifact.empty() && !in_artifact && ref.token.kind == TK::LBrace) {
-      in_artifact = true;
-      artifact_depth = ref.depth + 1;
+    if (!current_aggregate.empty() && !in_aggregate && ref.token.kind == TK::LBrace) {
+      in_aggregate = true;
+      aggregate_depth = ref.depth + 1;
       continue;
     }
-    if (in_artifact && ref.token.kind == TK::RBrace && ref.depth == artifact_depth) {
-      in_artifact = false;
-      current_artifact.clear();
+    if (in_aggregate && ref.token.kind == TK::RBrace && ref.depth == aggregate_depth) {
+      in_aggregate = false;
+      current_aggregate.clear();
       continue;
     }
-    if (in_artifact && ref.depth == artifact_depth && ref.token.kind == TK::Identifier &&
+    if (in_aggregate && ref.depth == aggregate_depth && ref.token.kind == TK::Identifier &&
         i + 2 < refs.size() && refs[i + 1].token.kind == TK::Colon && refs[i + 2].token.kind == TK::Identifier) {
       SimpleLspFact fact;
-      fact.kind = SimpleLspFact::Kind::ArtifactField;
+      fact.kind = SimpleLspFact::Kind::AggregateField;
       fact.name = ref.token.text;
       fact.qualified_name = ref.token.text;
       fact.type = BuildDeclaredTypeTextAt(refs, i + 2);
@@ -2010,8 +2019,8 @@ void ReplyCompletion(std::ostream& out,
       for (const auto& label : kPromiseMethods) add_label(label, &seen);
       const auto enum_labels = CollectEnumMemberLabels(doc_it->second);
       for (const auto& label : enum_labels) add_label(label, &seen);
-      const auto artifact_labels = CollectArtifactFieldLabels(doc_it->second);
-      for (const auto& label : artifact_labels) add_label(label, &seen);
+      const auto aggregate_labels = CollectAggregateFieldLabels(doc_it->second);
+      for (const auto& label : aggregate_labels) add_label(label, &seen);
     }
     auto add_doc_decls = [&](const std::string& text) {
       const auto refs = LexTokenRefs(text);
@@ -2028,8 +2037,8 @@ void ReplyCompletion(std::ostream& out,
       if (other_uri == uri) continue;
       const auto enum_labels = CollectEnumMemberLabels(other_text);
       for (const auto& label : enum_labels) add_label(label, &seen);
-      const auto artifact_labels = CollectArtifactFieldLabels(other_text);
-      for (const auto& label : artifact_labels) add_label(label, &seen);
+      const auto aggregate_labels = CollectAggregateFieldLabels(other_text);
+      for (const auto& label : aggregate_labels) add_label(label, &seen);
       add_doc_decls(other_text);
     }
     std::sort(labels.begin(), labels.end());
@@ -2323,7 +2332,8 @@ bool IsKeywordToken(Simple::Lang::TokenKind kind) {
     case TK::KwAsync:
     case TK::KwAwait:
     case TK::KwSelf:
-    case TK::KwArtifact:
+    case TK::KwClass:
+    case TK::KwStruct:
     case TK::KwEnum:
     case TK::KwModule:
     case TK::KwNamespace:
@@ -2422,7 +2432,7 @@ struct SemanticTokenEntry {
 bool IsKeywordText(const std::string& text) {
   static const std::unordered_set<std::string> kKeywords = {
       "while", "for", "break", "skip", "return", "if", "else", "default", "switch",
-      "fn", "callback", "self", "artifact", "enum", "module", "namespace", "import", "using", "extern", "as",
+      "fn", "callback", "self", "class", "struct", "enum", "module", "namespace", "import", "using", "extern", "as",
       "true", "false",
   };
   return kKeywords.find(text) != kKeywords.end();
@@ -2610,8 +2620,8 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       const std::unordered_set<size_t>& enum_member_indices,
                                       const std::unordered_set<std::string>& enum_names,
                                       const std::unordered_set<std::string>& module_names,
-                                      const std::unordered_set<std::string>& artifact_names,
-                                      const std::unordered_set<size_t>& artifact_field_indices,
+                                      const std::unordered_set<std::string>& aggregate_names,
+                                      const std::unordered_set<size_t>& aggregate_field_indices,
                                       const std::vector<uint32_t>& member_depths,
                                       const std::vector<std::string>& member_receivers) {
   using TK = Simple::Lang::TokenKind;
@@ -2640,9 +2650,9 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (import_aliases.find(token.text) != import_aliases.end() ||
         module_names.find(token.text) != module_names.end()) return 7; // namespace
     if (enum_names.find(token.text) != enum_names.end() ||
-        artifact_names.find(token.text) != artifact_names.end()) return 1; // type
+        aggregate_names.find(token.text) != aggregate_names.end()) return 1; // type
     if (enum_member_indices.find(i) != enum_member_indices.end()) return 6; // enum member
-    if (artifact_field_indices.find(i) != artifact_field_indices.end()) return 5; // property
+    if (aggregate_field_indices.find(i) != aggregate_field_indices.end()) return 5; // property
     if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
     if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
     if (IsDeclNameAt(refs, i)) return 3; // variable-like declaration
@@ -2654,7 +2664,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
 uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<size_t>& enum_member_indices,
-                                      const std::unordered_set<size_t>& artifact_field_indices,
+                                      const std::unordered_set<size_t>& aggregate_field_indices,
                                       const std::unordered_set<size_t>& readonly_decl_indices,
                                       const std::unordered_set<size_t>& namespace_decl_indices) {
   using TK = Simple::Lang::TokenKind;
@@ -2672,7 +2682,7 @@ uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
   if (enum_member_indices.find(i) != enum_member_indices.end()) {
     modifiers |= 1u << 0; // declaration
   }
-  if (artifact_field_indices.find(i) != artifact_field_indices.end()) {
+  if (aggregate_field_indices.find(i) != aggregate_field_indices.end()) {
     modifiers |= 1u << 0; // declaration
   }
   if (namespace_decl_indices.find(i) != namespace_decl_indices.end()) {
@@ -3013,8 +3023,8 @@ void ReplySemanticTokensFull(std::ostream& out,
     entries.reserve(refs.size());
     std::unordered_set<std::string> enum_names;
     std::unordered_set<std::string> module_names;
-    std::unordered_set<std::string> artifact_names;
-    std::unordered_set<size_t> artifact_field_indices;
+    std::unordered_set<std::string> aggregate_names;
+    std::unordered_set<size_t> aggregate_field_indices;
     {
       using TK = Simple::Lang::TokenKind;
       for (size_t i = 0; i + 2 < refs.size(); ++i) {
@@ -3024,42 +3034,42 @@ void ReplySemanticTokensFull(std::ostream& out,
           enum_names.insert(refs[i].token.text);
         } else if (refs[i + 2].token.kind == TK::KwModule) {
           module_names.insert(refs[i].token.text);
-        } else if (refs[i + 2].token.kind == TK::KwArtifact) {
-          artifact_names.insert(refs[i].token.text);
+        } else if (IsAggregateKeyword(refs[i + 2].token.kind)) {
+          aggregate_names.insert(refs[i].token.text);
         }
       }
     }
     {
       using TK = Simple::Lang::TokenKind;
-      bool pending_artifact = false;
-      bool in_artifact = false;
-      uint32_t artifact_depth = 0;
+      bool pending_aggregate = false;
+      bool in_aggregate = false;
+      uint32_t aggregate_depth = 0;
       for (size_t i = 0; i < refs.size(); ++i) {
         const auto& ref = refs[i];
-        if (!in_artifact) {
+        if (!in_aggregate) {
           if (ref.token.kind == TK::Identifier &&
               i + 2 < refs.size() &&
               refs[i + 1].token.kind == TK::DoubleColon &&
-              refs[i + 2].token.kind == TK::KwArtifact) {
-            pending_artifact = true;
+              IsAggregateKeyword(refs[i + 2].token.kind)) {
+            pending_aggregate = true;
             continue;
           }
-          if (pending_artifact && ref.token.kind == TK::LBrace) {
-            artifact_depth = ref.depth + 1;
-            in_artifact = true;
-            pending_artifact = false;
+          if (pending_aggregate && ref.token.kind == TK::LBrace) {
+            aggregate_depth = ref.depth + 1;
+            in_aggregate = true;
+            pending_aggregate = false;
             continue;
           }
         } else {
-          if (ref.token.kind == TK::RBrace && ref.depth == artifact_depth) {
-            in_artifact = false;
+          if (ref.token.kind == TK::RBrace && ref.depth == aggregate_depth) {
+            in_aggregate = false;
             continue;
           }
-          if (ref.depth == artifact_depth &&
+          if (ref.depth == aggregate_depth &&
               ref.token.kind == TK::Identifier &&
               i + 1 < refs.size() &&
               refs[i + 1].token.kind == TK::Colon) {
-            artifact_field_indices.insert(i);
+            aggregate_field_indices.insert(i);
           }
         }
       }
@@ -3103,8 +3113,8 @@ void ReplySemanticTokensFull(std::ostream& out,
                                                                enum_member_indices,
                                                                enum_names,
                                                                module_names,
-                                                               artifact_names,
-                                                               artifact_field_indices,
+                                                               aggregate_names,
+                                                               aggregate_field_indices,
                                                                member_depths,
                                                                member_receivers);
       if (token_type == 3 && token.kind == Simple::Lang::TokenKind::Identifier &&
@@ -3119,7 +3129,7 @@ void ReplySemanticTokensFull(std::ostream& out,
           SemanticTokenModifiersForRef(refs,
                                        i,
                                        enum_member_indices,
-                                       artifact_field_indices,
+                                       aggregate_field_indices,
                                        readonly_decl_indices,
                                        namespace_decl_indices),
       });
@@ -3176,7 +3186,7 @@ bool IsTypeDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
   if (i + 2 >= refs.size()) return false;
   if (refs[i].token.kind != TK::Identifier) return false;
   if (refs[i + 1].token.kind != TK::DoubleColon) return false;
-  return refs[i + 2].token.kind == TK::KwArtifact || refs[i + 2].token.kind == TK::KwEnum;
+  return IsAggregateKeyword(refs[i + 2].token.kind) || refs[i + 2].token.kind == TK::KwEnum;
 }
 
 bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
@@ -3185,7 +3195,7 @@ bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
   if (refs[i].token.kind != TK::Identifier) return false;
   if (i + 2 < refs.size() &&
       refs[i + 1].token.kind == TK::DoubleColon &&
-      (refs[i + 2].token.kind == TK::KwArtifact ||
+      (IsAggregateKeyword(refs[i + 2].token.kind) ||
        refs[i + 2].token.kind == TK::KwModule ||
        refs[i + 2].token.kind == TK::KwEnum)) {
     return true;
@@ -3489,7 +3499,7 @@ std::string EnclosingBraceRangeJson(const std::vector<TokenRef>& refs, size_t to
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
-      "fn", "callback", "self", "artifact", "enum", "module", "namespace",
+      "fn", "callback", "self", "class", "struct", "enum", "module", "namespace",
       "import", "using", "extern", "as",
       "true", "false",
   };
@@ -3928,7 +3938,7 @@ uint32_t SymbolKindFor(const std::vector<TokenRef>& refs, size_t i) {
   if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
     if (refs[i + 2].token.kind == TK::KwModule) return 2;
     if (refs[i + 2].token.kind == TK::KwEnum) return 10;
-    if (refs[i + 2].token.kind == TK::KwArtifact) return 23;
+    if (IsAggregateKeyword(refs[i + 2].token.kind)) return 23;
   }
   return 13;
 }

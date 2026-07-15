@@ -17,19 +17,19 @@ bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
 bool IsSupportedDlAbiType(
     const Simple::Lang::AST::TypeRef& type,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     bool allow_void);
 bool CheckExternAbiType(
     const Simple::Lang::AST::TypeRef& type,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     bool allow_void,
     const std::string& error_message,
     std::string* error);
 bool CheckDlDynamicSignature(
     const Simple::Lang::AST::ExternDecl& ext,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     std::string* error);
 
 } // namespace Simple::Lang::TAST

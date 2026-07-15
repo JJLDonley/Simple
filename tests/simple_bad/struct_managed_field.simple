@@ -1,0 +1,3 @@
+Box :: class { value : i32 }
+Invalid :: struct { box : Box }
+main :: () -> i32 { return 0 }

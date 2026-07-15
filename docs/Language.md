@@ -25,7 +25,7 @@ This page is the canonical language reference for the syntax and behavior covere
 - [Statements and control flow](#statements-and-control-flow)
 - [Arrays and lists](#arrays-and-lists)
 - [Strings and formatting](#strings-and-formatting)
-- [Artifacts](#artifacts)
+- [Classes](#classes)
 - [Modules](#modules)
 - [Enums](#enums)
 - [Imports and `using`](#imports-and-using)
@@ -44,12 +44,12 @@ module Examples.Reference
 
 import Standard.IO
 
-Point :: data {
+Point :: struct {
   x : i32
   y : i32
 }
 
-Counter :: artifact {
+Counter :: class {
   value : i32
 
   inc :: () -> i32 {
@@ -74,7 +74,7 @@ Important syntax facts:
 - `name : Type` declares a **mutable** binding.
 - `name :: Type` declares an **immutable** binding; functions and methods use this form.
 - `module Name` is required and declares the source unit's runtime module namespace and named-import identity, including for script-style files.
-- `Name :: artifact`, `Name :: data`, `Name :: namespace`, and `Name :: enum` declare top-level kinds.
+- `Name :: class`, `Name :: struct`, `Name :: namespace`, and `Name :: enum` declare top-level kinds.
 - `skip` is the loop-continue statement.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
 
@@ -129,12 +129,12 @@ module-header-decl   = "module" qualified-name ;
 import-decl    = "import" ( qualified-name | string-literal ) [ "as" ident ] ;
 using-decl     = "using" qualified-name ;
 extern-decl    = "extern" [ qualified-name ] function-signature ;
-top-decl       = var-decl | func-decl | artifact-decl | data-decl | namespace-decl | enum-decl ;
+top-decl       = var-decl | func-decl | class-decl | struct-decl | namespace-decl | enum-decl ;
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
-func-decl      = ident (":" | "::") type "(" [ params ] ")" block ;
-artifact-decl  = ident "::" "artifact" "{" { field-decl | func-decl } "}" ;
-data-decl      = ident "::" "data" "{" { field-decl } "}" ;
+func-decl      = ident (":" | "::") [ "async" ] "(" [ params ] ")" "->" type block ;
+class-decl     = ident "::" "class" "{" { field-decl | func-decl } "}" ;
+struct-decl    = ident "::" "struct" "{" { field-decl } "}" ;
 namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
 enum-decl      = ident "::" "enum" "{" enum-member { enum-member } "}" ;
 
@@ -143,7 +143,7 @@ stmt           = var-decl | assign-stmt | expr-stmt | if-stmt | switch-stmt | wh
 block          = "{" { stmt } "}" ;
 
 expr           = literal | ident | member-expr | index-expr | call-expr | cast-expr | unary-expr |
-                 binary-expr | assignment-expr | fn-literal | artifact-literal | list-literal |
+                 binary-expr | assignment-expr | fn-literal | aggregate-literal | list-literal |
                  switch-expr ;
 type           = primitive-type | named-type | array-type | list-type | proc-type | pointer-type |
                  generic-type ;
@@ -177,9 +177,10 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `while`, `for`, `break`, `skip`, `return` | CAST/TAST | Loop/control statements. |
 | ✅ | `if`, `else`, `switch`, `default` | CAST/TAST | Branching constructs. |
 | ✅ | `fn` | CAST/TAST | Procedure type/literal marker. |
-| ✅ | `self` | RAST/TAST | Artifact method receiver. |
+| ✅ | `self` | RAST/TAST | Class method receiver. |
 | ✅ | `true`, `false` | CAST/TAST | Boolean literals. |
-| ✅ | `artifact` | CAST/TAST | Artifact declaration kind. |
+| ✅ | `class` | CAST/TAST | Managed reference declaration kind. |
+| ✅ | `struct` | CAST/TAST | Pure value declaration kind. |
 | ✅ | `namespace` | CAST/RAST | Namespace declaration kind. |
 | ✅ | `enum` | CAST/TAST | Enum declaration kind. |
 | ❌ | keyword as identifier | CAST | Rejected except where keyword is expected syntax. |
@@ -214,8 +215,8 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
 | ✅ | `name :: (params) -> Ret block` | TAST | Immutable function or method declaration; canonical for functions that are not reassigned. |
 | ✅ | `name : (params) -> Ret block` | TAST | Mutable function or method declaration when reassignment is intended. |
-| ✅ | `Name :: artifact { ... }` | TAST | Managed artifact declaration; layout may be optimized. |
-| ✅ | `Name :: data { ... }` | TAST/IRE | Stable data struct declaration; field order/layout is preserved for ABI/data use. |
+| ✅ | `Name :: class { ... }` | TAST | Managed class declaration; layout may be optimized. |
+| ✅ | `Name :: struct { ... }` | TAST/IRE | Stable value struct declaration; field order/layout is preserved for ABI/data use. |
 | ✅ | `Name :: namespace { ... }` | RAST/TAST | Namespace/module declaration. |
 | ✅ | `Name :: enum { ... }` | TAST | Enum declaration. |
 | ✅ | top-level executable statement | AST/IRE | Normalized into implicit script entry. |
@@ -233,7 +234,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `i8 i16 i32 i64` | TAST | Signed integers. |
 | ✅ | `u8 u16 u32 u64` | TAST | Unsigned integers. |
 | ✅ | `f32 f64` | TAST | Floating point. |
-| ✅ | `Name` | RAST/TAST | Artifact, enum, module member type, or imported type. |
+| ✅ | `Name` | RAST/TAST | Class, enum, module member type, or imported type. |
 | ✅ | `T{N}` | TAST | Fixed-size array. |
 | ✅ | `T[]` | TAST | Growable list. |
 | ✅ | `T[][]`, `T{N}[]`, etc. | TAST | Nested arrays/lists where supported by lowering/runtime. |
@@ -253,8 +254,8 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `'A'`, `'\x41'` | Lexer/TAST | Char literal. |
 | ✅ | `"text"`, `"A\x42"` | Lexer/TAST | String literal. |
 | ✅ | `[a, b, c]` | TAST/IRE | List literal in typed context. |
-| ✅ | `{ .x = 1, .y = 2 }` | TAST/IRE | Named artifact literal in typed context. |
-| ✅ | `{ 1, 2 }` | TAST/IRE | Positional artifact/array literal where target type disambiguates. |
+| ✅ | `{ .x = 1, .y = 2 }` | TAST/IRE | Named class literal in typed context. |
+| ✅ | `{ 1, 2 }` | TAST/IRE | Positional class/array literal where target type disambiguates. |
 | ❌ | malformed escape/string/char | Lexer | Rejected. |
 | ❌ | literal outside supported target type | TAST/IRE | Rejected. |
 
@@ -295,12 +296,12 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ❌ | `break`/`skip` outside valid context | TAST | Rejected. |
 | ❌ | missing return where required | TAST | Rejected unless implicit/default path applies. |
 
-### Artifacts, modules, enums, imports, externs
+### Classes, modules, enums, imports, externs
 
 | Status | Syntax | Phase | Meaning / rule |
 |:---:|---|---|---|
-| ✅ | artifact fields | RAST/TAST | Typed fields with layout metadata. |
-| ✅ | artifact methods | RAST/TAST | Methods with `self`. |
+| ✅ | class fields | RAST/TAST | Typed fields with layout metadata. |
+| ✅ | class methods | RAST/TAST | Methods with `self`. |
 | ✅ | module members | RAST/TAST | Namespaced vars/functions/types. |
 | ✅ | enum members | TAST/IRE | Enum values lower as supported integer-like values. |
 | ✅ | `import Module.Name` | RAST | Import source/module identity. |
@@ -353,7 +354,7 @@ module import using extern as true false
 The declaration-kind keywords accept the capitalized forms used by existing fixtures:
 
 ```txt
-artifact
+class
 enum
 namespace
 ```
@@ -529,7 +530,7 @@ The marker before the return type also carries return mutability facts used by v
 
 ```simple
 Pi :: f64 = 3.141592
-Point :: artifact { x : i32; y : i32 }
+Point :: class { x : i32; y : i32 }
 Math :: namespace { one :: () -> i32 { return 1 } }
 Color :: enum { Red = 1, Green = 2 }
 ```
@@ -615,7 +616,7 @@ Map<string, i32>
 ```
 
 The `v0.5.17` compiler materializes concrete top-level and namespace-owned
-generic functions, generic methods, artifacts/data, fields, globals, module
+generic functions, generic methods, classes/data, fields, globals, module
 variables, nested types, procedure signatures, and quoted-source imports before
 SIR emission. Type arguments may be explicit or inferred from independently
 typed call arguments. A contextual literal or lambda may consume an already
@@ -639,13 +640,13 @@ generic methods, including multiple specializations originating at one source
 location. Recursive and mutually recursive calls reuse concrete bodies;
 recursion that continually grows its type arguments is rejected as
 non-terminating specialization rather than expanding to an arbitrary limit.
-Concrete artifacts materialize before dependent methods, so chained calls do
+Concrete classes materialize before dependent methods, so chained calls do
 not depend on source request order. Managed paths not accepted by direct LLVM
 lowering fall back before execution, never after a partial JIT transition. The
 `v0.5.15` implementation materializes optional `T?` and `Result<T,E>` as
 deterministic concrete managed layouts. Optional
 absence uses the zero reference state; presence stores the substituted payload. Result stores an `i32` tag plus
-substituted value and error payload fields. Nested wrappers, artifacts, lists,
+substituted value and error payload fields. Nested wrappers, classes, lists,
 generic functions, namespaces, and quoted imports compose through the same
 specialization pipeline.
 
@@ -677,12 +678,14 @@ parameter-first procedure declaration and callable-type grammar advances source
 syntax to 3.0; SIR, SBC, opcode metadata, and the runtime ABI remain unchanged.
 Contextual immutable external-C string literals and exact C `_Bool` lowering
 advance syntax to 3.1, SIR to 2.5, SBC to 7, opcode metadata to 6, and the
-runtime ABI to 1.7.
+runtime ABI to 1.7. Replacing `artifact`/`data` with managed-reference `class`
+and true-value `struct` semantics advances syntax to 4.0, SIR to 3.0, SBC to 8,
+and the runtime ABI to 1.8; opcode metadata remains 6.
 
 ### `v0.6` generic design
 
 Generics are part of language completion, not deferred library work. Functions,
-data/artifacts, fields, procedure types, and canonical wrappers use the same type
+data/classes, fields, procedure types, and canonical wrappers use the same type
 parameter syntax:
 
 ```simple
@@ -690,7 +693,7 @@ identity<T> :: (value : T) -> T {
   return value
 }
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 }
 ```
@@ -775,7 +778,7 @@ part of async lowering.
 `async` marks a function as suspendable. It is not part of a library member's
 name and does not create names such as `getAsync`. Both mutable (`:`) and
 immutable (`::`) function declarations may carry the modifier. Generic,
-namespace-owned, recursive, and artifact methods preserve the modifier through
+namespace-owned, recursive, and class methods preserve the modifier through
 specialization; procedure arguments captured by pending calls remain rooted.
 
 ### `await`
@@ -1045,7 +1048,7 @@ fn (i32, string) -> bool
 fn (a : i32, b : i32) -> i32
 ```
 
-Procedure values are supported in local, global, and namespace variables; parameters and returns; generic specializations; switch expressions; artifact members; and list/fixed-array elements. They remain rejected at extern ABI boundaries because VM callables are managed references, not external-C function pointers.
+Procedure values are supported in local, global, and namespace variables; parameters and returns; generic specializations; switch expressions; class members; and list/fixed-array elements. They remain rejected at extern ABI boundaries because VM callables are managed references, not external-C function pointers.
 
 ### Pointer types
 
@@ -1073,10 +1076,10 @@ true false         // bool
 "text" "A\x42"    // string
 {1, 2, 3}          // fixed array literal
 [1, 2, 3]          // list literal
-{ .x = 1, .y = 2 } // named artifact literal
+{ .x = 1, .y = 2 } // named class literal
 ```
 
-Artifact literals may also be positional where the target type makes field order clear:
+Class literals may also be positional where the target type makes field order clear:
 
 ```simple
 p : Point = { 3, 4 }
@@ -1094,7 +1097,7 @@ Expression forms include:
 - member access (`.`)
 - pointer member access (`->`)
 - indexing (`value[index]`)
-- array/list/artifact literals
+- array/list/class literals
 - function literals
 - switch expressions
 - format strings
@@ -1381,12 +1384,12 @@ main :: () -> void {
 
 Formatting and standard-library calls are part of the standard library surface summarized below.
 
-## Artifacts
+## Classes
 
-Artifacts are record-like declarations with fields and methods:
+Classes are record-like declarations with fields and methods:
 
 ```simple
-Point :: artifact {
+Point :: class {
   x : i32
   y : i32
 
@@ -1403,12 +1406,12 @@ p1 : Point = { 3, 4 }
 p2 : Point = { .y = 4, .x = 3 }
 ```
 
-Inside artifact methods, fields must be accessed through `self` unless a local binding intentionally shadows a name. Tests reject unqualified artifact-member access such as `return x` when `self.x` is required.
+Inside class methods, fields must be accessed through `self` unless a local binding intentionally shadows a name. Tests reject unqualified class-member access such as `return x` when `self.x` is required.
 
-Artifact methods may mutate mutable fields:
+Class methods may mutate mutable fields:
 
 ```simple
-Counter :: artifact {
+Counter :: class {
   value : i32
 
   inc :: () -> void {
@@ -1417,7 +1420,30 @@ Counter :: artifact {
 }
 ```
 
-Artifact ABI flattening is used for supported extern/FFI cases. Recursive artifact ABI is rejected.
+Class assignment, argument passing, and returns preserve object identity. Classes are
+GC-managed references and are rejected in direct external-C signatures.
+
+## Structs
+
+Structs are pure values with stable field order and no managed fields or methods:
+
+```simple
+Vector2 :: struct {
+  x : f32
+  y : f32
+}
+```
+
+Assignment, parameter passing, returns, field reads, collection reads, globals, and
+closure returns produce independent values. Nested structs are copied recursively;
+mutating one copy cannot mutate another. Equality is structural, and omitted
+initializers recursively produce the deterministic zero value. The VM may transport a
+struct through an internal box, but box identity is never observable.
+
+Struct fields may contain scalars, enums, raw pointers, generic value parameters, and
+other structs. Managed classes, strings, procedures, dynamic collections, Promise,
+Result, optional values, and recursive value containment are rejected. Stable structs
+are the aggregate values accepted by the canonical external-C ABI.
 
 ## Modules
 
@@ -1672,7 +1698,7 @@ constant storage without creating or exposing a managed string.
 
 VM-native calls and external-C calls are different ABIs. VM-native metadata may
 name rooted managed values. An external-C declaration may never reinterpret a
-VM reference, managed string, list, artifact, closure, Result, Promise, or
+VM reference, managed string, list, class, closure, Result, Promise, or
 general optional value as a host pointer.
 
 External-C scalar mappings are exact:
@@ -1692,8 +1718,8 @@ enums, bitfields, variadics, and calling conventions are rejected unless the
 extern metadata fixes their ABI meaning. The compiler never silently treats a
 pointer or `size_t` as `i64`/`u64`.
 
-Stable no-reference `data` values may cross by value when their computed field
-layout, alignment, padding, and calling convention match. Managed artifacts,
+Stable no-reference `struct` values may cross by value when their computed field
+layout, alignment, padding, and calling convention match. Managed classes,
 recursive values, and data containing VM references do not.
 
 ## Pointers and member access
@@ -1795,7 +1821,7 @@ or async suspension unless explicit pin/static/owner metadata proves the full
 lifetime. Moving managed storage cannot be addressed without pinning.
 
 External pointer results are borrowed. The compiler rejects their escape through
-Simple returns, globals, managed artifact fields, closures, and async suspension.
+Simple returns, globals, managed class fields, closures, and async suspension.
 The stable v0.6 surface has no owning-raw-pointer declaration: memory requiring
 a deallocator must use a typed generational resource handle whose metadata names
 the owner and cleanup operation. Pointer-to-pointer outputs require mutable
@@ -1849,7 +1875,7 @@ Current tests intentionally reject or limit:
 
 - unbounded foreign-pointer dereference and indexing without proven extents
 - VM procedures and capturing closures at external-C boundaries
-- managed strings, references, artifacts, general optionals, Result, and Promise
+- managed strings, references, classes, general optionals, Result, and Promise
   in external-C signatures
 - Simple-function callback trampolines into the VM
 - ownership transfer without explicit owner/deallocator metadata

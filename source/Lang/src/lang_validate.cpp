@@ -31,8 +31,8 @@ struct ValidateContext {
   std::unordered_set<std::string> enum_types;
   std::unordered_map<std::string, std::unordered_set<std::string>> enum_members_by_type;
   std::unordered_set<std::string> top_level;
-  std::unordered_map<std::string, const ArtifactDecl*> artifacts;
-  std::unordered_map<std::string, size_t> artifact_generics;
+  std::unordered_map<std::string, const AggregateDecl*> aggregates;
+  std::unordered_map<std::string, size_t> aggregate_generics;
   std::unordered_map<std::string, const ModuleDecl*> modules;
   std::unordered_map<std::string, const VarDecl*> globals;
   std::unordered_map<std::string, bool> global_points_to_immutable;
@@ -88,13 +88,13 @@ bool TypeContainsRawPointerImpl(
     std::unordered_set<std::string>* visiting) {
   if (IsRawPointerShape(type)) return true;
   if (type.pointer_depth > 0 || type.is_proc || !type.dims.empty()) return false;
-  const auto artifact = ctx.artifacts.find(type.name);
-  if (artifact == ctx.artifacts.end() || !artifact->second ||
-      !artifact->second->is_data ||
+  const auto aggregate = ctx.aggregates.find(type.name);
+  if (aggregate == ctx.aggregates.end() || !aggregate->second ||
+      !aggregate->second->is_struct ||
       !visiting->insert(type.name).second) {
     return false;
   }
-  for (const auto& field : artifact->second->fields) {
+  for (const auto& field : aggregate->second->fields) {
     if (TypeContainsRawPointerImpl(field.type, ctx, visiting)) {
       visiting->erase(type.name);
       return true;
@@ -140,15 +140,15 @@ bool CloneFunctionCallReturn(const FuncDecl& function, TypeRef* out) {
 }
 
 struct TaggedTypeInfo {
-  TaggedArtifactKind kind = TaggedArtifactKind::None;
+  TaggedAggregateKind kind = TaggedAggregateKind::None;
   const TypeRef* value_type = nullptr;
   const TypeRef* error_type = nullptr;
-  const ArtifactDecl* artifact = nullptr;
+  const AggregateDecl* aggregate = nullptr;
 };
 
-const TypeRef* FindArtifactFieldType(const ArtifactDecl& artifact,
+const TypeRef* FindAggregateFieldType(const AggregateDecl& aggregate,
                                      const std::string& name) {
-  for (const auto& field : artifact.fields) {
+  for (const auto& field : aggregate.fields) {
     if (field.name == name) return &field.type;
   }
   return nullptr;
@@ -160,29 +160,29 @@ bool ResolveTaggedType(const TypeRef& type,
   if (!out || type.pointer_depth != 0 || !type.dims.empty() || type.is_proc) return false;
   *out = {};
   if (TAST::IsOptionalType(type)) {
-    out->kind = TaggedArtifactKind::Optional;
+    out->kind = TaggedAggregateKind::Optional;
     out->value_type = TAST::OptionalValueType(type);
     return out->value_type != nullptr;
   }
   if (type.name == "Result" && type.type_args.size() == 2) {
-    out->kind = TaggedArtifactKind::Result;
+    out->kind = TaggedAggregateKind::Result;
     out->value_type = &type.type_args[0];
     out->error_type = &type.type_args[1];
     return true;
   }
-  const auto artifact_it = ctx.artifacts.find(type.name);
-  if (artifact_it == ctx.artifacts.end() ||
-      artifact_it->second->tagged_kind == TaggedArtifactKind::None) {
+  const auto aggregate_it = ctx.aggregates.find(type.name);
+  if (aggregate_it == ctx.aggregates.end() ||
+      aggregate_it->second->tagged_kind == TaggedAggregateKind::None) {
     return false;
   }
-  out->artifact = artifact_it->second;
-  out->kind = out->artifact->tagged_kind;
-  out->value_type = FindArtifactFieldType(*out->artifact, "value");
-  if (out->kind == TaggedArtifactKind::Result) {
-    out->error_type = FindArtifactFieldType(*out->artifact, "error");
+  out->aggregate = aggregate_it->second;
+  out->kind = out->aggregate->tagged_kind;
+  out->value_type = FindAggregateFieldType(*out->aggregate, "value");
+  if (out->kind == TaggedAggregateKind::Result) {
+    out->error_type = FindAggregateFieldType(*out->aggregate, "error");
   }
   return out->value_type &&
-         (out->kind != TaggedArtifactKind::Result || out->error_type);
+         (out->kind != TaggedAggregateKind::Result || out->error_type);
 }
 
 bool IsSwitchPattern(const SwitchBranch& branch) {
@@ -197,7 +197,7 @@ void PrefixErrorLocation(uint32_t line, uint32_t column, std::string* error) {
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                   const ArtifactDecl* current_artifact,
+                   const AggregateDecl* current_aggregate,
                    TypeRef* out);
 bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,
                                           const std::string& member,
@@ -213,7 +213,7 @@ bool ResolveUsingModuleExternCallTarget(const ValidateContext& ctx,
 bool AnalyzeSwitchExpr(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        bool require_explicit_return,
                        const TypeRef* expected_type,
                        TypeRef* out_type,
@@ -231,7 +231,7 @@ bool BuildDirectFnLiteralSignature(
     const TypeRef& result_type,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     TypeRef* signature,
     std::string* error);
 bool ValidateFnLiteralBody(
@@ -239,19 +239,19 @@ bool ValidateFnLiteralBody(
     const TypeRef& signature,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& outer_scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error);
 bool ValidateExprAgainstExpected(
     const Expr& expr,
     const TypeRef& expected,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error);
 bool ValidateVarInitExpr(const VarDecl& var,
                          const ValidateContext& ctx,
                          const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                         const ArtifactDecl* current_artifact,
+                         const AggregateDecl* current_aggregate,
                          bool require_switch_returns,
                          std::string* error,
                          const std::unordered_set<std::string>* type_params = nullptr,
@@ -261,7 +261,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        CallTargetInfo* out,
                        std::string* error);
 
@@ -270,13 +270,13 @@ enum class TypeUse : uint8_t {
   Return,
 };
 
-using RAST::FindArtifactField;
-using RAST::FindArtifactMethod;
+using RAST::FindAggregateField;
+using RAST::FindAggregateMethod;
 using RAST::FindModuleFunc;
 using RAST::FindModuleVar;
 using RAST::GetModuleNameFromExpr;
 using RAST::GetReservedModuleVarType;
-using RAST::IsArtifactMemberName;
+using RAST::IsAggregateMemberName;
 using RAST::IsIoPrintName;
 using RAST::ModuleMembers;
 using RAST::NativeModuleNameForReserved;
@@ -285,7 +285,7 @@ using RAST::UnknownMemberErrorWithSuggestion;
 using TAST::AddLocal;
 using TAST::ApplyTypeSubstitution;
 using TAST::FindLocal;
-using TAST::BuildArtifactTypeParamMap;
+using TAST::BuildAggregateTypeParamMap;
 using TAST::BuildExplicitTypeArgMap;
 using TAST::CheckCompoundAssignOp;
 using TAST::CheckConditionType;
@@ -296,11 +296,11 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckExternAbiType;
 using TAST::CheckFnLiteralAgainstType;
-using TAST::CheckArtifactLiteralDuplicateNamedFields;
-using TAST::CheckArtifactLiteralFieldSpecifiedOnce;
-using TAST::CheckArtifactLiteralKnownField;
-using TAST::CheckArtifactLiteralPositionalCount;
-using TAST::CheckArtifactLiteralRequiredField;
+using TAST::CheckAggregateLiteralDuplicateNamedFields;
+using TAST::CheckAggregateLiteralFieldSpecifiedOnce;
+using TAST::CheckAggregateLiteralKnownField;
+using TAST::CheckAggregateLiteralPositionalCount;
+using TAST::CheckAggregateLiteralRequiredField;
 using RAST::CheckUsingImportHasPriorAlias;
 using TAST::CheckArrayListLiteralTargetShape;
 using TAST::CheckFormatCallArgTypes;
@@ -573,19 +573,56 @@ bool InferTypeArgsFromCall(const std::vector<TypeRef>& param_types,
                            const std::unordered_set<std::string>& type_params,
                            const ValidateContext& ctx,
                            const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                           const ArtifactDecl* current_artifact,
+                           const AggregateDecl* current_aggregate,
                            std::unordered_map<std::string, TypeRef>* out_mapping) {
   if (!out_mapping) return false;
   out_mapping->clear();
   if (param_types.size() != call_args.size()) return false;
   for (size_t i = 0; i < param_types.size(); ++i) {
     TypeRef arg_type;
-    if (!InferExprType(call_args[i], ctx, scopes, current_artifact, &arg_type)) continue;
+    if (!InferExprType(call_args[i], ctx, scopes, current_aggregate, &arg_type)) continue;
     if (!UnifyTypeParams(param_types[i], arg_type, type_params, out_mapping)) return false;
   }
   for (const auto& name : type_params) {
     if (out_mapping->find(name) == out_mapping->end()) return false;
   }
+  return true;
+}
+
+bool IsPureStructValueType(const TypeRef& type,
+                           const ValidateContext& ctx,
+                           std::unordered_set<std::string>* active) {
+  if (type.pointer_depth > 0) return true;
+  if (type.is_proc || !type.dims.empty() || type.name == "string" ||
+      type.name == "Promise" || type.name == "Result" ||
+      TAST::IsOptionalType(type)) {
+    return false;
+  }
+  if (IsPrimitiveTypeName(type.name) ||
+      ctx.enum_types.find(type.name) != ctx.enum_types.end()) {
+    return true;
+  }
+  const auto aggregate = ctx.aggregates.find(type.name);
+  if (aggregate == ctx.aggregates.end() || !aggregate->second->is_struct || !active) {
+    return false;
+  }
+  const std::string& identity = type.name;
+  if (!active->insert(identity).second) return false;
+  if (aggregate->second->generics.size() != type.type_args.size()) return false;
+  std::unordered_map<std::string, TypeRef> mapping;
+  for (size_t i = 0; i < type.type_args.size(); ++i) {
+    TypeRef argument;
+    if (!CloneTypeRef(type.type_args[i], &argument)) return false;
+    mapping.emplace(aggregate->second->generics[i], std::move(argument));
+  }
+  for (const auto& field : aggregate->second->fields) {
+    TypeRef resolved;
+    if (!SubstituteTypeParams(field.type, mapping, &resolved) ||
+        !IsPureStructValueType(resolved, ctx, active)) {
+      return false;
+    }
+  }
+  active->erase(identity);
   return true;
 }
 
@@ -678,14 +715,14 @@ bool CheckTypeRef(const TypeRef& type,
       PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
-    auto art_it = ctx.artifact_generics.find(type.name);
-    const size_t* expected_artifact_type_args =
-        art_it != ctx.artifact_generics.end() ? &art_it->second : nullptr;
+    auto art_it = ctx.aggregate_generics.find(type.name);
+    const size_t* expected_aggregate_type_args =
+        art_it != ctx.aggregate_generics.end() ? &art_it->second : nullptr;
     if (!CheckTypeArgumentRules(type,
                                 is_primitive,
                                 is_type_param,
                                 ctx.enum_types.find(type.name) != ctx.enum_types.end(),
-                                expected_artifact_type_args,
+                                expected_aggregate_type_args,
                                 error)) {
       PrefixErrorLocation(type.line, type.column, error);
       return false;
@@ -709,13 +746,28 @@ bool CheckTypeRef(const TypeRef& type,
     }
   }
 
+  const auto aggregate = ctx.aggregates.find(type.name);
+  if (aggregate != ctx.aggregates.end() && aggregate->second->is_struct &&
+      aggregate->second->generics.size() == type.type_args.size()) {
+    TypeRef concrete_struct;
+    if (!CloneTypeRef(type, &concrete_struct)) return false;
+    concrete_struct.pointer_depth = 0;
+    concrete_struct.dims.clear();
+    std::unordered_set<std::string> active;
+    if (!IsPureStructValueType(concrete_struct, ctx, &active)) {
+      if (error) *error =
+          "struct instantiation contains managed or recursive value fields";
+      PrefixErrorLocation(type.line, type.column, error);
+      return false;
+    }
+  }
   return true;
 }
 
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                   const ArtifactDecl* current_artifact,
+                   const AggregateDecl* current_aggregate,
                    TypeRef* out) {
   if (!out) return false;
   switch (expr.kind) {
@@ -749,9 +801,9 @@ bool InferExprType(const Expr& expr,
       }
       if (base.kind == ExprKind::Identifier) {
         if (base.text == "self") {
-          const VarDecl* field = FindArtifactField(current_artifact, expr.text);
+          const VarDecl* field = FindAggregateField(current_aggregate, expr.text);
           if (field) return CloneTypeRef(field->type, out);
-          const FuncDecl* method = FindArtifactMethod(current_artifact, expr.text);
+          const FuncDecl* method = FindAggregateMethod(current_aggregate, expr.text);
           if (method) return CloneTypeRef(method->return_type, out);
           return false;
         }
@@ -790,18 +842,18 @@ bool InferExprType(const Expr& expr,
       }
         if (const LocalInfo* local = FindLocal(scopes, base.text)) {
           if (!local->type) return false;
-          auto artifact_it = ctx.artifacts.find(local->type->name);
-          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          auto aggregate_it = ctx.aggregates.find(local->type->name);
+          const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
           std::unordered_map<std::string, TypeRef> mapping;
-          if (artifact && !artifact->generics.empty()) {
-            if (!BuildArtifactTypeParamMap(*local->type, artifact, &mapping, nullptr)) return false;
+          if (aggregate && !aggregate->generics.empty()) {
+            if (!BuildAggregateTypeParamMap(*local->type, aggregate, &mapping, nullptr)) return false;
           }
-          if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
+          if (const VarDecl* field = FindAggregateField(aggregate, expr.text)) {
             TypeRef resolved;
             if (!SubstituteTypeParams(field->type, mapping, &resolved)) return false;
             return CloneTypeRef(resolved, out);
           }
-          if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
+          if (const FuncDecl* method = FindAggregateMethod(aggregate, expr.text)) {
             TypeRef resolved;
             if (!SubstituteTypeParams(method->return_type, mapping, &resolved)) return false;
             return CloneTypeRef(resolved, out);
@@ -809,18 +861,18 @@ bool InferExprType(const Expr& expr,
         }
         auto global_it = ctx.globals.find(base.text);
         if (global_it != ctx.globals.end()) {
-          auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          auto aggregate_it = ctx.aggregates.find(global_it->second->type.name);
+          const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
           std::unordered_map<std::string, TypeRef> mapping;
-          if (artifact && !artifact->generics.empty()) {
-            if (!BuildArtifactTypeParamMap(global_it->second->type, artifact, &mapping, nullptr)) return false;
+          if (aggregate && !aggregate->generics.empty()) {
+            if (!BuildAggregateTypeParamMap(global_it->second->type, aggregate, &mapping, nullptr)) return false;
           }
-          if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
+          if (const VarDecl* field = FindAggregateField(aggregate, expr.text)) {
             TypeRef resolved;
             if (!SubstituteTypeParams(field->type, mapping, &resolved)) return false;
             return CloneTypeRef(resolved, out);
           }
-          if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
+          if (const FuncDecl* method = FindAggregateMethod(aggregate, expr.text)) {
             TypeRef resolved;
             if (!SubstituteTypeParams(method->return_type, mapping, &resolved)) return false;
             return CloneTypeRef(resolved, out);
@@ -828,19 +880,19 @@ bool InferExprType(const Expr& expr,
         }
       }
       TypeRef base_type;
-      if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
-        auto artifact_it = ctx.artifacts.find(base_type.name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+      if (InferExprType(base, ctx, scopes, current_aggregate, &base_type)) {
+        auto aggregate_it = ctx.aggregates.find(base_type.name);
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
         std::unordered_map<std::string, TypeRef> mapping;
-        if (artifact && !artifact->generics.empty()) {
-          if (!BuildArtifactTypeParamMap(base_type, artifact, &mapping, nullptr)) return false;
+        if (aggregate && !aggregate->generics.empty()) {
+          if (!BuildAggregateTypeParamMap(base_type, aggregate, &mapping, nullptr)) return false;
         }
-        if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
+        if (const VarDecl* field = FindAggregateField(aggregate, expr.text)) {
           TypeRef resolved;
           if (!SubstituteTypeParams(field->type, mapping, &resolved)) return false;
           return CloneTypeRef(resolved, out);
         }
-        if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
+        if (const FuncDecl* method = FindAggregateMethod(aggregate, expr.text)) {
           TypeRef resolved;
           if (!SubstituteTypeParams(method->return_type, mapping, &resolved)) return false;
           return CloneTypeRef(resolved, out);
@@ -876,7 +928,7 @@ bool InferExprType(const Expr& expr,
         }
       }
       CallTargetInfo info;
-      if (!GetCallTargetInfo(callee, ctx, scopes, current_artifact, &info, nullptr)) return false;
+      if (!GetCallTargetInfo(callee, ctx, scopes, current_aggregate, &info, nullptr)) return false;
       if (info.type_params.empty()) {
         return CloneTypeRef(info.return_type, out);
       }
@@ -892,7 +944,7 @@ bool InferExprType(const Expr& expr,
         std::unordered_set<std::string> type_param_set(info.type_params.begin(),
                                                        info.type_params.end());
         if (!InferTypeArgsFromCall(info.params, expr.args, type_param_set,
-                                   ctx, scopes, current_artifact, &mapping)) {
+                                   ctx, scopes, current_aggregate, &mapping)) {
           return false;
         }
       }
@@ -902,7 +954,7 @@ bool InferExprType(const Expr& expr,
     }
     case ExprKind::Index: {
       TypeRef base_type;
-      if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) return false;
+      if (!InferExprType(expr.children[0], ctx, scopes, current_aggregate, &base_type)) return false;
       if (base_type.name == "string" && base_type.dims.empty()) {
         out->name = "char";
         return true;
@@ -923,7 +975,7 @@ bool InferExprType(const Expr& expr,
       const Expr* operand_expr = nullptr;
       if (!IsUnaryExpr(expr, &operand_expr)) return false;
       TypeRef operand;
-      if (!InferExprType(*operand_expr, ctx, scopes, current_artifact, &operand)) return false;
+      if (!InferExprType(*operand_expr, ctx, scopes, current_aggregate, &operand)) return false;
       const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
       if (op == "&") {
         TypeRef result = operand;
@@ -972,8 +1024,8 @@ bool InferExprType(const Expr& expr,
       if (!IsBinaryExpr(expr, &lhs_expr, &rhs_expr)) return false;
       TypeRef lhs;
       TypeRef rhs;
-      if (!InferExprType(*lhs_expr, ctx, scopes, current_artifact, &lhs)) return false;
-      if (!InferExprType(*rhs_expr, ctx, scopes, current_artifact, &rhs)) return false;
+      if (!InferExprType(*lhs_expr, ctx, scopes, current_aggregate, &lhs)) return false;
+      if (!InferExprType(*rhs_expr, ctx, scopes, current_aggregate, &rhs)) return false;
       if (!IsScalarType(lhs) || !IsScalarType(rhs)) return false;
 
       TypeRef common;
@@ -1012,7 +1064,7 @@ bool InferExprType(const Expr& expr,
     }
     case ExprKind::Switch: {
       TypeRef result;
-      if (!AnalyzeSwitchExpr(expr, ctx, scopes, current_artifact, false, nullptr, &result, nullptr)) {
+      if (!AnalyzeSwitchExpr(expr, ctx, scopes, current_aggregate, false, nullptr, &result, nullptr)) {
         return false;
       }
       return CloneTypeRef(result, out);
@@ -1027,7 +1079,7 @@ bool ValidatePropagationStmt(
     const TypeRef* expected_return,
     const ValidateContext& ctx,
     std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     bool recurse_blocks,
     std::string* error);
 
@@ -1036,7 +1088,7 @@ bool ValidatePropagationBlock(
     const TypeRef* expected_return,
     const ValidateContext& ctx,
     std::vector<std::unordered_map<std::string, LocalInfo>> scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error);
 
 bool ValidatePropagationExpr(
@@ -1044,7 +1096,7 @@ bool ValidatePropagationExpr(
     const TypeRef* expected_return,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error) {
   if (expr.kind == ExprKind::Unary && expr.op == "post?") {
     if (expr.children.size() != 1) {
@@ -1052,7 +1104,7 @@ bool ValidatePropagationExpr(
       return false;
     }
     TypeRef operand;
-    if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) {
+    if (!InferExprType(expr.children[0], ctx, scopes, current_aggregate, &operand)) {
       if (error) *error = "cannot resolve propagation operand type";
       PrefixErrorLocation(expr.line, expr.column, error);
       return false;
@@ -1072,21 +1124,21 @@ bool ValidatePropagationExpr(
     if (!ResolveTaggedType(*expected_return, ctx, &return_tagged) ||
         return_tagged.kind != operand_tagged.kind) {
       if (error) {
-        *error = operand_tagged.kind == TaggedArtifactKind::Optional
+        *error = operand_tagged.kind == TaggedAggregateKind::Optional
                      ? "optional propagation requires an optional return type"
                      : "Result propagation requires a Result return type";
       }
       PrefixErrorLocation(expr.line, expr.column, error);
       return false;
     }
-    if (operand_tagged.kind == TaggedArtifactKind::Optional &&
+    if (operand_tagged.kind == TaggedAggregateKind::Optional &&
         (!operand_tagged.value_type || !return_tagged.value_type ||
          !TypeEquals(*operand_tagged.value_type, *return_tagged.value_type))) {
       if (error) *error = "optional propagation requires the same payload type";
       PrefixErrorLocation(expr.line, expr.column, error);
       return false;
     }
-    if (operand_tagged.kind == TaggedArtifactKind::Result &&
+    if (operand_tagged.kind == TaggedAggregateKind::Result &&
         (!operand_tagged.error_type || !return_tagged.error_type ||
          !TypeEquals(*operand_tagged.error_type, *return_tagged.error_type))) {
       if (error) *error = "Result propagation requires the same error type";
@@ -1095,17 +1147,17 @@ bool ValidatePropagationExpr(
     }
   }
   for (const auto& child : expr.children) {
-    if (!ValidatePropagationExpr(child, expected_return, ctx, scopes, current_artifact, error)) {
+    if (!ValidatePropagationExpr(child, expected_return, ctx, scopes, current_aggregate, error)) {
       return false;
     }
   }
   for (const auto& arg : expr.args) {
-    if (!ValidatePropagationExpr(arg, expected_return, ctx, scopes, current_artifact, error)) {
+    if (!ValidatePropagationExpr(arg, expected_return, ctx, scopes, current_aggregate, error)) {
       return false;
     }
   }
   for (const auto& value : expr.field_values) {
-    if (!ValidatePropagationExpr(value, expected_return, ctx, scopes, current_artifact, error)) {
+    if (!ValidatePropagationExpr(value, expected_return, ctx, scopes, current_aggregate, error)) {
       return false;
     }
   }
@@ -1113,7 +1165,7 @@ bool ValidatePropagationExpr(
   TypeRef switch_subject;
   const bool have_switch_tagged =
       expr.kind == ExprKind::Switch && !expr.children.empty() &&
-      InferExprType(expr.children[0], ctx, scopes, current_artifact, &switch_subject) &&
+      InferExprType(expr.children[0], ctx, scopes, current_aggregate, &switch_subject) &&
       ResolveTaggedType(switch_subject, ctx, &switch_tagged);
   for (const auto& branch : expr.switch_branches) {
     if (!branch.is_default && !IsSwitchPattern(branch) &&
@@ -1121,7 +1173,7 @@ bool ValidatePropagationExpr(
                                  expected_return,
                                  ctx,
                                  scopes,
-                                 current_artifact,
+                                 current_aggregate,
                                  error)) {
       return false;
     }
@@ -1129,7 +1181,7 @@ bool ValidatePropagationExpr(
     if (branch.is_block || !branch.pattern_binding.empty()) branch_scopes.emplace_back();
     if (!branch.pattern_binding.empty() && have_switch_tagged) {
       const TypeRef* binding_type = switch_tagged.value_type;
-      if (switch_tagged.kind == TaggedArtifactKind::Result &&
+      if (switch_tagged.kind == TaggedAggregateKind::Result &&
           branch.pattern_field == "error") {
         binding_type = switch_tagged.error_type;
       }
@@ -1145,7 +1197,7 @@ bool ValidatePropagationExpr(
                                  expected_return,
                                  ctx,
                                  branch_scopes,
-                                 current_artifact,
+                                 current_aggregate,
                                  error)) {
       return false;
     }
@@ -1154,7 +1206,7 @@ bool ValidatePropagationExpr(
                                   expected_return,
                                   ctx,
                                   branch_scopes,
-                                  current_artifact,
+                                  current_aggregate,
                                   error)) {
       return false;
     }
@@ -1167,13 +1219,13 @@ bool ValidatePropagationStmt(
     const TypeRef* expected_return,
     const ValidateContext& ctx,
     std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     bool recurse_blocks,
     std::string* error) {
   if (scopes.empty()) scopes.emplace_back();
   auto validate = [&](const Expr& value) {
     return ValidatePropagationExpr(
-        value, expected_return, ctx, scopes, current_artifact, error);
+        value, expected_return, ctx, scopes, current_aggregate, error);
   };
   switch (stmt.kind) {
     case StmtKind::Return:
@@ -1198,7 +1250,7 @@ bool ValidatePropagationStmt(
                                       expected_return,
                                       ctx,
                                       scopes,
-                                      current_artifact,
+                                      current_aggregate,
                                       error)) {
           return false;
         }
@@ -1208,7 +1260,7 @@ bool ValidatePropagationStmt(
                                     expected_return,
                                     ctx,
                                     scopes,
-                                    current_artifact,
+                                    current_aggregate,
                                     error)) {
         return false;
       }
@@ -1220,13 +1272,13 @@ bool ValidatePropagationStmt(
                                      expected_return,
                                      ctx,
                                      scopes,
-                                     current_artifact,
+                                     current_aggregate,
                                      error) ||
            !ValidatePropagationBlock(stmt.if_else,
                                      expected_return,
                                      ctx,
                                      scopes,
-                                     current_artifact,
+                                     current_aggregate,
                                      error))) {
         return false;
       }
@@ -1238,7 +1290,7 @@ bool ValidatePropagationStmt(
                                     expected_return,
                                     ctx,
                                     scopes,
-                                    current_artifact,
+                                    current_aggregate,
                                     error)) {
         return false;
       }
@@ -1252,7 +1304,7 @@ bool ValidatePropagationStmt(
                                      expected_return,
                                      ctx,
                                      loop_scopes,
-                                     current_artifact,
+                                     current_aggregate,
                                      error)) {
           return false;
         }
@@ -1262,7 +1314,7 @@ bool ValidatePropagationStmt(
                                           expected_return,
                                           ctx,
                                           loop_scopes,
-                                          current_artifact,
+                                          current_aggregate,
                                           error)) {
         return false;
       }
@@ -1270,13 +1322,13 @@ bool ValidatePropagationStmt(
                                    expected_return,
                                    ctx,
                                    loop_scopes,
-                                   current_artifact,
+                                   current_aggregate,
                                    error) ||
           !ValidatePropagationExpr(stmt.loop_step,
                                    expected_return,
                                    ctx,
                                    loop_scopes,
-                                   current_artifact,
+                                   current_aggregate,
                                    error)) {
         return false;
       }
@@ -1285,7 +1337,7 @@ bool ValidatePropagationStmt(
                                     expected_return,
                                     ctx,
                                     loop_scopes,
-                                    current_artifact,
+                                    current_aggregate,
                                     error)) {
         return false;
       }
@@ -1303,12 +1355,12 @@ bool ValidatePropagationBlock(
     const TypeRef* expected_return,
     const ValidateContext& ctx,
     std::vector<std::unordered_map<std::string, LocalInfo>> scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error) {
   if (scopes.empty()) scopes.emplace_back();
   for (const auto& stmt : body) {
     if (!ValidatePropagationStmt(
-            stmt, expected_return, ctx, scopes, current_artifact, true, error)) {
+            stmt, expected_return, ctx, scopes, current_aggregate, true, error)) {
       return false;
     }
   }
@@ -1322,19 +1374,19 @@ bool CheckStmt(const Stmt& stmt,
                bool return_is_void,
                int loop_depth,
                std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-               const ArtifactDecl* current_artifact,
+               const AggregateDecl* current_aggregate,
                std::string* error);
 
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
                const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-               const ArtifactDecl* current_artifact,
+               const AggregateDecl* current_aggregate,
                std::string* error);
 
 bool CheckArrayLiteralElementTypes(const Expr& expr,
                                    const ValidateContext& ctx,
                                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                                   const ArtifactDecl* current_artifact,
+                                   const AggregateDecl* current_aggregate,
                                    const std::vector<TypeDim>& dims,
                                    size_t dim_index,
                                    const TypeRef& element_type,
@@ -1343,21 +1395,21 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
 bool CheckListLiteralElementTypes(const Expr& expr,
                                   const ValidateContext& ctx,
                                   const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                                  const ArtifactDecl* current_artifact,
+                                  const AggregateDecl* current_aggregate,
                                   const TypeRef& list_type,
                                   std::string* error);
 
 bool CheckBoolCondition(const Expr& expr,
                         const ValidateContext& ctx,
                         const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                        const ArtifactDecl* current_artifact,
+                        const AggregateDecl* current_aggregate,
                         std::string* error);
 
 
 bool IsMutableStorageExpr(const Expr& expr,
                           const ValidateContext& ctx,
                           const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                          const ArtifactDecl* current_artifact,
+                          const AggregateDecl* current_aggregate,
                           bool* out_known) {
   if (out_known) *out_known = true;
   if (expr.kind == ExprKind::Identifier) {
@@ -1376,7 +1428,7 @@ bool IsMutableStorageExpr(const Expr& expr,
     const Expr& base = *member_base;
     if (base.kind == ExprKind::Identifier) {
       if (base.text == "self") {
-        const VarDecl* field = FindArtifactField(current_artifact, expr.text);
+        const VarDecl* field = FindAggregateField(current_aggregate, expr.text);
         if (field) return field->mutability == Mutability::Mutable;
         if (out_known) *out_known = false;
         return true;
@@ -1389,18 +1441,18 @@ bool IsMutableStorageExpr(const Expr& expr,
         return true;
       }
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-        auto artifact_it = ctx.artifacts.find(local->type ? local->type->name : "");
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const VarDecl* field = FindArtifactField(artifact, expr.text);
+        auto aggregate_it = ctx.aggregates.find(local->type ? local->type->name : "");
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+        const VarDecl* field = FindAggregateField(aggregate, expr.text);
         if (field) return field->mutability == Mutability::Mutable;
         if (out_known) *out_known = false;
         return true;
       }
       auto global_it = ctx.globals.find(base.text);
       if (global_it != ctx.globals.end()) {
-        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const VarDecl* field = FindArtifactField(artifact, expr.text);
+        auto aggregate_it = ctx.aggregates.find(global_it->second->type.name);
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+        const VarDecl* field = FindAggregateField(aggregate, expr.text);
         if (field) return field->mutability == Mutability::Mutable;
         if (out_known) *out_known = false;
         return true;
@@ -1411,7 +1463,7 @@ bool IsMutableStorageExpr(const Expr& expr,
   }
   const Expr* index_base = nullptr;
   if (IsIndexExpr(expr, &index_base)) {
-    return IsMutableStorageExpr(*index_base, ctx, scopes, current_artifact, out_known);
+    return IsMutableStorageExpr(*index_base, ctx, scopes, current_aggregate, out_known);
   }
   if (out_known) *out_known = false;
   return true;
@@ -1420,7 +1472,7 @@ bool IsMutableStorageExpr(const Expr& expr,
 bool GetPointerImmutabilityFromExpr(const Expr& expr,
                                     const ValidateContext& ctx,
                                     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                                    const ArtifactDecl* current_artifact,
+                                    const AggregateDecl* current_aggregate,
                                     bool* out_known,
                                     bool* out_points_to_immutable) {
   if (out_known) *out_known = false;
@@ -1428,7 +1480,7 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
   const Expr* address_target = nullptr;
   if (IsAddressOfExpr(expr, &address_target)) {
     bool known = false;
-    const bool is_mutable = IsMutableStorageExpr(*address_target, ctx, scopes, current_artifact, &known);
+    const bool is_mutable = IsMutableStorageExpr(*address_target, ctx, scopes, current_aggregate, &known);
     if (out_known) *out_known = known;
     if (out_points_to_immutable) *out_points_to_immutable = known && !is_mutable;
     return true;
@@ -1449,11 +1501,11 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
   if (expr.kind == ExprKind::Member && expr.op == "." &&
       !expr.children.empty()) {
     TypeRef base_type;
-    if (InferExprType(expr.children[0], ctx, scopes, current_artifact,
+    if (InferExprType(expr.children[0], ctx, scopes, current_aggregate,
                       &base_type)) {
-      const auto artifact = ctx.artifacts.find(base_type.name);
-      if (artifact != ctx.artifacts.end()) {
-        const VarDecl* field = FindArtifactField(artifact->second, expr.text);
+      const auto aggregate = ctx.aggregates.find(base_type.name);
+      if (aggregate != ctx.aggregates.end()) {
+        const VarDecl* field = FindAggregateField(aggregate->second, expr.text);
         if (field && IsRawPointerShape(field->type)) {
           if (out_known) *out_known = true;
           if (out_points_to_immutable) {
@@ -1468,12 +1520,12 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
   if (expr.kind == ExprKind::Call && expr.cast_type.pointer_depth > 0 &&
       expr.args.size() == 1) {
     return GetPointerImmutabilityFromExpr(
-        expr.args[0], ctx, scopes, current_artifact, out_known,
+        expr.args[0], ctx, scopes, current_aggregate, out_known,
         out_points_to_immutable);
   }
   if (expr.kind == ExprKind::Call && !expr.children.empty()) {
     CallTargetInfo info;
-    if (GetCallTargetInfo(expr.children[0], ctx, scopes, current_artifact,
+    if (GetCallTargetInfo(expr.children[0], ctx, scopes, current_aggregate,
                           &info, nullptr) &&
         IsRawPointerShape(info.return_type)) {
       if (out_known) *out_known = true;
@@ -1484,12 +1536,12 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
       return true;
     }
   }
-  if (expr.kind == ExprKind::ArtifactLiteral) {
+  if (expr.kind == ExprKind::AggregateLiteral) {
     const std::vector<Expr>* values = &expr.children;
     if (values->empty()) values = &expr.field_values;
     if (values->size() == 1) {
       return GetPointerImmutabilityFromExpr(
-          values->front(), ctx, scopes, current_artifact, out_known,
+          values->front(), ctx, scopes, current_aggregate, out_known,
           out_points_to_immutable);
     }
   }
@@ -1518,7 +1570,7 @@ bool IsFrameBorrowedPointerExpr(
       expr.args.size() == 1) {
     return IsFrameBorrowedPointerExpr(expr.args[0], ctx, scopes);
   }
-  if (expr.kind == ExprKind::ArtifactLiteral) {
+  if (expr.kind == ExprKind::AggregateLiteral) {
     for (const auto& child : expr.children) {
       if (IsFrameBorrowedPointerExpr(child, ctx, scopes)) return true;
     }
@@ -1545,7 +1597,7 @@ bool IsVmStoragePointerExpr(
       expr.args.size() == 1) {
     return IsVmStoragePointerExpr(expr.args[0], ctx, scopes);
   }
-  if (expr.kind == ExprKind::ArtifactLiteral) {
+  if (expr.kind == ExprKind::AggregateLiteral) {
     for (const auto& child : expr.children) {
       if (IsVmStoragePointerExpr(child, ctx, scopes)) return true;
     }
@@ -1560,7 +1612,7 @@ bool CheckCallTarget(const Expr& callee,
                      size_t arg_count,
                      const ValidateContext& ctx,
                      const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                     const ArtifactDecl* current_artifact,
+                     const AggregateDecl* current_aggregate,
                      std::string* error) {
   if (callee.kind == ExprKind::FnLiteral) {
     if (callee.fn_params.size() != arg_count) {
@@ -1639,9 +1691,9 @@ bool CheckCallTarget(const Expr& callee,
         return true;
       }
       if (base.text == "self") {
-        const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
+        const FuncDecl* method = FindAggregateMethod(current_aggregate, callee.text);
         if (method) return CheckFunctionCallArgs(method, arg_count, error);
-        if (FindArtifactField(current_artifact, callee.text)) {
+        if (FindAggregateField(current_aggregate, callee.text)) {
           if (error) *error = "attempt to call non-function: self." + callee.text;
           return false;
         }
@@ -1653,7 +1705,7 @@ bool CheckCallTarget(const Expr& callee,
         if (mod_it != ctx.externs_by_module.end()) {
           auto ext_it = mod_it->second.find(callee.text);
           if (ext_it != mod_it->second.end()) {
-            if (!CheckDlDynamicSignature(*ext_it->second, ctx.enum_types, ctx.artifacts, error)) return false;
+            if (!CheckDlDynamicSignature(*ext_it->second, ctx.enum_types, ctx.aggregates, error)) return false;
             if (ext_it->second->params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for dynamic symbol " +
@@ -1748,11 +1800,11 @@ bool CheckCallTarget(const Expr& callee,
       }
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
         if (!local->type) return true;
-        auto artifact_it = ctx.artifacts.find(local->type->name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
+        auto aggregate_it = ctx.aggregates.find(local->type->name);
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+        const FuncDecl* method = FindAggregateMethod(aggregate, callee.text);
         if (method) return CheckFunctionCallArgs(method, arg_count, error);
-        if (const VarDecl* field = FindArtifactField(artifact, callee.text)) {
+        if (const VarDecl* field = FindAggregateField(aggregate, callee.text)) {
           if (field->type.is_proc) {
             return CheckProcTypeArgs(&field->type, arg_count, error);
           }
@@ -1763,11 +1815,11 @@ bool CheckCallTarget(const Expr& callee,
       }
       auto global_it = ctx.globals.find(base.text);
       if (global_it != ctx.globals.end()) {
-        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
+        auto aggregate_it = ctx.aggregates.find(global_it->second->type.name);
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+        const FuncDecl* method = FindAggregateMethod(aggregate, callee.text);
         if (method) return CheckFunctionCallArgs(method, arg_count, error);
-        if (const VarDecl* field = FindArtifactField(artifact, callee.text)) {
+        if (const VarDecl* field = FindAggregateField(aggregate, callee.text)) {
           if (field->type.is_proc) {
             return CheckProcTypeArgs(&field->type, arg_count, error);
           }
@@ -1780,18 +1832,18 @@ bool CheckCallTarget(const Expr& callee,
   return true;
 }
 
-bool PopulateArtifactCallTarget(const TypeRef& instance_type,
-                                const ArtifactDecl* artifact,
+bool PopulateAggregateCallTarget(const TypeRef& instance_type,
+                                const AggregateDecl* aggregate,
                                 const std::string& member,
                                 CallTargetInfo* out,
                                 std::string* error) {
-  if (!artifact || !out) return false;
+  if (!aggregate || !out) return false;
   std::unordered_map<std::string, TypeRef> substitutions;
-  if (!artifact->generics.empty() &&
-      !BuildArtifactTypeParamMap(instance_type, artifact, &substitutions, error)) {
+  if (!aggregate->generics.empty() &&
+      !BuildAggregateTypeParamMap(instance_type, aggregate, &substitutions, error)) {
     return false;
   }
-  if (const FuncDecl* method = FindArtifactMethod(artifact, member)) {
+  if (const FuncDecl* method = FindAggregateMethod(aggregate, member)) {
     out->params.clear();
     TypeRef resolved_return;
     if (!SubstituteTypeParams(method->return_type, substitutions, &resolved_return)) return false;
@@ -1812,7 +1864,7 @@ bool PopulateArtifactCallTarget(const TypeRef& instance_type,
     }
     return true;
   }
-  const VarDecl* field = FindArtifactField(artifact, member);
+  const VarDecl* field = FindAggregateField(aggregate, member);
   if (!field || !field->type.is_proc) return false;
   TypeRef resolved;
   if (!SubstituteTypeParams(field->type, substitutions, &resolved)) return false;
@@ -1828,7 +1880,7 @@ bool PopulateArtifactCallTarget(const TypeRef& instance_type,
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        CallTargetInfo* out,
                        std::string* error) {
   if (!out) return false;
@@ -1929,7 +1981,7 @@ bool GetCallTargetInfo(const Expr& callee,
         return true;
       }
       if (base.text == "self") {
-        const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
+        const FuncDecl* method = FindAggregateMethod(current_aggregate, callee.text);
         if (!method) return false;
         out->params.clear();
         if (!CloneFunctionCallReturn(*method, &out->return_type)) return false;
@@ -1949,7 +2001,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (mod_it != ctx.externs_by_module.end()) {
           auto ext_it = mod_it->second.find(callee.text);
           if (ext_it != mod_it->second.end()) {
-            if (!CheckDlDynamicSignature(*ext_it->second, ctx.enum_types, ctx.artifacts, error)) return false;
+            if (!CheckDlDynamicSignature(*ext_it->second, ctx.enum_types, ctx.aggregates, error)) return false;
             return SetExternCallTarget(*ext_it->second, out);
           }
         }
@@ -2005,7 +2057,7 @@ bool GetCallTargetInfo(const Expr& callee,
         }
       }
       TypeRef base_type;
-      if (InferExprType(base, ctx, scopes, current_artifact, &base_type) &&
+      if (InferExprType(base, ctx, scopes, current_aggregate, &base_type) &&
           !base_type.dims.empty() && base_type.dims.front().is_list) {
         TypeRef element_type;
         if (!CloneElementType(base_type, &element_type)) return false;
@@ -2044,7 +2096,7 @@ bool GetCallTargetInfo(const Expr& callee,
       }
     }
     TypeRef instance_type;
-    if (InferExprType(base, ctx, scopes, current_artifact, &instance_type)) {
+    if (InferExprType(base, ctx, scopes, current_aggregate, &instance_type)) {
       if (instance_type.name == "Promise" && instance_type.type_args.size() == 1 &&
           instance_type.dims.empty() && instance_type.pointer_depth == 0 &&
           (callee.text == "cancel" || callee.text == "isDone" ||
@@ -2056,10 +2108,10 @@ bool GetCallTargetInfo(const Expr& callee,
         out->is_proc = false;
         return true;
       }
-      const auto artifact_it = ctx.artifacts.find(instance_type.name);
-      const ArtifactDecl* artifact =
-          artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-      if (PopulateArtifactCallTarget(instance_type, artifact, callee.text, out, error)) return true;
+      const auto aggregate_it = ctx.aggregates.find(instance_type.name);
+      const AggregateDecl* aggregate =
+          aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+      if (PopulateAggregateCallTarget(instance_type, aggregate, callee.text, out, error)) return true;
     }
   }
   if (error) *error = "attempt to call non-function";
@@ -2070,7 +2122,7 @@ bool IsExternalBorrowedPointerExpr(
     const Expr& expr,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact) {
+    const AggregateDecl* current_aggregate) {
   if (expr.kind == ExprKind::Identifier) {
     if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
       return local->external_borrowed_pointer;
@@ -2079,11 +2131,11 @@ bool IsExternalBorrowedPointerExpr(
   if (expr.kind == ExprKind::Call && expr.cast_type.pointer_depth > 0 &&
       expr.args.size() == 1) {
     return IsExternalBorrowedPointerExpr(
-        expr.args[0], ctx, scopes, current_artifact);
+        expr.args[0], ctx, scopes, current_aggregate);
   }
   if (expr.kind == ExprKind::Call && !expr.children.empty()) {
     CallTargetInfo info;
-    if (GetCallTargetInfo(expr.children[0], ctx, scopes, current_artifact,
+    if (GetCallTargetInfo(expr.children[0], ctx, scopes, current_aggregate,
                           &info, nullptr) &&
         info.is_external_c &&
         TypeContainsRawPointer(info.return_type, ctx)) {
@@ -2092,16 +2144,16 @@ bool IsExternalBorrowedPointerExpr(
   }
   if (expr.kind == ExprKind::Member && !expr.children.empty()) {
     return IsExternalBorrowedPointerExpr(
-        expr.children[0], ctx, scopes, current_artifact);
+        expr.children[0], ctx, scopes, current_aggregate);
   }
-  if (expr.kind == ExprKind::ArtifactLiteral) {
+  if (expr.kind == ExprKind::AggregateLiteral) {
     for (const auto& child : expr.children) {
-      if (IsExternalBorrowedPointerExpr(child, ctx, scopes, current_artifact)) {
+      if (IsExternalBorrowedPointerExpr(child, ctx, scopes, current_aggregate)) {
         return true;
       }
     }
     for (const auto& value : expr.field_values) {
-      if (IsExternalBorrowedPointerExpr(value, ctx, scopes, current_artifact)) {
+      if (IsExternalBorrowedPointerExpr(value, ctx, scopes, current_aggregate)) {
         return true;
       }
     }
@@ -2112,7 +2164,7 @@ bool IsExternalBorrowedPointerExpr(
 bool CheckCallArgTypes(const Expr& call_expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        std::string* error) {
   const Expr* call_callee = nullptr;
   if (!IsCallExpr(call_expr, &call_callee)) return true;
@@ -2121,12 +2173,12 @@ bool CheckCallArgTypes(const Expr& call_expr,
     TypeRef void_type = MakeSimpleType("void");
     TypeRef signature;
     if (!BuildDirectFnLiteralSignature(
-            call_expr, void_type, ctx, scopes, current_artifact, &signature, error)) {
+            call_expr, void_type, ctx, scopes, current_aggregate, &signature, error)) {
       return false;
     }
     for (size_t i = 0; i < call_expr.args.size(); ++i) {
       if (!ValidateExprAgainstExpected(call_expr.args[i], signature.proc_params[i],
-                                       ctx, scopes, current_artifact, error)) {
+                                       ctx, scopes, current_aggregate, error)) {
         return false;
       }
     }
@@ -2142,7 +2194,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
       auto infer_arg = [&](size_t index, TypeRef* out_type) -> bool {
         if (!out_type) return false;
         if (index >= call_expr.args.size()) return false;
-        return InferExprType(call_expr.args[index], ctx, scopes, current_artifact, out_type);
+        return InferExprType(call_expr.args[index], ctx, scopes, current_aggregate, out_type);
       };
       if (IsLibraryModule(mod, StandardModule::Math)) {
         std::vector<TypeRef> arg_types;
@@ -2197,7 +2249,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
             return false;
           }
           for (const auto& entry : mod_it->second) {
-            if (!CheckDlDynamicSignature(*entry.second, ctx.enum_types, ctx.artifacts, error)) return false;
+            if (!CheckDlDynamicSignature(*entry.second, ctx.enum_types, ctx.aggregates, error)) return false;
           }
         }
         return true;
@@ -2215,7 +2267,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
     }
   }
   CallTargetInfo info;
-  if (!GetCallTargetInfo(callee, ctx, scopes, current_artifact, &info, error)) return true;
+  if (!GetCallTargetInfo(callee, ctx, scopes, current_aggregate, &info, error)) return true;
   if (!CheckCallTypeArgCount(info.type_params.size(), call_expr.type_args.size(), error)) return false;
 
   std::unordered_map<std::string, TypeRef> mapping;
@@ -2225,7 +2277,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
       if (!BuildExplicitTypeArgMap(info.type_params, call_expr.type_args, &mapping, error)) return false;
     } else {
       if (!InferTypeArgsFromCall(info.params, call_expr.args, type_param_set,
-                                 ctx, scopes, current_artifact, &mapping)) {
+                                 ctx, scopes, current_aggregate, &mapping)) {
         if (error) *error = "cannot infer type arguments for call";
         return false;
       }
@@ -2265,9 +2317,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
       continue;
     }
     TypeRef actual;
-    if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) {
+    if (!InferExprType(call_expr.args[i], ctx, scopes, current_aggregate, &actual)) {
       if (!ValidateExprAgainstExpected(
-              call_expr.args[i], expected, ctx, scopes, current_artifact, error)) {
+              call_expr.args[i], expected, ctx, scopes, current_aggregate, error)) {
         return false;
       }
       continue;
@@ -2289,7 +2341,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
       bool known = false;
       bool points_to_immutable = false;
       GetPointerImmutabilityFromExpr(call_expr.args[i], ctx, scopes,
-                                     current_artifact, &known,
+                                     current_aggregate, &known,
                                      &points_to_immutable);
       if (known && points_to_immutable) {
         if (error) {
@@ -2301,7 +2353,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
     if (info.is_external_c && TypeContainsRawPointer(expected, ctx) &&
         !IsRawPointerShape(expected) &&
         !IsExternalBorrowedPointerExpr(
-            call_expr.args[i], ctx, scopes, current_artifact)) {
+            call_expr.args[i], ctx, scopes, current_aggregate)) {
       if (error) {
         *error = "external data pointer fields require borrowed external provenance";
       }
@@ -2319,7 +2371,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
 bool CheckAssignmentTarget(const Expr& target,
                            const ValidateContext& ctx,
                            const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                           const ArtifactDecl* current_artifact,
+                           const AggregateDecl* current_aggregate,
                            std::string* error) {
   std::function<bool(const Expr&)> is_mutable_expr = [&](const Expr& expr) -> bool {
     if (expr.kind == ExprKind::Identifier) {
@@ -2347,7 +2399,7 @@ bool CheckAssignmentTarget(const Expr& target,
       const Expr& base = *member_base;
       if (base.kind == ExprKind::Identifier) {
         if (base.text == "self") {
-          const VarDecl* field = FindArtifactField(current_artifact, expr.text);
+          const VarDecl* field = FindAggregateField(current_aggregate, expr.text);
           if (field) return field->mutability == Mutability::Mutable;
           return true;
         }
@@ -2358,17 +2410,17 @@ bool CheckAssignmentTarget(const Expr& target,
           return true;
         }
         if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-          auto artifact_it = ctx.artifacts.find(local->type ? local->type->name : "");
-          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-          const VarDecl* field = FindArtifactField(artifact, expr.text);
+          auto aggregate_it = ctx.aggregates.find(local->type ? local->type->name : "");
+          const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+          const VarDecl* field = FindAggregateField(aggregate, expr.text);
           if (field) return field->mutability == Mutability::Mutable;
           return true;
         }
         auto global_it = ctx.globals.find(base.text);
         if (global_it != ctx.globals.end()) {
-          auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-          const VarDecl* field = FindArtifactField(artifact, expr.text);
+          auto aggregate_it = ctx.aggregates.find(global_it->second->type.name);
+          const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+          const VarDecl* field = FindAggregateField(aggregate, expr.text);
           if (field) return field->mutability == Mutability::Mutable;
         }
       }
@@ -2377,7 +2429,7 @@ bool CheckAssignmentTarget(const Expr& target,
     const Expr* call_callee = nullptr;
     if (IsCallExpr(expr, &call_callee)) {
       CallTargetInfo info;
-      if (!GetCallTargetInfo(*call_callee, ctx, scopes, current_artifact, &info, nullptr)) return true;
+      if (!GetCallTargetInfo(*call_callee, ctx, scopes, current_aggregate, &info, nullptr)) return true;
       return info.return_mutability == Mutability::Mutable;
     }
     if (expr.kind == ExprKind::Index) {
@@ -2418,8 +2470,8 @@ bool CheckAssignmentTarget(const Expr& target,
     }
     if (base.kind == ExprKind::Identifier) {
       if (base.text == "self") {
-        const VarDecl* field = FindArtifactField(current_artifact, target.text);
-        if (!field && FindArtifactMethod(current_artifact, target.text)) {
+        const VarDecl* field = FindAggregateField(current_aggregate, target.text);
+        if (!field && FindAggregateMethod(current_aggregate, target.text)) {
           if (error) *error = "cannot assign to method: self." + target.text;
           return false;
         }
@@ -2431,10 +2483,10 @@ bool CheckAssignmentTarget(const Expr& target,
       }
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
         if (!local->type) return true;
-        auto artifact_it = ctx.artifacts.find(local->type->name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const VarDecl* field = FindArtifactField(artifact, target.text);
-        if (!field && FindArtifactMethod(artifact, target.text)) {
+        auto aggregate_it = ctx.aggregates.find(local->type->name);
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+        const VarDecl* field = FindAggregateField(aggregate, target.text);
+        if (!field && FindAggregateMethod(aggregate, target.text)) {
           if (error) *error = "cannot assign to method: " + base.text + "." + target.text;
           return false;
         }
@@ -2464,10 +2516,10 @@ bool CheckAssignmentTarget(const Expr& target,
       }
       auto global_it = ctx.globals.find(base.text);
       if (global_it != ctx.globals.end()) {
-        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
-        const VarDecl* field = FindArtifactField(artifact, target.text);
-        if (!field && FindArtifactMethod(artifact, target.text)) {
+        auto aggregate_it = ctx.aggregates.find(global_it->second->type.name);
+        const AggregateDecl* aggregate = aggregate_it == ctx.aggregates.end() ? nullptr : aggregate_it->second;
+        const VarDecl* field = FindAggregateField(aggregate, target.text);
+        if (!field && FindAggregateMethod(aggregate, target.text)) {
           if (error) *error = "cannot assign to method: " + base.text + "." + target.text;
           return false;
         }
@@ -2489,7 +2541,7 @@ bool CheckAssignmentTarget(const Expr& target,
   if (target.kind == ExprKind::Unary && target.op == "*" &&
       target.children.size() == 1) {
     TypeRef pointer_type;
-    if (!InferExprType(target.children[0], ctx, scopes, current_artifact,
+    if (!InferExprType(target.children[0], ctx, scopes, current_aggregate,
                        &pointer_type) || pointer_type.pointer_depth == 0) {
       if (error) *error = "dereference assignment requires pointer operand";
       return false;
@@ -2504,28 +2556,28 @@ bool CheckAssignmentTarget(const Expr& target,
   return false;
 }
 
-bool ValidateArtifactLiteral(const Expr& expr,
-                             const ArtifactDecl* artifact,
+bool ValidateAggregateLiteral(const Expr& expr,
+                             const AggregateDecl* aggregate,
                              const std::unordered_map<std::string, TypeRef>& type_mapping,
                              const ValidateContext& ctx,
                              const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                             const ArtifactDecl* current_artifact,
+                             const AggregateDecl* current_aggregate,
                              std::string* error) {
-  if (!artifact) return true;
-  const size_t field_count = artifact->fields.size();
-  if (!CheckArtifactLiteralPositionalCount(expr, field_count, error)) return false;
-  if (!CheckArtifactLiteralDuplicateNamedFields(expr, error)) return false;
+  if (!aggregate) return true;
+  const size_t field_count = aggregate->fields.size();
+  if (!CheckAggregateLiteralPositionalCount(expr, field_count, error)) return false;
+  if (!CheckAggregateLiteralDuplicateNamedFields(expr, error)) return false;
   auto reject_pointer_escape = [&](const Expr& value,
                                    const TypeRef& expected) -> bool {
     if (!TypeContainsRawPointer(expected, ctx)) {
       return false;
     }
     if (IsFrameBorrowedPointerExpr(value, ctx, scopes)) {
-      if (error) *error = "cannot store frame-borrowed pointer in artifact field";
+      if (error) *error = "cannot store frame-borrowed pointer in aggregate field";
       return true;
     }
-    if (IsExternalBorrowedPointerExpr(value, ctx, scopes, current_artifact)) {
-      if (error) *error = "cannot store borrowed external pointer in artifact field";
+    if (IsExternalBorrowedPointerExpr(value, ctx, scopes, current_aggregate)) {
+      if (error) *error = "cannot store borrowed external pointer in aggregate field";
       return true;
     }
     return false;
@@ -2534,13 +2586,13 @@ bool ValidateArtifactLiteral(const Expr& expr,
   for (const auto& name : expr.field_names) seen.insert(name);
   for (size_t i = 0; i < expr.children.size(); ++i) {
     if (i >= field_count) break;
-    const auto& field = artifact->fields[i];
-    if (!CheckArtifactLiteralFieldSpecifiedOnce(field.name, seen, error)) return false;
+    const auto& field = aggregate->fields[i];
+    if (!CheckAggregateLiteralFieldSpecifiedOnce(field.name, seen, error)) return false;
     seen.insert(field.name);
     TypeRef expected;
     if (!SubstituteTypeParams(field.type, type_mapping, &expected)) return false;
     if (!ValidateExprAgainstExpected(
-            expr.children[i], expected, ctx, scopes, current_artifact, error)) {
+            expr.children[i], expected, ctx, scopes, current_aggregate, error)) {
       return false;
     }
     if (reject_pointer_escape(expr.children[i], expected)) return false;
@@ -2548,12 +2600,12 @@ bool ValidateArtifactLiteral(const Expr& expr,
   if (!expr.field_names.empty()) {
     std::unordered_set<std::string> valid;
     std::unordered_map<std::string, const VarDecl*> field_map;
-    for (const auto& field : artifact->fields) {
+    for (const auto& field : aggregate->fields) {
       valid.insert(field.name);
       field_map[field.name] = &field;
     }
     for (const auto& name : expr.field_names) {
-      if (!CheckArtifactLiteralKnownField(name, valid, error)) return false;
+      if (!CheckAggregateLiteralKnownField(name, valid, error)) return false;
     }
     for (size_t i = 0; i < expr.field_names.size(); ++i) {
       const auto& name = expr.field_names[i];
@@ -2562,14 +2614,14 @@ bool ValidateArtifactLiteral(const Expr& expr,
       TypeRef expected;
       if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
       if (!ValidateExprAgainstExpected(
-              expr.field_values[i], expected, ctx, scopes, current_artifact, error)) {
+              expr.field_values[i], expected, ctx, scopes, current_aggregate, error)) {
         return false;
       }
       if (reject_pointer_escape(expr.field_values[i], expected)) return false;
     }
   }
-  for (const auto& field : artifact->fields) {
-    if (!CheckArtifactLiteralRequiredField(field.name, field.has_init_expr, seen, error)) return false;
+  for (const auto& field : aggregate->fields) {
+    if (!CheckAggregateLiteralRequiredField(field.name, field.has_init_expr, seen, error)) return false;
   }
   return true;
 }
@@ -2579,7 +2631,7 @@ bool BuildDirectFnLiteralSignature(
     const TypeRef& result_type,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     TypeRef* signature,
     std::string* error) {
   if (!signature || call.kind != ExprKind::Call || call.children.empty() ||
@@ -2605,7 +2657,7 @@ bool BuildDirectFnLiteralSignature(
     if (!literal.fn_params[i].type.name.empty() || literal.fn_params[i].type.is_proc) {
       if (!CloneTypeRef(literal.fn_params[i].type, &param_type)) return false;
     } else if (!InferExprType(
-                   call.args[i], ctx, scopes, current_artifact, &param_type)) {
+                   call.args[i], ctx, scopes, current_aggregate, &param_type)) {
       if (error) *error = "cannot infer direct fn literal parameter type";
       return false;
     }
@@ -2619,7 +2671,7 @@ bool ValidateFnLiteralBody(
     const TypeRef& signature,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& outer_scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error) {
   if (!CheckFnLiteralAgainstType(expr, signature, error)) return false;
   if (!signature.proc_return) {
@@ -2663,7 +2715,7 @@ bool ValidateFnLiteralBody(
   const std::unordered_set<std::string> type_params;
   for (const auto& stmt : lambda.body) {
     if (!CheckStmt(stmt, ctx, type_params, &lambda.return_type, returns_void, 0,
-                   lambda_scopes, current_artifact, error)) {
+                   lambda_scopes, current_aggregate, error)) {
       if (error && !error->empty()) *error = "in fn literal: " + *error;
       return false;
     }
@@ -2680,19 +2732,19 @@ bool ValidateExprAgainstExpected(
     const TypeRef& expected,
     const ValidateContext& ctx,
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const ArtifactDecl* current_artifact,
+    const AggregateDecl* current_aggregate,
     std::string* error) {
   if (expr.kind == ExprKind::Call && !expr.children.empty() &&
       expr.children[0].kind == ExprKind::FnLiteral) {
     TypeRef signature;
     if (!BuildDirectFnLiteralSignature(
-            expr, expected, ctx, scopes, current_artifact, &signature, error) ||
-        !ValidateFnLiteralBody(expr.children[0], signature, ctx, scopes, current_artifact, error)) {
+            expr, expected, ctx, scopes, current_aggregate, &signature, error) ||
+        !ValidateFnLiteralBody(expr.children[0], signature, ctx, scopes, current_aggregate, error)) {
       return false;
     }
     for (size_t i = 0; i < expr.args.size(); ++i) {
       if (!ValidateExprAgainstExpected(
-              expr.args[i], signature.proc_params[i], ctx, scopes, current_artifact, error)) {
+              expr.args[i], signature.proc_params[i], ctx, scopes, current_aggregate, error)) {
         return false;
       }
     }
@@ -2700,17 +2752,17 @@ bool ValidateExprAgainstExpected(
   }
 
   TaggedTypeInfo tagged;
-  if (ResolveTaggedType(expected, ctx, &tagged) && expr.kind == ExprKind::ArtifactLiteral) {
-    if (tagged.kind == TaggedArtifactKind::Optional) {
+  if (ResolveTaggedType(expected, ctx, &tagged) && expr.kind == ExprKind::AggregateLiteral) {
+    if (tagged.kind == TaggedAggregateKind::Optional) {
       if (!expr.field_names.empty() || !expr.field_values.empty() || expr.children.size() > 1) {
         if (error) *error = "optional literal must be '{}' or '{ value }'";
         return false;
       }
       if (expr.children.empty()) return true;
       return ValidateExprAgainstExpected(
-          expr.children[0], *tagged.value_type, ctx, scopes, current_artifact, error);
+          expr.children[0], *tagged.value_type, ctx, scopes, current_aggregate, error);
     }
-    if (tagged.kind == TaggedArtifactKind::Result) {
+    if (tagged.kind == TaggedAggregateKind::Result) {
       if (!expr.children.empty() || expr.field_names.size() != 1 ||
           expr.field_values.size() != 1) {
         if (error) {
@@ -2727,27 +2779,27 @@ bool ValidateExprAgainstExpected(
         return false;
       }
       return ValidateExprAgainstExpected(
-          expr.field_values[0], *payload_type, ctx, scopes, current_artifact, error);
+          expr.field_values[0], *payload_type, ctx, scopes, current_aggregate, error);
     }
   }
 
-  if (expr.kind == ExprKind::ArtifactLiteral && expected.dims.empty()) {
-    const auto artifact_it = ctx.artifacts.find(expected.name);
-    if (artifact_it == ctx.artifacts.end()) {
-      if (error) *error = "artifact literal requires an artifact or tagged target type";
+  if (expr.kind == ExprKind::AggregateLiteral && expected.dims.empty()) {
+    const auto aggregate_it = ctx.aggregates.find(expected.name);
+    if (aggregate_it == ctx.aggregates.end()) {
+      if (error) *error = "aggregate literal requires an aggregate or tagged target type";
       return false;
     }
     std::unordered_map<std::string, TypeRef> mapping;
-    if (!BuildArtifactTypeParamMap(expected, artifact_it->second, &mapping, error)) {
+    if (!BuildAggregateTypeParamMap(expected, aggregate_it->second, &mapping, error)) {
       return false;
     }
-    return ValidateArtifactLiteral(
-        expr, artifact_it->second, mapping, ctx, scopes, current_artifact, error);
+    return ValidateAggregateLiteral(
+        expr, aggregate_it->second, mapping, ctx, scopes, current_aggregate, error);
   }
 
   if (!expected.dims.empty() && expected.dims.front().is_list &&
       IsListLiteralExpr(expr)) {
-    return CheckListLiteralElementTypes(expr, ctx, scopes, current_artifact, expected, error);
+    return CheckListLiteralElementTypes(expr, ctx, scopes, current_aggregate, expected, error);
   }
   if (!expected.dims.empty() && !expected.dims.front().is_list &&
       IsPositionalBraceLiteralExpr(expr)) {
@@ -2758,24 +2810,24 @@ bool ValidateExprAgainstExpected(
     return CheckArrayLiteralElementTypes(expr,
                                          ctx,
                                          scopes,
-                                         current_artifact,
+                                         current_aggregate,
                                          expected.dims,
                                          0,
                                          base_type,
                                          error);
   }
   if (expr.kind == ExprKind::FnLiteral) {
-    return ValidateFnLiteralBody(expr, expected, ctx, scopes, current_artifact, error);
+    return ValidateFnLiteralBody(expr, expected, ctx, scopes, current_aggregate, error);
   }
   if (expr.kind == ExprKind::Member && !expr.children.empty() &&
       expr.children[0].kind == ExprKind::Identifier &&
       ctx.enum_types.find(expr.children[0].text) != ctx.enum_types.end() &&
       (expected.name == expr.children[0].text || expected.name == "i32")) {
-    return CheckExpr(expr, ctx, scopes, current_artifact, error);
+    return CheckExpr(expr, ctx, scopes, current_aggregate, error);
   }
-  if (!CheckExpr(expr, ctx, scopes, current_artifact, error)) return false;
+  if (!CheckExpr(expr, ctx, scopes, current_aggregate, error)) return false;
   TypeRef actual;
-  if (!InferExprType(expr, ctx, scopes, current_artifact, &actual)) {
+  if (!InferExprType(expr, ctx, scopes, current_aggregate, &actual)) {
     if (error) *error = "cannot infer expression type for typed context";
     return false;
   }
@@ -2790,7 +2842,7 @@ bool CheckStmt(const Stmt& stmt,
                bool return_is_void,
                int loop_depth,
                std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-               const ArtifactDecl* current_artifact,
+               const AggregateDecl* current_aggregate,
                std::string* error) {
   auto propagation_scopes = scopes;
   if (!ValidatePropagationStmt(
@@ -2798,7 +2850,7 @@ bool CheckStmt(const Stmt& stmt,
           expected_return,
           ctx,
           propagation_scopes,
-          current_artifact,
+          current_aggregate,
           false,
           error)) {
     return false;
@@ -2808,7 +2860,7 @@ bool CheckStmt(const Stmt& stmt,
     case StmtKind::Return:
       if (!CheckReturnStmtValuePresence(stmt, return_is_void, error)) return false;
       if (stmt.has_return_expr) {
-        if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(stmt.expr, ctx, scopes, current_aggregate, error)) return false;
         if (expected_return && expected_return->pointer_depth > 0 &&
             IsFrameBorrowedPointerExpr(stmt.expr, ctx, scopes)) {
           if (error) *error = "cannot return pointer borrowed from the current frame";
@@ -2817,22 +2869,22 @@ bool CheckStmt(const Stmt& stmt,
         if (expected_return &&
             TypeContainsRawPointer(*expected_return, ctx) &&
             IsExternalBorrowedPointerExpr(
-                stmt.expr, ctx, scopes, current_artifact)) {
+                stmt.expr, ctx, scopes, current_aggregate)) {
           if (error) *error = "cannot return borrowed external pointer";
           return false;
         }
         const bool direct_fn_call = IsDirectFnLiteralCall(stmt.expr);
         const bool contextual_return =
-            stmt.expr.kind == ExprKind::ArtifactLiteral ||
+            stmt.expr.kind == ExprKind::AggregateLiteral ||
             stmt.expr.kind == ExprKind::FnLiteral || direct_fn_call;
         if (expected_return && contextual_return &&
             !ValidateExprAgainstExpected(
-                stmt.expr, *expected_return, ctx, scopes, current_artifact, error)) {
+                stmt.expr, *expected_return, ctx, scopes, current_aggregate, error)) {
           return false;
         }
         if (expected_return && !contextual_return) {
           TypeRef actual;
-          if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &actual)) {
+          if (InferExprType(stmt.expr, ctx, scopes, current_aggregate, &actual)) {
             if (!CheckTypesCompatibleForExpr(*expected_return, actual, stmt.expr,
                                              "return type mismatch", error)) return false;
           }
@@ -2841,23 +2893,23 @@ bool CheckStmt(const Stmt& stmt,
       }
       return true;
     case StmtKind::Expr: {
-      if (stmt.expr.kind == ExprKind::ArtifactLiteral) {
+      if (stmt.expr.kind == ExprKind::AggregateLiteral) {
         if (error) *error = "contextual literal requires a typed value context";
         return false;
       }
-      if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.expr, ctx, scopes, current_aggregate, error)) return false;
       if (IsDirectFnLiteralCall(stmt.expr)) {
         const TypeRef void_type = MakeSimpleType("void");
         if (!ValidateExprAgainstExpected(
-                stmt.expr, void_type, ctx, scopes, current_artifact, error)) {
+                stmt.expr, void_type, ctx, scopes, current_aggregate, error)) {
           return false;
         }
       }
       TypeRef expression_type;
-      if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &expression_type)) {
+      if (InferExprType(stmt.expr, ctx, scopes, current_aggregate, &expression_type)) {
         TaggedTypeInfo tagged;
         if (ResolveTaggedType(expression_type, ctx, &tagged) &&
-            tagged.kind == TaggedArtifactKind::Result) {
+            tagged.kind == TaggedAggregateKind::Result) {
           if (error) {
             *error = "Result value must be returned, stored, propagated, or exhaustively handled";
           }
@@ -2867,19 +2919,19 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     }
     case StmtKind::Assign:
-      if (!CheckExpr(stmt.target, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.target, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_aggregate, error)) return false;
       if (stmt.expr.kind != ExprKind::Switch &&
-          !CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) {
+          !CheckExpr(stmt.expr, ctx, scopes, current_aggregate, error)) {
         return false;
       }
       {
         TypeRef target_type;
         TypeRef value_type;
-        bool have_target = InferExprType(stmt.target, ctx, scopes, current_artifact, &target_type);
-        if (have_target && stmt.expr.kind == ExprKind::ArtifactLiteral &&
+        bool have_target = InferExprType(stmt.target, ctx, scopes, current_aggregate, &target_type);
+        if (have_target && stmt.expr.kind == ExprKind::AggregateLiteral &&
             !ValidateExprAgainstExpected(
-                stmt.expr, target_type, ctx, scopes, current_artifact, error)) {
+                stmt.expr, target_type, ctx, scopes, current_aggregate, error)) {
           return false;
         }
         bool have_value = false;
@@ -2887,7 +2939,7 @@ bool CheckStmt(const Stmt& stmt,
           have_value = AnalyzeSwitchExpr(stmt.expr,
                                          ctx,
                                          scopes,
-                                         current_artifact,
+                                         current_aggregate,
                                          true,
                                          have_target ? &target_type : nullptr,
                                          &value_type,
@@ -2898,16 +2950,16 @@ bool CheckStmt(const Stmt& stmt,
                                          loop_depth);
         } else if (have_target && IsDirectFnLiteralCall(stmt.expr)) {
           if (!ValidateExprAgainstExpected(
-                  stmt.expr, target_type, ctx, scopes, current_artifact, error) ||
+                  stmt.expr, target_type, ctx, scopes, current_aggregate, error) ||
               !CloneTypeRef(target_type, &value_type)) {
             return false;
           }
           have_value = true;
         } else {
-          have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
+          have_value = InferExprType(stmt.expr, ctx, scopes, current_aggregate, &value_type);
         }
         if (have_target && stmt.expr.kind == ExprKind::FnLiteral) {
-          if (!ValidateFnLiteralBody(stmt.expr, target_type, ctx, scopes, current_artifact, error)) return false;
+          if (!ValidateFnLiteralBody(stmt.expr, target_type, ctx, scopes, current_aggregate, error)) return false;
         }
         if (have_target && have_value &&
             !CheckTypesCompatibleForExpr(target_type, value_type, stmt.expr,
@@ -2930,7 +2982,7 @@ bool CheckStmt(const Stmt& stmt,
           if (!CheckListLiteralElementTypes(stmt.expr,
                                             ctx,
                                             scopes,
-                                            current_artifact,
+                                            current_aggregate,
                                             target_type,
                                             error)) {
             return false;
@@ -2946,7 +2998,7 @@ bool CheckStmt(const Stmt& stmt,
           if (!CheckArrayLiteralElementTypes(stmt.expr,
                                              ctx,
                                              scopes,
-                                             current_artifact,
+                                             current_aggregate,
                                              target_type.dims,
                                              0,
                                              base_type,
@@ -2961,7 +3013,7 @@ bool CheckStmt(const Stmt& stmt,
             stmt.assign_op == "=") {
           const bool frame_borrow = IsFrameBorrowedPointerExpr(stmt.expr, ctx, scopes);
           const bool external_borrow = IsExternalBorrowedPointerExpr(
-              stmt.expr, ctx, scopes, current_artifact);
+              stmt.expr, ctx, scopes, current_aggregate);
           bool updated_local = false;
           if (stmt.target.kind == ExprKind::Identifier) {
             for (auto scope_it = scopes.rbegin(); scope_it != scopes.rend(); ++scope_it) {
@@ -2972,11 +3024,11 @@ bool CheckStmt(const Stmt& stmt,
                   IsVmStoragePointerExpr(stmt.expr, ctx, scopes);
               local_it->second.external_borrowed_pointer =
                   IsExternalBorrowedPointerExpr(
-                      stmt.expr, ctx, scopes, current_artifact);
+                      stmt.expr, ctx, scopes, current_aggregate);
               bool known = false;
               bool points_to_immutable = false;
               GetPointerImmutabilityFromExpr(
-                  stmt.expr, ctx, scopes, current_artifact, &known,
+                  stmt.expr, ctx, scopes, current_aggregate, &known,
                   &points_to_immutable);
               if (known) {
                 local_it->second.points_to_immutable = points_to_immutable;
@@ -3011,7 +3063,7 @@ bool CheckStmt(const Stmt& stmt,
         if (!ValidateVarInitExpr(stmt.var_decl,
                                  ctx,
                                  scopes,
-                                 current_artifact,
+                                 current_aggregate,
                                  true,
                                  error,
                                  &type_params,
@@ -3027,7 +3079,7 @@ bool CheckStmt(const Stmt& stmt,
             GetPointerImmutabilityFromExpr(stmt.var_decl.init_expr,
                                            ctx,
                                            scopes,
-                                           current_artifact,
+                                           current_aggregate,
                                            &known,
                                            &points_to_immutable);
           }
@@ -3040,7 +3092,7 @@ bool CheckStmt(const Stmt& stmt,
                 IsVmStoragePointerExpr(stmt.var_decl.init_expr, ctx, scopes);
             local_it->second.external_borrowed_pointer =
                 IsExternalBorrowedPointerExpr(
-                    stmt.var_decl.init_expr, ctx, scopes, current_artifact);
+                    stmt.var_decl.init_expr, ctx, scopes, current_aggregate);
           }
         }
         std::string manifest_module;
@@ -3054,8 +3106,8 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::IfChain:
       for (const auto& branch : stmt.if_branches) {
-        if (!CheckExpr(branch.first, ctx, scopes, current_artifact, error)) return false;
-        if (!CheckBoolCondition(branch.first, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(branch.first, ctx, scopes, current_aggregate, error)) return false;
+        if (!CheckBoolCondition(branch.first, ctx, scopes, current_aggregate, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
           if (!CheckStmt(child,
@@ -3065,7 +3117,7 @@ bool CheckStmt(const Stmt& stmt,
                          return_is_void,
                          loop_depth,
                          scopes,
-                         current_artifact,
+                         current_aggregate,
                          error)) {
             return false;
           }
@@ -3082,7 +3134,7 @@ bool CheckStmt(const Stmt& stmt,
                          return_is_void,
                          loop_depth,
                          scopes,
-                         current_artifact,
+                         current_aggregate,
                          error)) {
             return false;
           }
@@ -3091,8 +3143,8 @@ bool CheckStmt(const Stmt& stmt,
       }
       return true;
     case StmtKind::IfStmt:
-      if (!CheckExpr(stmt.if_cond, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckBoolCondition(stmt.if_cond, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.if_cond, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckBoolCondition(stmt.if_cond, ctx, scopes, current_aggregate, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
         if (!CheckStmt(child,
@@ -3102,7 +3154,7 @@ bool CheckStmt(const Stmt& stmt,
                        return_is_void,
                        loop_depth,
                        scopes,
-                       current_artifact,
+                       current_aggregate,
                        error)) {
           return false;
         }
@@ -3118,7 +3170,7 @@ bool CheckStmt(const Stmt& stmt,
                          return_is_void,
                          loop_depth,
                          scopes,
-                         current_artifact,
+                         current_aggregate,
                          error)) {
             return false;
           }
@@ -3127,8 +3179,8 @@ bool CheckStmt(const Stmt& stmt,
       }
       return true;
     case StmtKind::WhileLoop:
-      if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_aggregate, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
@@ -3138,7 +3190,7 @@ bool CheckStmt(const Stmt& stmt,
                        return_is_void,
                        loop_depth + 1,
                        scopes,
-                       current_artifact,
+                       current_aggregate,
                        error)) {
           return false;
         }
@@ -3158,7 +3210,7 @@ bool CheckStmt(const Stmt& stmt,
                        return_is_void,
                        loop_depth,
                        scopes,
-                       current_artifact,
+                       current_aggregate,
                        error)) {
           return false;
         }
@@ -3169,10 +3221,10 @@ bool CheckStmt(const Stmt& stmt,
           loop_local->second.type = &stmt.loop_var_decl.type;
         }
       }
-      if (!CheckExpr(stmt.loop_iter, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckExpr(stmt.loop_step, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.loop_iter, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckExpr(stmt.loop_step, ctx, scopes, current_aggregate, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
@@ -3182,7 +3234,7 @@ bool CheckStmt(const Stmt& stmt,
                        return_is_void,
                        loop_depth + 1,
                        scopes,
-                       current_artifact,
+                       current_aggregate,
                        error)) {
           return false;
         }
@@ -3210,7 +3262,7 @@ bool CheckStmt(const Stmt& stmt,
 bool CheckArrayLiteralElementTypes(const Expr& expr,
                                    const ValidateContext& ctx,
                                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                                   const ArtifactDecl* current_artifact,
+                                   const AggregateDecl* current_aggregate,
                                    const std::vector<TypeDim>& dims,
                                    size_t dim_index,
                                    const TypeRef& element_type,
@@ -3221,7 +3273,7 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
   if (dim_index + 1 >= dims.size()) {
     for (const auto& child : expr.children) {
       if (!ValidateExprAgainstExpected(
-              child, element_type, ctx, scopes, current_artifact, error)) {
+              child, element_type, ctx, scopes, current_aggregate, error)) {
         if (error) *error = "array literal element type mismatch";
         return false;
       }
@@ -3233,7 +3285,7 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
     if (!CheckArrayLiteralElementTypes(child,
                                        ctx,
                                        scopes,
-                                       current_artifact,
+                                       current_aggregate,
                                        dims,
                                        dim_index + 1,
                                        element_type,
@@ -3247,7 +3299,7 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
 bool CheckListLiteralElementTypes(const Expr& expr,
                                   const ValidateContext& ctx,
                                   const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                                  const ArtifactDecl* current_artifact,
+                                  const AggregateDecl* current_aggregate,
                                   const TypeRef& list_type,
                                   std::string* error) {
   if (!IsListLiteralExpr(expr)) return true;
@@ -3262,7 +3314,7 @@ bool CheckListLiteralElementTypes(const Expr& expr,
 
   for (const auto& child : expr.children) {
     if (!ValidateExprAgainstExpected(
-            child, element_type, ctx, scopes, current_artifact, error)) {
+            child, element_type, ctx, scopes, current_aggregate, error)) {
       if (error) *error = "list literal element type mismatch";
       return false;
     }
@@ -3273,7 +3325,7 @@ bool CheckListLiteralElementTypes(const Expr& expr,
 bool ValidateVarInitExpr(const VarDecl& var,
                          const ValidateContext& ctx,
                          const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                         const ArtifactDecl* current_artifact,
+                         const AggregateDecl* current_aggregate,
                          bool require_switch_returns,
                          std::string* error,
                          const std::unordered_set<std::string>* type_params,
@@ -3282,25 +3334,25 @@ bool ValidateVarInitExpr(const VarDecl& var,
                          int loop_depth) {
   if (!var.has_init_expr) return true;
   if (!ValidatePropagationExpr(
-          var.init_expr, expected_return, ctx, scopes, current_artifact, error)) {
+          var.init_expr, expected_return, ctx, scopes, current_aggregate, error)) {
     return false;
   }
   TaggedTypeInfo tagged_target;
   const bool is_tagged_literal =
-      var.init_expr.kind == ExprKind::ArtifactLiteral &&
+      var.init_expr.kind == ExprKind::AggregateLiteral &&
       ResolveTaggedType(var.type, ctx, &tagged_target);
   const bool is_direct_fn_call = IsDirectFnLiteralCall(var.init_expr);
   if ((is_tagged_literal || is_direct_fn_call) &&
       !ValidateExprAgainstExpected(
-          var.init_expr, var.type, ctx, scopes, current_artifact, error)) {
+          var.init_expr, var.type, ctx, scopes, current_aggregate, error)) {
     return false;
   }
   if (var.init_expr.kind != ExprKind::Switch &&
-      !CheckExpr(var.init_expr, ctx, scopes, current_artifact, error)) {
+      !CheckExpr(var.init_expr, ctx, scopes, current_aggregate, error)) {
     return false;
   }
   if (var.init_expr.kind == ExprKind::FnLiteral) {
-    if (!ValidateFnLiteralBody(var.init_expr, var.type, ctx, scopes, current_artifact, error)) {
+    if (!ValidateFnLiteralBody(var.init_expr, var.type, ctx, scopes, current_aggregate, error)) {
       return false;
     }
   }
@@ -3310,7 +3362,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
     if (!CheckListLiteralElementTypes(var.init_expr,
                                       ctx,
                                       scopes,
-                                      current_artifact,
+                                      current_aggregate,
                                       var.type,
                                       error)) {
       return false;
@@ -3327,7 +3379,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
     if (!CheckArrayLiteralElementTypes(var.init_expr,
                                        ctx,
                                        scopes,
-                                       current_artifact,
+                                       current_aggregate,
                                        var.type.dims,
                                        0,
                                        base_type,
@@ -3346,7 +3398,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
     if (AnalyzeSwitchExpr(var.init_expr,
                           ctx,
                           scopes,
-                          current_artifact,
+                          current_aggregate,
                           require_switch_returns,
                           &var.type,
                           &init_type,
@@ -3359,27 +3411,27 @@ bool ValidateVarInitExpr(const VarDecl& var,
     } else {
       return false;
     }
-  } else if (InferExprType(var.init_expr, ctx, scopes, current_artifact, &init_type)) {
+  } else if (InferExprType(var.init_expr, ctx, scopes, current_aggregate, &init_type)) {
     have_init_type = true;
   }
   if (have_init_type) {
     if (!CheckTypesCompatibleForExpr(var.type, init_type, var.init_expr,
                                      "initializer type mismatch", error)) return false;
   }
-  if (!is_tagged_literal && var.init_expr.kind == ExprKind::ArtifactLiteral &&
+  if (!is_tagged_literal && var.init_expr.kind == ExprKind::AggregateLiteral &&
       var.type.dims.empty()) {
-    auto artifact_it = ctx.artifacts.find(var.type.name);
-    if (artifact_it != ctx.artifacts.end()) {
+    auto aggregate_it = ctx.aggregates.find(var.type.name);
+    if (aggregate_it != ctx.aggregates.end()) {
       std::unordered_map<std::string, TypeRef> mapping;
-      if (!BuildArtifactTypeParamMap(var.type, artifact_it->second, &mapping, error)) {
+      if (!BuildAggregateTypeParamMap(var.type, aggregate_it->second, &mapping, error)) {
         return false;
       }
-      if (!ValidateArtifactLiteral(var.init_expr,
-                                   artifact_it->second,
+      if (!ValidateAggregateLiteral(var.init_expr,
+                                   aggregate_it->second,
                                    mapping,
                                    ctx,
                                    scopes,
-                                   current_artifact,
+                                   current_aggregate,
                                    error)) {
         return false;
       }
@@ -3393,7 +3445,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
 bool AnalyzeSwitchExpr(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        bool require_explicit_return,
                        const TypeRef* expected_type,
                        TypeRef* out_type,
@@ -3403,9 +3455,9 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        bool return_is_void,
                        int loop_depth) {
   if (!CheckSwitchExprShape(expr, error)) return false;
-  if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+  if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
   TypeRef subject_type;
-  if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &subject_type)) {
+  if (!InferExprType(expr.children[0], ctx, scopes, current_aggregate, &subject_type)) {
     if (error) *error = "cannot infer switch subject type";
     return false;
   }
@@ -3436,7 +3488,7 @@ bool AnalyzeSwitchExpr(const Expr& expr,
         if (error) *error = "cannot mix structural patterns with conditions or default";
         return false;
       }
-      if (subject_tagged.kind == TaggedArtifactKind::Optional) {
+      if (subject_tagged.kind == TaggedAggregateKind::Optional) {
         if (branch.pattern_kind == SwitchPatternKind::Absent) {
           absent_count++;
           if (!branch.pattern_binding.empty()) {
@@ -3469,8 +3521,8 @@ bool AnalyzeSwitchExpr(const Expr& expr,
     } else if (branch.is_default) {
       default_count++;
     } else {
-      if (!CheckExpr(branch.condition, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckBoolCondition(branch.condition, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(branch.condition, ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckBoolCondition(branch.condition, ctx, scopes, current_aggregate, error)) return false;
     }
 
     const Expr* value_expr = nullptr;
@@ -3494,7 +3546,7 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        return_is_void,
                        loop_depth,
                        branch_scopes,
-                       current_artifact,
+                       current_aggregate,
                        error)) {
           return false;
         }
@@ -3505,13 +3557,13 @@ bool AnalyzeSwitchExpr(const Expr& expr,
 
     if (expected_type) {
       if (!ValidateExprAgainstExpected(
-              *value_expr, *expected_type, ctx, value_scopes, current_artifact, error)) {
+              *value_expr, *expected_type, ctx, value_scopes, current_aggregate, error)) {
         return false;
       }
     } else {
-      if (!CheckExpr(*value_expr, ctx, value_scopes, current_artifact, error)) return false;
+      if (!CheckExpr(*value_expr, ctx, value_scopes, current_aggregate, error)) return false;
       TypeRef value_type;
-      if (!InferExprType(*value_expr, ctx, value_scopes, current_artifact, &value_type)) {
+      if (!InferExprType(*value_expr, ctx, value_scopes, current_aggregate, &value_type)) {
         if (error && error->empty()) *error = "switch branch type mismatch";
         return false;
       }
@@ -3528,9 +3580,9 @@ bool AnalyzeSwitchExpr(const Expr& expr,
     }
   }
   if (uses_patterns) {
-    const bool exhaustive_optional = subject_tagged.kind == TaggedArtifactKind::Optional &&
+    const bool exhaustive_optional = subject_tagged.kind == TaggedAggregateKind::Optional &&
                                      absent_count == 1 && present_count == 1;
-    const bool exhaustive_result = subject_tagged.kind == TaggedArtifactKind::Result &&
+    const bool exhaustive_result = subject_tagged.kind == TaggedAggregateKind::Result &&
                                    value_count == 1 && error_count == 1;
     if (!exhaustive_optional && !exhaustive_result) {
       if (error) *error = "tagged switch must contain each state exactly once";
@@ -3553,10 +3605,10 @@ bool AnalyzeSwitchExpr(const Expr& expr,
 bool CheckBoolCondition(const Expr& expr,
                         const ValidateContext& ctx,
                         const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                        const ArtifactDecl* current_artifact,
+                        const AggregateDecl* current_aggregate,
                         std::string* error) {
   TypeRef cond_type;
-  if (InferExprType(expr, ctx, scopes, current_artifact, &cond_type)) {
+  if (InferExprType(expr, ctx, scopes, current_aggregate, &cond_type)) {
     return CheckConditionType(cond_type, error);
   }
   return true;
@@ -3565,12 +3617,12 @@ bool CheckBoolCondition(const Expr& expr,
 bool CheckUnaryOpTypes(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        std::string* error) {
   const Expr* operand_expr = nullptr;
   if (!IsUnaryExpr(expr, &operand_expr)) return true;
   TypeRef operand;
-  if (!InferExprType(*operand_expr, ctx, scopes, current_artifact, &operand)) return true;
+  if (!InferExprType(*operand_expr, ctx, scopes, current_aggregate, &operand)) return true;
 
   return CheckUnaryOpTypeRules(expr.op, operand, *operand_expr, error);
 }
@@ -3578,24 +3630,24 @@ bool CheckUnaryOpTypes(const Expr& expr,
 bool CheckBinaryOpTypes(const Expr& expr,
                         const ValidateContext& ctx,
                         const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                        const ArtifactDecl* current_artifact,
+                        const AggregateDecl* current_aggregate,
                         std::string* error) {
   const Expr* lhs_expr = nullptr;
   const Expr* rhs_expr = nullptr;
   if (!IsBinaryExpr(expr, &lhs_expr, &rhs_expr)) return true;
   TypeRef lhs;
   TypeRef rhs;
-  const bool have_lhs = InferExprType(*lhs_expr, ctx, scopes, current_artifact, &lhs);
-  const bool have_rhs = InferExprType(*rhs_expr, ctx, scopes, current_artifact, &rhs);
+  const bool have_lhs = InferExprType(*lhs_expr, ctx, scopes, current_aggregate, &lhs);
+  const bool have_rhs = InferExprType(*rhs_expr, ctx, scopes, current_aggregate, &rhs);
   const bool lhs_direct = IsDirectFnLiteralCall(*lhs_expr);
   const bool rhs_direct = IsDirectFnLiteralCall(*rhs_expr);
   if (lhs_direct && have_rhs && !rhs_direct) {
-    if (!ValidateExprAgainstExpected(*lhs_expr, rhs, ctx, scopes, current_artifact, error) ||
+    if (!ValidateExprAgainstExpected(*lhs_expr, rhs, ctx, scopes, current_aggregate, error) ||
         !CloneTypeRef(rhs, &lhs)) {
       return false;
     }
   } else if (rhs_direct && have_lhs && !lhs_direct) {
-    if (!ValidateExprAgainstExpected(*rhs_expr, lhs, ctx, scopes, current_artifact, error) ||
+    if (!ValidateExprAgainstExpected(*rhs_expr, lhs, ctx, scopes, current_aggregate, error) ||
         !CloneTypeRef(lhs, &rhs)) {
       return false;
     }
@@ -3603,12 +3655,12 @@ bool CheckBinaryOpTypes(const Expr& expr,
     if (error) *error = "direct fn literal call requires a typed result context";
     return false;
   } else if (have_lhs && !have_rhs && ctx.enum_types.find(lhs.name) != ctx.enum_types.end()) {
-    if (!ValidateExprAgainstExpected(*rhs_expr, lhs, ctx, scopes, current_artifact, error) ||
+    if (!ValidateExprAgainstExpected(*rhs_expr, lhs, ctx, scopes, current_aggregate, error) ||
         !CloneTypeRef(lhs, &rhs)) {
       return false;
     }
   } else if (!have_lhs && have_rhs && ctx.enum_types.find(rhs.name) != ctx.enum_types.end()) {
-    if (!ValidateExprAgainstExpected(*lhs_expr, rhs, ctx, scopes, current_artifact, error) ||
+    if (!ValidateExprAgainstExpected(*lhs_expr, rhs, ctx, scopes, current_aggregate, error) ||
         !CloneTypeRef(rhs, &lhs)) {
       return false;
     }
@@ -3616,6 +3668,14 @@ bool CheckBinaryOpTypes(const Expr& expr,
     return true;
   }
 
+  if (TypeEquals(lhs, rhs)) {
+    const auto aggregate = ctx.aggregates.find(lhs.name);
+    if (aggregate != ctx.aggregates.end()) {
+      if (expr.op == "==" || expr.op == "!=") return true;
+      if (error) *error = "class and struct operands support only '==' and '!='";
+      return false;
+    }
+  }
   if (TypeEquals(lhs, rhs) && ctx.enum_types.find(lhs.name) != ctx.enum_types.end()) {
     if (expr.op == "==" || expr.op == "!=") return true;
     if (error) *error = "enum operands support only '==' and '!='";
@@ -3627,13 +3687,13 @@ bool CheckBinaryOpTypes(const Expr& expr,
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
                const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-               const ArtifactDecl* current_artifact,
+               const AggregateDecl* current_aggregate,
                std::string* error) {
   switch (expr.kind) {
     case ExprKind::Identifier:
       if (expr.text == "self") {
-        if (!current_artifact) {
-          if (error) *error = "self used outside of artifact method";
+        if (!current_aggregate) {
+          if (error) *error = "self used outside of aggregate method";
           PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }
@@ -3642,8 +3702,8 @@ bool CheckExpr(const Expr& expr,
       if (expr.text == "System" && IsLibraryRootEnabled(ctx, LibraryRoot::System)) return true;
       if (IsBuiltinValueIdentifierName(expr.text)) return true;
       if (FindLocal(scopes, expr.text)) return true;
-      if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
-        if (error) *error = "artifact members must be accessed via self: " + expr.text;
+      if (current_aggregate && IsAggregateMemberName(current_aggregate, expr.text)) {
+        if (error) *error = "aggregate members must be accessed via self: " + expr.text;
         PrefixErrorLocation(expr.line, expr.column, error);
         return false;
       }
@@ -3654,7 +3714,7 @@ bool CheckExpr(const Expr& expr,
           PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }
-        if (ctx.artifacts.find(expr.text) != ctx.artifacts.end()) {
+        if (ctx.aggregates.find(expr.text) != ctx.aggregates.end()) {
           if (error) *error = "type is not a value: " + expr.text;
           PrefixErrorLocation(expr.line, expr.column, error);
           return false;
@@ -3693,9 +3753,9 @@ bool CheckExpr(const Expr& expr,
       std::vector<TypeRef> arg_types;
       arg_types.reserve(expr.args.size());
       for (const auto& arg : expr.args) {
-        if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(arg, ctx, scopes, current_aggregate, error)) return false;
         TypeRef arg_type;
-        if (!InferExprType(arg, ctx, scopes, current_artifact, &arg_type)) {
+        if (!InferExprType(arg, ctx, scopes, current_aggregate, &arg_type)) {
           if (error && error->empty()) *error = "format expects scalar arguments";
           return false;
         }
@@ -3704,7 +3764,7 @@ bool CheckExpr(const Expr& expr,
       return CheckFormatCallArgTypes(arg_types, error);
     }
     case ExprKind::Unary:
-      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       if (expr.op == "*" && expr.children[0].kind == ExprKind::Identifier) {
         if (const LocalInfo* local = FindLocal(scopes, expr.children[0].text);
             local && local->type && local->type->pointer_depth > 0 &&
@@ -3714,20 +3774,20 @@ bool CheckExpr(const Expr& expr,
         }
       }
       if (expr.op == "++" || expr.op == "--" || expr.op == "post++" || expr.op == "post--") {
-        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       }
-      return CheckUnaryOpTypes(expr, ctx, scopes, current_artifact, error);
+      return CheckUnaryOpTypes(expr, ctx, scopes, current_aggregate, error);
     case ExprKind::Binary:
-      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       if (IsAssignOp(expr.op)) {
-        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       }
-      if (!CheckExpr(expr.children[1], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[1], ctx, scopes, current_aggregate, error)) return false;
       if (IsAssignOp(expr.op)) {
         TypeRef target_type;
         TypeRef value_type;
-        bool have_target = InferExprType(expr.children[0], ctx, scopes, current_artifact, &target_type);
-        bool have_value = InferExprType(expr.children[1], ctx, scopes, current_artifact, &value_type);
+        bool have_target = InferExprType(expr.children[0], ctx, scopes, current_aggregate, &target_type);
+        bool have_value = InferExprType(expr.children[1], ctx, scopes, current_aggregate, &value_type);
         if (expr.op != "=" && have_target && have_value) {
           TypeRef rhs_for_op;
           if (!CloneTypeRef(value_type, &rhs_for_op)) return false;
@@ -3739,11 +3799,11 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
         if (have_target && expr.children[1].kind == ExprKind::FnLiteral) {
-          if (!ValidateFnLiteralBody(expr.children[1], target_type, ctx, scopes, current_artifact, error)) return false;
+          if (!ValidateFnLiteralBody(expr.children[1], target_type, ctx, scopes, current_aggregate, error)) return false;
         }
         if (have_target && IsDirectFnLiteralCall(expr.children[1])) {
           if (!ValidateExprAgainstExpected(
-                  expr.children[1], target_type, ctx, scopes, current_artifact, error) ||
+                  expr.children[1], target_type, ctx, scopes, current_aggregate, error) ||
               !CloneTypeRef(target_type, &value_type)) {
             return false;
           }
@@ -3756,7 +3816,7 @@ bool CheckExpr(const Expr& expr,
           if (!CheckListLiteralElementTypes(expr.children[1],
                                             ctx,
                                             scopes,
-                                            current_artifact,
+                                            current_aggregate,
                                             target_type,
                                             error)) {
             return false;
@@ -3774,7 +3834,7 @@ bool CheckExpr(const Expr& expr,
           if (!CheckArrayLiteralElementTypes(expr.children[1],
                                              ctx,
                                              scopes,
-                                             current_artifact,
+                                             current_aggregate,
                                              target_type.dims,
                                              0,
                                              base_type,
@@ -3789,16 +3849,16 @@ bool CheckExpr(const Expr& expr,
                                          "assignment type mismatch", error)) return false;
         return true;
       }
-      return CheckBinaryOpTypes(expr, ctx, scopes, current_artifact, error);
+      return CheckBinaryOpTypes(expr, ctx, scopes, current_aggregate, error);
     case ExprKind::Call:
       if (!expr.cast_type.name.empty() || expr.cast_type.is_proc) {
         if (expr.args.size() != 1) {
           if (error) *error = "cast expects exactly one argument";
           return false;
         }
-        if (!CheckExpr(expr.args[0], ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(expr.args[0], ctx, scopes, current_aggregate, error)) return false;
         TypeRef source_type;
-        if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &source_type)) {
+        if (!InferExprType(expr.args[0], ctx, scopes, current_aggregate, &source_type)) {
           if (error) *error = "cannot infer cast operand type";
           return false;
         }
@@ -3819,11 +3879,11 @@ bool CheckExpr(const Expr& expr,
         if (!CheckPrimitiveCastArgType(expr.cast_type.name, source_type, error)) return false;
         return true;
       }
-      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       for (const auto& arg : expr.args) {
-        if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(arg, ctx, scopes, current_aggregate, error)) return false;
       }
-      if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_artifact, error)) return false;
+      if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_aggregate, error)) return false;
       if (IsIoPrintCallExpr(expr.children[0], ctx)) {
         if (expr.args.empty()) {
           if (error) *error = "call argument count mismatch for IO." + expr.children[0].text;
@@ -3831,7 +3891,7 @@ bool CheckExpr(const Expr& expr,
         }
         if (expr.args.size() == 1) {
           TypeRef arg_type;
-          if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (!InferExprType(expr.args[0], ctx, scopes, current_aggregate, &arg_type)) {
             if (error && error->empty()) *error = "Standard.IO.print expects scalar argument";
             return false;
           }
@@ -3847,7 +3907,7 @@ bool CheckExpr(const Expr& expr,
           arg_types.reserve(expr.args.size() - 1);
           for (size_t i = 1; i < expr.args.size(); ++i) {
             TypeRef arg_type;
-            if (!InferExprType(expr.args[i], ctx, scopes, current_artifact, &arg_type)) {
+            if (!InferExprType(expr.args[i], ctx, scopes, current_aggregate, &arg_type)) {
               if (error && error->empty()) *error = "Standard.IO.print format expects scalar arguments";
               return false;
             }
@@ -3859,7 +3919,7 @@ bool CheckExpr(const Expr& expr,
       if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "len") {
         if (!CheckSingleArgCallCount("len", expr.args.size(), error)) return false;
         TypeRef arg_type;
-        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+        if (InferExprType(expr.args[0], ctx, scopes, current_aggregate, &arg_type)) {
           if (!IsLenCompatibleType(arg_type)) {
             if (error) *error = "len expects array, list, or string argument";
             return false;
@@ -3876,7 +3936,7 @@ bool CheckExpr(const Expr& expr,
         if (is_at_cast) {
           if (!CheckSingleArgCallCount(cast_target, expr.args.size(), error)) return false;
           TypeRef arg_type;
-          if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (!InferExprType(expr.args[0], ctx, scopes, current_aggregate, &arg_type)) {
             if (error && error->empty()) *error = cast_target + " cast expects scalar argument";
             return false;
           }
@@ -3893,7 +3953,7 @@ bool CheckExpr(const Expr& expr,
         if (!IsIoPrintCallExpr(expr.children[0], ctx) && !is_using_io_print &&
             !(expr.children[0].kind == ExprKind::Identifier &&
               IsBuiltinCallIdentifierName(expr.children[0].text))) {
-          if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
+          if (!CheckCallArgTypes(expr, ctx, scopes, current_aggregate, error)) return false;
         }
       }
       return true;
@@ -3970,7 +4030,7 @@ bool CheckExpr(const Expr& expr,
           }
         }
       }
-      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       if (is_ptr && expr.children[0].kind == ExprKind::Identifier) {
         if (const LocalInfo* local = FindLocal(scopes, expr.children[0].text);
             local && local->type && local->type->pointer_depth > 0 &&
@@ -4044,7 +4104,7 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
         TypeRef base_type;
-        if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+        if (InferExprType(base, ctx, scopes, current_aggregate, &base_type)) {
           TaggedTypeInfo tagged;
           if (ResolveTaggedType(base_type, ctx, &tagged)) {
             if (error) {
@@ -4057,12 +4117,12 @@ bool CheckExpr(const Expr& expr,
               IsListMethodName(expr.text)) {
             return true;
           }
-          auto artifact_it = ctx.artifacts.find(base_type.name);
-          if (artifact_it != ctx.artifacts.end()) {
-            const ArtifactDecl* artifact = artifact_it->second;
-            if (!FindArtifactField(artifact, expr.text) &&
-                !FindArtifactMethod(artifact, expr.text)) {
-              if (error) *error = "unknown artifact member: " + base_type.name + "." + expr.text;
+          auto aggregate_it = ctx.aggregates.find(base_type.name);
+          if (aggregate_it != ctx.aggregates.end()) {
+            const AggregateDecl* aggregate = aggregate_it->second;
+            if (!FindAggregateField(aggregate, expr.text) &&
+                !FindAggregateMethod(aggregate, expr.text)) {
+              if (error) *error = "unknown aggregate member: " + base_type.name + "." + expr.text;
               PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
@@ -4072,7 +4132,7 @@ bool CheckExpr(const Expr& expr,
       if (is_ptr && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         TypeRef base_type;
-        if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+        if (InferExprType(base, ctx, scopes, current_aggregate, &base_type)) {
           if (base_type.pointer_depth == 0) {
             if (error) *error = "pointer member access requires a pointer type";
             PrefixErrorLocation(expr.line, expr.column, error);
@@ -4080,17 +4140,17 @@ bool CheckExpr(const Expr& expr,
           }
           TypeRef pointee = base_type;
           pointee.pointer_depth -= 1;
-          auto artifact_it = ctx.artifacts.find(pointee.name);
-          if (artifact_it != ctx.artifacts.end()) {
-            const ArtifactDecl* artifact = artifact_it->second;
-            if (!FindArtifactField(artifact, expr.text) &&
-                !FindArtifactMethod(artifact, expr.text)) {
-              if (error) *error = "unknown artifact member: " + pointee.name + "." + expr.text;
+          auto aggregate_it = ctx.aggregates.find(pointee.name);
+          if (aggregate_it != ctx.aggregates.end()) {
+            const AggregateDecl* aggregate = aggregate_it->second;
+            if (!FindAggregateField(aggregate, expr.text) &&
+                !FindAggregateMethod(aggregate, expr.text)) {
+              if (error) *error = "unknown aggregate member: " + pointee.name + "." + expr.text;
               PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
           } else {
-            if (error) *error = "pointer member access requires artifact type";
+            if (error) *error = "pointer member access requires aggregate type";
             PrefixErrorLocation(expr.line, expr.column, error);
             return false;
           }
@@ -4108,11 +4168,11 @@ bool CheckExpr(const Expr& expr,
       return true;
     }
     case ExprKind::Index:
-      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
-      if (!CheckExpr(expr.children[1], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
+      if (!CheckExpr(expr.children[1], ctx, scopes, current_aggregate, error)) return false;
       {
         TypeRef base_type;
-        if (InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) {
+        if (InferExprType(expr.children[0], ctx, scopes, current_aggregate, &base_type)) {
           if (base_type.pointer_depth > 0) {
             if (!IsVmStoragePointerExpr(expr.children[0], ctx, scopes)) {
               if (error) *error = "pointer indexing requires proven VM extent";
@@ -4138,7 +4198,7 @@ bool CheckExpr(const Expr& expr,
         }
       } else {
         TypeRef index_type;
-        if (InferExprType(expr.children[1], ctx, scopes, current_artifact, &index_type)) {
+        if (InferExprType(expr.children[1], ctx, scopes, current_aggregate, &index_type)) {
           if (!IsIntegerTypeName(index_type.name) && index_type.name != "char") {
             if (error) *error = "index must be an integer";
             return false;
@@ -4149,21 +4209,21 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::ArrayLiteral:
     case ExprKind::ListLiteral:
       for (const auto& child : expr.children) {
-        if (!CheckExpr(child, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(child, ctx, scopes, current_aggregate, error)) return false;
       }
       return true;
-    case ExprKind::ArtifactLiteral:
+    case ExprKind::AggregateLiteral:
       for (const auto& child : expr.children) {
-        if (!CheckExpr(child, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(child, ctx, scopes, current_aggregate, error)) return false;
       }
       for (const auto& field_value : expr.field_values) {
-        if (!CheckExpr(field_value, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckExpr(field_value, ctx, scopes, current_aggregate, error)) return false;
       }
       return true;
     case ExprKind::FnLiteral:
       return true;
     case ExprKind::Switch:
-      return AnalyzeSwitchExpr(expr, ctx, scopes, current_artifact, false, nullptr, nullptr, error);
+      return AnalyzeSwitchExpr(expr, ctx, scopes, current_aggregate, false, nullptr, nullptr, error);
   }
   return true;
 }
@@ -4328,7 +4388,7 @@ bool ContainsPointerLocal(const std::vector<Stmt>& body,
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
                        const std::unordered_set<std::string>& type_params,
-                       const ArtifactDecl* current_artifact,
+                       const AggregateDecl* current_aggregate,
                        std::string* error) {
   bool has_await = false;
   for (const auto& stmt : fn.body) {
@@ -4370,7 +4430,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
                    return_is_void,
                    0,
                    scopes,
-                   current_artifact,
+                   current_aggregate,
                    error)) {
       return false;
     }
@@ -4463,10 +4523,10 @@ static bool ValidateProgramImpl(
         }
         ctx.enum_types.insert(decl.enm.name);
         break;
-      case DeclKind::Artifact:
-        name_ptr = &decl.artifact.name;
-        ctx.artifacts[decl.artifact.name] = &decl.artifact;
-        ctx.artifact_generics[decl.artifact.name] = decl.artifact.generics.size();
+      case DeclKind::Aggregate:
+        name_ptr = &decl.aggregate.name;
+        ctx.aggregates[decl.aggregate.name] = &decl.aggregate;
+        ctx.aggregate_generics[decl.aggregate.name] = decl.aggregate.generics.size();
         break;
       case DeclKind::Module:
         name_ptr = &decl.module.name;
@@ -4524,6 +4584,37 @@ static bool ValidateProgramImpl(
     }
   }
 
+  for (const auto& [name, aggregate] : ctx.aggregates) {
+    if (!aggregate || !aggregate->is_struct) continue;
+    const std::unordered_set<std::string> generic_names(
+        aggregate->generics.begin(), aggregate->generics.end());
+    for (const auto& field : aggregate->fields) {
+      const TypeRef& type = field.type;
+      if (type.is_proc || !type.dims.empty() || type.name == "string" ||
+          type.name == "Promise" || type.name == "Result" ||
+          TAST::IsOptionalType(type)) {
+        if (error) {
+          *error = "struct field must have pure value or raw pointer type: " +
+                   name + "." + field.name;
+        }
+        return false;
+      }
+      if (type.pointer_depth > 0 || IsPrimitiveTypeName(type.name) ||
+          ctx.enum_types.find(type.name) != ctx.enum_types.end() ||
+          generic_names.find(type.name) != generic_names.end()) {
+        continue;
+      }
+      const auto nested = ctx.aggregates.find(type.name);
+      if (nested == ctx.aggregates.end() || !nested->second->is_struct) {
+        if (error) {
+          *error = "struct field cannot contain managed class value: " +
+                   name + "." + field.name;
+        }
+        return false;
+      }
+    }
+  }
+
   if (!program.top_level_stmts.empty()) {
     std::vector<std::unordered_map<std::string, LocalInfo>> scopes;
     scopes.emplace_back();
@@ -4562,7 +4653,7 @@ static bool ValidateProgramImpl(
           if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
           if (!CheckExternAbiType(decl.ext.return_type,
                                   ctx.enum_types,
-                                  ctx.artifacts,
+                                  ctx.aggregates,
                                   true,
                                   "extern ABI return type is not supported",
                                   error)) {
@@ -4573,7 +4664,7 @@ static bool ValidateProgramImpl(
             if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (!CheckExternAbiType(param.type,
                                     ctx.enum_types,
-                                    ctx.artifacts,
+                                    ctx.aggregates,
                                     false,
                                     "extern ABI parameter type is not supported",
                                     error)) {
@@ -4594,13 +4685,13 @@ static bool ValidateProgramImpl(
           }
         }
         break;
-      case DeclKind::Artifact:
+      case DeclKind::Aggregate:
         {
           std::unordered_set<std::string> type_params;
-          if (!CollectTypeParams(decl.artifact.generics, &type_params, error)) return false;
+          if (!CollectTypeParams(decl.aggregate.generics, &type_params, error)) return false;
           std::unordered_set<std::string> names;
-          for (const auto& field : decl.artifact.fields) {
-            if (!CheckUniqueNamedMember(field.name, &names, "duplicate artifact member: ", error)) return false;
+          for (const auto& field : decl.aggregate.fields) {
+            if (!CheckUniqueNamedMember(field.name, &names, "duplicate aggregate member: ", error)) return false;
             if (!CheckTypeRef(field.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (field.has_init_expr) {
               if (!ValidateAwaitPlacementInExpr(field.init_expr, false, error)) return false;
@@ -4614,20 +4705,20 @@ static bool ValidateProgramImpl(
               }
             }
           }
-          for (const auto& method : decl.artifact.methods) {
-            if (!CheckUniqueNamedMember(method.name, &names, "duplicate artifact member: ", error)) return false;
+          for (const auto& method : decl.aggregate.methods) {
+            if (!CheckUniqueNamedMember(method.name, &names, "duplicate aggregate member: ", error)) return false;
           }
-          for (const auto& method : decl.artifact.methods) {
+          for (const auto& method : decl.aggregate.methods) {
             std::unordered_set<std::string> method_params;
-            if (!CollectTypeParamsMerged(decl.artifact.generics,
+            if (!CollectTypeParamsMerged(decl.aggregate.generics,
                                          method.generics,
                                          &method_params,
                                          error)) {
               return false;
             }
-            if (!CheckFunctionBody(method, ctx, method_params, &decl.artifact, error)) {
+            if (!CheckFunctionBody(method, ctx, method_params, &decl.aggregate, error)) {
               if (error && !error->empty()) {
-                *error = "in function '" + decl.artifact.name + "." + method.name + "': " + *error;
+                *error = "in function '" + decl.aggregate.name + "." + method.name + "': " + *error;
               }
               return false;
             }
@@ -4663,7 +4754,7 @@ static bool ValidateProgramImpl(
             if (!CheckTypeRef(ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
             if (!CheckExternAbiType(ext.return_type,
                                     ctx.enum_types,
-                                    ctx.artifacts,
+                                    ctx.aggregates,
                                     true,
                                     "extern ABI return type is not supported",
                                     error)) {
@@ -4674,7 +4765,7 @@ static bool ValidateProgramImpl(
               if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
               if (!CheckExternAbiType(param.type,
                                       ctx.enum_types,
-                                      ctx.artifacts,
+                                      ctx.aggregates,
                                       false,
                                       "extern ABI parameter type is not supported",
                                       error)) {

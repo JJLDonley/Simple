@@ -10,11 +10,11 @@ JobError :: enum {
   StartFailed
 }
 
-JobSpec<T> :: artifact {
+JobSpec<T> :: class {
   // Runtime-owned description of copied host work; never a raw VM closure.
 }
 
-PromiseState<T> :: artifact {
+PromiseState<T> :: class {
   // Pending, Completed(T), or Cancelled.
 }
 

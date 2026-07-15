@@ -9,7 +9,7 @@
 namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
-constexpr uint16_t kSbcVersion = 0x0007u;
+constexpr uint16_t kSbcVersion = 0x0008u;
 constexpr size_t kSbcHeaderSize = 32u;
 constexpr size_t kSbcSectionRowSize = 16u;
 constexpr size_t kSbcHeaderMagicOffset = 0x00u;
@@ -60,8 +60,8 @@ enum class SectionId : uint32_t {
   Capabilities = 14,
 };
 
-constexpr uint8_t kTypeFlagManagedArtifact = 0x01u;
-constexpr uint8_t kTypeFlagStableData = 0x02u;
+constexpr uint8_t kTypeFlagManagedClass = 0x01u;
+constexpr uint8_t kTypeFlagStableStruct = 0x02u;
 constexpr uint8_t kTypeFlagOpaqueHandle = 0x04u;
 constexpr uint8_t kTypeFlagPointerReadOnly = 0x08u;
 constexpr uint8_t kTypeFlagPointerNullable = 0x10u;
@@ -69,7 +69,7 @@ constexpr uint8_t kTypeFlagPointerFunction = 0x20u;
 constexpr uint8_t kTypeFlagPointerBorrowed = 0x40u;
 constexpr uint8_t kTypeFlagPointerExternal = 0x80u;
 constexpr uint8_t kTypeFlagsKnownMask =
-    kTypeFlagManagedArtifact | kTypeFlagStableData | kTypeFlagOpaqueHandle |
+    kTypeFlagManagedClass | kTypeFlagStableStruct | kTypeFlagOpaqueHandle |
     kTypeFlagPointerReadOnly | kTypeFlagPointerNullable |
     kTypeFlagPointerFunction | kTypeFlagPointerBorrowed |
     kTypeFlagPointerExternal;
@@ -143,12 +143,12 @@ struct TypeRow {
   uint32_t field_count = 0;
 };
 
-inline bool IsManagedArtifactType(const TypeRow& row) {
-  return (row.flags & kTypeFlagManagedArtifact) != 0u;
+inline bool IsManagedClassType(const TypeRow& row) {
+  return (row.flags & kTypeFlagManagedClass) != 0u;
 }
 
-inline bool IsStableDataType(const TypeRow& row) {
-  return (row.flags & kTypeFlagStableData) != 0u;
+inline bool IsStableStructType(const TypeRow& row) {
+  return (row.flags & kTypeFlagStableStruct) != 0u;
 }
 
 inline bool IsOpaqueHandleType(const TypeRow& row) {

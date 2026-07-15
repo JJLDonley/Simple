@@ -2,7 +2,7 @@ module Tests.Stress.VectorMatrix
 
 import Standard.Math
 
-Vector3 :: artifact {
+Vector3 :: class {
   x : f64
   y : f64
   z : f64

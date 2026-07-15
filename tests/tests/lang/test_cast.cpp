@@ -20,9 +20,9 @@ bool LangSplitCastParsesFunctionDecl() {
          decl.func.body[0].kind == Simple::Lang::StmtKind::Return;
 }
 
-bool LangCastParserModuleParsesArtifactSwitch() {
+bool LangCastParserModuleParsesAggregateSwitch() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 {\n"
       "    return switch (self.v) {\n"
@@ -35,9 +35,9 @@ bool LangCastParserModuleParsesArtifactSwitch() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 1) return false;
-  if (program.decls[0].kind != Simple::Lang::DeclKind::Artifact) return false;
-  if (program.decls[0].artifact.methods.size() != 1) return false;
-  const auto& body = program.decls[0].artifact.methods[0].body;
+  if (program.decls[0].kind != Simple::Lang::DeclKind::Aggregate) return false;
+  if (program.decls[0].aggregate.methods.size() != 1) return false;
+  const auto& body = program.decls[0].aggregate.methods[0].body;
   return body.size() == 1 &&
          body[0].kind == Simple::Lang::StmtKind::Return &&
          body[0].expr.kind == Simple::Lang::ExprKind::Switch;
@@ -62,8 +62,8 @@ bool LangParseErrorIncludesLocation() {
 }
 
 
-bool LangParseArtifactCommaDiagnosticHint() {
-  const char* src = "Point :: artifact { x : i32, y : i32 }";
+bool LangParseAggregateCommaDiagnosticHint() {
+  const char* src = "Point :: class { x : i32, y : i32 }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -72,13 +72,25 @@ bool LangParseArtifactCommaDiagnosticHint() {
 
 
 bool LangParseReservedKeywordParameterDiagnosticHint() {
-  const char* src = "f : (artifact: i32) -> void { return; }";
+  const char* src = "f : (class: i32) -> void { return; }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   return error.find("cannot be used as identifier") != std::string::npos;
 }
 
+
+bool LangRejectsRemovedAggregateKeywords() {
+  for (const char* source : {
+           "Point :: artifact { x : i32 }",
+           "Point :: data { x : i32 }",
+       }) {
+    Simple::Lang::Program program;
+    std::string error;
+    if (Simple::Lang::CAST::ParseProgramFromString(source, &program, &error)) return false;
+  }
+  return true;
+}
 
 bool LangParsesTypeLiterals() {
   Simple::Lang::TypeRef type;
@@ -352,48 +364,33 @@ bool LangParsesLocalVarDeclNoInit() {
 }
 
 
-bool LangParsesArtifactDecl() {
-  const char* src = "Point :: artifact { x : f32; y :: f32; len : () -> i32 { return 1; } }";
+bool LangParsesClassDecl() {
+  const char* src = "Point :: class { x : f32; y :: f32; len : () -> i32 { return 1; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 1) return false;
   const auto& decl = program.decls[0];
-  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
-  if (decl.artifact.name != "Point") return false;
-  if (decl.artifact.fields.size() != 2) return false;
-  if (decl.artifact.methods.size() != 1) return false;
+  if (decl.kind != Simple::Lang::DeclKind::Aggregate) return false;
+  if (decl.aggregate.name != "Point") return false;
+  if (decl.aggregate.fields.size() != 2) return false;
+  if (decl.aggregate.methods.size() != 1) return false;
   return true;
 }
 
 
-bool LangParsesDataDecl() {
-  const char* src = "Point :: data { x : f32; y :: f32 }";
+bool LangParsesStructDecl() {
+  const char* src = "Point :: struct { x : f32; y :: f32 }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 1) return false;
   const auto& decl = program.decls[0];
-  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
-  if (decl.artifact.name != "Point") return false;
-  if (!decl.artifact.is_data) return false;
-  if (decl.artifact.fields.size() != 2) return false;
-  if (!decl.artifact.methods.empty()) return false;
-  return true;
-}
-
-
-bool LangParsesArtifactDeclCapitalized() {
-  const char* src = "Point :: artifact { x : f32; y :: f32; len : () -> i32 { return 1; } }";
-  Simple::Lang::Program program;
-  std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
-  if (program.decls.size() != 1) return false;
-  const auto& decl = program.decls[0];
-  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
-  if (decl.artifact.name != "Point") return false;
-  if (decl.artifact.fields.size() != 2) return false;
-  if (decl.artifact.methods.size() != 1) return false;
+  if (decl.kind != Simple::Lang::DeclKind::Aggregate) return false;
+  if (decl.aggregate.name != "Point") return false;
+  if (!decl.aggregate.is_struct) return false;
+  if (decl.aggregate.fields.size() != 2) return false;
+  if (!decl.aggregate.methods.empty()) return false;
   return true;
 }
 
@@ -565,14 +562,14 @@ bool LangParsesCallAndMember() {
 
 
 bool LangParsesSelf() {
-  const char* src = "Point :: artifact { x : i32; get : () -> i32 { return self.x; } }";
+  const char* src = "Point :: class { x : i32; get : () -> i32 { return self.x; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   const auto& decl = program.decls[0];
-  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
-  if (decl.artifact.methods.empty()) return false;
-  const auto& stmt = decl.artifact.methods[0].body[0];
+  if (decl.kind != Simple::Lang::DeclKind::Aggregate) return false;
+  if (decl.aggregate.methods.empty()) return false;
+  const auto& stmt = decl.aggregate.methods[0].body[0];
   if (stmt.kind != Simple::Lang::StmtKind::Return) return false;
   const auto& expr = stmt.expr;
   if (expr.kind != Simple::Lang::ExprKind::Member) return false;
@@ -652,7 +649,7 @@ bool LangParsesArrayListAndIndex() {
 
 bool LangParsesDelimitedStringLiterals() {
   const char* src =
-      "Pair :: artifact { left : string; right : string }\n"
+      "Pair :: class { left : string; right : string }\n"
       "main : () -> void { values : string[] = [\"alpha\", \"beta\"]; "
       "pair : Pair = { \"gamma\", \"delta\" }; "
       "named : Pair = { .left = \"epsilon\", .right = \"zeta\" }; }";
@@ -661,23 +658,23 @@ bool LangParsesDelimitedStringLiterals() {
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 2 || program.decls[1].func.body.size() != 3) return false;
   const auto& list = program.decls[1].func.body[0].var_decl.init_expr;
-  const auto& artifact = program.decls[1].func.body[1].var_decl.init_expr;
+  const auto& aggregate = program.decls[1].func.body[1].var_decl.init_expr;
   const auto& named = program.decls[1].func.body[2].var_decl.init_expr;
   if (list.kind != Simple::Lang::ExprKind::ListLiteral || list.children.size() != 2) return false;
-  if (artifact.kind != Simple::Lang::ExprKind::ArtifactLiteral || artifact.children.size() != 2) {
+  if (aggregate.kind != Simple::Lang::ExprKind::AggregateLiteral || aggregate.children.size() != 2) {
     return false;
   }
   return list.children[0].kind == Simple::Lang::ExprKind::Literal &&
          list.children[1].kind == Simple::Lang::ExprKind::Literal &&
-         artifact.children[0].kind == Simple::Lang::ExprKind::Literal &&
-         artifact.children[1].kind == Simple::Lang::ExprKind::Literal &&
+         aggregate.children[0].kind == Simple::Lang::ExprKind::Literal &&
+         aggregate.children[1].kind == Simple::Lang::ExprKind::Literal &&
          named.field_values.size() == 2 &&
          named.field_values[0].kind == Simple::Lang::ExprKind::Literal &&
          named.field_values[1].kind == Simple::Lang::ExprKind::Literal;
 }
 
 
-bool LangParsesArtifactLiteral() {
+bool LangParsesAggregateLiteral() {
   const char* src = "main : () -> void { foo({ .x = 1, .y = 2 }); }";
   Simple::Lang::Program program;
   std::string error;
@@ -687,7 +684,7 @@ bool LangParsesArtifactLiteral() {
   if (stmt.expr.kind != Simple::Lang::ExprKind::Call) return false;
   if (stmt.expr.args.size() != 1) return false;
   const auto& arg = stmt.expr.args[0];
-  if (arg.kind != Simple::Lang::ExprKind::ArtifactLiteral) return false;
+  if (arg.kind != Simple::Lang::ExprKind::AggregateLiteral) return false;
   if (!arg.children.empty()) return false;
   if (arg.field_names.size() != 2) return false;
   if (arg.field_values.size() != 2) return false;
@@ -856,7 +853,7 @@ bool LangParsesForLoopRange() {
 
 bool LangParsesNestedGenericCallTypeArguments() {
   const char* src =
-      "Box<T> :: artifact { value : T } "
+      "Box<T> :: class { value : T } "
       "head<T> :: (values : T[]) -> T { return values[0] } "
       "main :: () -> Box<i32> { return head<Box<i32>>([{ 1 }]) }";
   Simple::Lang::Program program;
@@ -926,6 +923,7 @@ bool LangParsesAsyncAwaitOrdering() {
 
 const TestCase kLangCastTests[] = {
   {"lang_split_cast_parses_function_decl", LangSplitCastParsesFunctionDecl},
+  {"lang_reject_removed_aggregate_keywords", LangRejectsRemovedAggregateKeywords},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
   {"lang_parse_bad_array_size", LangRejectsBadArraySize},
   {"lang_parse_func_decl", LangParsesFuncDecl},
@@ -934,9 +932,8 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_var_decl", LangParsesVarDecl},
   {"lang_parse_var_decl_no_init", LangParsesVarDeclNoInit},
   {"lang_parse_local_var_decl_no_init", LangParsesLocalVarDeclNoInit},
-  {"lang_parse_artifact_decl", LangParsesArtifactDecl},
-  {"lang_parse_data_decl", LangParsesDataDecl},
-  {"lang_parse_artifact_decl_capitalized", LangParsesArtifactDeclCapitalized},
+  {"lang_parse_class_decl", LangParsesClassDecl},
+  {"lang_parse_struct_decl", LangParsesStructDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
   {"lang_parse_module_decl_capitalized", LangParsesModuleDeclCapitalized},
   {"lang_parse_import_decl", LangParsesImportDecl},
@@ -950,15 +947,15 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_self", LangParsesSelf},
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
-  {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
+  {"lang_cast_parser_module_parses_aggregate_switch", LangCastParserModuleParsesAggregateSwitch},
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_parse_error_includes_location", LangParseErrorIncludesLocation},
-  {"lang_parse_artifact_comma_diagnostic_hint", LangParseArtifactCommaDiagnosticHint},
+  {"lang_parse_aggregate_comma_diagnostic_hint", LangParseAggregateCommaDiagnosticHint},
   {"lang_parse_reserved_keyword_parameter_hint", LangParseReservedKeywordParameterDiagnosticHint},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_bitwise_precedence", LangParsesBitwisePrecedence},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
-  {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
+  {"lang_parse_aggregate_literal", LangParsesAggregateLiteral},
   {"lang_parse_delimited_string_literals", LangParsesDelimitedStringLiterals},
   {"lang_parse_fn_literal", LangParsesFnLiteral},
   {"lang_parse_fn_shorthand_literal_binding", LangParsesFnShorthandLiteralBinding},

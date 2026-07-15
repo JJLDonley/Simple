@@ -1,4 +1,4 @@
-Box :: artifact { value : i32 }
+Box :: class { value : i32 }
 extern consume : (box : Box) -> void
 
 main :: () -> i32 { return 0 }

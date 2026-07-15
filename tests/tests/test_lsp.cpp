@@ -336,7 +336,7 @@ bool LspDidOpenResolvesLocalFileImport() {
 
   const std::string dep_path = (base_dir / "dep.simple").string();
   const std::string main_path = (base_dir / "main.simple").string();
-  if (!WriteBinaryFile(dep_path, "Vec :: artifact { x : i32 }\n")) return false;
+  if (!WriteBinaryFile(dep_path, "Vec :: class { x : i32 }\n")) return false;
 
   const std::string session_name = "simple_lsp_local_import";
   const std::string uri = FileUri(main_path);
@@ -725,7 +725,7 @@ bool LspHoverShowsCanonicalTypeSyntaxMatrix() {
   const std::string err_path = TempPath("simple_lsp_hover_type_matrix_err.txt");
   const std::string uri = "file:///workspace/type_matrix.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
-  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"Image :: artifact { width : i32 }\\nColor :: artifact { r : u8 }\\nscalar : i32 = 1\\nstaticArray : f32{10000}\\ndynamicArray :: Color[] = []\\npointer : Image*\\nscalar;\\nstaticArray;\\ndynamicArray;\\npointer;\"}}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"Image :: class { width : i32 }\\nColor :: class { r : u8 }\\nscalar : i32 = 1\\nstaticArray : f32{10000}\\ndynamicArray :: Color[] = []\\npointer : Image*\\nscalar;\\nstaticArray;\\ndynamicArray;\\npointer;\"}}}";
   const std::string hover_scalar = "{\"jsonrpc\":\"2.0\",\"id\":64,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":6,\"character\":1}}}";
   const std::string hover_static = "{\"jsonrpc\":\"2.0\",\"id\":65,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":7,\"character\":1}}}";
   const std::string hover_dynamic = "{\"jsonrpc\":\"2.0\",\"id\":66,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":8,\"character\":1}}}";
@@ -852,29 +852,31 @@ bool LspHoverShowsModuleAndImportSyntax() {
          out_contents.find("\"id\":77") != std::string::npos;
 }
 
-bool LspHoverShowsArtifactAndEnumFacts() {
-  const std::string in_path = TempPath("simple_lsp_hover_artifact_enum_in.txt");
-  const std::string out_path = TempPath("simple_lsp_hover_artifact_enum_out.txt");
-  const std::string err_path = TempPath("simple_lsp_hover_artifact_enum_err.txt");
-  const std::string uri = "file:///workspace/hover_artifact_enum.simple";
+bool LspHoverShowsAggregateAndEnumFacts() {
+  const std::string in_path = TempPath("simple_lsp_hover_aggregate_enum_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_aggregate_enum_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_aggregate_enum_err.txt");
+  const std::string uri = "file:///workspace/hover_aggregate_enum.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Color :: artifact { r : u8 }\\nMode :: enum { Fill, Line }\"}}}";
-  const std::string hover_artifact = "{\"jsonrpc\":\"2.0\",\"id\":78,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":1}}}";
-  const std::string hover_field = "{\"jsonrpc\":\"2.0\",\"id\":79,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":20}}}";
+      "\"text\":\"Color :: class { r : u8 }\\nMode :: enum { Fill, Line }\\nVector :: struct { x : f32 }\"}}}";
+  const std::string hover_aggregate = "{\"jsonrpc\":\"2.0\",\"id\":78,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":1}}}";
+  const std::string hover_field = "{\"jsonrpc\":\"2.0\",\"id\":79,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":17}}}";
   const std::string hover_enum = "{\"jsonrpc\":\"2.0\",\"id\":80,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":1}}}";
   const std::string hover_member = "{\"jsonrpc\":\"2.0\",\"id\":81,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":15}}}";
+  const std::string hover_struct = "{\"jsonrpc\":\"2.0\",\"id\":82,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":1}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
-  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_artifact) + BuildLspFrame(hover_field) + BuildLspFrame(hover_enum) + BuildLspFrame(hover_member) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_aggregate) + BuildLspFrame(hover_field) + BuildLspFrame(hover_enum) + BuildLspFrame(hover_member) + BuildLspFrame(hover_struct) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
-  return ReadFileText(err_path).empty() && out_contents.find("Color :: artifact") != std::string::npos &&
+  return ReadFileText(err_path).empty() && out_contents.find("Color :: class") != std::string::npos &&
          out_contents.find("r : u8") != std::string::npos &&
          out_contents.find("Mode :: enum") != std::string::npos &&
-         out_contents.find("Mode.Fill") != std::string::npos;
+         out_contents.find("Mode.Fill") != std::string::npos &&
+         out_contents.find("Vector :: struct") != std::string::npos;
 }
 
 bool LspHoverShowsAsyncFunctionAndPromiseResult() {
@@ -1194,14 +1196,14 @@ bool LspCompletionReturnsEnumMembers() {
          out_contents.find("\"label\":\"Blue\"") != std::string::npos;
 }
 
-bool LspCompletionReturnsArtifactMembers() {
-  const std::string session_name = "simple_lsp_completion_artifact";
-  const std::string uri = "file:///workspace/completion_artifact.simple";
+bool LspCompletionReturnsAggregateMembers() {
+  const std::string session_name = "simple_lsp_completion_aggregate";
+  const std::string uri = "file:///workspace/completion_aggregate.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Vec2 :: artifact { x : f32; y : f32 }\\npoint : Vec2 = { 0, 0 }\\npoint.\"}}}";
+      "\"text\":\"Vec2 :: class { x : f32; y : f32 }\\npoint : Vec2 = { 0, 0 }\\npoint.\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":49,\"method\":\"textDocument/completion\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":6}}}";
@@ -1936,7 +1938,7 @@ bool LspSemanticTokensCoverCorrectnessMatrix() {
       "count : i32 = 1;\n"
       "limit :: i64 = 2;\n"
       "add : (lhs : i32, rhs :: i32) -> i32 { return lhs; }\n"
-      "Color :: artifact { r : u8 }\n"
+      "Color :: class { r : u8 }\n"
       "Mode :: enum { Fill = 1, Line = 2 }\n"
       "add(1, 2);";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
@@ -1973,7 +1975,7 @@ bool LspSemanticTokensCoverCorrectnessMatrix() {
          has(4, 18, 3, 4, kDecl | kReadonly) &&
          has(4, 46, 3, 4, 0) &&
          has(5, 0, 5, 1, kDecl) &&
-         has(5, 20, 1, 5, kDecl) &&
+         has(5, 17, 1, 5, kDecl) &&
          has(6, 0, 4, 1, kDecl) &&
          has(6, 15, 4, 6, kDecl) &&
          has(7, 0, 3, 2, 0);
@@ -2308,12 +2310,12 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
          !data.empty();
 }
 
-bool LspSemanticTokensClassifyArtifactMembers() {
-  const std::string session_name = "simple_lsp_tokens_artifact_member";
-  const std::string uri = "file:///workspace/tokens_artifact_member.simple";
+bool LspSemanticTokensClassifyAggregateMembers() {
+  const std::string session_name = "simple_lsp_tokens_aggregate_member";
+  const std::string uri = "file:///workspace/tokens_aggregate_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
-      "Point :: artifact { x : i32 }\\nvalue : Point = { 1 }\\nvalue.x = 2;";
+      "Point :: class { x : i32 }\\nvalue : Point = { 1 }\\nvalue.x = 2;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
@@ -2401,11 +2403,11 @@ bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
          !data.empty();
 }
 
-bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
-  const std::string session_name = "simple_lsp_tokens_artifact_fields";
-  const std::string uri = "file:///workspace/tokens_artifact_fields.simple";
+bool LspSemanticTokensMarkAggregateFieldsAsProperties() {
+  const std::string session_name = "simple_lsp_tokens_aggregate_fields";
+  const std::string uri = "file:///workspace/tokens_aggregate_fields.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
-  const std::string open_text = "Point :: artifact { x : i32, y : i32 }";
+  const std::string open_text = "Point :: class { x : i32, y : i32 }";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
@@ -2588,11 +2590,11 @@ bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
          found_default_lib;
 }
 
-bool LspSemanticTokensArtifactDeclNameIsVariable() {
-  const std::string session_name = "simple_lsp_tokens_artifact_decl";
-  const std::string uri = "file:///workspace/tokens_artifact_decl.simple";
+bool LspSemanticTokensAggregateDeclNameIsVariable() {
+  const std::string session_name = "simple_lsp_tokens_aggregate_decl";
+  const std::string uri = "file:///workspace/tokens_aggregate_decl.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
-  const std::string open_text = "Player :: artifact { position : Vector2 }";
+  const std::string open_text = "Player :: class { position : Vector2 }";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
@@ -2925,14 +2927,14 @@ bool LspDocumentSymbolMarksFunctionKind() {
          out_contents.find("\"kind\":12") != std::string::npos;
 }
 
-bool LspDocumentSymbolIncludesArtifactFields() {
-  const std::string session_name = "simple_lsp_symbols_artifact";
-  const std::string uri = "file:///workspace/symbols_artifact.simple";
+bool LspDocumentSymbolIncludesAggregateFields() {
+  const std::string session_name = "simple_lsp_symbols_aggregate";
+  const std::string uri = "file:///workspace/symbols_aggregate.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Point :: artifact { x : i32, y : i32 }\"}}}";
+      "\"text\":\"Point :: class { x : i32, y : i32 }\"}}}";
   const std::string symbols_req =
       "{\"jsonrpc\":\"2.0\",\"id\":71,\"method\":\"textDocument/documentSymbol\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -3538,13 +3540,13 @@ bool LspCodeActionReturnsQuickBuildEmitCommands() {
          out_contents.find("\"arguments\":[\"" + uri + "\"]") != std::string::npos;
 }
 
-bool LspTypeDefinitionProviderResolvesLocalArtifactTypes() {
+bool LspTypeDefinitionProviderResolvesLocalAggregateTypes() {
   const std::string in_path = TempPath("simple_lsp_type_definition_in.txt");
   const std::string out_path = TempPath("simple_lsp_type_definition_out.txt");
   const std::string err_path = TempPath("simple_lsp_type_definition_err.txt");
   const std::string uri = "file:///workspace/type_definition.simple";
   const std::string text =
-      "Point :: artifact { x : i32; y : i32 }\\n"
+      "Point :: class { x : i32; y : i32 }\\n"
       "main : () -> i32 {\\n"
       "  p : Point = Point{x:1,y:2};\\n"
       "  return p.x;\\n"
@@ -3569,7 +3571,7 @@ bool LspTypeDefinitionProviderResolvesVariableUsageTypes() {
   const std::string err_path = TempPath("simple_lsp_type_usage_err.txt");
   const std::string uri = "file:///workspace/type_usage.simple";
   const std::string text =
-      "Point :: artifact { x : i32; y : i32 }\\n"
+      "Point :: class { x : i32; y : i32 }\\n"
       "main : () -> i32 {\\n"
       "  p : Point = Point{x:1,y:2};\\n"
       "  return p.x;\\n"
@@ -3593,7 +3595,7 @@ bool LspTypeDefinitionProviderResolvesGenericTypeArguments() {
   const std::string err_path = TempPath("simple_lsp_type_generic_err.txt");
   const std::string uri = "file:///workspace/type_generic.simple";
   const std::string text =
-      "Point :: artifact { x : i32 }\\n"
+      "Point :: class { x : i32 }\\n"
       "main : () -> i32 {\\n"
       "  handle : Handle<Point> = 0;\\n"
       "  return 0;\\n"
@@ -4268,7 +4270,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_simple_function_signature_syntax", LspHoverShowsSimpleFunctionSignatureSyntax},
   {"lsp_hover_shows_async_function_and_promise_result", LspHoverShowsAsyncFunctionAndPromiseResult},
   {"lsp_hover_shows_module_and_import_syntax", LspHoverShowsModuleAndImportSyntax},
-  {"lsp_hover_shows_artifact_and_enum_facts", LspHoverShowsArtifactAndEnumFacts},
+  {"lsp_hover_shows_aggregate_and_enum_facts", LspHoverShowsAggregateAndEnumFacts},
   {"lsp_hover_shows_extern_function_signature_from_open_module", LspHoverShowsExternFunctionSignatureFromOpenModule},
   {"lsp_raylib_namespace_wrapper_facts_drive_hover_signature_and_inlay", LspRaylibNamespaceWrapperFactsDriveHoverSignatureAndInlay},
   {"lsp_namespace_member_basics_use_qualified_names", LspNamespaceMemberBasicsUseQualifiedNames},
@@ -4278,7 +4280,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_function_signature", LspHoverShowsFunctionSignature},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_completion_returns_enum_members", LspCompletionReturnsEnumMembers},
-  {"lsp_completion_returns_artifact_members", LspCompletionReturnsArtifactMembers},
+  {"lsp_completion_returns_aggregate_members", LspCompletionReturnsAggregateMembers},
   {"lsp_completion_includes_local_declarations", LspCompletionIncludesLocalDeclarations},
   {"lsp_completion_includes_open_document_declarations", LspCompletionIncludesOpenDocumentDeclarations},
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
@@ -4320,12 +4322,12 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_classify_enum_member_access", LspSemanticTokensClassifyEnumMemberAccess},
   {"lsp_semantic_tokens_classify_module_access_as_namespace",
    LspSemanticTokensClassifyModuleAccessAsNamespace},
-  {"lsp_semantic_tokens_classify_artifact_members", LspSemanticTokensClassifyArtifactMembers},
+  {"lsp_semantic_tokens_classify_aggregate_members", LspSemanticTokensClassifyAggregateMembers},
   {"lsp_semantic_tokens_classify_enum_name_as_type", LspSemanticTokensClassifyEnumNameAsType},
   {"lsp_semantic_tokens_mark_enum_members_as_declarations",
    LspSemanticTokensMarkEnumMembersAsDeclarations},
-  {"lsp_semantic_tokens_mark_artifact_fields_as_properties",
-   LspSemanticTokensMarkArtifactFieldsAsProperties},
+  {"lsp_semantic_tokens_mark_aggregate_fields_as_properties",
+   LspSemanticTokensMarkAggregateFieldsAsProperties},
   {"lsp_semantic_tokens_cycle_member_access_depth", LspSemanticTokensCycleMemberAccessDepth},
   {"lsp_semantic_tokens_classify_reserved_alias_as_namespace",
    LspSemanticTokensClassifyReservedAliasAsNamespace},
@@ -4333,8 +4335,8 @@ const TestCase kLspTests[] = {
    LspSemanticTokensMarkReservedAliasDefaultLibrary},
   {"lsp_semantic_tokens_mark_reserved_member_default_library",
    LspSemanticTokensMarkReservedMemberDefaultLibrary},
-  {"lsp_semantic_tokens_artifact_decl_name_is_variable",
-   LspSemanticTokensArtifactDeclNameIsVariable},
+  {"lsp_semantic_tokens_aggregate_decl_name_is_variable",
+   LspSemanticTokensAggregateDeclNameIsVariable},
   {"lsp_workspace_symbols_filter_by_substring",
    LspWorkspaceSymbolsFilterBySubstring},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
@@ -4346,7 +4348,7 @@ const TestCase kLspTests[] = {
   {"lsp_document_highlight_returns_local_highlights", LspDocumentHighlightReturnsLocalHighlights},
   {"lsp_document_symbol_returns_top_level", LspDocumentSymbolReturnsTopLevel},
   {"lsp_document_symbol_marks_function_kind", LspDocumentSymbolMarksFunctionKind},
-  {"lsp_document_symbol_includes_artifact_fields", LspDocumentSymbolIncludesArtifactFields},
+  {"lsp_document_symbol_includes_aggregate_fields", LspDocumentSymbolIncludesAggregateFields},
   {"lsp_document_symbol_includes_enum_members", LspDocumentSymbolIncludesEnumMembers},
   {"lsp_workspace_symbol_returns_symbols", LspWorkspaceSymbolReturnsSymbols},
   {"lsp_workspace_symbol_marks_function_kind", LspWorkspaceSymbolMarksFunctionKind},
@@ -4366,7 +4368,7 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
   {"lsp_code_action_creates_missing_import_file", LspCodeActionCreatesMissingImportFile},
   {"lsp_code_action_returns_quick_build_emit_commands", LspCodeActionReturnsQuickBuildEmitCommands},
-  {"lsp_type_definition_provider_resolves_local_artifact_types", LspTypeDefinitionProviderResolvesLocalArtifactTypes},
+  {"lsp_type_definition_provider_resolves_local_aggregate_types", LspTypeDefinitionProviderResolvesLocalAggregateTypes},
   {"lsp_type_definition_provider_resolves_variable_usage_types", LspTypeDefinitionProviderResolvesVariableUsageTypes},
   {"lsp_type_definition_provider_resolves_generic_type_arguments", LspTypeDefinitionProviderResolvesGenericTypeArguments},
   {"lsp_initialize_advertises_modern_navigation_providers", LspInitializeAdvertisesModernNavigationProviders},

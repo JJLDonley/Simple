@@ -36,15 +36,15 @@ private:
   bool ParseCallableSignature(TypeRef* return_type,
                               std::vector<ParamDecl>* params);
   bool ParseParam(ParamDecl* out);
-  bool ParseArtifactDecl(const Token& name_tok,
+  bool ParseAggregateDecl(const Token& name_tok,
                          std::vector<std::string> generics,
-                         bool is_data,
+                         bool is_struct,
                          Decl* out);
   bool ParseModuleDecl(const Token& name_tok, Decl* out);
   bool ParseEnumDecl(const Token& name_tok, Decl* out);
-  bool ParseArtifactBody(ArtifactDecl* out);
+  bool ParseAggregateBody(AggregateDecl* out);
   bool ParseModuleBody(ModuleDecl* out);
-  bool ParseArtifactMember(ArtifactDecl* out);
+  bool ParseAggregateMember(AggregateDecl* out);
   bool ParseModuleMember(ModuleDecl* out);
   bool ParseBlockTokens(std::vector<Token>* out);
   bool ParseBlockStmts(std::vector<Stmt>* out);

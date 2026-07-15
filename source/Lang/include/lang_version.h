@@ -7,8 +7,8 @@
 
 namespace Simple::Lang {
 
-constexpr uint16_t kLangSyntaxVersionMajor = 3;
-constexpr uint16_t kLangSyntaxVersionMinor = 1;
+constexpr uint16_t kLangSyntaxVersionMajor = 4;
+constexpr uint16_t kLangSyntaxVersionMinor = 0;
 constexpr uint16_t kSirVersionMajor = Simple::IR::Text::kSirVersionMajor;
 constexpr uint16_t kSirVersionMinor = Simple::IR::Text::kSirVersionMinor;
 constexpr uint16_t kStdlibVersionMajor = 2;

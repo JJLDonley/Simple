@@ -1,9 +1,9 @@
-Vector2 :: artifact {
+Vector2 :: class {
     x: f32
     y: f32
 }
 
-Bullet :: artifact {
+Bullet :: class {
     position: Vector2
     velocity: Vector2
     alive: bool
@@ -18,7 +18,7 @@ Bullet :: artifact {
     }
 }
 
-Asteroid :: artifact {
+Asteroid :: class {
     position: Vector2
     size: f32
     alive: bool

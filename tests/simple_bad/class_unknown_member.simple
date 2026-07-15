@@ -1,4 +1,4 @@
-Point :: artifact { x : i32 }
+Point :: class { x : i32 }
 
 main : () -> i32 {
   p : Point = { 1 }

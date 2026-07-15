@@ -11,7 +11,7 @@ X :: namespace {
     }
 }
 
-Pair :: artifact {
+Pair :: class {
     a: i32
     b: i32
 
@@ -25,7 +25,7 @@ Pair :: artifact {
     }
 }
 
-Holder :: artifact {
+Holder :: class {
     items: i32[]
     total: i32
 

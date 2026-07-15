@@ -30,7 +30,7 @@ bool LangSplitRastResolvesFunctionSymbol() {
 
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 { return self.v; }\n"
       "}\n"
@@ -58,7 +58,7 @@ bool LangRastResolverCollectsQualifiedSymbols() {
 
 bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  v : i32\n"
       "}\n";
@@ -75,7 +75,7 @@ bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
 
 bool LangRastResolverCollectsCallableScopes() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : (amount : i32) -> i32 {\n"
       "    total : i32 = amount + self.v;\n"
@@ -129,7 +129,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   const char* src =
       "import Standard.IO\n"
       "import System.FFI\n"
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 { return self.v; }\n"
       "}\n"
@@ -161,31 +161,31 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   bool saw_self = false;
   bool saw_module = false;
   bool saw_enum = false;
-  bool saw_artifact_method = false;
+  bool saw_aggregate_method = false;
   bool saw_extern = false;
   bool saw_reserved = false;
   bool saw_dl_manifest = false;
   bool saw_global_dl_manifest = false;
-  bool saw_artifact_receiver = false;
+  bool saw_aggregate_receiver = false;
   bool saw_self_receiver = false;
   for (const auto& ref : resolved.member_refs) {
-    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactField &&
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::AggregateField &&
         ref.qualified_name == "Box.v") {
       saw_self = true;
       saw_self_receiver = ref.receiver_type == "Box" &&
                           ref.receiver_symbol != Simple::Lang::RAST::kInvalidSymbolId &&
-                          resolved.symbols[ref.receiver_symbol].kind == Simple::Lang::RAST::SymbolKind::Artifact;
+                          resolved.symbols[ref.receiver_symbol].kind == Simple::Lang::RAST::SymbolKind::Aggregate;
     }
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ModuleMember &&
         ref.qualified_name == "Config.Max") saw_module = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::EnumMember &&
         ref.qualified_name == "Mode.On") saw_enum = true;
-    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactMethod &&
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::AggregateMethod &&
         ref.qualified_name == "Box.score") {
-      saw_artifact_method = true;
-      saw_artifact_receiver = ref.receiver_type == "Box" &&
+      saw_aggregate_method = true;
+      saw_aggregate_receiver = ref.receiver_type == "Box" &&
                               ref.receiver_symbol != Simple::Lang::RAST::kInvalidSymbolId &&
-                              resolved.symbols[ref.receiver_symbol].kind == Simple::Lang::RAST::SymbolKind::Artifact;
+                              resolved.symbols[ref.receiver_symbol].kind == Simple::Lang::RAST::SymbolKind::Aggregate;
     }
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ExternSymbol &&
         ref.qualified_name == "Ray.InitWindow") saw_extern = true;
@@ -196,8 +196,8 @@ bool LangRastResolverDisambiguatesMemberRefs() {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
         ref.qualified_name == "ffi.simple_add_i32" && ref.base == "glib") saw_global_dl_manifest = true;
   }
-  return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern && saw_reserved &&
-         saw_dl_manifest && saw_global_dl_manifest && saw_artifact_receiver && saw_self_receiver;
+  return saw_self && saw_module && saw_enum && saw_aggregate_method && saw_extern && saw_reserved &&
+         saw_dl_manifest && saw_global_dl_manifest && saw_aggregate_receiver && saw_self_receiver;
 }
 
 
@@ -211,14 +211,14 @@ bool LangRastMemberLookupFindsDeclMembers() {
   module_fn.name = "add";
   module.functions.push_back(module_fn);
 
-  Simple::Lang::AST::ArtifactDecl artifact;
-  artifact.name = "Point";
+  Simple::Lang::AST::AggregateDecl aggregate;
+  aggregate.name = "Point";
   Simple::Lang::AST::VarDecl field;
   field.name = "x";
-  artifact.fields.push_back(field);
+  aggregate.fields.push_back(field);
   Simple::Lang::AST::FuncDecl method;
   method.name = "move";
-  artifact.methods.push_back(method);
+  aggregate.methods.push_back(method);
 
   const auto module_members = Simple::Lang::RAST::ModuleMembers(&module);
   const bool saw_module_var = !module_members.empty() && module_members[0] == "answer";
@@ -235,11 +235,11 @@ bool LangRastMemberLookupFindsDeclMembers() {
          Simple::Lang::RAST::ModuleMembers(nullptr).empty() &&
          Simple::Lang::RAST::FindModuleVar(&module, "answer") == &module.variables[0] &&
          Simple::Lang::RAST::FindModuleFunc(&module, "add") == &module.functions[0] &&
-         Simple::Lang::RAST::FindArtifactField(&artifact, "x") == &artifact.fields[0] &&
-         Simple::Lang::RAST::FindArtifactMethod(&artifact, "move") == &artifact.methods[0] &&
-         Simple::Lang::RAST::IsArtifactMemberName(&artifact, "x") &&
-         Simple::Lang::RAST::IsArtifactMemberName(&artifact, "move") &&
-         !Simple::Lang::RAST::IsArtifactMemberName(&artifact, "missing");
+         Simple::Lang::RAST::FindAggregateField(&aggregate, "x") == &aggregate.fields[0] &&
+         Simple::Lang::RAST::FindAggregateMethod(&aggregate, "move") == &aggregate.methods[0] &&
+         Simple::Lang::RAST::IsAggregateMemberName(&aggregate, "x") &&
+         Simple::Lang::RAST::IsAggregateMemberName(&aggregate, "move") &&
+         !Simple::Lang::RAST::IsAggregateMemberName(&aggregate, "missing");
 }
 
 bool LangRastMemberResolutionRecordsMemberRefs() {
@@ -368,18 +368,18 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
   Simple::Lang::RAST::ResolvedProgram program;
   std::string error;
   const bool added = Simple::Lang::RAST::AddSymbol(&program,
-                                                   Simple::Lang::RAST::SymbolKind::Artifact,
+                                                   Simple::Lang::RAST::SymbolKind::Aggregate,
                                                    "Thing",
                                                    "Thing",
                                                    Simple::Lang::RAST::kInvalidSymbolId,
                                                    &error);
   const auto found = Simple::Lang::RAST::FindQualifiedSymbol(&program,
                                                             "Thing",
-                                                            Simple::Lang::RAST::SymbolKind::Artifact);
+                                                            Simple::Lang::RAST::SymbolKind::Aggregate);
   const auto* lookup_by_id = Simple::Lang::RAST::LookupSymbol(&program, found);
   const auto* lookup_by_name = Simple::Lang::RAST::LookupQualifiedSymbol(&program, "Thing");
   const bool duplicate_rejected = !Simple::Lang::RAST::AddSymbol(&program,
-                                                                 Simple::Lang::RAST::SymbolKind::Artifact,
+                                                                 Simple::Lang::RAST::SymbolKind::Aggregate,
                                                                  "Thing",
                                                                  "Thing",
                                                                  Simple::Lang::RAST::kInvalidSymbolId,
@@ -404,7 +404,7 @@ bool LangRastAllowsTypeInvalidPrograms() {
 
 bool LangRastDeclarationResolutionFindsDeclSymbols() {
   const char* src =
-      "Point :: artifact { x : i32; }\n"
+      "Point :: class { x : i32; }\n"
       "main : () -> i32 { return 0 }";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
@@ -413,10 +413,10 @@ bool LangRastDeclarationResolutionFindsDeclSymbols() {
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
   if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
-  const auto* artifact_symbol = Simple::Lang::RAST::ResolveDeclarationSymbol(&resolved, ast_program.decls[0]);
+  const auto* aggregate_symbol = Simple::Lang::RAST::ResolveDeclarationSymbol(&resolved, ast_program.decls[0]);
   const auto* function_symbol = Simple::Lang::RAST::ResolveDeclarationSymbol(&resolved, ast_program.decls[1]);
-  return artifact_symbol && artifact_symbol->kind == Simple::Lang::RAST::SymbolKind::Artifact &&
-         artifact_symbol->qualified_name == "Point" &&
+  return aggregate_symbol && aggregate_symbol->kind == Simple::Lang::RAST::SymbolKind::Aggregate &&
+         aggregate_symbol->qualified_name == "Point" &&
          function_symbol && function_symbol->kind == Simple::Lang::RAST::SymbolKind::Function &&
          function_symbol->qualified_name == "main";
 }

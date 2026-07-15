@@ -53,7 +53,7 @@ struct EmitState {
   std::unordered_map<std::string, std::vector<TypeRef>> func_params;
   std::unordered_set<std::string> async_funcs;
   std::unordered_map<std::string, std::string> module_func_names;
-  std::unordered_map<std::string, std::string> artifact_method_names;
+  std::unordered_map<std::string, std::string> aggregate_method_names;
   uint32_t base_func_count = 0;
   uint32_t lambda_counter = 0;
   std::vector<FuncDecl> lambda_funcs;
@@ -101,14 +101,14 @@ struct EmitState {
     TypeRef type;
     std::string sir_type;
   };
-  struct ArtifactLayout {
+  struct AggregateLayout {
     uint32_t size = 0;
     std::vector<FieldLayout> fields;
     std::unordered_map<std::string, size_t> field_index;
   };
 
-  std::unordered_map<std::string, const ArtifactDecl*> artifacts;
-  std::unordered_map<std::string, ArtifactLayout> artifact_layouts;
+  std::unordered_map<std::string, const AggregateDecl*> aggregates;
+  std::unordered_map<std::string, AggregateLayout> aggregate_layouts;
   std::unordered_map<std::string, std::unordered_map<std::string, int64_t>> enum_values;
 
   uint32_t temp_counter = 0;
@@ -123,7 +123,7 @@ struct EmitState {
     std::vector<AbiFieldPath> fields;
   };
   std::unordered_map<std::string, AbiTypeInfo> abi_types;
-  std::unordered_map<std::string, std::string> abi_type_by_artifact;
+  std::unordered_map<std::string, std::string> abi_type_by_aggregate;
 
   uint32_t stack_cur = 0;
   uint32_t stack_max = 0;
@@ -199,13 +199,13 @@ bool IsAbiScalarType(const TypeRef& type, const EmitState& st) {
   return false;
 }
 
-bool ArtifactHasNestedArtifacts(const std::string& name, const EmitState& st) {
-  auto it = st.artifacts.find(name);
-  if (it == st.artifacts.end()) return false;
-  const ArtifactDecl* art = it->second;
+bool AggregateHasNestedAggregates(const std::string& name, const EmitState& st) {
+  auto it = st.aggregates.find(name);
+  if (it == st.aggregates.end()) return false;
+  const AggregateDecl* art = it->second;
   for (const auto& field : art->fields) {
     if (field.type.pointer_depth > 0) continue;
-    if (st.artifacts.find(field.type.name) != st.artifacts.end()) return true;
+    if (st.aggregates.find(field.type.name) != st.aggregates.end()) return true;
   }
   return false;
 }
@@ -213,26 +213,26 @@ bool ArtifactHasNestedArtifacts(const std::string& name, const EmitState& st) {
 bool NeedsAbiFlattenType(const TypeRef& type, const EmitState& st) {
   if (type.pointer_depth > 0) return false;
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
-  if (st.artifacts.find(type.name) == st.artifacts.end()) return false;
-  return ArtifactHasNestedArtifacts(type.name, st);
+  if (st.aggregates.find(type.name) == st.aggregates.end()) return false;
+  return AggregateHasNestedAggregates(type.name, st);
 }
 
-bool CollectAbiFieldsForArtifact(const std::string& name,
+bool CollectAbiFieldsForAggregate(const std::string& name,
                                  const EmitState& st,
                                  std::vector<std::string>& prefix,
                                  std::vector<EmitState::AbiFieldPath>* out_fields,
                                  std::unordered_set<std::string>* visiting,
                                  std::string* error) {
-  auto it = st.artifacts.find(name);
-  if (it == st.artifacts.end()) {
-    if (error) *error = "unknown artifact for ABI flattening: " + name;
+  auto it = st.aggregates.find(name);
+  if (it == st.aggregates.end()) {
+    if (error) *error = "unknown aggregate for ABI flattening: " + name;
     return false;
   }
   if (visiting && !visiting->insert(name).second) {
-    if (error) *error = "recursive artifact ABI flattening is unsupported: " + name;
+    if (error) *error = "recursive aggregate ABI flattening is unsupported: " + name;
     return false;
   }
-  const ArtifactDecl* art = it->second;
+  const AggregateDecl* art = it->second;
   for (const auto& field : art->fields) {
     if (field.type.pointer_depth > 0 && field.type.type_args.empty() &&
         field.type.dims.empty()) {
@@ -245,17 +245,17 @@ bool CollectAbiFieldsForArtifact(const std::string& name,
       continue;
     }
     if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
-      if (error) *error = "unsupported ABI field type in artifact: " + field.name;
+      if (error) *error = "unsupported ABI field type in aggregate: " + field.name;
       return false;
     }
-    if (st.artifacts.find(field.type.name) != st.artifacts.end()) {
+    if (st.aggregates.find(field.type.name) != st.aggregates.end()) {
       prefix.push_back(field.name);
-      if (!CollectAbiFieldsForArtifact(field.type.name, st, prefix, out_fields, visiting, error)) return false;
+      if (!CollectAbiFieldsForAggregate(field.type.name, st, prefix, out_fields, visiting, error)) return false;
       prefix.pop_back();
       continue;
     }
     if (!IsAbiScalarType(field.type, st)) {
-      if (error) *error = "unsupported ABI field type in artifact: " + field.name;
+      if (error) *error = "unsupported ABI field type in aggregate: " + field.name;
       return false;
     }
     EmitState::AbiFieldPath item;
@@ -278,16 +278,16 @@ bool CollectAbiFieldsForArtifact(const std::string& name,
   return true;
 }
 
-bool EnsureAbiTypeForArtifact(EmitState& st,
+bool EnsureAbiTypeForAggregate(EmitState& st,
                               const std::string& name,
                               std::string* out_abi_name,
                               std::string* error) {
-  auto existing = st.abi_type_by_artifact.find(name);
-  if (existing != st.abi_type_by_artifact.end()) {
+  auto existing = st.abi_type_by_aggregate.find(name);
+  if (existing != st.abi_type_by_aggregate.end()) {
     if (out_abi_name) *out_abi_name = existing->second;
     return true;
   }
-  if (!ArtifactHasNestedArtifacts(name, st)) {
+  if (!AggregateHasNestedAggregates(name, st)) {
     if (out_abi_name) *out_abi_name = name;
     return true;
   }
@@ -295,7 +295,7 @@ bool EnsureAbiTypeForArtifact(EmitState& st,
   info.name = "__abi_" + name;
   std::vector<std::string> prefix;
   std::unordered_set<std::string> visiting;
-  if (!CollectAbiFieldsForArtifact(name, st, prefix, &info.fields, &visiting, error)) return false;
+  if (!CollectAbiFieldsForAggregate(name, st, prefix, &info.fields, &visiting, error)) return false;
   for (auto& field : info.fields) {
     std::string flat;
     for (size_t i = 0; i < field.path.size(); ++i) {
@@ -304,9 +304,9 @@ bool EnsureAbiTypeForArtifact(EmitState& st,
     }
     field.abi_name = flat;
   }
-  st.abi_type_by_artifact[name] = info.name;
+  st.abi_type_by_aggregate[name] = info.name;
   st.abi_types.emplace(info.name, std::move(info));
-  if (out_abi_name) *out_abi_name = st.abi_type_by_artifact[name];
+  if (out_abi_name) *out_abi_name = st.abi_type_by_aggregate[name];
   return true;
 }
 
@@ -576,12 +576,12 @@ const TypeRef* ExternalNullablePointerValueType(const TypeRef& type,
   if (const TypeRef* value = TAST::OptionalValueType(type)) {
     return value->pointer_depth > 0 ? value : nullptr;
   }
-  auto artifact_it = st.artifacts.find(type.name);
-  if (artifact_it == st.artifacts.end() ||
-      artifact_it->second->tagged_kind != TaggedArtifactKind::Optional) {
+  auto aggregate_it = st.aggregates.find(type.name);
+  if (aggregate_it == st.aggregates.end() ||
+      aggregate_it->second->tagged_kind != TaggedAggregateKind::Optional) {
     return nullptr;
   }
-  for (const auto& field : artifact_it->second->fields) {
+  for (const auto& field : aggregate_it->second->fields) {
     if (field.name == "value" && field.type.pointer_depth > 0) return &field.type;
   }
   return nullptr;
@@ -592,7 +592,7 @@ bool IsSupportedDlAbiType(const TypeRef& type, const EmitState& st, bool allow_v
   std::unordered_set<std::string> enums;
   enums.reserve(st.enum_values.size());
   for (const auto& entry : st.enum_values) enums.insert(entry.first);
-  return TAST::IsSupportedDlAbiType(type, enums, st.artifacts, allow_void);
+  return TAST::IsSupportedDlAbiType(type, enums, st.aggregates, allow_void);
 }
 
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
@@ -859,10 +859,10 @@ bool AllocateTempLocal(EmitState& st,
   return true;
 }
 
-const EmitState::AbiTypeInfo* FindAbiTypeForArtifact(const EmitState& st,
+const EmitState::AbiTypeInfo* FindAbiTypeForAggregate(const EmitState& st,
                                                      const std::string& name) {
-  auto it = st.abi_type_by_artifact.find(name);
-  if (it == st.abi_type_by_artifact.end()) return nullptr;
+  auto it = st.abi_type_by_aggregate.find(name);
+  if (it == st.abi_type_by_aggregate.end()) return nullptr;
   auto info_it = st.abi_types.find(it->second);
   if (info_it == st.abi_types.end()) return nullptr;
   return &info_it->second;
@@ -883,9 +883,9 @@ bool EmitLoadFieldPathFromLocal(EmitState& st,
   std::string current = root_type;
   TypeRef leaf_type;
   for (size_t i = 0; i < path.size(); ++i) {
-    auto layout_it = st.artifact_layouts.find(current);
-    if (layout_it == st.artifact_layouts.end()) {
-      if (error) *error = "unknown artifact layout for '" + current + "'";
+    auto layout_it = st.aggregate_layouts.find(current);
+    if (layout_it == st.aggregate_layouts.end()) {
+      if (error) *error = "unknown aggregate layout for '" + current + "'";
       return false;
     }
     const auto& layout = layout_it->second;
@@ -905,7 +905,7 @@ bool EmitLoadFieldPathFromLocal(EmitState& st,
   return true;
 }
 
-bool EmitAbiPackArtifactArg(EmitState& st,
+bool EmitAbiPackAggregateArg(EmitState& st,
                             const Expr& value,
                             const TypeRef& orig_type,
                             const EmitState::AbiTypeInfo& abi,
@@ -975,9 +975,9 @@ bool EmitAbiInflateReturn(EmitState& st,
         current_type = nested_types[prefix_key];
         continue;
       }
-      auto layout_it = st.artifact_layouts.find(current_type);
-      if (layout_it == st.artifact_layouts.end()) {
-        if (error) *error = "unknown artifact layout for '" + current_type + "'";
+      auto layout_it = st.aggregate_layouts.find(current_type);
+      if (layout_it == st.aggregate_layouts.end()) {
+        if (error) *error = "unknown aggregate layout for '" + current_type + "'";
         return false;
       }
       auto field_it = layout_it->second.field_index.find(field.path[i]);
@@ -1161,7 +1161,7 @@ bool EmitDynamicDlCall(EmitState& st,
   }
   const EmitState::AbiTypeInfo* abi_ret = nullptr;
   if (NeedsAbiFlattenType(ret_it->second, st)) {
-    abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+    abi_ret = FindAbiTypeForAggregate(st, ret_it->second.name);
     if (!abi_ret) {
       if (error) *error = "missing ABI type for dynamic return '" + symbol + "'";
       return false;
@@ -1180,14 +1180,14 @@ bool EmitDynamicDlCall(EmitState& st,
   for (size_t i = 0; i < params.size(); ++i) {
     const EmitState::AbiTypeInfo* abi_param = nullptr;
     if (NeedsAbiFlattenType(params[i], st)) {
-      abi_param = FindAbiTypeForArtifact(st, params[i].name);
+      abi_param = FindAbiTypeForAggregate(st, params[i].name);
       if (!abi_param) {
         if (error) *error = "missing ABI type for dynamic param '" + symbol + "'";
         return false;
       }
     }
     if (abi_param) {
-      if (!EmitAbiPackArtifactArg(st, args[i], params[i], *abi_param, error)) return false;
+      if (!EmitAbiPackAggregateArg(st, args[i], params[i], *abi_param, error)) return false;
     } else if (IsExternalCStringLiteral(args[i], params[i])) {
       if (!EmitExternalCStringLiteral(st, args[i], error)) return false;
     } else if (ExternalNullablePointerValueType(params[i], st)) {
@@ -1272,10 +1272,10 @@ std::string ExternalPointerSirTypeName(const TypeRef& pointer,
 
 std::string FieldSirTypeName(const TypeRef& type,
                              Mutability mutability,
-                             bool stable_data,
+                             bool stable_struct,
                              const EmitState& st) {
   if (type.pointer_depth > 0) {
-    return stable_data
+    return stable_struct
                ? ExternalPointerSirTypeName(type, mutability, false)
                : "ptr";
   }
@@ -1283,7 +1283,7 @@ std::string FieldSirTypeName(const TypeRef& type,
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "string";
   if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
-  if (st.artifacts.find(type.name) != st.artifacts.end()) return "ref";
+  if (st.aggregates.find(type.name) != st.aggregates.end()) return type.name;
   if (st.abi_types.find(type.name) != st.abi_types.end()) return "ref";
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
   return "ref";
@@ -1298,7 +1298,7 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
   if (type.name == "string") return "string";
   if (type.name == "Promise" && type.type_args.size() == 1) return "ref";
   if (TAST::IsNumericScalarTypeName(type.name) || type.name == "bool" || type.name == "char") return type.name;
-  if (st.artifacts.find(type.name) != st.artifacts.end()) return type.name;
+  if (st.aggregates.find(type.name) != st.aggregates.end()) return type.name;
   if (st.abi_types.find(type.name) != st.abi_types.end()) return type.name;
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
   if (error) *error = "unsupported type in signature: " + type.name;
@@ -1557,15 +1557,15 @@ bool TypeEquals(const TypeRef& a, const TypeRef& b) {
 }
 
 struct TaggedTypeInfo {
-  TaggedArtifactKind kind = TaggedArtifactKind::None;
+  TaggedAggregateKind kind = TaggedAggregateKind::None;
   const TypeRef* value_type = nullptr;
   const TypeRef* error_type = nullptr;
-  const ArtifactDecl* artifact = nullptr;
+  const AggregateDecl* aggregate = nullptr;
 };
 
-const TypeRef* FindArtifactFieldType(const ArtifactDecl& artifact,
+const TypeRef* FindAggregateFieldType(const AggregateDecl& aggregate,
                                      const std::string& name) {
-  for (const auto& field : artifact.fields) {
+  for (const auto& field : aggregate.fields) {
     if (field.name == name) return &field.type;
   }
   return nullptr;
@@ -1577,29 +1577,29 @@ bool ResolveTaggedType(const TypeRef& type,
   if (!out || type.pointer_depth != 0 || !type.dims.empty() || type.is_proc) return false;
   *out = {};
   if (TAST::IsOptionalType(type)) {
-    out->kind = TaggedArtifactKind::Optional;
+    out->kind = TaggedAggregateKind::Optional;
     out->value_type = TAST::OptionalValueType(type);
     return out->value_type != nullptr;
   }
   if (type.name == "Result" && type.type_args.size() == 2) {
-    out->kind = TaggedArtifactKind::Result;
+    out->kind = TaggedAggregateKind::Result;
     out->value_type = &type.type_args[0];
     out->error_type = &type.type_args[1];
     return true;
   }
-  const auto artifact_it = st.artifacts.find(type.name);
-  if (artifact_it == st.artifacts.end() ||
-      artifact_it->second->tagged_kind == TaggedArtifactKind::None) {
+  const auto aggregate_it = st.aggregates.find(type.name);
+  if (aggregate_it == st.aggregates.end() ||
+      aggregate_it->second->tagged_kind == TaggedAggregateKind::None) {
     return false;
   }
-  out->artifact = artifact_it->second;
-  out->kind = out->artifact->tagged_kind;
-  out->value_type = FindArtifactFieldType(*out->artifact, "value");
-  if (out->kind == TaggedArtifactKind::Result) {
-    out->error_type = FindArtifactFieldType(*out->artifact, "error");
+  out->aggregate = aggregate_it->second;
+  out->kind = out->aggregate->tagged_kind;
+  out->value_type = FindAggregateFieldType(*out->aggregate, "value");
+  if (out->kind == TaggedAggregateKind::Result) {
+    out->error_type = FindAggregateFieldType(*out->aggregate, "error");
   }
   return out->value_type &&
-         (out->kind != TaggedArtifactKind::Result || out->error_type);
+         (out->kind != TaggedAggregateKind::Result || out->error_type);
 }
 
 bool IsSwitchPattern(const SwitchBranch& branch) {
@@ -1664,10 +1664,10 @@ bool InferSwitchExprType(const Expr& expr,
         if (error) *error = "cannot mix structural patterns with switch conditions";
         return false;
       }
-      if (subject_tagged.kind == TaggedArtifactKind::Optional &&
+      if (subject_tagged.kind == TaggedAggregateKind::Optional &&
           branch.pattern_kind == SwitchPatternKind::Present) {
         binding_type = subject_tagged.value_type;
-      } else if (subject_tagged.kind == TaggedArtifactKind::Result &&
+      } else if (subject_tagged.kind == TaggedAggregateKind::Result &&
                  branch.pattern_kind == SwitchPatternKind::Tagged) {
         if (branch.pattern_field == "value") binding_type = subject_tagged.value_type;
         if (branch.pattern_field == "error") binding_type = subject_tagged.error_type;
@@ -1844,8 +1844,8 @@ bool InferExprType(const Expr& expr,
       }
       return true;
     }
-    case ExprKind::ArtifactLiteral:
-      if (error) *error = "artifact literal requires expected type";
+    case ExprKind::AggregateLiteral:
+      if (error) *error = "aggregate literal requires expected type";
       return false;
     case ExprKind::Member: {
       if (expr.children.empty()) {
@@ -1898,9 +1898,9 @@ bool InferExprType(const Expr& expr,
         }
         base_type.pointer_depth -= 1;
       }
-      auto layout_it = st.artifact_layouts.find(base_type.name);
-      if (layout_it == st.artifact_layouts.end()) {
-        if (error) *error = "member access base is not an artifact";
+      auto layout_it = st.aggregate_layouts.find(base_type.name);
+      if (layout_it == st.aggregate_layouts.end()) {
+        if (error) *error = "member access base is not an aggregate";
         return false;
       }
       const auto& layout = layout_it->second;
@@ -2127,8 +2127,8 @@ bool InferExprType(const Expr& expr,
             }
           }
           const std::string key = base_type.name + "." + callee.text;
-          auto method_it = st.artifact_method_names.find(key);
-          if (method_it != st.artifact_method_names.end()) {
+          auto method_it = st.aggregate_method_names.find(key);
+          if (method_it != st.aggregate_method_names.end()) {
             auto ret_it = st.func_returns.find(method_it->second);
             if (ret_it != st.func_returns.end()) {
               return CloneCallReturn(st, method_it->second, ret_it->second, out);
@@ -2586,6 +2586,47 @@ bool EmitGlobalAssignment(EmitState& st,
   return true;
 }
 
+bool EmitLValueRead(EmitState& st,
+                    const Expr& expr,
+                    const TypeRef& type,
+                    std::string* error) {
+  if (expr.kind == ExprKind::Identifier) {
+    const auto local = st.local_indices.find(expr.text);
+    if (local != st.local_indices.end()) {
+      const auto type_it = st.local_types.find(expr.text);
+      if (st.captured_locals.find(expr.text) != st.captured_locals.end() &&
+          type_it != st.local_types.end()) {
+        return EmitCaptureCellLoad(st, expr.text, type_it->second, error);
+      }
+      (*st.out) << "  ldloc " << local->second << "\n";
+      return PushStack(st, 1);
+    }
+    const auto upvalue = st.current_upvalues.find(expr.text);
+    if (upvalue != st.current_upvalues.end()) {
+      return EmitCaptureCellLoad(st, expr.text, upvalue->second.type, error);
+    }
+    const auto global = st.global_indices.find(expr.text);
+    if (global != st.global_indices.end()) {
+      (*st.out) << "  ldglob " << global->second << "\n";
+      return PushStack(st, 1);
+    }
+  }
+  if (expr.kind == ExprKind::Member && !expr.children.empty()) {
+    TypeRef base_type;
+    if (!InferExprType(expr.children[0], st, &base_type, error)) return false;
+    if (!EmitLValueRead(st, expr.children[0], base_type, error)) return false;
+    if (expr.op == "->") {
+      (*st.out) << "  ptr.check.null\n";
+      (*st.out) << "  load.ptr ref\n";
+      if (base_type.pointer_depth > 0) --base_type.pointer_depth;
+    }
+    (*st.out) << "  ldfld " << base_type.name << "." << expr.text << "\n";
+    PopStack(st, 1);
+    return PushStack(st, 1);
+  }
+  return EmitExpr(st, expr, &type, error);
+}
+
 bool EmitPointerAssignment(EmitState& st,
                            const Expr& target,
                            const Expr& value,
@@ -2775,9 +2816,9 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
       }
       base_type.pointer_depth -= 1;
     }
-    auto layout_it = st.artifact_layouts.find(base_type.name);
-    if (layout_it == st.artifact_layouts.end()) {
-      if (error) *error = "member assignment base is not an artifact";
+    auto layout_it = st.aggregate_layouts.find(base_type.name);
+    if (layout_it == st.aggregate_layouts.end()) {
+      if (error) *error = "member assignment base is not an aggregate";
       return false;
     }
     auto field_it = layout_it->second.field_index.find(target.text);
@@ -2786,7 +2827,7 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
       return false;
     }
     const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
-    if (!EmitExpr(st, base, &base_expr_type, error)) return false;
+    if (!EmitLValueRead(st, base, base_expr_type, error)) return false;
     if (is_ptr) {
       (*st.out) << "  ptr.check.null\n";
       (*st.out) << "  load.ptr ref\n";
@@ -2883,11 +2924,11 @@ bool EmitUnary(EmitState& st,
         target.children.size() == 1) {
       TypeRef base_type;
       if (!InferExprType(target.children[0], st, &base_type, error)) return false;
-      auto layout_it = st.artifact_layouts.find(base_type.name);
-      if (layout_it == st.artifact_layouts.end() ||
+      auto layout_it = st.aggregate_layouts.find(base_type.name);
+      if (layout_it == st.aggregate_layouts.end() ||
           layout_it->second.field_index.find(target.text) ==
               layout_it->second.field_index.end()) {
-        if (error) *error = "address-of requires artifact field";
+        if (error) *error = "address-of requires aggregate field";
         return false;
       }
       if (!EmitExpr(st, target.children[0], &base_type, error)) return false;
@@ -2954,7 +2995,7 @@ bool EmitUnary(EmitState& st,
     PopStack(st, 1);
     const std::string value_label = NewLabel(st, "propagate_value_");
 
-    if (operand_tagged.kind == TaggedArtifactKind::Optional) {
+    if (operand_tagged.kind == TaggedAggregateKind::Optional) {
       (*st.out) << "  ldloc " << temp_index << "\n";
       PushStack(st, 1);
       (*st.out) << "  isnull\n";
@@ -2981,8 +3022,8 @@ bool EmitUnary(EmitState& st,
     (*st.out) << "  jmp.true " << value_label << "\n";
     PopStack(st, 1);
 
-    const auto return_layout_it = st.artifact_layouts.find(return_it->second.name);
-    if (return_layout_it == st.artifact_layouts.end()) {
+    const auto return_layout_it = st.aggregate_layouts.find(return_it->second.name);
+    if (return_layout_it == st.aggregate_layouts.end()) {
       if (error) *error = "missing Result return layout for propagation";
       return false;
     }
@@ -3094,9 +3135,9 @@ bool EmitUnary(EmitState& st,
         }
         base_type.pointer_depth -= 1;
       }
-      auto layout_it = st.artifact_layouts.find(base_type.name);
-      if (layout_it == st.artifact_layouts.end()) {
-        if (error) *error = "member access base is not an artifact";
+      auto layout_it = st.aggregate_layouts.find(base_type.name);
+      if (layout_it == st.aggregate_layouts.end()) {
+        if (error) *error = "member access base is not an aggregate";
         return false;
       }
       if (!EmitExpr(st, base, &base_type, error)) return false;
@@ -3194,9 +3235,9 @@ bool EmitUnary(EmitState& st,
         }
         base_type.pointer_depth -= 1;
       }
-      auto layout_it = st.artifact_layouts.find(base_type.name);
-      if (layout_it == st.artifact_layouts.end()) {
-        if (error) *error = "member access base is not an artifact";
+      auto layout_it = st.aggregate_layouts.find(base_type.name);
+      if (layout_it == st.aggregate_layouts.end()) {
+        if (error) *error = "member access base is not an aggregate";
         return false;
       }
       if (!EmitExpr(st, base, &base_type, error)) return false;
@@ -3327,6 +3368,13 @@ bool EmitBinary(EmitState& st,
   }
   if (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
       expr.op == ">" || expr.op == ">=") {
+    const auto aggregate = st.aggregates.find(type.name);
+    if (aggregate != st.aggregates.end() &&
+        (expr.op == "==" || expr.op == "!=")) {
+      (*st.out) << (aggregate->second->is_struct ? "  object.eq\n" : "  ref.eq\n");
+      if (expr.op == "!=") (*st.out) << "  bool.not\n";
+      return true;
+    }
     if (type.name == "string" && (expr.op == "==" || expr.op == "!=")) {
       (*st.out) << (expr.op == "==" ? "  string.eq\n" : "  string.ne\n");
       return true;
@@ -3460,7 +3508,7 @@ bool EmitSwitchExpr(EmitState& st,
       const bool has_next_branch = branch_index + 1 < expr.switch_branches.size();
       const std::string next_label =
           has_next_branch ? NewLabel(st, "switch_next_") : std::string();
-      if (has_next_branch && tagged.kind == TaggedArtifactKind::Optional) {
+      if (has_next_branch && tagged.kind == TaggedAggregateKind::Optional) {
         (*st.out) << "  ldloc " << subject_temp_index << "\n";
         PushStack(st, 1);
         (*st.out) << "  isnull\n";
@@ -3581,6 +3629,17 @@ bool EmitSwitchExpr(EmitState& st,
   return true;
 }
 
+bool IsStructValueType(const EmitState& st, const TypeRef& type) {
+  if (type.pointer_depth > 0 || type.is_proc || !type.dims.empty()) return false;
+  const auto it = st.aggregates.find(type.name);
+  return it != st.aggregates.end() && it->second->is_struct;
+}
+
+bool CopyStructValueOnStack(EmitState& st, const TypeRef& type) {
+  if (IsStructValueType(st, type)) (*st.out) << "  clone.object\n";
+  return true;
+}
+
 bool EmitExpr(EmitState& st,
               const Expr& expr,
               const TypeRef* expected,
@@ -3592,19 +3651,26 @@ bool EmitExpr(EmitState& st,
         auto type_it = st.local_types.find(expr.text);
         if (st.captured_locals.find(expr.text) != st.captured_locals.end() &&
             type_it != st.local_types.end()) {
-          return EmitCaptureCellLoad(st, expr.text, type_it->second, error);
+          if (!EmitCaptureCellLoad(st, expr.text, type_it->second, error)) return false;
+          return CopyStructValueOnStack(st, type_it->second);
         }
         (*st.out) << "  ldloc " << it->second << "\n";
-        return PushStack(st, 1);
+        PushStack(st, 1);
+        return type_it == st.local_types.end() ||
+               CopyStructValueOnStack(st, type_it->second);
       }
       auto upvalue_it = st.current_upvalues.find(expr.text);
       if (upvalue_it != st.current_upvalues.end()) {
-        return EmitCaptureCellLoad(st, expr.text, upvalue_it->second.type, error);
+        if (!EmitCaptureCellLoad(st, expr.text, upvalue_it->second.type, error)) return false;
+        return CopyStructValueOnStack(st, upvalue_it->second.type);
       }
       auto git = st.global_indices.find(expr.text);
       if (git != st.global_indices.end()) {
         (*st.out) << "  ldglob " << git->second << "\n";
-        return PushStack(st, 1);
+        PushStack(st, 1);
+        const auto type_it = st.global_types.find(expr.text);
+        return type_it == st.global_types.end() ||
+               CopyStructValueOnStack(st, type_it->second);
       }
       if (error) *error = "unknown local '" + expr.text + "'";
       return false;
@@ -4256,7 +4322,7 @@ bool EmitExpr(EmitState& st,
               }
               const EmitState::AbiTypeInfo* abi_ret = nullptr;
               if (NeedsAbiFlattenType(ret_it->second, st)) {
-                abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+                abi_ret = FindAbiTypeForAggregate(st, ret_it->second.name);
                 if (!abi_ret) {
                   if (error) *error = "missing ABI type for extern return '" + ext_key + "'";
                   return false;
@@ -4265,14 +4331,14 @@ bool EmitExpr(EmitState& st,
               for (size_t i = 0; i < params.size(); ++i) {
                 const EmitState::AbiTypeInfo* abi_param = nullptr;
                 if (NeedsAbiFlattenType(params[i], st)) {
-                  abi_param = FindAbiTypeForArtifact(st, params[i].name);
+                  abi_param = FindAbiTypeForAggregate(st, params[i].name);
                   if (!abi_param) {
                     if (error) *error = "missing ABI type for extern param '" + ext_key + "'";
                     return false;
                   }
                 }
                 if (abi_param) {
-                  if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+                  if (!EmitAbiPackAggregateArg(st, expr.args[i], params[i], *abi_param, error)) return false;
                 } else if (IsExternalCStringLiteral(expr.args[i], params[i])) {
                   if (!EmitExternalCStringLiteral(st, expr.args[i], error)) return false;
                 } else if (ExternalNullablePointerValueType(params[i], st)) {
@@ -4325,8 +4391,8 @@ bool EmitExpr(EmitState& st,
           return true;
         }
         const std::string key = base_type.name + "." + callee.text;
-        auto method_it = st.artifact_method_names.find(key);
-        if (method_it != st.artifact_method_names.end()) {
+        auto method_it = st.aggregate_method_names.find(key);
+        if (method_it != st.aggregate_method_names.end()) {
           const std::string& hoisted = method_it->second;
           auto params_it = st.func_params.find(hoisted);
           if (params_it == st.func_params.end()) {
@@ -4529,7 +4595,7 @@ bool EmitExpr(EmitState& st,
           }
           const EmitState::AbiTypeInfo* abi_ret = nullptr;
           if (NeedsAbiFlattenType(ret_it->second, st)) {
-            abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+            abi_ret = FindAbiTypeForAggregate(st, ret_it->second.name);
             if (!abi_ret) {
               if (error) *error = "missing ABI type for extern return '" + name + "'";
               return false;
@@ -4539,14 +4605,14 @@ bool EmitExpr(EmitState& st,
           for (size_t i = 0; i < params.size(); ++i) {
             const EmitState::AbiTypeInfo* abi_param = nullptr;
             if (NeedsAbiFlattenType(params[i], st)) {
-              abi_param = FindAbiTypeForArtifact(st, params[i].name);
+              abi_param = FindAbiTypeForAggregate(st, params[i].name);
               if (!abi_param) {
                 if (error) *error = "missing ABI type for extern param '" + name + "'";
                 return false;
               }
             }
             if (abi_param) {
-              if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+              if (!EmitAbiPackAggregateArg(st, expr.args[i], params[i], *abi_param, error)) return false;
             } else if (IsExternalCStringLiteral(expr.args[i], params[i])) {
               if (!EmitExternalCStringLiteral(st, expr.args[i], error)) return false;
             } else if (ExternalNullablePointerValueType(params[i], st)) {
@@ -4780,7 +4846,7 @@ bool EmitExpr(EmitState& st,
         (*st.out) << "  ptr.check.bounds\n";
         PopStack(st, 2);
         (*st.out) << "  load.ptr " << VmTypeNameForElement(element_type, st) << "\n";
-        return true;
+        return CopyStructValueOnStack(st, element_type);
       }
       if (is_string) {
         (*st.out) << "  string.get.char\n";
@@ -4791,9 +4857,9 @@ bool EmitExpr(EmitState& st,
       }
       PopStack(st, 2);
       PushStack(st, 1);
-      return true;
+      return CopyStructValueOnStack(st, element_type);
     }
-    case ExprKind::ArtifactLiteral: {
+    case ExprKind::AggregateLiteral: {
       if (expected &&
           !expected->dims.empty() &&
           !expected->dims.front().is_list &&
@@ -4836,17 +4902,17 @@ bool EmitExpr(EmitState& st,
         return true;
       }
       if (!expected) {
-        if (error) *error = "artifact literal requires expected type";
+        if (error) *error = "aggregate literal requires expected type";
         return false;
       }
       TaggedTypeInfo tagged;
       if (ResolveTaggedType(*expected, st, &tagged)) {
-        auto tagged_layout_it = st.artifact_layouts.find(expected->name);
-        if (tagged_layout_it == st.artifact_layouts.end()) {
+        auto tagged_layout_it = st.aggregate_layouts.find(expected->name);
+        if (tagged_layout_it == st.aggregate_layouts.end()) {
           if (error) *error = "tagged literal expects materialized tagged type";
           return false;
         }
-        if (tagged.kind == TaggedArtifactKind::Optional) {
+        if (tagged.kind == TaggedAggregateKind::Optional) {
           if (!expr.field_names.empty() || !expr.field_values.empty() ||
               expr.children.size() > 1) {
             if (error) *error = "optional literal must be '{}' or '{ value }'";
@@ -4896,21 +4962,21 @@ bool EmitExpr(EmitState& st,
         }
         return true;
       }
-      auto layout_it = st.artifact_layouts.find(expected->name);
-      if (layout_it == st.artifact_layouts.end()) {
-        if (error) *error = "artifact literal expects artifact type";
+      auto layout_it = st.aggregate_layouts.find(expected->name);
+      if (layout_it == st.aggregate_layouts.end()) {
+        if (error) *error = "aggregate literal expects aggregate type";
         return false;
       }
-      const ArtifactDecl* artifact = nullptr;
-      auto art_it = st.artifacts.find(expected->name);
-      if (art_it != st.artifacts.end()) {
-        artifact = art_it->second;
+      const AggregateDecl* aggregate = nullptr;
+      auto art_it = st.aggregates.find(expected->name);
+      if (art_it != st.aggregates.end()) {
+        aggregate = art_it->second;
       }
       const auto& layout = layout_it->second;
       std::vector<const Expr*> field_exprs(layout.fields.size(), nullptr);
       if (!expr.children.empty()) {
         if (expr.children.size() > layout.fields.size()) {
-          if (error) *error = "artifact literal has too many positional values";
+          if (error) *error = "aggregate literal has too many positional values";
           return false;
         }
         for (size_t i = 0; i < expr.children.size(); ++i) {
@@ -4921,7 +4987,7 @@ bool EmitExpr(EmitState& st,
         const std::string& field = expr.field_names[i];
         auto field_it = layout.field_index.find(field);
         if (field_it == layout.field_index.end()) {
-          if (error) *error = "unknown artifact field '" + field + "'";
+          if (error) *error = "unknown aggregate field '" + field + "'";
           return false;
         }
         size_t index = field_it->second;
@@ -4936,8 +5002,8 @@ bool EmitExpr(EmitState& st,
         if (field_exprs[i]) {
           if (!EmitExpr(st, *field_exprs[i], &field.type, error)) return false;
         } else {
-          if (artifact && i < artifact->fields.size() && artifact->fields[i].has_init_expr) {
-            if (!EmitExpr(st, artifact->fields[i].init_expr, &field.type, error)) return false;
+          if (aggregate && i < aggregate->fields.size() && aggregate->fields[i].has_init_expr) {
+            if (!EmitExpr(st, aggregate->fields[i].init_expr, &field.type, error)) return false;
           } else {
             if (!EmitDefaultInit(st, field.type, error)) return false;
           }
@@ -5093,8 +5159,8 @@ bool EmitExpr(EmitState& st,
           if (error) *error = "module function requires call: " + qualified;
           return false;
         }
-        if (st.artifact_method_names.find(qualified) != st.artifact_method_names.end()) {
-          if (error) *error = "artifact method requires call: " + qualified;
+        if (st.aggregate_method_names.find(qualified) != st.aggregate_method_names.end()) {
+          if (error) *error = "aggregate method requires call: " + qualified;
           return false;
         }
       }
@@ -5110,9 +5176,9 @@ bool EmitExpr(EmitState& st,
         }
         base_type.pointer_depth -= 1;
       }
-      auto layout_it = st.artifact_layouts.find(base_type.name);
-      if (layout_it == st.artifact_layouts.end()) {
-        if (error) *error = "member access base is not an artifact";
+      auto layout_it = st.aggregate_layouts.find(base_type.name);
+      if (layout_it == st.aggregate_layouts.end()) {
+        if (error) *error = "member access base is not an aggregate";
         return false;
       }
       if (!EmitExpr(st, base, &base_expr_type, error)) return false;
@@ -5123,7 +5189,13 @@ bool EmitExpr(EmitState& st,
       (*st.out) << "  ldfld " << base_type.name << "." << expr.text << "\n";
       PopStack(st, 1);
       PushStack(st, 1);
-      return true;
+      const auto field_it = layout_it->second.field_index.find(expr.text);
+      if (field_it == layout_it->second.field_index.end()) {
+        if (error) *error = "unknown aggregate field: " + expr.text;
+        return false;
+      }
+      return CopyStructValueOnStack(
+          st, layout_it->second.fields[field_it->second].type);
     }
     default:
       if (error) *error = "expression not supported for SIR emission";
@@ -5146,9 +5218,10 @@ bool EmitInactivePayload(EmitState& st, const TypeRef& type, std::string* error)
 
 bool NeedsRuntimeDefaultInitialization(const EmitState& st, const TypeRef& type) {
   if (!type.dims.empty()) return true;
-  const auto artifact_it = st.artifacts.find(type.name);
-  return artifact_it != st.artifacts.end() &&
-         artifact_it->second->tagged_kind == TaggedArtifactKind::Result;
+  const auto aggregate_it = st.aggregates.find(type.name);
+  return aggregate_it != st.aggregates.end() &&
+         (aggregate_it->second->is_struct ||
+          aggregate_it->second->tagged_kind == TaggedAggregateKind::Result);
 }
 
 bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
@@ -5164,15 +5237,17 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
     (*st.out) << "  ptr.null\n";
     return PushStack(st, 1);
   }
-  const auto artifact_it = st.artifacts.find(type.name);
-  if (artifact_it != st.artifacts.end()) {
-    if (artifact_it->second->tagged_kind != TaggedArtifactKind::Result) {
+  const auto aggregate_it = st.aggregates.find(type.name);
+  if (aggregate_it != st.aggregates.end()) {
+    const bool is_result =
+        aggregate_it->second->tagged_kind == TaggedAggregateKind::Result;
+    if (!aggregate_it->second->is_struct && !is_result) {
       (*st.out) << "  const null\n";
       return PushStack(st, 1);
     }
-    const auto layout_it = st.artifact_layouts.find(type.name);
-    if (layout_it == st.artifact_layouts.end()) {
-      if (error) *error = "missing Result layout for default initialization";
+    const auto layout_it = st.aggregate_layouts.find(type.name);
+    if (layout_it == st.aggregate_layouts.end()) {
+      if (error) *error = "missing struct layout for default initialization";
       return false;
     }
     (*st.out) << "  newobj " << type.name << "\n";
@@ -5180,7 +5255,7 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
     for (const auto& field : layout_it->second.fields) {
       (*st.out) << "  dup\n";
       PushStack(st, 1);
-      const bool inactive_error = field.name == "error";
+      const bool inactive_error = is_result && field.name == "error";
       if (inactive_error ? !EmitInactivePayload(st, field.type, error)
                          : !EmitDefaultInit(st, field.type, error)) {
         return false;
@@ -5448,9 +5523,9 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           }
           base_type.pointer_depth -= 1;
         }
-        auto layout_it = st.artifact_layouts.find(base_type.name);
-        if (layout_it == st.artifact_layouts.end()) {
-          if (error) *error = "member assignment base is not an artifact";
+        auto layout_it = st.aggregate_layouts.find(base_type.name);
+        if (layout_it == st.aggregate_layouts.end()) {
+          if (error) *error = "member assignment base is not an aggregate";
           return false;
         }
         auto field_it = layout_it->second.field_index.find(stmt.target.text);
@@ -5459,7 +5534,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           return false;
         }
         const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
-        if (!EmitExpr(st, base, &base_expr_type, error)) return false;
+        if (!EmitLValueRead(st, base, base_expr_type, error)) return false;
         if (is_ptr) {
           (*st.out) << "  ptr.check.null\n";
           (*st.out) << "  load.ptr ref\n";
@@ -5822,7 +5897,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   st.error = error;
 
   std::vector<FuncItem> functions;
-  std::vector<const ArtifactDecl*> artifacts;
+  std::vector<const AggregateDecl*> aggregates;
   std::vector<const EnumDecl*> enums;
   std::vector<const ExternDecl*> externs;
   std::vector<const VarDecl*> globals;
@@ -5841,11 +5916,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
   for (const auto* ext : externs) {
     if (NeedsAbiFlattenType(ext->return_type, st)) {
-      if (!EnsureAbiTypeForArtifact(st, ext->return_type.name, nullptr, error)) return false;
+      if (!EnsureAbiTypeForAggregate(st, ext->return_type.name, nullptr, error)) return false;
     }
     for (const auto& param : ext->params) {
       if (NeedsAbiFlattenType(param.type, st)) {
-        if (!EnsureAbiTypeForArtifact(st, param.type.name, nullptr, error)) return false;
+        if (!EnsureAbiTypeForAggregate(st, param.type.name, nullptr, error)) return false;
       }
     }
   }
@@ -5898,19 +5973,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         has_main = true;
         main_emit_name = decl.func.name;
       }
-    } else if (decl.kind == DeclKind::Artifact) {
-      artifacts.push_back(&decl.artifact);
-      st.artifacts.emplace(decl.artifact.name, &decl.artifact);
-      for (const auto& method : decl.artifact.methods) {
-        const std::string emit_name = decl.artifact.name + "__" + method.name;
-        const std::string display = decl.artifact.name + "." + method.name;
-        st.artifact_method_names.emplace(display, emit_name);
+    } else if (decl.kind == DeclKind::Aggregate) {
+      aggregates.push_back(&decl.aggregate);
+      st.aggregates.emplace(decl.aggregate.name, &decl.aggregate);
+      for (const auto& method : decl.aggregate.methods) {
+        const std::string emit_name = decl.aggregate.name + "__" + method.name;
+        const std::string display = decl.aggregate.name + "." + method.name;
+        st.aggregate_method_names.emplace(display, emit_name);
         FuncItem item;
         item.decl = &method;
         item.emit_name = emit_name;
         item.display_name = display;
         item.has_self = true;
-        item.self_type.name = decl.artifact.name;
+        item.self_type.name = decl.aggregate.name;
         functions.push_back(std::move(item));
       }
     } else if (decl.kind == DeclKind::Enum) {
@@ -6063,7 +6138,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       TypeRef cloned_param;
       if (NeedsAbiFlattenType(param.type, st)) {
         std::string abi_name;
-        if (!EnsureAbiTypeForArtifact(st, param.type.name, &abi_name, error)) return false;
+        if (!EnsureAbiTypeForAggregate(st, param.type.name, &abi_name, error)) return false;
         cloned_param.name = abi_name;
         cloned_param.pointer_depth = 0;
         cloned_param.is_proc = false;
@@ -6087,7 +6162,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     TypeRef abi_ret;
     if (NeedsAbiFlattenType(ext->return_type, st)) {
       std::string abi_name;
-      if (!EnsureAbiTypeForArtifact(st, ext->return_type.name, &abi_name, error)) return false;
+      if (!EnsureAbiTypeForAggregate(st, ext->return_type.name, &abi_name, error)) return false;
       abi_ret.name = abi_name;
       abi_ret.pointer_depth = 0;
       abi_ret.is_proc = false;
@@ -6595,15 +6670,15 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  for (const auto* artifact : artifacts) {
-    EmitState::ArtifactLayout layout;
+  for (const auto* aggregate : aggregates) {
+    EmitState::AggregateLayout layout;
     uint32_t offset = 0;
     uint32_t max_align = 1;
-    layout.fields.reserve(artifact->fields.size());
+    layout.fields.reserve(aggregate->fields.size());
     std::vector<const VarDecl*> ordered_fields;
-    ordered_fields.reserve(artifact->fields.size());
-    for (const auto& field : artifact->fields) ordered_fields.push_back(&field);
-    if (!artifact->is_data) {
+    ordered_fields.reserve(aggregate->fields.size());
+    for (const auto& field : aggregate->fields) ordered_fields.push_back(&field);
+    if (!aggregate->is_struct) {
       std::stable_sort(ordered_fields.begin(), ordered_fields.end(), [](const VarDecl* a, const VarDecl* b) {
         uint32_t align_a = FieldAlignForType(a->type);
         uint32_t align_b = FieldAlignForType(b->type);
@@ -6617,7 +6692,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       field_layout.name = field.name;
       if (!CloneTypeRef(field.type, &field_layout.type)) return false;
       field_layout.sir_type = FieldSirTypeName(
-          field.type, field.mutability, artifact->is_data, st);
+          field.type, field.mutability, aggregate->is_struct, st);
       uint32_t align = FieldAlignForType(field.type);
       uint32_t size = FieldSizeForType(field.type);
       offset = AlignTo(offset, align);
@@ -6628,12 +6703,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       layout.fields.push_back(std::move(field_layout));
     }
     layout.size = AlignTo(offset, max_align);
-    st.artifact_layouts.emplace(artifact->name, std::move(layout));
+    st.aggregate_layouts.emplace(aggregate->name, std::move(layout));
   }
 
   for (const auto& entry : st.abi_types) {
     const auto& abi = entry.second;
-    EmitState::ArtifactLayout layout;
+    EmitState::AggregateLayout layout;
     uint32_t offset = 0;
     uint32_t max_align = 1;
     layout.fields.reserve(abi.fields.size());
@@ -6653,7 +6728,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       layout.fields.push_back(std::move(field_layout));
     }
     layout.size = AlignTo(offset, max_align);
-    st.artifact_layouts.emplace(abi.name, std::move(layout));
+    st.aggregate_layouts.emplace(abi.name, std::move(layout));
   }
 
   std::string entry_name;
@@ -6708,18 +6783,18 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
   std::ostringstream result;
   result << "sir version " << kSirVersionMajor << "." << kSirVersionMinor << "\n";
-  if (!artifacts.empty() || !enums.empty()) {
+  if (!aggregates.empty() || !enums.empty()) {
     result << "types:\n";
-    for (const auto* artifact : artifacts) {
-      auto it = st.artifact_layouts.find(artifact->name);
-      if (it == st.artifact_layouts.end()) return false;
+    for (const auto* aggregate : aggregates) {
+      auto it = st.aggregate_layouts.find(aggregate->name);
+      if (it == st.aggregate_layouts.end()) return false;
       const auto& layout = it->second;
-      const char* kind = artifact->tagged_kind == TaggedArtifactKind::Optional
+      const char* kind = aggregate->tagged_kind == TaggedAggregateKind::Optional
                              ? "optional"
-                             : (artifact->tagged_kind == TaggedArtifactKind::Result
+                             : (aggregate->tagged_kind == TaggedAggregateKind::Result
                                     ? "result"
-                                    : (artifact->is_data ? "data" : "artifact"));
-      result << "  type " << artifact->name << " size=" << layout.size
+                                    : (aggregate->is_struct ? "struct" : "class"));
+      result << "  type " << aggregate->name << " size=" << layout.size
              << " kind=" << kind << "\n";
       for (const auto& field : layout.fields) {
         result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
@@ -6727,10 +6802,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     for (const auto& entry : st.abi_types) {
       const auto& abi = entry.second;
-      auto it = st.artifact_layouts.find(abi.name);
-      if (it == st.artifact_layouts.end()) return false;
+      auto it = st.aggregate_layouts.find(abi.name);
+      if (it == st.aggregate_layouts.end()) return false;
       const auto& layout = it->second;
-      result << "  type " << abi.name << " size=" << layout.size << " kind=artifact\n";
+      result << "  type " << abi.name << " size=" << layout.size << " kind=struct\n";
       for (const auto& field : layout.fields) {
         result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
       }

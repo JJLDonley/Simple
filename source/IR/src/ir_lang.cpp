@@ -1166,23 +1166,23 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind == "function" || kind == "fn") { *out_kind = Simple::Byte::TypeKind::Function; return true; }
     if (kind == "result") {
       *out_kind = Simple::Byte::TypeKind::Result;
-      *out_flags = Simple::Byte::kTypeFlagManagedArtifact;
+      *out_flags = Simple::Byte::kTypeFlagManagedClass;
       return true;
     }
     if (kind == "optional") {
       *out_kind = Simple::Byte::TypeKind::Optional;
-      *out_flags = Simple::Byte::kTypeFlagManagedArtifact;
+      *out_flags = Simple::Byte::kTypeFlagManagedClass;
       return true;
     }
     if (kind == "vector" || kind == "vec") { *out_kind = Simple::Byte::TypeKind::Vector; return true; }
-    if (kind == "artifact" || kind == "object" || kind == "struct" || kind == "unspecified") {
+    if (kind == "class") {
       *out_kind = Simple::Byte::TypeKind::Unspecified;
-      *out_flags = 1;
+      *out_flags = Simple::Byte::kTypeFlagManagedClass;
       return true;
     }
-    if (kind == "data") {
+    if (kind == "struct") {
       *out_kind = Simple::Byte::TypeKind::Unspecified;
-      *out_flags = 2;
+      *out_flags = Simple::Byte::kTypeFlagStableStruct;
       return true;
     }
     return false;
@@ -1226,6 +1226,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       case Simple::Byte::TypeKind::Vector:
         return types[type_id].size;
       case Simple::Byte::TypeKind::Unspecified:
+        return 4;
       default:
         return types[type_id].size;
     }

@@ -1,4 +1,4 @@
-#include "gc/artifact_trace.h"
+#include "gc/aggregate_trace.h"
 
 #include <cstdint>
 #include <string>
@@ -7,12 +7,12 @@
 
 namespace Simple::VM::Gc {
 
-std::vector<ArtifactTraceDescriptor> BuildArtifactTraceDescriptors(
+std::vector<AggregateTraceDescriptor> BuildAggregateTraceDescriptors(
     const Simple::Byte::SbcModule& module) {
   auto is_gc_reference_type = [&](uint32_t type_id) {
     if (type_id >= module.types.size()) return false;
     const auto& row = module.types[type_id];
-    if (Simple::Byte::IsManagedArtifactType(row)) return true;
+    if (Simple::Byte::IsManagedClassType(row)) return true;
     switch (static_cast<Simple::Byte::TypeKind>(row.kind)) {
       case Simple::Byte::TypeKind::Ref:
       case Simple::Byte::TypeKind::String:
@@ -27,7 +27,7 @@ std::vector<ArtifactTraceDescriptor> BuildArtifactTraceDescriptors(
     }
   };
 
-  std::vector<ArtifactTraceDescriptor> descriptors(module.types.size());
+  std::vector<AggregateTraceDescriptor> descriptors(module.types.size());
   for (uint32_t type_id = 0; type_id < module.types.size(); ++type_id) {
     const auto& row = module.types[type_id];
     const auto kind = static_cast<Simple::Byte::TypeKind>(row.kind);
@@ -35,7 +35,7 @@ std::vector<ArtifactTraceDescriptor> BuildArtifactTraceDescriptors(
         kind != Simple::Byte::TypeKind::Optional) {
       continue;
     }
-    ArtifactTraceDescriptor& descriptor = descriptors[type_id];
+    AggregateTraceDescriptor& descriptor = descriptors[type_id];
     descriptor.configured = true;
     const uint64_t field_end = static_cast<uint64_t>(row.field_start) + row.field_count;
     if (field_end > module.fields.size()) continue;

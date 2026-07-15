@@ -18,23 +18,23 @@ bool IsExternalNullablePointer(const Simple::Lang::AST::TypeRef& type) {
          value->type_args.empty();
 }
 
-bool IsSupportedDlAbiArtifact(
+bool IsSupportedDlAbiAggregate(
     const std::string& name,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     std::unordered_set<std::string>* visiting) {
   if (!visiting || !visiting->insert(name).second) return false;
-  auto it = artifacts.find(name);
-  if (it == artifacts.end()) {
+  auto it = aggregates.find(name);
+  if (it == aggregates.end()) {
     visiting->erase(name);
     return false;
   }
-  const Simple::Lang::AST::ArtifactDecl* artifact = it->second;
-  if (!artifact || !artifact->is_data || !artifact->generics.empty()) {
+  const Simple::Lang::AST::AggregateDecl* aggregate = it->second;
+  if (!aggregate || !aggregate->is_struct || !aggregate->generics.empty()) {
     visiting->erase(name);
     return false;
   }
-  for (const auto& field : artifact->fields) {
+  for (const auto& field : aggregate->fields) {
     if (!field.type.type_args.empty() || !field.type.dims.empty() ||
         IsOptionalType(field.type)) {
       visiting->erase(name);
@@ -42,14 +42,14 @@ bool IsSupportedDlAbiArtifact(
     }
     if (field.type.pointer_depth > 0) continue;
     if (field.type.is_proc || !IsAbiScalar(field.type.name)) {
-      if (artifacts.find(field.type.name) == artifacts.end()) {
+      if (aggregates.find(field.type.name) == aggregates.end()) {
         visiting->erase(name);
         return false;
       }
     }
     if (IsAbiScalar(field.type.name)) continue;
-    if (artifacts.find(field.type.name) != artifacts.end()) {
-      if (!IsSupportedDlAbiArtifact(field.type.name, enum_types, artifacts, visiting)) {
+    if (aggregates.find(field.type.name) != aggregates.end()) {
+      if (!IsSupportedDlAbiAggregate(field.type.name, enum_types, aggregates, visiting)) {
         visiting->erase(name);
         return false;
       }
@@ -67,13 +67,13 @@ bool IsSupportedDlAbiArtifact(
 bool IsSupportedDlAbiType(
     const Simple::Lang::AST::TypeRef& type,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     bool allow_void) {
   if (!type.dims.empty()) return false;
   if (IsExternalNullablePointer(type)) return true;
-  auto concrete_optional = artifacts.find(type.name);
-  if (concrete_optional != artifacts.end() &&
-      concrete_optional->second->tagged_kind == TaggedArtifactKind::Optional) {
+  auto concrete_optional = aggregates.find(type.name);
+  if (concrete_optional != aggregates.end() &&
+      concrete_optional->second->tagged_kind == TaggedAggregateKind::Optional) {
     for (const auto& field : concrete_optional->second->fields) {
       if (field.name == "value" && field.type.pointer_depth > 0) return true;
     }
@@ -82,21 +82,21 @@ bool IsSupportedDlAbiType(
   if (type.pointer_depth > 0) {
     if (type.is_proc) {
       if (type.pointer_depth != 1 || !type.proc_return) return false;
-      if (!IsSupportedDlAbiType(*type.proc_return, enum_types, artifacts, true)) return false;
+      if (!IsSupportedDlAbiType(*type.proc_return, enum_types, aggregates, true)) return false;
       for (const auto& param : type.proc_params) {
-        if (!IsSupportedDlAbiType(param, enum_types, artifacts, false)) return false;
+        if (!IsSupportedDlAbiType(param, enum_types, aggregates, false)) return false;
       }
       return true;
     }
     return type.name == "void" || IsAbiScalar(type.name) ||
-           (artifacts.find(type.name) != artifacts.end() && artifacts.at(type.name)->is_data);
+           (aggregates.find(type.name) != aggregates.end() && aggregates.at(type.name)->is_struct);
   }
   if (type.is_proc) return false;
   if (allow_void && type.name == "void") return true;
   if (IsAbiScalar(type.name)) return true;
-  if (artifacts.find(type.name) != artifacts.end()) {
+  if (aggregates.find(type.name) != aggregates.end()) {
     std::unordered_set<std::string> visiting;
-    return IsSupportedDlAbiArtifact(type.name, enum_types, artifacts, &visiting);
+    return IsSupportedDlAbiAggregate(type.name, enum_types, aggregates, &visiting);
   }
   return false;
 }
@@ -104,11 +104,11 @@ bool IsSupportedDlAbiType(
 bool CheckExternAbiType(
     const Simple::Lang::AST::TypeRef& type,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     bool allow_void,
     const std::string& error_message,
     std::string* error) {
-  if (!IsSupportedDlAbiType(type, enum_types, artifacts, allow_void)) {
+  if (!IsSupportedDlAbiType(type, enum_types, aggregates, allow_void)) {
     if (error) *error = error_message;
     return false;
   }
@@ -118,9 +118,9 @@ bool CheckExternAbiType(
 bool CheckDlDynamicSignature(
     const Simple::Lang::AST::ExternDecl& ext,
     const std::unordered_set<std::string>& enum_types,
-    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    const std::unordered_map<std::string, const Simple::Lang::AST::AggregateDecl*>& aggregates,
     std::string* error) {
-  if (!IsSupportedDlAbiType(ext.return_type, enum_types, artifacts, true)) {
+  if (!IsSupportedDlAbiType(ext.return_type, enum_types, aggregates, true)) {
     if (error) {
       *error = "dynamic DL return type for '" + ext.module + "." + ext.name +
                "' is not ABI-supported";
@@ -128,7 +128,7 @@ bool CheckDlDynamicSignature(
     return false;
   }
   for (const auto& param : ext.params) {
-    if (!IsSupportedDlAbiType(param.type, enum_types, artifacts, false)) {
+    if (!IsSupportedDlAbiType(param.type, enum_types, aggregates, false)) {
       if (error) {
         *error = "dynamic DL parameter type for '" + ext.module + "." + ext.name +
                  "' is not ABI-supported";

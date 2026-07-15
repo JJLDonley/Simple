@@ -5,7 +5,7 @@ Failure :: enum {
   Exhausted = 2
 }
 
-Holder<T> :: artifact {
+Holder<T> :: class {
   value : T
 }
 

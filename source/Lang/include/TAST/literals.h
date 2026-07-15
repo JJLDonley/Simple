@@ -16,18 +16,18 @@ bool CheckFormatPlaceholderCount(const std::string& fmt,
                                  size_t value_count,
                                  const std::string& context,
                                  std::string* error);
-bool CheckArtifactLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
+bool CheckAggregateLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
                                          size_t field_count,
                                          std::string* error);
-bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
+bool CheckAggregateLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
                                               std::string* error);
-bool CheckArtifactLiteralFieldSpecifiedOnce(const std::string& field_name,
+bool CheckAggregateLiteralFieldSpecifiedOnce(const std::string& field_name,
                                             const std::unordered_set<std::string>& seen,
                                             std::string* error);
-bool CheckArtifactLiteralKnownField(const std::string& field_name,
+bool CheckAggregateLiteralKnownField(const std::string& field_name,
                                     const std::unordered_set<std::string>& valid_fields,
                                     std::string* error);
-bool CheckArtifactLiteralRequiredField(const std::string& field_name,
+bool CheckAggregateLiteralRequiredField(const std::string& field_name,
                                        bool has_init_expr,
                                        const std::unordered_set<std::string>& seen,
                                        std::string* error);

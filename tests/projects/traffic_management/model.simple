@@ -6,7 +6,7 @@ Signal :: enum {
   Yellow = 2
 }
 
-Intersection :: artifact {
+Intersection :: class {
   name : string
   signal : Signal
   ticks : i32

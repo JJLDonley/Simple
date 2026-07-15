@@ -53,9 +53,9 @@ bool SpecializeFunctionDeclaration(const Simple::Lang::AST::FuncDecl& source,
                                    const GenericSpecializationPlan& plan,
                                    Simple::Lang::AST::FuncDecl* out,
                                    std::string* error);
-bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& source,
+bool SpecializeAggregateLayoutDeclaration(const Simple::Lang::AST::AggregateDecl& source,
                                          const GenericSpecializationPlan& plan,
-                                         Simple::Lang::AST::ArtifactDecl* out,
+                                         Simple::Lang::AST::AggregateDecl* out,
                                          std::string* error);
 bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
                                 const std::vector<GenericSpecializationPlan>& plans,

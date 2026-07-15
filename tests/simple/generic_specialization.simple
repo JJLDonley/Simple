@@ -4,7 +4,7 @@ identity<T> :: (value : T) -> T {
   return value
 }
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 
   get :: () -> T {
@@ -12,7 +12,7 @@ Box<T> :: artifact {
   }
 }
 
-Wrap<T> :: artifact {
+Wrap<T> :: class {
   box : Box<T>
 }
 

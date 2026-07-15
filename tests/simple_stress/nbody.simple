@@ -2,7 +2,7 @@ module Tests.Stress.NBody
 
 import Standard.Math
 
-Body :: artifact {
+Body :: class {
   x : f64
   y : f64
   z : f64

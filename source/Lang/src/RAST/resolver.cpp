@@ -223,26 +223,26 @@ bool ResolveProgram(const Simple::Lang::AST::Program& program,
           return false;
         }
         break;
-      case DeclKind::Artifact: {
+      case DeclKind::Aggregate: {
         const SymbolId parent = static_cast<SymbolId>(out->symbols.size());
-        if (!AddSymbol(out, SymbolKind::Artifact, decl.artifact.name, decl.artifact.name, kInvalidSymbolId, error)) {
+        if (!AddSymbol(out, SymbolKind::Aggregate, decl.aggregate.name, decl.aggregate.name, kInvalidSymbolId, error)) {
           return false;
         }
-        for (const auto& field : decl.artifact.fields) {
+        for (const auto& field : decl.aggregate.fields) {
           if (!AddSymbol(out,
-                         SymbolKind::ArtifactField,
+                         SymbolKind::AggregateField,
                          field.name,
-                         decl.artifact.name + "." + field.name,
+                         decl.aggregate.name + "." + field.name,
                          parent,
                          error)) {
             return false;
           }
         }
-        for (const auto& method : decl.artifact.methods) {
+        for (const auto& method : decl.aggregate.methods) {
           const SymbolId method_parent = static_cast<SymbolId>(out->symbols.size());
-          const std::string method_qualified = decl.artifact.name + "." + method.name;
+          const std::string method_qualified = decl.aggregate.name + "." + method.name;
           if (!AddSymbol(out,
-                         SymbolKind::ArtifactMethod,
+                         SymbolKind::AggregateMethod,
                          method.name,
                          method_qualified,
                          parent,

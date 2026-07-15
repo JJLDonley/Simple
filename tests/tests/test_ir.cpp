@@ -3544,10 +3544,10 @@ bool RunIrTextCompoundMetadataTypesTest() {
     saw_function = saw_function || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Function);
     saw_result = saw_result ||
                  (type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Result) &&
-                  Simple::Byte::IsManagedArtifactType(type));
+                  Simple::Byte::IsManagedClassType(type));
     saw_optional = saw_optional ||
                    (type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Optional) &&
-                    Simple::Byte::IsManagedArtifactType(type));
+                    Simple::Byte::IsManagedClassType(type));
     saw_vector = saw_vector || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Vector);
   }
   return saw_ptr && saw_array && saw_list && saw_function && saw_result && saw_optional && saw_vector &&
@@ -3624,7 +3624,7 @@ bool RunIrTextDuplicateExportFailsTest() {
 
 bool RunIrTextSirVersionDirectiveTest() {
   const char* text =
-      "sir version 2.5\n"
+      "sir version 3.0\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 10\n"
@@ -3754,7 +3754,7 @@ bool RunIrTextCatchUnknownLabelFailsTest() {
 bool RunIrTextGcBarrierOpsTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "func main locals=0 stack=8\n"
       "  enter 0\n"
       "  init.object Obj\n"
@@ -3982,7 +3982,7 @@ bool RunIrTextChannelMarkerBadTest() {
 bool RunIrTextAtomicMonitorOpsTest() {
   const char* text =
       "types:\n"
-      "  type LockObj size=4 kind=artifact\n"
+      "  type LockObj size=4 kind=class\n"
       "func main locals=1 stack=16\n"
       "  local lockobj ref 0\n"
       "  enter 1\n"
@@ -4151,7 +4151,7 @@ bool RunIrTextGuardOpOpsTest() {
 bool RunIrTextGuardTypeOpTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "func main locals=0 stack=10\n"
       "  enter 0\n"
       "  init.object Obj\n"
@@ -4174,8 +4174,8 @@ bool RunIrTextGuardTypeOpTest() {
 bool RunIrTextGuardTypeTrapTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
-      "  type Other size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
+      "  type Other size=4 kind=class\n"
       "func main locals=0 stack=10\n"
       "  enter 0\n"
       "  init.object Obj\n"
@@ -4428,7 +4428,7 @@ bool RunIrTextObjectFieldTest() {
 bool RunIrTextObjectTypeOpOpsTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "sigs:\n"
       "  sig main_sig: () -> i32\n"
       "func main locals=0 stack=12 sig=main_sig\n"
@@ -4453,7 +4453,7 @@ bool RunIrTextObjectTypeOpOpsTest() {
 bool RunIrTextLoadVTableOpTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "sigs:\n"
       "  sig main_sig: () -> i32\n"
       "func main locals=0 stack=12 sig=main_sig\n"
@@ -4490,7 +4490,7 @@ bool RunIrTextObjectTypeOpBadTypeTest() {
 bool RunIrTextNamedTablesTest() {
   const char* text =
       "types:\n"
-      "  type Color size=16 kind=artifact\n"
+      "  type Color size=16 kind=class\n"
       "  field r i32 offset=0\n"
       "  field g i32 offset=4\n"
       "  field b i32 offset=8\n"
@@ -4536,7 +4536,7 @@ bool RunIrTextBadTypeNameTest() {
 bool RunIrTextBadFieldNameTest() {
   const char* text =
       "types:\n"
-      "  type Color size=16 kind=artifact\n"
+      "  type Color size=16 kind=class\n"
       "  field r i32 offset=0\n"
       "sigs:\n"
       "  sig main: () -> i32\n"
@@ -4556,7 +4556,7 @@ bool RunIrTextBadFieldNameTest() {
 bool RunIrTextFieldMisalignedTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=8 kind=artifact\n"
+      "  type Obj size=8 kind=class\n"
       "  field a i32 offset=2\n"
       "sigs:\n"
       "  sig main: () -> i32\n"
@@ -4572,7 +4572,7 @@ bool RunIrTextFieldMisalignedTest() {
 bool RunIrTextFieldOutOfBoundsTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=8 kind=artifact\n"
+      "  type Obj size=8 kind=class\n"
       "  field a i64 offset=4\n"
       "sigs:\n"
       "  sig main: () -> i32\n"
@@ -4585,10 +4585,10 @@ bool RunIrTextFieldOutOfBoundsTest() {
   return RunIrTextExpectFail(text, "ir_text_field_oob");
 }
 
-bool RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest() {
+bool RunIrTextPrimitiveTypeAfterAggregateNoFieldsTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=8 kind=artifact\n"
+      "  type Obj size=8 kind=class\n"
       "  field a i32 offset=0\n"
       "  field b i32 offset=4\n"
       "  type KeyboardKey size=4 kind=i32\n"
@@ -4600,7 +4600,7 @@ bool RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_primitive_type_after_artifact");
+  auto module = BuildIrTextModule(text, "ir_text_primitive_type_after_aggregate");
   if (module.empty()) return false;
   return RunExpectExit(module, 0);
 }
@@ -4923,7 +4923,7 @@ bool RunIrTextUpvalueTypeBadNameTest() {
 bool RunIrTextCaptureOpsTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "sigs:\n"
       "  sig main_sig: () -> i32\n"
       "func callee locals=0 stack=6 sig=main_sig\n"
@@ -4959,7 +4959,7 @@ bool RunIrTextCaptureOpsTest() {
 bool RunIrTextCaptureRefOpTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "func main locals=1 stack=4\n"
       "  local obj ref 0\n"
       "  enter 1\n"
@@ -5051,7 +5051,7 @@ bool RunIrTextPointerOpOpsTest() {
       "globals:\n"
       "  global g ref\n"
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "sigs:\n"
       "  sig main_sig: () -> i32\n"
       "func main locals=1 stack=12 sig=main_sig\n"
@@ -6304,7 +6304,7 @@ bool RunIrTextCheckedListF64Test() {
 bool RunIrTextCheckedListRefTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "sigs:\n"
       "  sig main_sig: () -> i32\n"
       "func main locals=1 stack=16 sig=main_sig\n"
@@ -6429,7 +6429,7 @@ bool RunIrTextCheckedListI32TrapTest() {
 bool RunIrTextCheckedArrayRefTest() {
   const char* text =
       "types:\n"
-      "  type Obj size=4 kind=artifact\n"
+      "  type Obj size=4 kind=class\n"
       "sigs:\n"
       "  sig main_sig: () -> i32\n"
       "func main locals=1 stack=16 sig=main_sig\n"
@@ -9302,7 +9302,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_bad_field_name", RunIrTextBadFieldNameTest},
   {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
-  {"ir_text_primitive_type_after_artifact", RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest},
+  {"ir_text_primitive_type_after_aggregate", RunIrTextPrimitiveTypeAfterAggregateNoFieldsTest},
   {"ir_text_array_const_literal", RunIrTextArrayConstLiteralTest},
   {"ir_text_array_const_literal_bad", RunIrTextArrayConstLiteralBadTest},
   {"ir_text_typed_immediate_const", RunIrTextTypedImmediateConstTest},

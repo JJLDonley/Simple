@@ -11,8 +11,8 @@
 
 namespace Simple::IR::Text {
 
-constexpr uint16_t kSirVersionMajor = 2;
-constexpr uint16_t kSirVersionMinor = 5;
+constexpr uint16_t kSirVersionMajor = 3;
+constexpr uint16_t kSirVersionMinor = 0;
 
 enum class InstKind {
   Op,

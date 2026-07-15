@@ -1,6 +1,6 @@
 module Tests.GenericNamespaceLibrary
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 }
 

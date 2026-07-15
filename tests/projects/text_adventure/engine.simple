@@ -2,14 +2,14 @@ module Tests.Projects.TextAdventure.Engine
 
 import "./world.simple"
 
-GameState :: artifact {
+GameState :: class {
   room : i32
   score : i32
   moves : i32
   inventory : string[]
 }
 
-CommandSet :: artifact {
+CommandSet :: class {
   east : fn () -> Result<string, AdventureError>
   takeKey : fn () -> Result<string, AdventureError>
   north : fn () -> Result<string, AdventureError>

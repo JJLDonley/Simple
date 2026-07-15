@@ -1,14 +1,14 @@
 import System.FFI
 import System.Env
 
-Color :: data {
+Color :: struct {
   r : i8
   g : i8
   b : i8
   a : i8
 }
 
-I32View :: data {
+I32View :: struct {
   data :: i32*
   length :: usize
 }

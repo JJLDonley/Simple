@@ -34,22 +34,22 @@ bool CollectGenericDeclarationMetadata(const Simple::Lang::AST::Program& program
           return false;
         }
         break;
-      case Simple::Lang::AST::DeclKind::Artifact:
-        if (!append(decl.artifact.is_data ? GenericDeclarationKind::Data
-                                          : GenericDeclarationKind::Artifact,
+      case Simple::Lang::AST::DeclKind::Aggregate:
+        if (!append(decl.aggregate.is_struct ? GenericDeclarationKind::Data
+                                          : GenericDeclarationKind::Aggregate,
                     {},
-                    decl.artifact.name,
-                    decl.artifact.generics)) {
+                    decl.aggregate.name,
+                    decl.aggregate.generics)) {
           return false;
         }
-        for (const auto& method : decl.artifact.methods) {
+        for (const auto& method : decl.aggregate.methods) {
           std::unordered_set<std::string> merged_set;
-          if (!CollectTypeParamsMerged(decl.artifact.generics, method.generics, &merged_set, error)) {
+          if (!CollectTypeParamsMerged(decl.aggregate.generics, method.generics, &merged_set, error)) {
             return false;
           }
-          std::vector<std::string> merged = decl.artifact.generics;
+          std::vector<std::string> merged = decl.aggregate.generics;
           merged.insert(merged.end(), method.generics.begin(), method.generics.end());
-          if (!append(GenericDeclarationKind::Method, decl.artifact.name, method.name, merged)) {
+          if (!append(GenericDeclarationKind::Method, decl.aggregate.name, method.name, merged)) {
             return false;
           }
         }
@@ -140,24 +140,24 @@ bool SubstituteTypeParams(const Simple::Lang::AST::TypeRef& src,
   return ApplyTypeSubstitution(out, substitutions);
 }
 
-bool BuildArtifactTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
-                               const Simple::Lang::AST::ArtifactDecl* artifact,
+bool BuildAggregateTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
+                               const Simple::Lang::AST::AggregateDecl* aggregate,
                                GenericSubstitutionMap* out,
                                std::string* error) {
   if (!out) return false;
   out->clear();
-  if (!artifact) return false;
-  if (artifact->generics.empty()) return true;
-  if (instance_type.type_args.size() != artifact->generics.size()) {
+  if (!aggregate) return false;
+  if (aggregate->generics.empty()) return true;
+  if (instance_type.type_args.size() != aggregate->generics.size()) {
     if (error) {
-      *error = "generic type argument count mismatch for " + artifact->name;
+      *error = "generic type argument count mismatch for " + aggregate->name;
     }
     return false;
   }
-  for (size_t i = 0; i < artifact->generics.size(); ++i) {
+  for (size_t i = 0; i < aggregate->generics.size(); ++i) {
     Simple::Lang::AST::TypeRef copy;
     if (!CloneTypeRef(instance_type.type_args[i], &copy)) return false;
-    (*out)[artifact->generics[i]] = std::move(copy);
+    (*out)[aggregate->generics[i]] = std::move(copy);
   }
   return true;
 }

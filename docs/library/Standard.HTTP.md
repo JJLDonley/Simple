@@ -10,7 +10,7 @@ TextError :: enum {
   InvalidEncoding
 }
 
-Header :: artifact {
+Header :: class {
   name :: string
   value :: string
 }
@@ -23,7 +23,7 @@ HttpError :: enum {
   ProtocolError
 }
 
-Response :: artifact {
+Response :: class {
   status :: i32
   headers :: Header[]
   body :: i32[]

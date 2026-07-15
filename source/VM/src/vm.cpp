@@ -19,7 +19,8 @@
 #include <vector>
 
 #include "ffi/dl_runtime.h"
-#include "gc/artifact_trace.h"
+#include "gc/aggregate_trace.h"
+#include "gc/struct_value.h"
 #include "gc/root_tracer.h"
 #include "gc/stack_map_collection.h"
 #include "heap.h"
@@ -100,6 +101,15 @@ bool IsManagedPromiseSlotType(TypeKind kind) {
          kind == TypeKind::Optional;
 }
 
+uint32_t FieldStorageWidth(const Simple::Byte::TypeRow& type) {
+  if (static_cast<TypeKind>(type.kind) == TypeKind::Unspecified &&
+      (Simple::Byte::IsManagedClassType(type) ||
+       Simple::Byte::IsStableStructType(type))) {
+    return 4;
+  }
+  return type.size;
+}
+
 constexpr uint32_t kNullRef = Simple::VM::HeapLayout::kNullRef;
 constexpr uint64_t kVmPointerTag = 0xF17E000000000000ull;
 constexpr uint64_t kVmPointerTagMask = 0xFFFF000000000000ull;
@@ -110,7 +120,7 @@ constexpr uint32_t kVmPointerGenerationMask = 0x00FFFFFFu;
 enum class VmPointerKind : uint8_t {
   Local,
   Global,
-  ArtifactField,
+  AggregateField,
 };
 
 struct VmPointerRecord {
@@ -223,7 +233,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   Heap heap;
   heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
   if (have_meta) {
-    heap.SetArtifactTraceDescriptors(Gc::BuildArtifactTraceDescriptors(module));
+    heap.SetAggregateTraceDescriptors(Gc::BuildAggregateTraceDescriptors(module));
   }
   ScratchArena scratch_arena;
   scratch_arena.SetRequireScope(true);
@@ -350,13 +360,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (record->slot_index >= globals.size()) return false;
         *out = globals[record->slot_index];
         return true;
-      case VmPointerKind::ArtifactField: {
+      case VmPointerKind::AggregateField: {
         if (record->field_id >= module.fields.size()) return false;
         HeapObject* object = heap.Get(record->object_ref);
-        if (!object || object->header.kind != ObjectKind::Artifact) return false;
+        if (!object || object->header.kind != ObjectKind::Aggregate) return false;
         const auto& field = module.fields[record->field_id];
         if (field.type_id >= module.types.size()) return false;
-        const uint32_t width = module.types[field.type_id].size;
+        const uint32_t width = FieldStorageWidth(module.types[field.type_id]);
         if (width == 8 && field.offset + 8 <= object->payload.size()) {
           *out = ReadU64Payload(object->payload, field.offset);
           return true;
@@ -382,13 +392,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (record->slot_index >= globals.size()) return false;
         globals[record->slot_index] = value;
         return true;
-      case VmPointerKind::ArtifactField: {
+      case VmPointerKind::AggregateField: {
         if (record->field_id >= module.fields.size()) return false;
         HeapObject* object = heap.Get(record->object_ref);
-        if (!object || object->header.kind != ObjectKind::Artifact) return false;
+        if (!object || object->header.kind != ObjectKind::Aggregate) return false;
         const auto& field = module.fields[record->field_id];
         if (field.type_id >= module.types.size()) return false;
-        const uint32_t width = module.types[field.type_id].size;
+        const uint32_t width = FieldStorageWidth(module.types[field.type_id]);
         if (width == 8 && field.offset + 8 <= object->payload.size()) {
           WriteU64Payload(object->payload, field.offset, value);
           return true;
@@ -480,7 +490,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (pointer.active && !frame_token_is_active(pointer.frame_token)) {
           pointer.active = false;
         }
-        if (pointer.active && pointer.kind == VmPointerKind::ArtifactField &&
+        if (pointer.active && pointer.kind == VmPointerKind::AggregateField &&
             pointer.object_ref != kNullRef) {
           pointer_roots.push_back(pointer.object_ref);
         }
@@ -1104,7 +1114,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               int32_t type_raw = UnpackI32(Pop(stack));
               if (type_raw < 0 || static_cast<uint32_t>(type_raw) >= module.types.size()) return Trap("INIT_OBJECT bad type id");
               uint32_t type_id = static_cast<uint32_t>(type_raw);
-              uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, module.types[type_id].size);
+              uint32_t handle = heap.Allocate(ObjectKind::Aggregate, type_id, module.types[type_id].size);
               Push(stack, PackRef(handle));
               break;
             }
@@ -1432,11 +1442,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               }
               if (IsNullRef(object_slot)) return Trap("ADDRESS_OF_FIELD on non-ref");
               HeapObject* object = heap.Get(UnpackRef(object_slot));
-              if (!object || object->header.kind != ObjectKind::Artifact) {
+              if (!object || object->header.kind != ObjectKind::Aggregate) {
                 return Trap("ADDRESS_OF_FIELD on non-object");
               }
               VmPointerRecord record;
-              record.kind = VmPointerKind::ArtifactField;
+              record.kind = VmPointerKind::AggregateField;
               record.frame_token = current.pointer_frame_token;
               record.object_ref = UnpackRef(object_slot);
               record.field_id = static_cast<uint32_t>(field_raw);
@@ -2024,7 +2034,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         uint32_t type_id = ReadU32(module.code, pc);
         if (type_id >= module.types.size()) return Trap("NEW_OBJECT bad type id");
         uint32_t size = module.types[type_id].size;
-        uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, size);
+        uint32_t handle = heap.Allocate(ObjectKind::Aggregate, type_id, size);
         Push(stack, PackRef(handle));
         break;
       }
@@ -2052,11 +2062,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (field_id >= module.fields.size()) return Trap("LOAD_FIELD bad field id");
         if (IsNullRef(v)) return Trap("LOAD_FIELD on non-ref");
         HeapObject* obj = heap.Get(UnpackRef(v));
-        if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("LOAD_FIELD on non-object");
+        if (!obj || obj->header.kind != ObjectKind::Aggregate) return Trap("LOAD_FIELD on non-object");
         const auto& field = module.fields[field_id];
         if (field.type_id >= module.types.size()) return Trap("LOAD_FIELD bad field type");
         uint32_t offset = field.offset;
-        const uint32_t width = module.types[field.type_id].size;
+        const uint32_t width = FieldStorageWidth(module.types[field.type_id]);
         if (width == 8) {
           if (offset + 8 > obj->payload.size()) return Trap("LOAD_FIELD out of bounds");
           Push(stack, ReadU64Payload(obj->payload, offset));
@@ -2075,11 +2085,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (field_id >= module.fields.size()) return Trap("STORE_FIELD bad field id");
         if (IsNullRef(v)) return Trap("STORE_FIELD on non-ref");
         HeapObject* obj = heap.Get(UnpackRef(v));
-        if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("STORE_FIELD on non-object");
+        if (!obj || obj->header.kind != ObjectKind::Aggregate) return Trap("STORE_FIELD on non-object");
         const auto& field = module.fields[field_id];
         if (field.type_id >= module.types.size()) return Trap("STORE_FIELD bad field type");
         uint32_t offset = field.offset;
-        const uint32_t width = module.types[field.type_id].size;
+        const uint32_t width = FieldStorageWidth(module.types[field.type_id]);
         if (width == 8) {
           if (offset + 8 > obj->payload.size()) return Trap("STORE_FIELD out of bounds");
           WriteU64Payload(obj->payload, offset, value);
@@ -3102,8 +3112,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (IsNullRef(value)) return Trap("CLONE_OBJECT null reference");
         HeapObject* obj = heap.Get(UnpackRef(value));
         if (!obj) return Trap("CLONE_OBJECT invalid reference");
-        const ObjectKind kind = obj->header.kind;
         const uint32_t type_id = obj->header.type_id;
+        if (type_id < module.types.size() &&
+            Simple::Byte::IsStableStructType(module.types[type_id])) {
+          uint32_t handle = kNullRef;
+          std::string clone_error;
+          if (!Simple::VM::GC::CloneStructValue(
+                  module, heap, UnpackRef(value), &handle, &clone_error)) {
+            return Trap("CLONE_OBJECT " + clone_error);
+          }
+          Push(stack, PackRef(handle));
+          break;
+        }
+        const ObjectKind kind = obj->header.kind;
         const uint32_t size = obj->header.size;
         const std::vector<uint8_t> payload = obj->payload;
         uint32_t handle = heap.Allocate(kind, type_id, size);
@@ -3124,6 +3145,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         bool equal = false;
         if (obj_a->header.kind == ObjectKind::String && obj_b->header.kind == ObjectKind::String) {
           equal = ReadString(obj_a) == ReadString(obj_b);
+        } else if (obj_a->header.type_id < module.types.size() &&
+                   obj_b->header.type_id == obj_a->header.type_id &&
+                   Simple::Byte::IsStableStructType(
+                       module.types[obj_a->header.type_id])) {
+          std::string equality_error;
+          if (!Simple::VM::GC::StructValuesEqual(
+                  module, heap, UnpackRef(a), UnpackRef(b), &equal,
+                  &equality_error)) {
+            return Trap("OBJECT_EQ " + equality_error);
+          }
         } else {
           equal = obj_a->header.kind == obj_b->header.kind &&
                   obj_a->header.type_id == obj_b->header.type_id &&

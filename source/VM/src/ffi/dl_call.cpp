@@ -504,7 +504,7 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
   }
 }
 
-bool MarshalVmArtifactToFfi(const SbcModule& module,
+bool MarshalVmAggregateToFfi(const SbcModule& module,
                             uint32_t type_id,
                             uint32_t handle,
                             DlAbiCache& cache,
@@ -512,7 +512,7 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
                             void* out_value,
                             std::string* out_error);
 
-bool MarshalFfiToVmArtifact(const SbcModule& module,
+bool MarshalFfiToVmAggregate(const SbcModule& module,
                             uint32_t type_id,
                             const void* value,
                             DlAbiCache& cache,
@@ -520,7 +520,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
                             uint32_t* out_handle,
                             std::string* out_error);
 
-bool MarshalVmArtifactToFfi(const SbcModule& module,
+bool MarshalVmAggregateToFfi(const SbcModule& module,
                             uint32_t type_id,
                             uint32_t handle,
                             DlAbiCache& cache,
@@ -536,7 +536,7 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
     return false;
   }
   HeapObject* obj = heap.Get(handle);
-  if (!obj || obj->header.kind != ObjectKind::Artifact || obj->header.type_id != type_id) {
+  if (!obj || obj->header.kind != ObjectKind::Aggregate || obj->header.type_id != type_id) {
     if (out_error) *out_error = "System.FFI.call struct argument type mismatch";
     return false;
   }
@@ -559,7 +559,7 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
       }
       uint32_t nested = 0;
       std::memcpy(&nested, obj->payload.data() + vm_offset, sizeof(nested));
-      if (!MarshalVmArtifactToFfi(module, field_type_id, nested, cache, heap, dst, out_error)) {
+      if (!MarshalVmAggregateToFfi(module, field_type_id, nested, cache, heap, dst, out_error)) {
         return false;
       }
       continue;
@@ -572,7 +572,7 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
   return true;
 }
 
-bool MarshalFfiToVmArtifact(const SbcModule& module,
+bool MarshalFfiToVmAggregate(const SbcModule& module,
                             uint32_t type_id,
                             const void* value,
                             DlAbiCache& cache,
@@ -591,10 +591,10 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
   }
   DlStructMeta& meta = meta_it->second;
   if (!meta.offsets_ready && !PrepareStructOffsets(module, type_id, cache, out_error)) return false;
-  uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, module.types[type_id].size);
+  uint32_t handle = heap.Allocate(ObjectKind::Aggregate, type_id, module.types[type_id].size);
   HeapObject* obj = heap.Get(handle);
   if (!obj) {
-    if (out_error) *out_error = "System.FFI.call artifact allocation failed";
+    if (out_error) *out_error = "System.FFI.call aggregate allocation failed";
     return false;
   }
   const auto& row = module.types[type_id];
@@ -604,7 +604,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
     const uint8_t* src = static_cast<const uint8_t*>(value) + meta.ffi_offsets[i];
     if (IsStructTypeId(module, field_type_id)) {
       uint32_t nested = kNullRef;
-      if (!MarshalFfiToVmArtifact(module, field_type_id, src, cache, heap, &nested, out_error)) return false;
+      if (!MarshalFfiToVmAggregate(module, field_type_id, src, cache, heap, &nested, out_error)) return false;
       if (vm_offset + 4 > obj->payload.size()) {
         if (out_error) *out_error = "System.FFI.call nested struct field out of bounds";
         return false;
@@ -951,7 +951,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     uint32_t type_id = arg_type_ids[i];
     if (IsStructTypeId(module, type_id)) {
       uint32_t ref = UnpackRef(args[arg_base + i]);
-      if (!MarshalVmArtifactToFfi(module,
+      if (!MarshalVmAggregateToFfi(module,
                                   type_id,
                                   ref,
                                   cache,
@@ -990,7 +990,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
   }
   if (IsStructTypeId(module, ret_type_id)) {
     uint32_t handle = kNullRef;
-    if (!MarshalFfiToVmArtifact(module, ret_type_id, ret_storage.data(), cache, heap, &handle, out_error)) {
+    if (!MarshalFfiToVmAggregate(module, ret_type_id, ret_storage.data(), cache, heap, &handle, out_error)) {
       return false;
     }
     *out_ret = PackRef(handle);

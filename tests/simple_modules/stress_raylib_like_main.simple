@@ -24,7 +24,7 @@ World :: namespace {
     }
 }
 
-Player :: artifact {
+Player :: class {
     position: Vector2
     bullets: Bullet[]
     fireCooldown: f32

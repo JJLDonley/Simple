@@ -12,17 +12,17 @@ AdventureError :: enum {
   MissingItem = 1
 }
 
-Item :: artifact {
+Item :: class {
   name : string
   points : i32
 }
 
-Exit :: artifact {
+Exit :: class {
   direction : Direction
   destination : i32
 }
 
-Room :: artifact {
+Room :: class {
   name : string
   exits : Exit[]
   items : Item[]

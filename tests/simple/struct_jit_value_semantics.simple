@@ -1,0 +1,20 @@
+Inner :: struct { value : i32 }
+Outer :: struct { inner : Inner; count : i32 }
+Box :: class { value : i32 }
+
+main :: () -> i32 {
+  first : Outer = { { 1 }, 2 }
+  second : Outer = first
+  second.inner.value = 3
+  second.count = 4
+  if (first.inner.value != 1 || first.count != 2) { return 1 }
+  if (second.inner.value != 3 || second.count != 4) { return 2 }
+  if (first == second) { return 3 }
+  same : Outer = first
+  if (first != same) { return 4 }
+  classA : Box = { 1 }
+  classAlias : Box = classA
+  classOther : Box = { 1 }
+  if (classA != classAlias || classA == classOther) { return 5 }
+  return 0
+}

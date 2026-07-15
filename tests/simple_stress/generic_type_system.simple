@@ -1,13 +1,13 @@
 module Tests.Stress.GenericTypeSystem
 
-Pair<A, B> :: artifact {
+Pair<A, B> :: class {
   first : A
   second : B
 
   choose<C> :: (value : C) -> C { return value }
 }
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 
   pair<U> :: (other : U) -> Pair<T, U> { return { self.value, other } }

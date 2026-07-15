@@ -37,7 +37,7 @@ runCycle :: async (
   return { .value = total }
 }
 
-PolicySet :: artifact {
+PolicySet :: class {
   apply : fn (i32) -> i32
   observations : fn () -> i32
 }

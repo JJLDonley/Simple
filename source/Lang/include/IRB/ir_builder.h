@@ -53,16 +53,16 @@ struct IrGlobal {
   std::string init;
 };
 
-struct IrArtifactField {
+struct IrAggregateField {
   std::string name;
   IrType type;
   uint32_t index = 0;
 };
 
-struct IrArtifactLayout {
+struct IrAggregateLayout {
   std::string name;
-  bool is_data = false;
-  std::vector<IrArtifactField> fields;
+  bool is_struct = false;
+  std::vector<IrAggregateField> fields;
 };
 
 struct IrAbiField {
@@ -86,7 +86,7 @@ struct IrModule {
   std::vector<IrImport> imports;
   std::vector<IrGlobal> globals;
   std::vector<IrFunction> functions;
-  std::vector<IrArtifactLayout> artifact_layouts;
+  std::vector<IrAggregateLayout> aggregate_layouts;
   std::vector<IrAbiType> abi_types;
   std::vector<IrStackInfo> stack_infos;
 };

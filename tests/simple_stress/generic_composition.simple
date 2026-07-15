@@ -1,6 +1,6 @@
 module Tests.Stress.GenericComposition
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 
   get :: () -> T {
@@ -8,7 +8,7 @@ Box<T> :: artifact {
   }
 }
 
-Pair<A, B> :: artifact {
+Pair<A, B> :: class {
   first : A
   second : B
 }

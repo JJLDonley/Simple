@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "ffi/dl_call.h"
+#include "gc/struct_value.h"
 #include "interpreter/dispatch.h"
 #include "intrinsic_ids.h"
 #include "jit/call_context.h"
@@ -228,7 +229,7 @@ extern "C" void SimpleVmLlvmStoreGlobal(uint32_t index, uint64_t value) {
 
 extern "C" uint64_t SimpleVmLlvmNewObject(uint32_t type_id, uint32_t size) {
   if (!g_llvm_heap) { g_llvm_trap = true; return 0; }
-  uint32_t handle = g_llvm_heap->Allocate(Simple::VM::ObjectKind::Artifact, type_id, size);
+  uint32_t handle = g_llvm_heap->Allocate(Simple::VM::ObjectKind::Aggregate, type_id, size);
   if (!g_llvm_heap->Get(handle)) { g_llvm_trap = true; return 0; }
   return Simple::VM::Runtime::PackRef(handle);
 }
@@ -275,7 +276,7 @@ extern "C" uint32_t SimpleVmLlvmClosureFunction(
 extern "C" uint64_t SimpleVmLlvmLoadField32(uint64_t ref_slot, uint32_t offset) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return 0; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
-  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || offset + 4u > obj->payload.size()) {
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Aggregate || offset + 4u > obj->payload.size()) {
     g_llvm_trap = true;
     return 0;
   }
@@ -285,7 +286,7 @@ extern "C" uint64_t SimpleVmLlvmLoadField32(uint64_t ref_slot, uint32_t offset) 
 extern "C" void SimpleVmLlvmStoreField32(uint64_t ref_slot, uint32_t offset, uint64_t value_slot) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
-  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || offset + 4u > obj->payload.size()) {
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Aggregate || offset + 4u > obj->payload.size()) {
     g_llvm_trap = true;
     return;
   }
@@ -295,7 +296,7 @@ extern "C" void SimpleVmLlvmStoreField32(uint64_t ref_slot, uint32_t offset, uin
 extern "C" uint64_t SimpleVmLlvmLoadField64(uint64_t ref_slot, uint32_t offset) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return 0; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
-  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || offset + 8u > obj->payload.size()) {
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Aggregate || offset + 8u > obj->payload.size()) {
     g_llvm_trap = true;
     return 0;
   }
@@ -305,7 +306,7 @@ extern "C" uint64_t SimpleVmLlvmLoadField64(uint64_t ref_slot, uint32_t offset) 
 extern "C" void SimpleVmLlvmStoreField64(uint64_t ref_slot, uint32_t offset, uint64_t value_slot) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
-  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || offset + 8u > obj->payload.size()) {
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Aggregate || offset + 8u > obj->payload.size()) {
     g_llvm_trap = true;
     return;
   }
@@ -334,6 +335,18 @@ extern "C" uint64_t SimpleVmLlvmCloneObject(uint64_t ref_slot) {
   if (!obj) { g_llvm_trap = true; return 0; }
   const Simple::VM::ObjectKind kind = obj->header.kind;
   const uint32_t type_id = obj->header.type_id;
+  if (g_llvm_module && type_id < g_llvm_module->types.size() &&
+      Simple::Byte::IsStableStructType(g_llvm_module->types[type_id])) {
+    uint32_t handle = Simple::VM::HeapLayout::kNullRef;
+    std::string error;
+    if (!Simple::VM::GC::CloneStructValue(
+            *g_llvm_module, *g_llvm_heap,
+            Simple::VM::Runtime::UnpackRef(ref_slot), &handle, &error)) {
+      g_llvm_trap = true;
+      return 0;
+    }
+    return Simple::VM::Runtime::PackRef(handle);
+  }
   const uint32_t size = obj->header.size;
   const std::vector<uint8_t> payload = obj->payload;
   uint32_t handle = g_llvm_heap->Allocate(kind, type_id, size);
@@ -354,6 +367,18 @@ extern "C" uint64_t SimpleVmLlvmObjectEq(uint64_t lhs_slot, uint64_t rhs_slot) {
   bool equal = false;
   if (lhs->header.kind == Simple::VM::ObjectKind::String && rhs->header.kind == Simple::VM::ObjectKind::String) {
     equal = Simple::VM::ReadString(lhs) == Simple::VM::ReadString(rhs);
+  } else if (g_llvm_module && lhs->header.type_id < g_llvm_module->types.size() &&
+             rhs->header.type_id == lhs->header.type_id &&
+             Simple::Byte::IsStableStructType(
+                 g_llvm_module->types[lhs->header.type_id])) {
+    std::string error;
+    if (!Simple::VM::GC::StructValuesEqual(
+            *g_llvm_module, *g_llvm_heap,
+            Simple::VM::Runtime::UnpackRef(lhs_slot),
+            Simple::VM::Runtime::UnpackRef(rhs_slot), &equal, &error)) {
+      g_llvm_trap = true;
+      return 0;
+    }
   } else {
     equal = lhs->header.kind == rhs->header.kind && lhs->header.type_id == rhs->header.type_id &&
             lhs->payload == rhs->payload;
@@ -1221,7 +1246,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (type_id == 0xFFFFFFFFu) return true;
     if (type_id >= module.types.size()) return false;
     const auto& row = module.types[type_id];
-    if (Simple::Byte::IsManagedArtifactType(row) || Simple::Byte::IsOpaqueHandleType(row)) return false;
+    if (Simple::Byte::IsManagedClassType(row) || Simple::Byte::IsOpaqueHandleType(row)) return false;
     switch (static_cast<Simple::Byte::TypeKind>(row.kind)) {
       case Simple::Byte::TypeKind::Unspecified:
       case Simple::Byte::TypeKind::Void:
@@ -1257,7 +1282,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       const uint32_t type_id = module.param_types[row.param_type_start + i];
       if (type_id >= module.types.size()) return true;
       const auto& type = module.types[type_id];
-      if (Simple::Byte::IsManagedArtifactType(type)) return true;
+      if (Simple::Byte::IsManagedClassType(type)) return true;
       switch (static_cast<Simple::Byte::TypeKind>(type.kind)) {
         case Simple::Byte::TypeKind::Ref:
         case Simple::Byte::TypeKind::String:

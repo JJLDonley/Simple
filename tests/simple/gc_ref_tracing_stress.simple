@@ -1,4 +1,4 @@
-Box :: artifact { text : string }
+Box :: class { text : string }
 
 main : () -> i32 {
   value : string = "gamma"

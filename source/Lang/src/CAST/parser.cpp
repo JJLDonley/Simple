@@ -56,7 +56,8 @@ bool IsKeywordToken(TokenKind kind) {
     case TokenKind::KwAsync:
     case TokenKind::KwAwait:
     case TokenKind::KwSelf:
-    case TokenKind::KwArtifact:
+    case TokenKind::KwClass:
+    case TokenKind::KwStruct:
     case TokenKind::KwEnum:
     case TokenKind::KwModule:
     case TokenKind::KwNamespace:
@@ -451,12 +452,11 @@ bool Parser::ParseDecl(Decl* out) {
   }
 
   if (Match(TokenKind::DoubleColon)) {
-    if (Match(TokenKind::KwArtifact)) {
-      return ParseArtifactDecl(name_tok, std::move(generics), false, out);
+    if (Match(TokenKind::KwClass)) {
+      return ParseAggregateDecl(name_tok, std::move(generics), false, out);
     }
-    if (Peek().kind == TokenKind::Identifier && Peek().text == "data") {
-      Advance();
-      return ParseArtifactDecl(name_tok, std::move(generics), true, out);
+    if (Match(TokenKind::KwStruct)) {
+      return ParseAggregateDecl(name_tok, std::move(generics), true, out);
     }
     if (Match(TokenKind::KwNamespace)) {
       return ParseModuleDecl(name_tok, out);
@@ -570,17 +570,17 @@ bool Parser::ParseDecl(Decl* out) {
   return true;
 }
 
-bool Parser::ParseArtifactDecl(const Token& name_tok,
+bool Parser::ParseAggregateDecl(const Token& name_tok,
                                std::vector<std::string> generics,
-                               bool is_data,
+                               bool is_struct,
                                Decl* out) {
   if (out) {
-    out->kind = DeclKind::Artifact;
-    out->artifact.name = name_tok.text;
-    out->artifact.generics = std::move(generics);
-    out->artifact.is_data = is_data;
+    out->kind = DeclKind::Aggregate;
+    out->aggregate.name = name_tok.text;
+    out->aggregate.generics = std::move(generics);
+    out->aggregate.is_struct = is_struct;
   }
-  if (!ParseArtifactBody(&out->artifact)) return false;
+  if (!ParseAggregateBody(&out->aggregate)) return false;
   return true;
 }
 
@@ -632,16 +632,16 @@ bool Parser::ParseEnumDecl(const Token& name_tok, Decl* out) {
   return false;
 }
 
-bool Parser::ParseArtifactBody(ArtifactDecl* out) {
+bool Parser::ParseAggregateBody(AggregateDecl* out) {
   if (!Match(TokenKind::LBrace)) {
-    error_ = "expected '{' to start artifact body";
+    error_ = "expected '{' to start aggregate body";
     return false;
   }
   while (!IsAtEnd()) {
     if (Match(TokenKind::RBrace)) return true;
-    if (!ParseArtifactMember(out)) return false;
+    if (!ParseAggregateMember(out)) return false;
   }
-  error_ = "unterminated artifact body";
+  error_ = "unterminated aggregate body";
   return false;
 }
 
@@ -658,14 +658,14 @@ bool Parser::ParseModuleBody(ModuleDecl* out) {
   return false;
 }
 
-bool Parser::ParseArtifactMember(ArtifactDecl* out) {
+bool Parser::ParseAggregateMember(AggregateDecl* out) {
   const Token& name_tok = Peek();
   if (name_tok.kind != TokenKind::Identifier) {
     if (name_tok.kind == TokenKind::Comma) {
-      error_ = "unexpected ',' in artifact body; use newline or ';' between members";
+      error_ = "unexpected ',' in aggregate body; use newline or ';' between members";
       return false;
     }
-    error_ = "expected artifact member name";
+    error_ = "expected aggregate member name";
     return false;
   }
   Advance();
@@ -687,8 +687,8 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
 
   const bool is_async = Match(TokenKind::KwAsync);
   if (Peek().kind == TokenKind::LParen) {
-    if (out && out->is_data) {
-      error_ = "data declarations cannot contain methods";
+    if (out && out->is_struct) {
+      error_ = "struct declarations cannot contain methods";
       return false;
     }
     FuncDecl fn;
@@ -707,7 +707,7 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     return false;
   }
   if (!generics.empty()) {
-    error_ = "artifact fields do not support generic parameters";
+    error_ = "aggregate fields do not support generic parameters";
     return false;
   }
 
@@ -724,7 +724,7 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
   if (Match(TokenKind::Assign)) {
     Expr init;
     if (!ParseExpr(&init)) return false;
-    if (!ConsumeStmtTerminator("artifact field declaration")) return false;
+    if (!ConsumeStmtTerminator("aggregate field declaration")) return false;
     field.has_init_expr = true;
     field.init_expr = std::move(init);
   } else if (Match(TokenKind::Semicolon)) {
@@ -733,9 +733,9 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     // optional
   } else {
     if (Peek().kind == TokenKind::Comma) {
-      error_ = "unexpected ',' in artifact body; use newline or ';' between members";
+      error_ = "unexpected ',' in aggregate body; use newline or ';' between members";
     } else {
-      error_ = "expected '=' or ';' in artifact field declaration";
+      error_ = "expected '=' or ';' in aggregate field declaration";
     }
     return false;
   }
@@ -1801,7 +1801,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
   }
   if (Match(TokenKind::LBrace)) {
     Expr expr;
-    expr.kind = ExprKind::ArtifactLiteral;
+    expr.kind = ExprKind::AggregateLiteral;
     bool seen_named = false;
     bool seen_positional = false;
     if (Match(TokenKind::RBrace)) {
@@ -1811,17 +1811,17 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     while (!IsAtEnd()) {
       if (Match(TokenKind::Dot)) {
         if (seen_positional) {
-          error_ = "cannot mix positional and named fields in artifact literal";
+          error_ = "cannot mix positional and named fields in aggregate literal";
           return false;
         }
         const Token& field_tok = Peek();
         if (field_tok.kind != TokenKind::Identifier) {
-          error_ = "expected field name after '.' in artifact literal";
+          error_ = "expected field name after '.' in aggregate literal";
           return false;
         }
         Advance();
         if (!Match(TokenKind::Assign)) {
-          error_ = "expected '=' after artifact field name";
+          error_ = "expected '=' after aggregate field name";
           return false;
         }
         Expr value;
@@ -1831,7 +1831,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
         seen_named = true;
       } else if (Peek().kind == TokenKind::Identifier && Peek(1).kind == TokenKind::Colon) {
         if (seen_positional) {
-          error_ = "cannot mix positional and named fields in artifact literal";
+          error_ = "cannot mix positional and named fields in aggregate literal";
           return false;
         }
         Token field_tok = Advance();
@@ -1843,7 +1843,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
         seen_named = true;
       } else {
         if (seen_named) {
-          error_ = "cannot mix positional and named fields in artifact literal";
+          error_ = "cannot mix positional and named fields in aggregate literal";
           return false;
         }
         Expr value;
@@ -1853,7 +1853,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
       }
       if (Match(TokenKind::Comma)) continue;
       if (Match(TokenKind::RBrace)) break;
-      error_ = "expected ',' or '}' in artifact literal";
+      error_ = "expected ',' or '}' in aggregate literal";
       return false;
     }
     if (out) *out = std::move(expr);
@@ -2007,7 +2007,7 @@ bool Parser::ParseCallArgs(std::vector<Expr>* out) {
   if (Match(TokenKind::RParen)) return true;
   for (;;) {
     if (Peek().kind == TokenKind::Identifier && Peek(1).kind == TokenKind::LBrace) {
-      error_ = "unexpected type name before artifact literal in call; use '{...}' and "
+      error_ = "unexpected type name before aggregate literal in call; use '{...}' and "
                "assign to a typed variable first";
       return false;
     }
@@ -2017,7 +2017,7 @@ bool Parser::ParseCallArgs(std::vector<Expr>* out) {
     if (Match(TokenKind::Comma)) continue;
     if (Match(TokenKind::RParen)) break;
     if (Peek().kind == TokenKind::LBrace) {
-      error_ = "unexpected '{' after call argument; artifact literal uses '{...}' and "
+      error_ = "unexpected '{' after call argument; aggregate literal uses '{...}' and "
                "must be assigned to a typed variable";
       return false;
     }

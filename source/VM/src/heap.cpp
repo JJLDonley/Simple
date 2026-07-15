@@ -142,8 +142,8 @@ void Heap::SetLimits(uint32_t max_objects, uint64_t max_bytes) {
   max_bytes_ = max_bytes;
 }
 
-void Heap::SetArtifactTraceDescriptors(std::vector<ArtifactTraceDescriptor> descriptors) {
-  artifact_trace_descriptors_ = std::move(descriptors);
+void Heap::SetAggregateTraceDescriptors(std::vector<AggregateTraceDescriptor> descriptors) {
+  aggregate_trace_descriptors_ = std::move(descriptors);
 }
 
 uint32_t Heap::Allocate(ObjectKind kind, uint32_t type_id, uint32_t size) {
@@ -224,14 +224,14 @@ void Heap::Mark(uint32_t handle) {
     case ObjectKind::List:
       if (obj->header.type_id != 0) mark_payload_refs(HeapLayout::kListDataOffset, obj->payload.size());
       return;
-    case ObjectKind::Artifact: {
-      if (obj->header.type_id >= artifact_trace_descriptors_.size() ||
-          !artifact_trace_descriptors_[obj->header.type_id].configured) {
+    case ObjectKind::Aggregate: {
+      if (obj->header.type_id >= aggregate_trace_descriptors_.size() ||
+          !aggregate_trace_descriptors_[obj->header.type_id].configured) {
         mark_payload_refs(0, obj->payload.size());
         return;
       }
-      const ArtifactTraceDescriptor& descriptor =
-          artifact_trace_descriptors_[obj->header.type_id];
+      const AggregateTraceDescriptor& descriptor =
+          aggregate_trace_descriptors_[obj->header.type_id];
       auto mark_offsets = [&](const std::vector<uint32_t>& offsets) {
         for (uint32_t offset : offsets) {
           if (static_cast<std::size_t>(offset) + 4 > obj->payload.size()) continue;

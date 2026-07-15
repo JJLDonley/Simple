@@ -1,4 +1,4 @@
-Holder :: artifact {
+Holder :: class {
   pointer : i32*
 }
 

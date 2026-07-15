@@ -53,7 +53,7 @@ bool CheckTypeArgumentRules(const Simple::Lang::AST::TypeRef& type,
                             bool is_primitive,
                             bool is_type_param,
                             bool is_enum_type,
-                            const size_t* expected_artifact_type_args,
+                            const size_t* expected_aggregate_type_args,
                             std::string* error);
 bool IsLenCompatibleType(const Simple::Lang::AST::TypeRef& type);
 bool CheckPrimitiveCastArgType(const std::string& cast_target,

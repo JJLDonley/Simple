@@ -264,13 +264,13 @@ bool CheckTypeArgumentRules(const Simple::Lang::AST::TypeRef& type,
                             bool is_primitive,
                             bool is_type_param,
                             bool is_enum_type,
-                            const size_t* expected_artifact_type_args,
+                            const size_t* expected_aggregate_type_args,
                             std::string* error) {
   if (is_enum_type && !type.type_args.empty()) {
     if (error) *error = "enum type cannot have type arguments: " + type.name;
     return false;
   }
-  if (expected_artifact_type_args && type.type_args.size() != *expected_artifact_type_args) {
+  if (expected_aggregate_type_args && type.type_args.size() != *expected_aggregate_type_args) {
     if (error) *error = "generic type argument count mismatch for " + type.name;
     return false;
   }

@@ -23,8 +23,8 @@ std::string DiagnosticCodeFor(const std::string& message) {
   if (has("unterminated block") || has("expected expression") || has("expected") || has("parse failed")) {
     return "E2001";
   }
-  if (has("undeclared identifier") || has("unknown module member") || has("unknown artifact member") ||
-      has("unknown enum member") || has("self outside artifact")) {
+  if (has("undeclared identifier") || has("unknown module member") || has("unknown aggregate member") ||
+      has("unknown enum member") || has("self outside aggregate")) {
     return "E3001";
   }
   if (has("IR text") || has("lower failed") || has("emit failed") || has("lowering")) return "E5001";

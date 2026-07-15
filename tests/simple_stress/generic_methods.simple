@@ -1,6 +1,6 @@
 module Tests.Stress.GenericMethods
 
-Box<T> :: artifact {
+Box<T> :: class {
   value : T
 
   choose<U> :: (other : U) -> U {
@@ -21,17 +21,17 @@ Box<T> :: artifact {
   }
 }
 
-Router :: artifact {
+Router :: class {
   echo<T> :: (value : T) -> T {
     return value
   }
 }
 
-Holder :: artifact {
+Holder :: class {
   box : Box<i32>
 }
 
-Relay :: artifact {
+Relay :: class {
   ping<T> :: (value : T, count : i32) -> T {
     if (count == 0) { return value }
     return self.pong(value, count - 1)

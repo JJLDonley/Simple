@@ -1,4 +1,4 @@
-Box :: artifact { text : string }
+Box :: class { text : string }
 
 makeText : (i : i32) -> string {
   if (i % 2 == 0) { return "even" }

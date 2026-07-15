@@ -104,9 +104,9 @@ bool LangPhaseHeadersCompileAndPreserveBehavior() {
   return module.sir_text.find("entry main") != std::string::npos;
 }
 
-bool LangNestedArtifactMethodSwitchIfChainRuntime() {
+bool LangNestedAggregateMethodSwitchIfChainRuntime() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 {\n"
       "    tmp : i32 = 0;\n"
@@ -134,9 +134,9 @@ bool LangNestedArtifactMethodSwitchIfChainRuntime() {
   return RunSirTextExpectExit(sir, 20);
 }
 
-bool LangNestedArtifactMethodSwitchIfChainBadCondition() {
+bool LangNestedAggregateMethodSwitchIfChainBadCondition() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 {\n"
       "    tmp : i32 = 0;\n"
@@ -158,7 +158,7 @@ bool LangNestedArtifactMethodSwitchIfChainBadCondition() {
 
 bool LangNestedSwitchBranchBlockLocalRuntime() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 {\n"
       "    return switch (self.v) {\n"
@@ -182,7 +182,7 @@ bool LangNestedSwitchBranchBlockLocalRuntime() {
 
 bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 {\n"
       "    while (true) {\n"
@@ -436,8 +436,15 @@ bool LangSimpleFixtureStringLen() {
   return RunSimpleFileExpectExit("tests/simple/string_len.simple", 5);
 }
 
-bool LangSimpleFixtureArtifactMethod() {
-  return RunSimpleFileExpectExit("tests/simple/artifact_method.simple", 7);
+bool LangSimpleFixtureAggregateMethod() {
+  return RunSimpleFileExpectExit("tests/simple/class_method.simple", 7);
+}
+
+bool LangStructValueSemantics() {
+  return RunSimpleFileExpectExit("tests/simple/struct_value_semantics.simple", 0) &&
+         RunCliSvm({"run", "tests/simple/struct_value_semantics.simple"}) == 0 &&
+         RunSimpleFileExpectExit("tests/simple/struct_jit_value_semantics.simple", 0) &&
+         RunCliSvm({"run", "tests/simple/struct_jit_value_semantics.simple"}) == 0;
 }
 
 bool LangManagedMethodStateInterpreter() {
@@ -524,8 +531,8 @@ bool LangGcRefTracingStress() {
   return RunSimpleFileExpectExit("tests/simple/gc_ref_tracing_stress.simple", 0);
 }
 
-bool LangSimpleFixtureArtifactNamedInit() {
-  return RunSimpleFileExpectExit("tests/simple/artifact_named_init.simple", 7);
+bool LangSimpleFixtureAggregateNamedInit() {
+  return RunSimpleFileExpectExit("tests/simple/class_named_init.simple", 7);
 }
 
 bool LangSimpleFixtureArrayNested() {
@@ -723,7 +730,7 @@ bool LangTaggedValuesImportRuntime() {
 bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
-      "Task :: artifact { state : State }\n"
+      "Task :: class { state : State }\n"
       "touch : (s : State) -> State { return s }\n"
       "main : () -> i32 {\n"
       "  t : Task = { touch(State.Running) }\n"
@@ -774,9 +781,9 @@ bool LangEnumOrderingRejected() {
   return error.find("enum operands support only '==' and '!='") != std::string::npos;
 }
 
-bool LangStressArtifactMethodMutationRuntime() {
+bool LangStressAggregateMethodMutationRuntime() {
   const char* src =
-      "Counter :: artifact {\n"
+      "Counter :: class {\n"
       "  value : i32\n"
       "  add : (step : i32) -> void { self.value = self.value + step }\n"
       "  get : () -> i32 { return self.value }\n"
@@ -793,9 +800,9 @@ bool LangStressArtifactMethodMutationRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
-bool LangStressArtifactMethodTypeStrict() {
+bool LangStressAggregateMethodTypeStrict() {
   const char* src =
-      "Counter :: artifact {\n"
+      "Counter :: class {\n"
       "  value : i32\n"
       "  add : (step : i32) -> void { self.value = self.value + step }\n"
       "}\n"
@@ -849,7 +856,7 @@ bool LangStressProcedureSwitchExprRuntime() {
 
 bool LangStressProcedureMemberCallRuntime() {
   const char* src =
-      "Box :: artifact { f : fn () -> i32 }\n"
+      "Box :: class { f : fn () -> i32 }\n"
       "main : () -> i32 {\n"
       "  b : Box = { () { return 42 } }\n"
       "  return b.f()\n"
@@ -955,9 +962,9 @@ bool LangGenericFunctionEmissionRuns() {
          sir.find("id__g_") != std::string::npos && RunSirTextExpectExit(sir, 42);
 }
 
-bool LangGenericArtifactEmissionRuns() {
+bool LangGenericAggregateEmissionRuns() {
   const char* src =
-      "Box<T> :: artifact { v : T }\n"
+      "Box<T> :: class { v : T }\n"
       "main : () -> i32 { b : Box<i32> = { 42 }; return b.v }";
   std::string sir;
   std::string error;
@@ -978,7 +985,7 @@ bool LangGenericModuleFunctionEmissionRuns() {
 
 bool LangGenericMethodEmissionRuns() {
   const char* src =
-      "Box<T> :: artifact { value : T; choose<U> :: (other : U) -> U { return other } }\n"
+      "Box<T> :: class { value : T; choose<U> :: (other : U) -> U { return other } }\n"
       "main : () -> i32 { box : Box<i32> = { 40 }; return box.choose(42) }";
   std::string sir;
   std::string error;
@@ -1002,7 +1009,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 2.5\n", 0) == 0 &&
+  return sir.rfind("sir version 3.0\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -1011,7 +1018,7 @@ bool LangTaggedValueEmissionRuns() {
 
 bool LangGenericTemporaryReceiverEmissionRuns() {
   const char* src =
-      "Box<T> :: artifact { value : T; choose<U> :: (other : U) -> U { return other } }\n"
+      "Box<T> :: class { value : T; choose<U> :: (other : U) -> U { return other } }\n"
       "Factory :: namespace { make<T> :: (value : T) -> Box<T> { return { value } } }\n"
       "main : () -> i32 { return Factory.make(1).choose(42) }";
   std::string sir;
@@ -1023,7 +1030,7 @@ bool LangGenericTemporaryReceiverEmissionRuns() {
 
 bool LangGenericRecursiveMethodEmissionRuns() {
   const char* src =
-      "Relay :: artifact {\n"
+      "Relay :: class {\n"
       "  ping<T> :: (value : T, count : i32) -> T {\n"
       "    if (count == 0) { return value }\n"
       "    return self.pong(value, count - 1)\n"
@@ -1077,7 +1084,7 @@ bool LangGenericDuplicateSpecializationReusesSymbol() {
 
 bool LangGenericRejectsExpandingSpecializationRecursion() {
   const char* src =
-      "Box<T> :: artifact { value : T }\n"
+      "Box<T> :: class { value : T }\n"
       "grow<T> :: (value : T) -> i32 { return grow<Box<T>>({ value }) }\n"
       "main :: () -> i32 { return grow<i32>(1) }";
   std::string sir;
@@ -1119,12 +1126,12 @@ bool LangStressProcedureReturnTypeStrict() {
   return error.find("return type mismatch") != std::string::npos;
 }
 
-bool LangStressEnumArtifactProcedureCompositionRuntime() {
+bool LangStressEnumAggregateProcedureCompositionRuntime() {
   const char* src =
       "Op :: enum { Add = 1, Mul = 2 }\n"
       "add : (a : i32, b : i32) -> i32 { return a + b }\n"
       "mul : (a : i32, b : i32) -> i32 { return a * b }\n"
-      "Acc :: artifact {\n"
+      "Acc :: class {\n"
       "  op : Op\n"
       "  value : i32\n"
       "  step_add : (x : i32) -> void { self.value = add(self.value, x) }\n"
@@ -1142,9 +1149,9 @@ bool LangStressEnumArtifactProcedureCompositionRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
-bool LangStressTypeExplicitArtifactFieldFail() {
+bool LangStressTypeExplicitAggregateFieldFail() {
   const char* src =
-      "Wrap :: artifact { x : i32 }\n"
+      "Wrap :: class { x : i32 }\n"
       "main : () -> i32 {\n"
       "  w : Wrap = { 1 }\n"
       "  w.x = \"bad\"\n"
@@ -1282,9 +1289,9 @@ bool LangSimpleModuleVarAccess() {
   return RunSimpleFileExpectExit("tests/simple/module_var_access.simple", 5);
 }
 
-bool LangSimpleBadSelfOutsideArtifact() {
+bool LangSimpleBadSelfOutsideAggregate() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "tests/simple_bad/self_outside_artifact.simple",
+      "tests/simple_bad/self_outside_class.simple",
       "self");
 }
 
@@ -1348,10 +1355,10 @@ bool LangSimpleBadFunctionAsType() {
       "function is not a type");
 }
 
-bool LangSimpleBadArtifactMemberNoSelf() {
+bool LangSimpleBadAggregateMemberNoSelf() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "tests/simple_bad/artifact_member_without_self.simple",
-      "artifact members must be accessed via self");
+      "tests/simple_bad/class_member_without_self.simple",
+      "aggregate members must be accessed via self");
 }
 
 bool LangSimpleBadEnumUnknownMember() {
@@ -1366,10 +1373,10 @@ bool LangSimpleBadModuleUnknownMember() {
       "unknown module member");
 }
 
-bool LangSimpleBadArtifactUnknownMember() {
+bool LangSimpleBadAggregateUnknownMember() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "tests/simple_bad/artifact_unknown_member.simple",
-      "unknown artifact member");
+      "tests/simple_bad/class_unknown_member.simple",
+      "unknown aggregate member");
 }
 
 bool LangSimpleBadArraySizeMismatch() {
@@ -1683,8 +1690,8 @@ bool LangSirEmitsIoPrintFormat() {
 
 bool LangSirEmitsExternAbiFlatten() {
   const char* src =
-      "Tex :: data { id : u32; width : i32; }\n"
-      "RT :: data { id : u32; tex : Tex; }\n"
+      "Tex :: struct { id : u32; width : i32; }\n"
+      "RT :: struct { id : u32; tex : Tex; }\n"
       "extern ffi.Use : (t : RT) -> void\n"
       "main : () -> void { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
   std::string sir;
@@ -1767,7 +1774,7 @@ bool LangSirEmitsIndexCompoundAssign() {
 
 bool LangSirEmitsMemberCompoundAssign() {
   const char* src =
-      "Point :: artifact { x : i32; y : i32 }"
+      "Point :: class { x : i32; y : i32 }"
       "main : () -> i32 {"
       "  p : Point = { 1, 2 };"
       "  p.x *= 3;"
@@ -1795,7 +1802,7 @@ bool LangSirEmitsIndexIncDec() {
 
 bool LangSirEmitsMemberIncDec() {
   const char* src =
-      "Point :: artifact { x : i32 }"
+      "Point :: class { x : i32 }"
       "main : () -> i32 {"
       "  p : Point = { 1 };"
       "  a : i32 = p.x++;"
@@ -1848,9 +1855,9 @@ bool LangSirEmitsLen() {
   return RunSirTextExpectExit(sir, 4);
 }
 
-bool LangSirEmitsArtifactLiteralAndMember() {
+bool LangSirEmitsAggregateLiteralAndMember() {
   const char* src =
-      "Point :: artifact { x : i32; y : i32 }"
+      "Point :: class { x : i32; y : i32 }"
       "main : () -> i32 { p : Point = { 1, 2 }; return p.x + p.y; }";
   std::string sir;
   std::string error;
@@ -1858,9 +1865,9 @@ bool LangSirEmitsArtifactLiteralAndMember() {
   return RunSirTextExpectExit(sir, 3);
 }
 
-bool LangSirEmitsArtifactMemberAssign() {
+bool LangSirEmitsAggregateMemberAssign() {
   const char* src =
-      "Point :: artifact { x : i32; y : i32 }"
+      "Point :: class { x : i32; y : i32 }"
       "main : () -> i32 { p : Point = { 1, 2 }; p.y = 7; return p.y; }";
   std::string sir;
   std::string error;
@@ -2220,9 +2227,9 @@ bool LangValidateExternCallOk() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
-bool LangValidateExternRecursiveArtifactRejected() {
+bool LangValidateExternRecursiveAggregateRejected() {
   const char* src =
-      "Node :: artifact { next : Node }\n"
+      "Node :: class { next : Node }\n"
       "extern C.walk : (head : Node) -> void\n";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2231,7 +2238,7 @@ bool LangValidateExternRecursiveArtifactRejected() {
 
 bool LangValidateExternPointerCallOk() {
   const char* src =
-      "Node :: data { next: Node* }\n"
+      "Node :: struct { next: Node* }\n"
       "extern C.walk : (head : Node*) -> Node*\n"
       "main : () -> i32 { return 0; }";
   std::string error;
@@ -2240,7 +2247,7 @@ bool LangValidateExternPointerCallOk() {
 
 bool LangValidatePointerMemberAccessOk() {
   const char* src =
-      "Node :: artifact { value : i32 }\n"
+      "Node :: class { value : i32 }\n"
       "main : () -> i32 {"
       "  n : Node = { 1 };"
       "  p : Node* = &n;"
@@ -2254,7 +2261,7 @@ bool LangValidatePointerMemberAccessOk() {
 
 bool LangValidatePointerMemberRequiresPointer() {
   const char* src =
-      "Node :: artifact { value : i32 }\n"
+      "Node :: class { value : i32 }\n"
       "main : () -> void {"
       "  n : Node = { 1 };"
       "  n->value = 2;"
@@ -2266,7 +2273,7 @@ bool LangValidatePointerMemberRequiresPointer() {
 
 bool LangValidatePointerToImmutableRejectsMutation() {
   const char* src =
-      "Node :: artifact { value : i32 }\n"
+      "Node :: class { value : i32 }\n"
       "main : () -> void {"
       "  n :: Node = { 1 };"
       "  p : Node* = &n;"
@@ -2279,7 +2286,7 @@ bool LangValidatePointerToImmutableRejectsMutation() {
 
 bool LangValidatePointerToMutableAllowsMutation() {
   const char* src =
-      "Node :: artifact { value : i32 }\n"
+      "Node :: class { value : i32 }\n"
       "main : () -> i32 {"
       "  n : Node = { 1 };"
       "  p : Node* = &n;"
@@ -2334,10 +2341,10 @@ bool LangPointerLifetimeAndOperationErrors() {
       {"tests/simple_bad/pointer_index_unbounded.simple", "pointer indexing requires proven VM extent"},
       {"tests/simple_bad/extern_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
       {"tests/simple_bad/extern_optional_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
-      {"tests/simple_bad/extern_data_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
+      {"tests/simple_bad/extern_struct_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
       {"tests/simple_bad/extern_pointer_return_escape.simple", "cannot return borrowed external pointer"},
-      {"tests/simple_bad/extern_data_pointer_return_escape.simple", "cannot return borrowed external pointer"},
-      {"tests/simple_bad/extern_pointer_field_escape.simple", "cannot store borrowed external pointer in artifact field"},
+      {"tests/simple_bad/extern_struct_pointer_return_escape.simple", "cannot return borrowed external pointer"},
+      {"tests/simple_bad/extern_pointer_field_escape.simple", "cannot store borrowed external pointer in aggregate field"},
       {"tests/simple_bad/extern_pointer_closure_escape.simple", "closure cannot capture borrowed external pointer"},
       {"tests/simple_bad/pointer_async_parameter.simple", "async function cannot retain pointer parameter"},
       {"tests/simple_bad/pointer_async_suspension.simple", "pointer local cannot cross async suspension"},
@@ -2369,7 +2376,7 @@ bool LangExternalCStringLiteralContext() {
 
 bool LangExternalPointerContractsReachSir() {
   const char* src =
-      "View :: data { data :: i32* }\n"
+      "View :: struct { data :: i32* }\n"
       "extern probe :: (input :: i32*, output : i32**, "
       "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32*\n"
       "main :: () -> i32 { return 0 }\n";
@@ -2390,13 +2397,22 @@ bool LangExternManagedTypesRejected() {
            "tests/simple_bad/extern_vm_procedure.simple",
            "tests/simple_bad/extern_managed_string.simple",
            "tests/simple_bad/extern_char_implicit.simple",
-           "tests/simple_bad/extern_managed_artifact.simple",
+           "tests/simple_bad/extern_managed_class.simple",
        }) {
     int exit_code = 0;
     const std::string error = RunCommandCaptureStderr({"check", path}, &exit_code);
     if (exit_code == 0 || error.find("extern ABI") == std::string::npos) return false;
   }
   return true;
+}
+
+bool LangStructManagedFieldRejected() {
+  int exit_code = 0;
+  const std::string error = RunCommandCaptureStderr(
+      {"check", "tests/simple_bad/struct_managed_field.simple"}, &exit_code);
+  return exit_code != 0 &&
+         error.find("struct field cannot contain managed class value") !=
+             std::string::npos;
 }
 
 bool LangPointerNullInitRejected() {
@@ -2408,7 +2424,7 @@ bool LangPointerNullInitRejected() {
 
 bool LangPointerToRefShapesValidate() {
   const char* src =
-      "Node :: artifact { v : i32 }"
+      "Node :: class { v : i32 }"
       "main : () -> i32 {"
       "  n : Node = { 1 }; pn : Node* = &n;"
       "  values : i32[] = []; pv : i32[]* = &values;"
@@ -2419,9 +2435,9 @@ bool LangPointerToRefShapesValidate() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
-bool LangValidateArtifactDefaultFieldOk() {
+bool LangValidateAggregateDefaultFieldOk() {
   const char* src =
-      "Point :: artifact { x : i32 = 1; y : i32 }\n"
+      "Point :: class { x : i32 = 1; y : i32 }\n"
       "main : () -> i32 {"
       "  p : Point = { .y = 3 };"
       "  return p.x + p.y;"
@@ -2557,15 +2573,15 @@ bool LangValidateModuleNotValue() {
   return true;
 }
 
-bool LangValidateArtifactTypeNotValue() {
-  const char* src = "Point :: artifact { x : i32 } main : () -> void { p : Point = Point; }";
+bool LangValidateAggregateTypeNotValue() {
+  const char* src = "Point :: class { x : i32 } main : () -> void { p : Point = Point; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateTopLevelDuplicate() {
-  const char* src = "A :: enum { Red } A :: artifact { x : i32 }";
+  const char* src = "A :: enum { Red } A :: class { x : i32 }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2596,8 +2612,8 @@ bool LangValidateForLoopScope() {
   return true;
 }
 
-bool LangValidateArtifactDuplicateMember() {
-  const char* src = "Thing :: artifact { x : i32; x : i32 }";
+bool LangValidateAggregateDuplicateMember() {
+  const char* src = "Thing :: class { x : i32; x : i32 }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2748,7 +2764,7 @@ bool LangValidateCanonicalGenericTypeArity() {
 }
 
 bool LangValidateCanonicalGenericTypeRedeclaration() {
-  const char* src = "Result :: artifact { value : i32 }";
+  const char* src = "Result :: class { value : i32 }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("cannot redeclare canonical generic type: Result") != std::string::npos;
@@ -2784,7 +2800,7 @@ bool LangValidateImmutableParamAssign() {
 
 bool LangValidateImmutableFieldAssign() {
   const char* src =
-    "Point :: artifact { x :: i32 }"
+    "Point :: class { x :: i32 }"
     "main : () -> void { p : Point = { 1 }; p.x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2793,7 +2809,7 @@ bool LangValidateImmutableFieldAssign() {
 
 bool LangValidateImmutableSelfFieldAssign() {
   const char* src =
-    "Point :: artifact { x :: () -> i32 set : void { self.x = 1; } }";
+    "Point :: class { x :: () -> i32 set : void { self.x = 1; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3009,18 +3025,18 @@ bool LangValidateNamespaceExternManifestAndCall() {
   return Simple::Lang::ValidateProgram(program, &error);
 }
 
-bool LangValidateAssignToArtifactMethodFail() {
+bool LangValidateAssignToAggregateMethodFail() {
   const char* src =
-    "Point :: artifact { x : () -> i32 get : i32 { return x; } }"
+    "Point :: class { x : () -> i32 get : i32 { return x; } }"
     "main : () -> void { p : Point = { 1 }; p.get = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateProcValueRejectsArtifactMethod() {
+bool LangValidateProcValueRejectsAggregateMethod() {
   const char* src =
-    "Point :: artifact { x : i32; get : () -> i32 { return self.x; } }"
+    "Point :: class { x : i32; get : () -> i32 { return self.x; } }"
     "main : () -> void { p : Point = { 1 }; f : fn () -> i32 = p.get; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3038,7 +3054,7 @@ bool LangValidateProcValueRejectsModuleFunction() {
 
 bool LangValidateAssignToSelfMethodFail() {
   const char* src =
-    "Point :: artifact { x : () -> i32 get : i32 { return x; } set : () -> void { self.get = 1; } }";
+    "Point :: class { x : () -> i32 get : i32 { return x; } set : () -> void { self.get = 1; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3069,16 +3085,16 @@ bool LangValidateUnknownModuleMember() {
 
 bool LangValidateMutableFieldAssignOk() {
   const char* src =
-    "Point :: artifact { x : i32 }"
+    "Point :: class { x : i32 }"
     "main : () -> void { p : Point = { 1 }; p.x = 2; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateUnknownArtifactMember() {
+bool LangValidateUnknownAggregateMember() {
   const char* src =
-    "Point :: artifact { x : i32 }"
+    "Point :: class { x : i32 }"
     "main : () -> i32 { p : Point = { 1 }; return p.y; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3092,63 +3108,63 @@ bool LangValidateSelfOutsideMethod() {
   return true;
 }
 
-bool LangValidateArtifactLiteralTooManyPositional() {
+bool LangValidateAggregateLiteralTooManyPositional() {
   const char* src =
-    "Point :: artifact { x : i32 y : i32 }"
+    "Point :: class { x : i32 y : i32 }"
     "main : () -> void { p : Point = { 1, 2, 3 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactLiteralDuplicateNamed() {
+bool LangValidateAggregateLiteralDuplicateNamed() {
   const char* src =
-    "Point :: artifact { x : i32 y : i32 }"
+    "Point :: class { x : i32 y : i32 }"
     "main : () -> void { p : Point = { .x = 1, .x = 2 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactLiteralUnknownField() {
+bool LangValidateAggregateLiteralUnknownField() {
   const char* src =
-    "Point :: artifact { x : i32; y : i32 }"
+    "Point :: class { x : i32; y : i32 }"
     "main : () -> void { p : Point = { .z = 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactLiteralPositionalThenNamedDuplicate() {
+bool LangValidateAggregateLiteralPositionalThenNamedDuplicate() {
   const char* src =
-    "Point :: artifact { x : i32; y : i32 }"
+    "Point :: class { x : i32; y : i32 }"
     "main : () -> void { p : Point = { 1, .x = 2 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactLiteralNamedOk() {
+bool LangValidateAggregateLiteralNamedOk() {
   const char* src =
-    "Point :: artifact { x : i32; y : i32 }"
+    "Point :: class { x : i32; y : i32 }"
     "main : () -> void { p : Point = { .x = 1, .y = 2 }; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactLiteralTypeMismatchPositional() {
+bool LangValidateAggregateLiteralTypeMismatchPositional() {
   const char* src =
-    "Point :: artifact { x : i32; y : i32 }"
+    "Point :: class { x : i32; y : i32 }"
     "main : () -> void { p : Point = { 1, true }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactLiteralTypeMismatchNamed() {
+bool LangValidateAggregateLiteralTypeMismatchNamed() {
   const char* src =
-    "Point :: artifact { x : i32; y : i32 }"
+    "Point :: class { x : i32; y : i32 }"
     "main : () -> void { p : Point = { .y = true }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3231,7 +3247,7 @@ bool LangValidateCallModuleVar() {
 
 bool LangValidateCallMethodArgCount() {
   const char* src =
-    "Point :: artifact { x : () -> i32 get : i32 { return self.x; } }"
+    "Point :: class { x : () -> i32 get : i32 { return self.x; } }"
     "main : () -> i32 { p : Point = { 1 }; return p.get(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3240,7 +3256,7 @@ bool LangValidateCallMethodArgCount() {
 
 bool LangValidateCallFieldAsMethod() {
   const char* src =
-    "Point :: artifact { x : i32 }"
+    "Point :: class { x : i32 }"
     "main : () -> i32 { p : Point = { 1 }; return p.x(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3330,25 +3346,25 @@ bool LangValidateCallFnLiteralOk() {
   return true;
 }
 
-bool LangValidateArtifactMemberRequiresSelfField() {
+bool LangValidateAggregateMemberRequiresSelfField() {
   const char* src =
-    "Point :: artifact { x : i32; get : () -> i32 { return x; } }";
+    "Point :: class { x : i32; get : () -> i32 { return x; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactMemberRequiresSelfMethod() {
+bool LangValidateAggregateMemberRequiresSelfMethod() {
   const char* src =
-    "Point :: artifact { get : () -> i32 { return 1; } use : () -> i32 { return get(); } }";
+    "Point :: class { get : () -> i32 { return 1; } use : () -> i32 { return get(); } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateArtifactMemberSelfOk() {
+bool LangValidateAggregateMemberSelfOk() {
   const char* src =
-    "Point :: artifact { x : i32; get : () -> i32 { return self.x; } use : () -> i32 { return self.get(); } }";
+    "Point :: class { x : i32; get : () -> i32 { return self.x; } use : () -> i32 { return self.get(); } }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3391,7 +3407,7 @@ bool LangValidateFnLiteralAssignNotProcType() {
 
 bool LangValidateFnShorthandAssignAndCallOk() {
   const char* src =
-      "Player :: artifact { position : i32; velocity : i32 }\n"
+      "Player :: class { position : i32; velocity : i32 }\n"
       "main : () -> i32 {\n"
       "  update : fn (p : Player) -> void = (p) { p.position += p.velocity }\n"
       "  player : Player = { 40, 2 }\n"
@@ -3528,7 +3544,7 @@ bool LangValidateAssignExprStatementOk() {
 }
 
 bool LangValidateImmutableBaseFieldAssign() {
-  const char* src = "Point :: artifact { x : i32 } main : () -> void { p :: Point = { 1 }; p.x = 2; }";
+  const char* src = "Point :: class { x : i32 } main : () -> void { p :: Point = { 1 }; p.x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3542,7 +3558,7 @@ bool LangValidateImmutableBaseIndexAssign() {
 }
 
 bool LangValidateImmutableReturnAssign() {
-  const char* src = "Point :: artifact { x : i32 } make :: () -> Point { return { 1 }; } main : () -> void { make().x = 2; }";
+  const char* src = "Point :: class { x : i32 } make :: () -> Point { return { 1 }; } main : () -> void { make().x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3562,29 +3578,29 @@ bool LangValidateCallArgTypeOk() {
   return true;
 }
 
-bool LangValidateGenericArtifactLiteralOk() {
-  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { 1 }; }";
+bool LangValidateGenericAggregateLiteralOk() {
+  const char* src = "Box<T> :: class { value : T } main : () -> void { b : Box<i32> = { 1 }; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
-bool LangValidateGenericArtifactLiteralMismatch() {
-  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { \"hi\" }; }";
+bool LangValidateGenericAggregateLiteralMismatch() {
+  const char* src = "Box<T> :: class { value : T } main : () -> void { b : Box<i32> = { \"hi\" }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericFieldAccessOk() {
-  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { 1 }; x : i32 = b.value; }";
+  const char* src = "Box<T> :: class { value : T } main : () -> void { b : Box<i32> = { 1 }; x : i32 = b.value; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericFieldAccessMismatch() {
-  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { 1 }; x : f64 = b.value; }";
+  const char* src = "Box<T> :: class { value : T } main : () -> void { b : Box<i32> = { 1 }; x : f64 = b.value; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3592,7 +3608,7 @@ bool LangValidateGenericFieldAccessMismatch() {
 
 bool LangValidateGenericMethodReturnOk() {
   const char* src =
-      "Box<T> :: artifact { value : T; get : () -> T { return self.value; } } "
+      "Box<T> :: class { value : T; get : () -> T { return self.value; } } "
       "main : () -> void { b : Box<i32> = { 1 }; x : i32 = b.get(); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3601,7 +3617,7 @@ bool LangValidateGenericMethodReturnOk() {
 
 bool LangValidateGenericMethodReturnMismatch() {
   const char* src =
-      "Box<T> :: artifact { value : T; get : () -> T { return self.value; } } "
+      "Box<T> :: class { value : T; get : () -> T { return self.value; } } "
       "main : () -> void { b : Box<i32> = { 1 }; x : f64 = b.get(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3654,21 +3670,21 @@ bool LangValidateNonGenericCallTypeArgs() {
 }
 
 bool LangValidateGenericTypeArgsMismatch() {
-  const char* src = "Box<T> :: artifact { value : T } main : () -> void { x : Box = { 1 }; }";
+  const char* src = "Box<T> :: class { value : T } main : () -> void { x : Box = { 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericTypeArgsWrongCount() {
-  const char* src = "Box<T> :: artifact { value : T } main : () -> void { x : Box<i32, i32> = { 1 }; }";
+  const char* src = "Box<T> :: class { value : T } main : () -> void { x : Box<i32, i32> = { 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateNonGenericTypeArgs() {
-  const char* src = "Point :: artifact { x : i32 } main : () -> void { p : Point<i32> = { 1 }; }";
+  const char* src = "Point :: class { x : i32 } main : () -> void { p : Point<i32> = { 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3779,9 +3795,9 @@ bool LangValidateListLiteralOk() {
   return true;
 }
 
-bool LangValidateArtifactArrayLiteralOk() {
+bool LangValidateAggregateArrayLiteralOk() {
   const char* src =
-      "Bullet :: artifact { x : i32 } "
+      "Bullet :: class { x : i32 } "
       "main : () -> void { bullets : Bullet{2} = {{1}, {2}}; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -4028,7 +4044,7 @@ const TestCase kLangTests[] = {
   {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
   {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
-  {"lang_validate_extern_recursive_artifact_rejected", LangValidateExternRecursiveArtifactRejected},
+  {"lang_validate_extern_recursive_aggregate_rejected", LangValidateExternRecursiveAggregateRejected},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},
   {"lang_validate_pointer_member_access_ok", LangValidatePointerMemberAccessOk},
   {"lang_validate_pointer_member_requires_pointer", LangValidatePointerMemberRequiresPointer},
@@ -4041,10 +4057,11 @@ const TestCase kLangTests[] = {
   {"lang_external_c_string_literal_context", LangExternalCStringLiteralContext},
   {"lang_external_pointer_contracts_reach_sir", LangExternalPointerContractsReachSir},
   {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
+  {"lang_struct_managed_field_rejected", LangStructManagedFieldRejected},
   {"lang_pointer_null_init_rejected", LangPointerNullInitRejected},
   {"lang_pointer_to_ref_shapes_validate", LangPointerToRefShapesValidate},
   {"lang_validate_address_of_requires_lvalue", LangValidateAddressOfRequiresLValue},
-  {"lang_validate_artifact_default_field_ok", LangValidateArtifactDefaultFieldOk},
+  {"lang_validate_aggregate_default_field_ok", LangValidateAggregateDefaultFieldOk},
   {"lang_validate_module_default_field_ok", LangValidateModuleDefaultFieldOk},
   {"lang_validate_switch_missing_default_rejected", LangValidateSwitchMissingDefaultRejected},
   {"lang_validate_switch_multiple_default_rejected", LangValidateSwitchMultipleDefaultRejected},
@@ -4052,8 +4069,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_ire_serializes_precomputed_sir_lines", LangIreSerializesPrecomputedSirLines},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
-  {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
-  {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},
+  {"lang_nested_aggregate_method_switch_if_chain_runtime", LangNestedAggregateMethodSwitchIfChainRuntime},
+  {"lang_nested_aggregate_method_switch_if_chain_bad_condition", LangNestedAggregateMethodSwitchIfChainBadCondition},
   {"lang_nested_switch_branch_block_local_runtime", LangNestedSwitchBranchBlockLocalRuntime},
   {"lang_nested_switch_branch_preserves_loop_context_runtime", LangNestedSwitchBranchPreservesLoopContextRuntime},
   {"lang_nested_switch_branch_sibling_locals_runtime", LangNestedSwitchBranchSiblingLocalsRuntime},
@@ -4100,10 +4117,11 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_array_assign", LangSimpleFixtureArrayAssign},
   {"lang_simple_fixture_list_index", LangSimpleFixtureListIndex},
   {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
-  {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
+  {"lang_simple_fixture_aggregate_method", LangSimpleFixtureAggregateMethod},
+  {"lang_struct_value_semantics", LangStructValueSemantics},
   {"lang_managed_method_state_interpreter", LangManagedMethodStateInterpreter},
   {"lang_managed_method_state_jit", LangManagedMethodStateJit},
-  {"lang_simple_fixture_artifact_named_init", LangSimpleFixtureArtifactNamedInit},
+  {"lang_simple_fixture_aggregate_named_init", LangSimpleFixtureAggregateNamedInit},
   {"lang_simple_fixture_array_nested", LangSimpleFixtureArrayNested},
   {"lang_simple_fixture_bool_ops", LangSimpleFixtureBoolOps},
   {"lang_simple_fixture_char_compare", LangSimpleFixtureCharCompare},
@@ -4171,8 +4189,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
   {"lang_enum_equality_runtime", LangEnumEqualityRuntime},
   {"lang_enum_ordering_rejected", LangEnumOrderingRejected},
-  {"lang_stress_artifact_method_mutation_runtime", LangStressArtifactMethodMutationRuntime},
-  {"lang_stress_artifact_method_type_strict", LangStressArtifactMethodTypeStrict},
+  {"lang_stress_aggregate_method_mutation_runtime", LangStressAggregateMethodMutationRuntime},
+  {"lang_stress_aggregate_method_type_strict", LangStressAggregateMethodTypeStrict},
   {"lang_stress_procedure_variable_runtime", LangStressProcedureVariableRuntime},
   {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
   {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
@@ -4186,7 +4204,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
   {"lang_stress_procedure_generic_emission_runs", LangStressProcedureGenericEmissionRuns},
   {"lang_generic_function_emission_runs", LangGenericFunctionEmissionRuns},
-  {"lang_generic_artifact_emission_runs", LangGenericArtifactEmissionRuns},
+  {"lang_generic_aggregate_emission_runs", LangGenericAggregateEmissionRuns},
   {"lang_generic_module_function_emission_runs", LangGenericModuleFunctionEmissionRuns},
   {"lang_generic_method_emission_runs", LangGenericMethodEmissionRuns},
   {"lang_tagged_value_emission_runs", LangTaggedValueEmissionRuns},
@@ -4202,8 +4220,8 @@ const TestCase kLangTests[] = {
    LangGenericRejectsContextualFnArgumentMismatch},
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
-  {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},
-  {"lang_stress_type_explicit_artifact_field_fail", LangStressTypeExplicitArtifactFieldFail},
+  {"lang_stress_enum_aggregate_procedure_composition_runtime", LangStressEnumAggregateProcedureCompositionRuntime},
+  {"lang_stress_type_explicit_aggregate_field_fail", LangStressTypeExplicitAggregateFieldFail},
   {"lang_stress_parse_call_member_index_precedence", LangStressParseCallMemberIndexPrecedence},
   {"lang_stress_parse_fn_literal_call_in_call_arg", LangStressParseFnLiteralCallInCallArg},
   {"lang_reject_excessive_expression_nesting", LangRejectExcessiveExpressionNesting},
@@ -4217,7 +4235,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_enum_unknown_member", LangSimpleBadEnumUnknownMember},
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_module_var_access", LangSimpleModuleVarAccess},
-  {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
+  {"lang_simple_bad_self_outside_aggregate", LangSimpleBadSelfOutsideAggregate},
   {"lang_simple_bad_len_invalid_arg", LangSimpleBadLenInvalidArg},
   {"lang_simple_bad_index_non_int", LangSimpleBadIndexNonInt},
   {"lang_simple_bad_assign_to_immutable", LangSimpleBadAssignToImmutable},
@@ -4228,9 +4246,9 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_enum_type_as_value", LangSimpleBadEnumTypeAsValue},
   {"lang_simple_bad_module_as_type", LangSimpleBadModuleAsType},
   {"lang_simple_bad_function_as_type", LangSimpleBadFunctionAsType},
-  {"lang_simple_bad_artifact_member_no_self", LangSimpleBadArtifactMemberNoSelf},
+  {"lang_simple_bad_aggregate_member_no_self", LangSimpleBadAggregateMemberNoSelf},
   {"lang_simple_bad_module_unknown_member", LangSimpleBadModuleUnknownMember},
-  {"lang_simple_bad_artifact_unknown_member", LangSimpleBadArtifactUnknownMember},
+  {"lang_simple_bad_aggregate_unknown_member", LangSimpleBadAggregateUnknownMember},
   {"lang_simple_bad_array_size_mismatch", LangSimpleBadArraySizeMismatch},
   {"lang_simple_bad_array_elem_type_mismatch", LangSimpleBadArrayElemTypeMismatch},
   {"lang_simple_bad_list_elem_type_mismatch", LangSimpleBadListElemTypeMismatch},
@@ -4291,8 +4309,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_list_literal_index", LangSirEmitsListLiteralIndex},
   {"lang_sir_emit_list_assign", LangSirEmitsListAssign},
   {"lang_sir_emit_len", LangSirEmitsLen},
-  {"lang_sir_emit_artifact_literal_member", LangSirEmitsArtifactLiteralAndMember},
-  {"lang_sir_emit_artifact_member_assign", LangSirEmitsArtifactMemberAssign},
+  {"lang_sir_emit_aggregate_literal_member", LangSirEmitsAggregateLiteralAndMember},
+  {"lang_sir_emit_aggregate_member_assign", LangSirEmitsAggregateMemberAssign},
   {"lang_sir_emit_enum_value", LangSirEmitsEnumValue},
   {"lang_sir_emit_fn_literal_call", LangSirEmitsFnLiteralCall},
   {"lang_sir_emit_fn_shorthand_assign_call", LangSirEmitsFnShorthandAssignAndCall},
@@ -4307,12 +4325,12 @@ const TestCase kLangTests[] = {
   {"lang_validate_enum_type_not_value", LangValidateEnumTypeNotValue},
   {"lang_validate_enum_unknown_member", LangValidateEnumUnknownMember},
   {"lang_validate_module_not_value", LangValidateModuleNotValue},
-  {"lang_validate_artifact_type_not_value", LangValidateArtifactTypeNotValue},
+  {"lang_validate_aggregate_type_not_value", LangValidateAggregateTypeNotValue},
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
   {"lang_validate_local_duplicate_same_scope", LangValidateLocalDuplicateSameScope},
   {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},
   {"lang_validate_for_loop_scope", LangValidateForLoopScope},
-  {"lang_validate_artifact_duplicate_member", LangValidateArtifactDuplicateMember},
+  {"lang_validate_aggregate_duplicate_member", LangValidateAggregateDuplicateMember},
   {"lang_validate_module_duplicate_member", LangValidateModuleDuplicateMember},
   {"lang_validate_module_var_no_init", LangValidateModuleVarNoInit},
   {"lang_validate_global_var_no_init", LangValidateGlobalVarNoInit},
@@ -4350,23 +4368,23 @@ const TestCase kLangTests[] = {
   {"lang_reject_unplanned_system_math_import", LangRejectUnplannedSystemMathImport},
   {"lang_reject_unimplemented_standard_duplicate_root_members", LangRejectUnimplementedStandardDuplicateRootMembers},
   {"lang_validate_namespace_extern_manifest_and_call", LangValidateNamespaceExternManifestAndCall},
-  {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
-  {"lang_validate_proc_value_rejects_artifact_method", LangValidateProcValueRejectsArtifactMethod},
+  {"lang_validate_assign_to_aggregate_method_fail", LangValidateAssignToAggregateMethodFail},
+  {"lang_validate_proc_value_rejects_aggregate_method", LangValidateProcValueRejectsAggregateMethod},
   {"lang_validate_proc_value_rejects_module_function", LangValidateProcValueRejectsModuleFunction},
   {"lang_validate_assign_to_self_method_fail", LangValidateAssignToSelfMethodFail},
   {"lang_validate_incdec_immutable_local", LangValidateIncDecImmutableLocal},
   {"lang_validate_incdec_invalid_target", LangValidateIncDecInvalidTarget},
   {"lang_validate_unknown_module_member", LangValidateUnknownModuleMember},
   {"lang_validate_mutable_field_assign_ok", LangValidateMutableFieldAssignOk},
-  {"lang_validate_unknown_artifact_member", LangValidateUnknownArtifactMember},
+  {"lang_validate_unknown_aggregate_member", LangValidateUnknownAggregateMember},
   {"lang_validate_self_outside_method", LangValidateSelfOutsideMethod},
-  {"lang_validate_artifact_literal_too_many_positional", LangValidateArtifactLiteralTooManyPositional},
-  {"lang_validate_artifact_literal_duplicate_named", LangValidateArtifactLiteralDuplicateNamed},
-  {"lang_validate_artifact_literal_unknown_field", LangValidateArtifactLiteralUnknownField},
-  {"lang_validate_artifact_literal_positional_then_named_duplicate", LangValidateArtifactLiteralPositionalThenNamedDuplicate},
-  {"lang_validate_artifact_literal_named_ok", LangValidateArtifactLiteralNamedOk},
-  {"lang_validate_artifact_literal_type_mismatch_positional", LangValidateArtifactLiteralTypeMismatchPositional},
-  {"lang_validate_artifact_literal_type_mismatch_named", LangValidateArtifactLiteralTypeMismatchNamed},
+  {"lang_validate_aggregate_literal_too_many_positional", LangValidateAggregateLiteralTooManyPositional},
+  {"lang_validate_aggregate_literal_duplicate_named", LangValidateAggregateLiteralDuplicateNamed},
+  {"lang_validate_aggregate_literal_unknown_field", LangValidateAggregateLiteralUnknownField},
+  {"lang_validate_aggregate_literal_positional_then_named_duplicate", LangValidateAggregateLiteralPositionalThenNamedDuplicate},
+  {"lang_validate_aggregate_literal_named_ok", LangValidateAggregateLiteralNamedOk},
+  {"lang_validate_aggregate_literal_type_mismatch_positional", LangValidateAggregateLiteralTypeMismatchPositional},
+  {"lang_validate_aggregate_literal_type_mismatch_named", LangValidateAggregateLiteralTypeMismatchNamed},
   {"lang_validate_index_float_literal", LangValidateIndexFloatLiteral},
   {"lang_validate_index_string_literal", LangValidateIndexStringLiteral},
   {"lang_validate_index_literal_base", LangValidateIndexLiteralBase},
@@ -4393,9 +4411,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
   {"lang_validate_fn_shorthand_assign_call_ok", LangValidateFnShorthandAssignAndCallOk},
   {"lang_validate_fn_param_fn_arg_ok", LangValidateFnParamWithFnArgOk},
-  {"lang_validate_artifact_member_requires_self_field", LangValidateArtifactMemberRequiresSelfField},
-  {"lang_validate_artifact_member_requires_self_method", LangValidateArtifactMemberRequiresSelfMethod},
-  {"lang_validate_artifact_member_self_ok", LangValidateArtifactMemberSelfOk},
+  {"lang_validate_aggregate_member_requires_self_field", LangValidateAggregateMemberRequiresSelfField},
+  {"lang_validate_aggregate_member_requires_self_method", LangValidateAggregateMemberRequiresSelfMethod},
+  {"lang_validate_aggregate_member_self_ok", LangValidateAggregateMemberSelfOk},
   {"lang_validate_type_mismatch_var_init", LangValidateTypeMismatchVarInit},
   {"lang_validate_type_mismatch_assign", LangValidateTypeMismatchAssign},
   {"lang_validate_fn_literal_assign_ok", LangValidateFnLiteralAssignOk},
@@ -4418,8 +4436,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_return_assign", LangValidateImmutableReturnAssign},
   {"lang_validate_call_arg_type_mismatch", LangValidateCallArgTypeMismatch},
   {"lang_validate_call_arg_type_ok", LangValidateCallArgTypeOk},
-  {"lang_validate_generic_artifact_literal_ok", LangValidateGenericArtifactLiteralOk},
-  {"lang_validate_generic_artifact_literal_mismatch", LangValidateGenericArtifactLiteralMismatch},
+  {"lang_validate_generic_aggregate_literal_ok", LangValidateGenericAggregateLiteralOk},
+  {"lang_validate_generic_aggregate_literal_mismatch", LangValidateGenericAggregateLiteralMismatch},
   {"lang_validate_generic_field_access_ok", LangValidateGenericFieldAccessOk},
   {"lang_validate_generic_field_access_mismatch", LangValidateGenericFieldAccessMismatch},
   {"lang_validate_generic_method_return_ok", LangValidateGenericMethodReturnOk},
@@ -4447,7 +4465,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_array_literal_scalar_target", LangValidateArrayLiteralScalarTarget},
   {"lang_validate_list_literal_scalar_target", LangValidateListLiteralScalarTarget},
   {"lang_validate_list_literal_ok", LangValidateListLiteralOk},
-  {"lang_validate_artifact_array_literal_ok", LangValidateArtifactArrayLiteralOk},
+  {"lang_validate_aggregate_array_literal_ok", LangValidateAggregateArrayLiteralOk},
   {"lang_validate_switch_assign_requires_return", LangValidateSwitchAssignRequiresReturn},
   {"lang_switch_assign_runtime", LangSwitchAssignRuntime},
   {"lang_switch_expr_runtime", LangSwitchExprRuntime},

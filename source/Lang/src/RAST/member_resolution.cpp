@@ -73,24 +73,24 @@ const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name
   return nullptr;
 }
 
-const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name) {
-  if (!artifact) return nullptr;
-  for (const auto& field : artifact->fields) {
+const VarDecl* FindAggregateField(const AggregateDecl* aggregate, const std::string& name) {
+  if (!aggregate) return nullptr;
+  for (const auto& field : aggregate->fields) {
     if (field.name == name) return &field;
   }
   return nullptr;
 }
 
-const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name) {
-  if (!artifact) return nullptr;
-  for (const auto& method : artifact->methods) {
+const FuncDecl* FindAggregateMethod(const AggregateDecl* aggregate, const std::string& name) {
+  if (!aggregate) return nullptr;
+  for (const auto& method : aggregate->methods) {
     if (method.name == name) return &method;
   }
   return nullptr;
 }
 
-bool IsArtifactMemberName(const ArtifactDecl* artifact, const std::string& name) {
-  return FindArtifactField(artifact, name) || FindArtifactMethod(artifact, name);
+bool IsAggregateMemberName(const AggregateDecl* aggregate, const std::string& name) {
+  return FindAggregateField(aggregate, name) || FindAggregateMethod(aggregate, name);
 }
 
 MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_kind) {
@@ -98,10 +98,10 @@ MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_ki
     case SymbolKind::ModuleVariable:
     case SymbolKind::ModuleFunction:
       return MemberRefKind::ModuleMember;
-    case SymbolKind::ArtifactField:
-      return MemberRefKind::ArtifactField;
-    case SymbolKind::ArtifactMethod:
-      return MemberRefKind::ArtifactMethod;
+    case SymbolKind::AggregateField:
+      return MemberRefKind::AggregateField;
+    case SymbolKind::AggregateMethod:
+      return MemberRefKind::AggregateMethod;
     case SymbolKind::EnumMember:
       return MemberRefKind::EnumMember;
     case SymbolKind::Extern:
@@ -111,8 +111,8 @@ MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_ki
   }
 }
 
-SymbolId FindArtifactSymbol(const ResolvedProgram* out, const std::string& name) {
-  return FindQualifiedSymbol(out, name, SymbolKind::Artifact);
+SymbolId FindAggregateSymbol(const ResolvedProgram* out, const std::string& name) {
+  return FindQualifiedSymbol(out, name, SymbolKind::Aggregate);
 }
 
 void AddResolvedMemberRef(ResolvedProgram* out,
@@ -157,58 +157,58 @@ struct TypeEnv {
 
 void ResolveExprMemberRefs(ResolvedProgram* out,
                            const Expr& expr,
-                           const std::string& current_artifact,
+                           const std::string& current_aggregate,
                            TypeEnv& types);
 
 void ResolveStmtBlockMemberRefs(ResolvedProgram* out,
                                 const std::vector<Stmt>& stmts,
-                                const std::string& current_artifact,
+                                const std::string& current_aggregate,
                                 TypeEnv types);
 
 void ResolveStmtMemberRefs(ResolvedProgram* out,
                            const Stmt& stmt,
-                           const std::string& current_artifact,
+                           const std::string& current_aggregate,
                            TypeEnv& types) {
   if (stmt.kind == StmtKind::VarDecl) {
-    if (stmt.var_decl.has_init_expr) ResolveExprMemberRefs(out, stmt.var_decl.init_expr, current_artifact, types);
+    if (stmt.var_decl.has_init_expr) ResolveExprMemberRefs(out, stmt.var_decl.init_expr, current_aggregate, types);
     if (!stmt.var_decl.type.name.empty()) types.types[stmt.var_decl.name] = stmt.var_decl.type.name;
     std::string manifest_module;
     if (stmt.var_decl.has_init_expr && GetDlOpenManifestModule(out, stmt.var_decl.init_expr, &manifest_module)) {
       types.dl_modules[stmt.var_decl.name] = manifest_module;
     }
   } else if (stmt.kind == StmtKind::Assign) {
-    ResolveExprMemberRefs(out, stmt.target, current_artifact, types);
-    ResolveExprMemberRefs(out, stmt.expr, current_artifact, types);
+    ResolveExprMemberRefs(out, stmt.target, current_aggregate, types);
+    ResolveExprMemberRefs(out, stmt.expr, current_aggregate, types);
   } else if (stmt.kind == StmtKind::Expr || (stmt.kind == StmtKind::Return && stmt.has_return_expr)) {
-    ResolveExprMemberRefs(out, stmt.expr, current_artifact, types);
+    ResolveExprMemberRefs(out, stmt.expr, current_aggregate, types);
   } else if (stmt.kind == StmtKind::IfChain) {
     for (const auto& branch : stmt.if_branches) {
-      ResolveExprMemberRefs(out, branch.first, current_artifact, types);
-      ResolveStmtBlockMemberRefs(out, branch.second, current_artifact, types);
+      ResolveExprMemberRefs(out, branch.first, current_aggregate, types);
+      ResolveStmtBlockMemberRefs(out, branch.second, current_aggregate, types);
     }
-    ResolveStmtBlockMemberRefs(out, stmt.else_branch, current_artifact, types);
+    ResolveStmtBlockMemberRefs(out, stmt.else_branch, current_aggregate, types);
   } else if (stmt.kind == StmtKind::IfStmt) {
-    ResolveExprMemberRefs(out, stmt.if_cond, current_artifact, types);
-    ResolveStmtBlockMemberRefs(out, stmt.if_then, current_artifact, types);
-    ResolveStmtBlockMemberRefs(out, stmt.if_else, current_artifact, types);
+    ResolveExprMemberRefs(out, stmt.if_cond, current_aggregate, types);
+    ResolveStmtBlockMemberRefs(out, stmt.if_then, current_aggregate, types);
+    ResolveStmtBlockMemberRefs(out, stmt.if_else, current_aggregate, types);
   } else if (stmt.kind == StmtKind::WhileLoop) {
-    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact, types);
-    ResolveStmtBlockMemberRefs(out, stmt.loop_body, current_artifact, types);
+    ResolveExprMemberRefs(out, stmt.loop_cond, current_aggregate, types);
+    ResolveStmtBlockMemberRefs(out, stmt.loop_body, current_aggregate, types);
   } else if (stmt.kind == StmtKind::ForLoop) {
     TypeEnv for_types = types;
     if (stmt.has_loop_var_decl && !stmt.loop_var_decl.type.name.empty()) {
       for_types.types[stmt.loop_var_decl.name] = stmt.loop_var_decl.type.name;
     }
-    ResolveExprMemberRefs(out, stmt.loop_iter, current_artifact, for_types);
-    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact, for_types);
-    ResolveExprMemberRefs(out, stmt.loop_step, current_artifact, for_types);
-    ResolveStmtBlockMemberRefs(out, stmt.loop_body, current_artifact, for_types);
+    ResolveExprMemberRefs(out, stmt.loop_iter, current_aggregate, for_types);
+    ResolveExprMemberRefs(out, stmt.loop_cond, current_aggregate, for_types);
+    ResolveExprMemberRefs(out, stmt.loop_step, current_aggregate, for_types);
+    ResolveStmtBlockMemberRefs(out, stmt.loop_body, current_aggregate, for_types);
   }
 }
 
 void ResolveExprMemberRefs(ResolvedProgram* out,
                            const Expr& expr,
-                           const std::string& current_artifact,
+                           const std::string& current_aggregate,
                            TypeEnv& types) {
   if (expr.kind == ExprKind::Member && expr.op == "." && !expr.children.empty()) {
     const Expr& base = expr.children[0];
@@ -216,10 +216,10 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
     std::string receiver_type;
     SymbolId receiver_symbol = kInvalidSymbolId;
     MemberRefKind kind = MemberRefKind::Unknown;
-    if (base.kind == ExprKind::Identifier && base.text == "self" && !current_artifact.empty()) {
-      qualified = current_artifact + "." + expr.text;
-      receiver_type = current_artifact;
-      receiver_symbol = FindArtifactSymbol(out, receiver_type);
+    if (base.kind == ExprKind::Identifier && base.text == "self" && !current_aggregate.empty()) {
+      qualified = current_aggregate + "." + expr.text;
+      receiver_type = current_aggregate;
+      receiver_symbol = FindAggregateSymbol(out, receiver_type);
       kind = MemberRefKind::SelfMember;
     } else if (base.kind == ExprKind::Identifier) {
       auto dl_it = types.dl_modules.find(base.text);
@@ -231,8 +231,8 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
         if (type_it != types.types.end()) {
           qualified = type_it->second + "." + expr.text;
           receiver_type = type_it->second;
-          receiver_symbol = FindArtifactSymbol(out, receiver_type);
-          kind = MemberRefKind::ArtifactMember;
+          receiver_symbol = FindAggregateSymbol(out, receiver_type);
+          kind = MemberRefKind::AggregateMember;
         } else {
           qualified = base.text + "." + expr.text;
           kind = MemberRefKind::StaticMember;
@@ -285,36 +285,36 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
       }
     }
   }
-  for (const auto& child : expr.children) ResolveExprMemberRefs(out, child, current_artifact, types);
-  for (const auto& arg : expr.args) ResolveExprMemberRefs(out, arg, current_artifact, types);
-  for (const auto& value : expr.field_values) ResolveExprMemberRefs(out, value, current_artifact, types);
+  for (const auto& child : expr.children) ResolveExprMemberRefs(out, child, current_aggregate, types);
+  for (const auto& arg : expr.args) ResolveExprMemberRefs(out, arg, current_aggregate, types);
+  for (const auto& value : expr.field_values) ResolveExprMemberRefs(out, value, current_aggregate, types);
   if (expr.kind == ExprKind::Switch) {
     for (const auto& branch : expr.switch_branches) {
       if (!branch.is_default && branch.pattern_kind == SwitchPatternKind::None) {
-        ResolveExprMemberRefs(out, branch.condition, current_artifact, types);
+        ResolveExprMemberRefs(out, branch.condition, current_aggregate, types);
       }
-      if (branch.has_inline_value) ResolveExprMemberRefs(out, branch.value, current_artifact, types);
-      ResolveStmtBlockMemberRefs(out, branch.block, current_artifact, types);
+      if (branch.has_inline_value) ResolveExprMemberRefs(out, branch.value, current_aggregate, types);
+      ResolveStmtBlockMemberRefs(out, branch.block, current_aggregate, types);
     }
   }
 }
 
 void ResolveStmtBlockMemberRefs(ResolvedProgram* out,
                                 const std::vector<Stmt>& stmts,
-                                const std::string& current_artifact,
+                                const std::string& current_aggregate,
                                 TypeEnv types) {
-  for (const auto& stmt : stmts) ResolveStmtMemberRefs(out, stmt, current_artifact, types);
+  for (const auto& stmt : stmts) ResolveStmtMemberRefs(out, stmt, current_aggregate, types);
 }
 
 void ResolveFunctionMemberRefs(ResolvedProgram* out,
                                const FuncDecl& fn,
-                               const std::string& current_artifact,
+                               const std::string& current_aggregate,
                                const TypeEnv& globals) {
   TypeEnv types = globals;
   for (const auto& param : fn.params) {
     if (!param.type.name.empty()) types.types[param.name] = param.type.name;
   }
-  ResolveStmtBlockMemberRefs(out, fn.body, current_artifact, std::move(types));
+  ResolveStmtBlockMemberRefs(out, fn.body, current_aggregate, std::move(types));
 }
 
 TypeEnv CollectGlobalMemberEnv(ResolvedProgram* out) {
@@ -342,9 +342,9 @@ void ResolveProgramMemberRefs(ResolvedProgram* out) {
   for (const auto& decl : out->program->decls) {
     if (decl.kind == DeclKind::Function) {
       ResolveFunctionMemberRefs(out, decl.func, {}, globals);
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) {
-        ResolveFunctionMemberRefs(out, method, decl.artifact.name, globals);
+    } else if (decl.kind == DeclKind::Aggregate) {
+      for (const auto& method : decl.aggregate.methods) {
+        ResolveFunctionMemberRefs(out, method, decl.aggregate.name, globals);
       }
     } else if (decl.kind == DeclKind::Module) {
       for (const auto& fn : decl.module.functions) ResolveFunctionMemberRefs(out, fn, {}, globals);

@@ -1,0 +1,107 @@
+Inner :: struct {
+  value : i32
+}
+
+Outer :: struct {
+  inner : Inner
+  count : i32
+}
+
+Box :: class {
+  value : i32
+}
+
+GenericValue<T> :: struct {
+  value : T
+}
+
+identity<T> :: (value : T) -> T {
+  return value
+}
+
+asyncIdentity :: async (value : Outer) -> Outer {
+  return value
+}
+
+fromOptional :: (candidate : Outer?) -> Outer {
+  return switch (candidate) {
+    { value } => return value
+    {} => { zero : Outer; return zero }
+  }
+}
+
+fromResult :: (candidate : Result<Outer, i32>) -> Outer {
+  return switch (candidate) {
+    { .value = value } => return value
+    { .error = error } => { zero : Outer; return zero }
+  }
+}
+
+globalValue : Outer = { { 3 }, 4 }
+globalZero : Outer
+
+main :: async () -> i32 {
+  first : Outer = { { 1 }, 2 }
+  second : Outer = first
+  second.inner.value = 9
+  second.count = 8
+  if (first.inner.value != 1 || first.count != 2) { return 1 }
+  if (second.inner.value != 9 || second.count != 8) { return 2 }
+
+  returned : Outer = identity<Outer>(second)
+  awaited : Outer = await asyncIdentity(first)
+  awaited.count = 30
+  if (first.count != 2 || awaited.count != 30) { return 12 }
+  returned.count = 7
+  if (second.count != 8 || returned.count != 7) { return 3 }
+
+  values : Outer[] = [first]
+  extracted : Outer = values[0]
+  extracted.inner.value = 6
+  if (values[0].inner.value != 1 || extracted.inner.value != 6) { return 4 }
+
+  fixed : Outer{1} = { first }
+  fixedValue : Outer = fixed[0]
+  fixedValue.count = 12
+  if (fixed[0].count != 2 || fixedValue.count != 12) { return 5 }
+
+  fromGlobal : Outer = globalValue
+  fromGlobal.count = 10
+  if (globalValue.count != 4 || fromGlobal.count != 10) { return 6 }
+
+  zero : Outer
+  if (zero.inner.value != 0 || zero.count != 0 ||
+      globalZero.inner.value != 0 || globalZero.count != 0) { return 7 }
+
+  same : Outer = first
+  if (same != first) { return 8 }
+  same.inner.value = 2
+  if (same == first) { return 9 }
+
+  optional : Outer? = { first }
+  optionalValue : Outer = fromOptional(optional)
+  optionalValue.count = 21
+  if (first.count != 2 || optionalValue.count != 21) { return 14 }
+
+  result : Result<Outer, i32> = { .value = first }
+  resultValue : Outer = fromResult(result)
+  resultValue.count = 22
+  if (first.count != 2 || resultValue.count != 22) { return 15 }
+
+  captured : Outer = first
+  getter : fn () -> Outer = () { return captured }
+  closureValue : Outer = getter()
+  closureValue.count = 20
+  if (captured.count != 2 || closureValue.count != 20) { return 10 }
+
+  genericA : GenericValue<i32> = { 40 }
+  genericB : GenericValue<i32> = genericA
+  genericB.value = 42
+  if (genericA.value != 40 || genericB.value != 42) { return 13 }
+
+  classA : Box = { 1 }
+  classB : Box = classA
+  classB.value = 5
+  if (classA.value != 5) { return 11 }
+  return 0
+}

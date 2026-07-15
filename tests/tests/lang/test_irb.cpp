@@ -29,7 +29,7 @@ bool LangSplitIrbBuildsModule() {
 
 bool LangIrbIrePipelineEmitsRunnableSir() {
   const char* src =
-      "Box :: artifact {\n"
+      "Box :: class {\n"
       "  v : i32\n"
       "  score : () -> i32 { return self.v + 40; }\n"
       "}\n"
@@ -46,11 +46,11 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
   if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
-  if (module.ir.artifact_layouts.size() != 1) return false;
-  if (module.ir.artifact_layouts[0].name != "Box") return false;
-  if (module.ir.artifact_layouts[0].fields.size() != 1) return false;
-  if (module.ir.artifact_layouts[0].fields[0].name != "v") return false;
-  if (module.ir.artifact_layouts[0].fields[0].type.name != "i32") return false;
+  if (module.ir.aggregate_layouts.size() != 1) return false;
+  if (module.ir.aggregate_layouts[0].name != "Box") return false;
+  if (module.ir.aggregate_layouts[0].fields.size() != 1) return false;
+  if (module.ir.aggregate_layouts[0].fields[0].name != "v") return false;
+  if (module.ir.aggregate_layouts[0].fields[0].type.name != "i32") return false;
   bool saw_main_stack = false;
   for (const auto& stack : module.ir.stack_infos) {
     if (stack.function == "main" && stack.locals > 0 && stack.max_stack > 0) saw_main_stack = true;
@@ -87,7 +87,7 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
          module.ir.functions[0].blocks.size() == 1 &&
          module.ir.functions[0].blocks[0].instructions.size() == 2 &&
          module.ir.functions[0].signature.result.name == "i32" &&
-         module.ir.artifact_layouts.empty();
+         module.ir.aggregate_layouts.empty();
 }
 
 
@@ -131,8 +131,8 @@ bool LangIrbCollectsAllocationMetadata() {
 
 bool LangIrbCollectsAbiFlatteningMetadata() {
   const char* src =
-      "Inner :: artifact { x : i32; y : i32 }\n"
-      "Outer :: artifact { inner : Inner; z : f64 }\n"
+      "Inner :: class { x : i32; y : i32 }\n"
+      "Outer :: class { inner : Inner; z : f64 }\n"
       "main : () -> i32 { return 0; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
@@ -158,7 +158,7 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
 
 bool LangIrbIreKeepsSirOutputStable() {
   const char* src =
-      "Box :: artifact { v : i32; score : () -> i32 { return self.v + 40; } }\n"
+      "Box :: class { v : i32; score : () -> i32 { return self.v + 40; } }\n"
       "main : () -> i32 { b : Box = { 2 }; return b.score(); }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;

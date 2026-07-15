@@ -69,7 +69,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | Status | Section id | Name | Row/payload | Purpose |
 |:---:|---:|---|---|---|
 | ✅ | `1` | `Types` | `TypeRow` | type metadata |
-| ✅ | `2` | `Fields` | `FieldRow` | object/artifact field metadata |
+| ✅ | `2` | `Fields` | `FieldRow` | object/class field metadata |
 | ✅ | `3` | `Methods` | `MethodRow` | callable method metadata |
 | ✅ | `4` | `Sigs` | `SigRow` plus param type list | function signatures |
 | ✅ | `5` | `ConstPool` | tagged variable payloads | constants and strings |
@@ -114,10 +114,10 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `26` | `ISize` | `isize` | checked host pointer-width signed integer |
 | ✅ | `27` | `USize` | `usize` | checked host pointer-width unsigned integer |
 
-SBC v7 retains structural optional/Result, managed async layouts, pointer-width
-integer identities, and verifier-visible external pointer contracts while adding
-the verified `ConstCStr` operation for immutable contextual external-C string
-literals.
+SBC v8 retains structural optional/Result, managed async layouts, pointer-width
+integer identities, verifier-visible external pointer contracts, and `ConstCStr`.
+It replaces managed-class/stable-struct metadata identities and preserves nested
+struct field type information required for recursive copy and equality.
 `MakeFuture` carries function id and argument count; `Await` carries the result
 type id needed for exact verifier stack and GC maps. No compatibility aliases or
 old-opcode translations remain.
@@ -128,7 +128,7 @@ old-opcode translations remain.
 |:---:|---|---|
 | ✅ | `SbcHeader` | `magic`, `version`, `endian`, `flags`, `section_count`, `section_table_offset`, `entry_method_id`, reserved words |
 | ✅ | `SectionEntry` | `id`, `offset`, `size`, `count` |
-| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `reserved`, `size`, `field_start`, `field_count`; `0x01` managed artifact, `0x02` stable data, `0x04` opaque handle, and pointer-only flags `0x08` read-only, `0x10` nullable, `0x20` function pointer, `0x40` borrowed, `0x80` external-C; external and borrowed must occur together; opaque handles store their resource kind in `reserved` |
+| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `reserved`, `size`, `field_start`, `field_count`; `0x01` managed class, `0x02` stable struct, `0x04` opaque handle, and pointer-only flags `0x08` read-only, `0x10` nullable, `0x20` function pointer, `0x40` borrowed, `0x80` external-C; external and borrowed must occur together; opaque handles store their resource kind in `reserved` |
 | ✅ | `FieldRow` | `name_str`, `type_id`, `offset`, `flags` |
 | ✅ | `MethodRow` | `name_str`, `sig_id`, `code_offset`, `local_count`, `flags` |
 | ✅ | `SigRow` | `ret_type_id`, `param_count`, `call_conv`, `param_type_start` |
@@ -158,14 +158,14 @@ old-opcode translations remain.
 | Status | Area | Contract |
 |:---:|---|---|
 | ✅ | magic | `SBC0` / `0x30434253` |
-| ✅ | version | current binary version `0x0007` |
+| ✅ | version | current binary version `0x0008` |
 | ✅ | endian | loader validates header endian marker |
 | ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
 
-SBC v7 is intentionally incompatible with v6 because contextual C-string
-constants add a verifier-visible operation. The loader rejects older modules
-instead of applying a compatibility translation. Opcode metadata is version `6`;
-the corresponding runtime ABI is `1.7`.
+SBC v8 is intentionally incompatible with v7 because class/struct identity and
+nested value metadata changed. The loader rejects older modules instead of
+applying a compatibility translation. Opcode metadata remains version `6`; the
+corresponding runtime ABI is `1.8`.
 
 ## Opcodes
 

@@ -80,7 +80,7 @@ bool CliLocalUsingImportDoesNotReachValidator() {
   if (ec) return false;
   {
     std::ofstream lib(dir / "lib.simple");
-    lib << "module Lib\nFoo :: artifact { x : i32 }\n";
+    lib << "module Lib\nFoo :: class { x : i32 }\n";
   }
   {
     std::ofstream main(dir / "main.simple");

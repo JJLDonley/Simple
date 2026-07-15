@@ -1,6 +1,6 @@
 module Tests.Stress.BinaryTrees
 
-Node :: artifact {
+Node :: class {
   left : i32
   right : i32
   item : i32

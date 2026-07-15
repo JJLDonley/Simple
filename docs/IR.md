@@ -53,7 +53,7 @@ Representative shape:
 
 ```txt
 types:
-  type Point kind=data size=16
+  type Point kind=struct size=16
   field x i32 offset=0
   field y i32 offset=4
 
@@ -113,7 +113,7 @@ blank         = { whitespace } ;
 
 | Status | Section | Syntax | Meaning | SBC target |
 |:---:|---|---|---|---|
-| ✅ | types | `type <name> kind=<kind> size=<bytes>` | Defines a type row; `kind=data` preserves declared field layout, while `kind=artifact` is managed VM layout. | `TypeRow` |
+| ✅ | types | `type <name> kind=<kind> size=<bytes>` | Defines a type row; `kind=struct` identifies stable value layout, while `kind=class` identifies managed VM reference layout. | `TypeRow` |
 | ✅ | types | `field <name> <type> offset=<bytes>` | Adds a field to the preceding type. | `FieldRow` |
 | ✅ | sigs | `sig <name>: (<param>, ...) -> <ret>` | Defines a callable signature. | `SigRow` plus param type list |
 | ✅ | consts | `const <name> <kind> <value>` | Defines a constant-pool value. | const pool |
@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `2.5`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `3.0`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -153,7 +153,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 | ✅ | `bool` | `Bool` / `14` | 1 | boolean |
 | ✅ | `char` | `Char` / `15` | 2 | UTF/code-unit scalar in current bytecode |
 | ✅ | `string` | `String` / `16` | ref | string reference |
-| ✅ | object/data type name | `Ref` or row kind | declared | resolved by `types:` rows; `kind=data` uses stable field offsets |
+| ✅ | object/data type name | `Ref` or row kind | declared | resolved by `types:` rows; `kind=struct` uses stable field offsets |
 | ✅ | `void` | `Void` / `17` | 0 | no-result signature spelling / metadata type |
 | ✅ | `never` | `Never` / `18` | 0 | non-returning metadata type |
 | ✅ | `ptr` | `Ptr` / `19` | word | VM pointer value via `kind=ptr` |

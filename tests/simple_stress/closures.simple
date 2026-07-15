@@ -1,15 +1,15 @@
 module Tests.Stress.Closures
 
-Box :: artifact {
+Box :: class {
   value : i32
 }
 
-ClosurePair :: artifact {
+ClosurePair :: class {
   increment : fn () -> i32
   addTen : fn () -> i32
 }
 
-Counter :: artifact {
+Counter :: class {
   value : i32
 
   makeIncrementer :: () -> fn () -> i32 {

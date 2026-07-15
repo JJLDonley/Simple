@@ -216,7 +216,7 @@ The `v0.5.2` public worker boundary permits only:
 - copied host-owned failure strings;
 - cancellation flags and generational promise identity.
 
-VM references, strings, arrays, bytes, artifacts, closures, raw heap pointers, and other resource handles do not cross to worker threads. `spawnFailed` copies its input string before creating the worker, and `error` creates a new VM-owned string when queried. Workers never access the VM heap and never invoke Simple code. This restriction keeps GC roots and VM frame ownership on the executing VM thread.
+VM references, strings, arrays, bytes, classes, closures, raw heap pointers, and other resource handles do not cross to worker threads. `spawnFailed` copies its input string before creating the worker, and `error` creates a new VM-owned string when queried. Workers never access the VM heap and never invoke Simple code. This restriction keeps GC roots and VM frame ownership on the executing VM thread.
 
 The internal promise registry can identify reference payloads for future rooted execution, but that capability is not exposed by the `v0.5.2` job API.
 

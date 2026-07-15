@@ -23,23 +23,23 @@ IrType ToIrType(const Simple::Lang::AST::TypeRef& type) {
   return out;
 }
 
-const Simple::Lang::AST::ArtifactDecl* FindArtifact(const Simple::Lang::AST::Program& program,
+const Simple::Lang::AST::AggregateDecl* FindAggregate(const Simple::Lang::AST::Program& program,
                                                      const std::string& name) {
   for (const auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact && decl.artifact.name == name) {
-      return &decl.artifact;
+    if (decl.kind == Simple::Lang::AST::DeclKind::Aggregate && decl.aggregate.name == name) {
+      return &decl.aggregate;
     }
   }
   return nullptr;
 }
 
 void CollectAbiFields(const Simple::Lang::AST::Program& program,
-                      const Simple::Lang::AST::ArtifactDecl& artifact,
+                      const Simple::Lang::AST::AggregateDecl& aggregate,
                       const std::string& prefix,
                       std::vector<IrAbiField>* out) {
   if (!out) return;
-  for (const auto& field : artifact.fields) {
-    const auto* nested = FindArtifact(program, field.type.name);
+  for (const auto& field : aggregate.fields) {
+    const auto* nested = FindAggregate(program, field.type.name);
     if (nested && field.type.pointer_depth == 0 && field.type.dims.empty()) {
       CollectAbiFields(program, *nested, prefix + field.name + ".", out);
       continue;
@@ -172,29 +172,29 @@ void PopulateAllocationsFromSir(const std::string& sir, IrModule* out) {
   }
 }
 
-void PopulateArtifactLayouts(const Simple::Lang::AST::Program& program, IrModule* out) {
+void PopulateAggregateLayouts(const Simple::Lang::AST::Program& program, IrModule* out) {
   if (!out) return;
-  out->artifact_layouts.clear();
+  out->aggregate_layouts.clear();
   out->abi_types.clear();
   for (const auto& decl : program.decls) {
-    if (decl.kind != Simple::Lang::AST::DeclKind::Artifact) continue;
-    IrArtifactLayout layout;
-    layout.name = decl.artifact.name;
-    layout.is_data = decl.artifact.is_data;
-    layout.fields.reserve(decl.artifact.fields.size());
-    for (size_t i = 0; i < decl.artifact.fields.size(); ++i) {
-      const auto& field = decl.artifact.fields[i];
-      IrArtifactField ir_field;
+    if (decl.kind != Simple::Lang::AST::DeclKind::Aggregate) continue;
+    IrAggregateLayout layout;
+    layout.name = decl.aggregate.name;
+    layout.is_struct = decl.aggregate.is_struct;
+    layout.fields.reserve(decl.aggregate.fields.size());
+    for (size_t i = 0; i < decl.aggregate.fields.size(); ++i) {
+      const auto& field = decl.aggregate.fields[i];
+      IrAggregateField ir_field;
       ir_field.name = field.name;
       ir_field.type = ToIrType(field.type);
       ir_field.index = static_cast<uint32_t>(i);
       layout.fields.push_back(std::move(ir_field));
     }
-    out->artifact_layouts.push_back(std::move(layout));
+    out->aggregate_layouts.push_back(std::move(layout));
 
     IrAbiType abi;
-    abi.name = decl.artifact.name + "$abi";
-    CollectAbiFields(program, decl.artifact, {}, &abi.fields);
+    abi.name = decl.aggregate.name + "$abi";
+    CollectAbiFields(program, decl.aggregate, {}, &abi.fields);
     out->abi_types.push_back(std::move(abi));
   }
 }
@@ -232,7 +232,7 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
   if (!Simple::Lang::IRE::EmitSir(*lowering_program, &out->sir_text, error)) return false;
   PopulateSirLines(out->sir_text, &out->sir_lines);
   PopulateAllocationsFromSir(out->sir_text, &out->ir);
-  PopulateArtifactLayouts(*lowering_program, &out->ir);
+  PopulateAggregateLayouts(*lowering_program, &out->ir);
   return true;
 }
 

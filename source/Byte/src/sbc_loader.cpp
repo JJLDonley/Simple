@@ -22,6 +22,14 @@ std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
 
 namespace {
 
+uint32_t FieldStorageWidth(const TypeRow& type) {
+  if (static_cast<TypeKind>(type.kind) == TypeKind::Unspecified &&
+      (IsManagedClassType(type) || IsStableStructType(type))) {
+    return 4;
+  }
+  return type.size;
+}
+
 bool ReadU8At(const std::vector<uint8_t>& bytes, size_t offset, uint8_t* out) {
   if (offset + 1 > bytes.size()) return false;
   *out = bytes[offset];
@@ -215,7 +223,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         return Fail("pointer contract flags require external pointer");
       }
       const uint8_t layout_flags = static_cast<uint8_t>(row.flags &
-          (kTypeFlagManagedArtifact | kTypeFlagStableData | kTypeFlagOpaqueHandle));
+          (kTypeFlagManagedClass | kTypeFlagStableStruct | kTypeFlagOpaqueHandle));
       if (layout_flags != 0u && (layout_flags & static_cast<uint8_t>(layout_flags - 1u)) != 0u) {
         return Fail("type layout flags conflict");
       }
@@ -262,8 +270,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           break;
         case TypeKind::Result:
         case TypeKind::Optional:
-          if (!IsManagedArtifactType(row)) {
-            return Fail("tagged type must use managed artifact layout");
+          if (!IsManagedClassType(row)) {
+            return Fail("tagged type must use managed class layout");
           }
           break;
         case TypeKind::Vector:
@@ -680,7 +688,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         if (field.offset >= row.size) return Fail("field offset out of bounds");
         if (field.type_id < module.types.size()) {
           const auto& field_type = module.types[field.type_id];
-          if (field_type.size > 0 && field.offset + field_type.size > row.size) {
+          const uint32_t width = FieldStorageWidth(field_type);
+          if (width > 0 && field.offset + width > row.size) {
             return Fail("field size out of bounds");
           }
         }
@@ -803,8 +812,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     const auto& row = module.fields[i];
     if (row.type_id >= module.types.size()) return Fail("field type id out of range");
     const auto& field_type = module.types[row.type_id];
-    if (field_type.size > 0) {
-      uint32_t align = field_type.size;
+    const uint32_t width = FieldStorageWidth(field_type);
+    if (width > 0) {
+      uint32_t align = width;
       if (align == 2 || align == 4 || align == 8 || align == 16) {
         if (row.offset % align != 0) return Fail("field offset misaligned");
       }

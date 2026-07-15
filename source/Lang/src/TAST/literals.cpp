@@ -45,54 +45,54 @@ bool CheckFormatPlaceholderCount(const std::string& fmt,
   return true;
 }
 
-bool CheckArtifactLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
+bool CheckAggregateLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
                                          size_t field_count,
                                          std::string* error) {
   if (expr.children.size() > field_count) {
-    if (error) *error = "too many positional values in artifact literal";
+    if (error) *error = "too many positional values in aggregate literal";
     return false;
   }
   return true;
 }
 
-bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
+bool CheckAggregateLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
                                               std::string* error) {
   std::unordered_set<std::string> seen;
   for (const auto& name : expr.field_names) {
     if (!seen.insert(name).second) {
-      if (error) *error = "duplicate named field in artifact literal: " + name;
+      if (error) *error = "duplicate named field in aggregate literal: " + name;
       return false;
     }
   }
   return true;
 }
 
-bool CheckArtifactLiteralFieldSpecifiedOnce(const std::string& field_name,
+bool CheckAggregateLiteralFieldSpecifiedOnce(const std::string& field_name,
                                             const std::unordered_set<std::string>& seen,
                                             std::string* error) {
   if (seen.find(field_name) != seen.end()) {
-    if (error) *error = "field specified twice in artifact literal: " + field_name;
+    if (error) *error = "field specified twice in aggregate literal: " + field_name;
     return false;
   }
   return true;
 }
 
-bool CheckArtifactLiteralKnownField(const std::string& field_name,
+bool CheckAggregateLiteralKnownField(const std::string& field_name,
                                     const std::unordered_set<std::string>& valid_fields,
                                     std::string* error) {
   if (valid_fields.find(field_name) == valid_fields.end()) {
-    if (error) *error = "unknown artifact field: " + field_name;
+    if (error) *error = "unknown aggregate field: " + field_name;
     return false;
   }
   return true;
 }
 
-bool CheckArtifactLiteralRequiredField(const std::string& field_name,
+bool CheckAggregateLiteralRequiredField(const std::string& field_name,
                                        bool has_init_expr,
                                        const std::unordered_set<std::string>& seen,
                                        std::string* error) {
   if (seen.find(field_name) == seen.end() && !has_init_expr) {
-    if (error) *error = "missing artifact field: " + field_name;
+    if (error) *error = "missing aggregate field: " + field_name;
     return false;
   }
   return true;
@@ -213,7 +213,7 @@ bool CheckArrayLiteralShape(const Simple::Lang::AST::Expr& expr,
 
 bool IsPositionalBraceLiteralExpr(const Simple::Lang::AST::Expr& expr) {
   if (expr.kind == ExprKind::ArrayLiteral) return true;
-  if (expr.kind != ExprKind::ArtifactLiteral) return false;
+  if (expr.kind != ExprKind::AggregateLiteral) return false;
   return expr.field_names.empty() && expr.field_values.empty();
 }
 

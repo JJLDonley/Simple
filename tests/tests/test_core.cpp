@@ -15795,15 +15795,15 @@ bool RunHeapLayoutHelpersTest() {
   static_assert(Simple::VM::HeapLayout::ArrayElementOffset(3, 4) == 16);
   static_assert(Simple::VM::HeapLayout::ListPayloadSize(4, 4) == 24);
   static_assert(Simple::VM::HeapLayout::ListElementOffset(3, 4) == 20);
-  static_assert(Simple::VM::HeapLayout::ArtifactPayloadSize(12) == 12);
-  static_assert(Simple::VM::HeapLayout::ArtifactFieldOffset(8) == 8);
+  static_assert(Simple::VM::HeapLayout::AggregatePayloadSize(12) == 12);
+  static_assert(Simple::VM::HeapLayout::AggregateFieldOffset(8) == 8);
   static_assert(Simple::VM::HeapLayout::ClosurePayloadSize(2) == 16);
   static_assert(Simple::VM::HeapLayout::ClosureUpvalueOffset(1) == 12);
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::String)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Bytes)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Array)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::List)) return false;
-  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Artifact)) return false;
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Aggregate)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Closure)) return false;
   return Simple::VM::HeapLayout::kNullRef == 0u;
 }
@@ -16166,16 +16166,16 @@ bool RunNativeTimeModuleTest() {
 }
 
 bool RunCompatibilityVersionConstantsTest() {
-  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 3);
-  static_assert(Simple::Lang::kSirVersionMajor == 2);
+  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 4);
+  static_assert(Simple::Lang::kSirVersionMajor == 3);
   static_assert(Simple::Lang::kStdlibVersionMajor == 2);
-  static_assert(Simple::Byte::kSbcVersion == 0x0007u);
+  static_assert(Simple::Byte::kSbcVersion == 0x0008u);
   static_assert(Simple::Byte::kOpcodeMetadataVersion == 6);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 1 &&
-         Simple::Lang::kSirVersionMinor == 5 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 0 &&
+         Simple::Lang::kSirVersionMinor == 0 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
-         Simple::VM::kRuntimeAbiVersionMinor == 7;
+         Simple::VM::kRuntimeAbiVersionMinor == 8;
 }
 
 bool RunOpcodeOperandWidthMetadataTest() {
@@ -16423,7 +16423,7 @@ bool RunOpaqueHandleTypeMetadataLoadTest() {
     return false;
   }
 
-  handle.flags = Simple::Byte::kTypeFlagOpaqueHandle | Simple::Byte::kTypeFlagStableData;
+  handle.flags = Simple::Byte::kTypeFlagOpaqueHandle | Simple::Byte::kTypeFlagStableStruct;
   handle.reserved = 1;
   const std::vector<uint8_t> conflict_types =
       Simple::Byte::sbc::BuildTypeSection({scalar, handle});
@@ -19858,22 +19858,22 @@ bool RunScratchArenaPoisonTest() {
   return true;
 }
 
-bool RunHeapArrayArtifactRefTraceTest() {
+bool RunHeapArrayAggregateRefTraceTest() {
   Simple::VM::Heap heap;
   uint32_t text = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
-  uint32_t artifact = heap.Allocate(Simple::VM::ObjectKind::Artifact, 1, 4);
+  uint32_t aggregate = heap.Allocate(Simple::VM::ObjectKind::Aggregate, 1, 4);
   uint32_t array = heap.Allocate(Simple::VM::ObjectKind::Array, 1, 8);
   uint32_t dead = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
-  auto* artifact_obj = heap.Get(artifact);
+  auto* aggregate_obj = heap.Get(aggregate);
   auto* array_obj = heap.Get(array);
-  if (!artifact_obj || !array_obj) return false;
-  WriteU32Payload(artifact_obj->payload, 0, text);
+  if (!aggregate_obj || !array_obj) return false;
+  WriteU32Payload(aggregate_obj->payload, 0, text);
   WriteU32Payload(array_obj->payload, 0, 1);
-  WriteU32Payload(array_obj->payload, 4, artifact);
+  WriteU32Payload(array_obj->payload, 4, aggregate);
   heap.ResetMarks();
   heap.Mark(array);
   heap.Sweep();
-  return heap.Get(array) != nullptr && heap.Get(artifact) != nullptr &&
+  return heap.Get(array) != nullptr && heap.Get(aggregate) != nullptr &&
          heap.Get(text) != nullptr && heap.Get(dead) == nullptr;
 }
 
@@ -20310,7 +20310,7 @@ static const TestCase kCoreTests[] = {
   {"scratch_align", RunScratchArenaAlignmentTest},
   {"scratch_scope_enforced", RunScratchScopeEnforcedTest},
   {"scratch_poison", RunScratchArenaPoisonTest},
-  {"heap_array_artifact_ref_trace", RunHeapArrayArtifactRefTraceTest},
+  {"heap_array_aggregate_ref_trace", RunHeapArrayAggregateRefTraceTest},
   {"heap_closure_mark", RunHeapClosureMarkTest},
   {"gc_stress", RunGcStressTest},
   {"gc_vm_stress", RunGcVmStressTest},

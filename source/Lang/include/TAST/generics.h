@@ -14,7 +14,7 @@ using GenericSubstitutionMap = std::unordered_map<std::string, Simple::Lang::AST
 enum class GenericDeclarationKind {
   Function,
   Data,
-  Artifact,
+  Aggregate,
   Method,
 };
 
@@ -42,8 +42,8 @@ bool ApplyTypeSubstitution(Simple::Lang::AST::TypeRef* type,
 bool SubstituteTypeParams(const Simple::Lang::AST::TypeRef& src,
                           const GenericSubstitutionMap& substitutions,
                           Simple::Lang::AST::TypeRef* out);
-bool BuildArtifactTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
-                               const Simple::Lang::AST::ArtifactDecl* artifact,
+bool BuildAggregateTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
+                               const Simple::Lang::AST::AggregateDecl* aggregate,
                                GenericSubstitutionMap* out,
                                std::string* error);
 bool BuildExplicitTypeArgMap(const std::vector<std::string>& type_params,

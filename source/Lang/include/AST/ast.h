@@ -94,7 +94,7 @@ enum class ExprKind : uint8_t {
   Index,
   ArrayLiteral,
   ListLiteral,
-  ArtifactLiteral,
+  AggregateLiteral,
   FnLiteral,
   Switch,
 };
@@ -197,17 +197,17 @@ struct FuncDecl {
   std::vector<Stmt> body;
 };
 
-enum class TaggedArtifactKind : uint8_t {
+enum class TaggedAggregateKind : uint8_t {
   None,
   Optional,
   Result,
 };
 
-struct ArtifactDecl {
+struct AggregateDecl {
   std::string name;
   std::vector<std::string> generics;
-  bool is_data = false;
-  TaggedArtifactKind tagged_kind = TaggedArtifactKind::None;
+  bool is_struct = false;
+  TaggedAggregateKind tagged_kind = TaggedAggregateKind::None;
   std::vector<VarDecl> fields;
   std::vector<FuncDecl> methods;
 };
@@ -257,7 +257,7 @@ enum class DeclKind : uint8_t {
   Extern,
   Function,
   Variable,
-  Artifact,
+  Aggregate,
   Module,
   Enum,
 };
@@ -269,7 +269,7 @@ struct Decl {
   ExternDecl ext;
   FuncDecl func;
   VarDecl var;
-  ArtifactDecl artifact;
+  AggregateDecl aggregate;
   ModuleDecl module;
   EnumDecl enm;
 };
@@ -295,8 +295,8 @@ using Stmt = Simple::Lang::Stmt;
 using SwitchPatternKind = Simple::Lang::SwitchPatternKind;
 using SwitchBranch = Simple::Lang::SwitchBranch;
 using FuncDecl = Simple::Lang::FuncDecl;
-using TaggedArtifactKind = Simple::Lang::TaggedArtifactKind;
-using ArtifactDecl = Simple::Lang::ArtifactDecl;
+using TaggedAggregateKind = Simple::Lang::TaggedAggregateKind;
+using AggregateDecl = Simple::Lang::AggregateDecl;
 using ModuleDecl = Simple::Lang::ModuleDecl;
 using EnumMember = Simple::Lang::EnumMember;
 using EnumDecl = Simple::Lang::EnumDecl;

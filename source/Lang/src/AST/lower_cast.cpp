@@ -105,9 +105,9 @@ void CollectFnLiteralDecls(const std::vector<Decl>& decls, std::vector<Normalize
       CollectFnLiteralStmts(decl.func.body, out);
     } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
       CollectFnLiteralExpr(decl.var.init_expr, decl.var.name, &decl.var.type, out);
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) CollectFnLiteralStmts(method.body, out);
-      for (const auto& field : decl.artifact.fields) {
+    } else if (decl.kind == DeclKind::Aggregate) {
+      for (const auto& method : decl.aggregate.methods) CollectFnLiteralStmts(method.body, out);
+      for (const auto& field : decl.aggregate.fields) {
         if (field.has_init_expr) CollectFnLiteralExpr(field.init_expr, field.name, &field.type, out);
       }
     } else if (decl.kind == DeclKind::Module) {
@@ -150,8 +150,8 @@ void CollectLoopDecls(const std::vector<Decl>& decls, std::vector<NormalizedLoop
   for (const auto& decl : decls) {
     if (decl.kind == DeclKind::Function) {
       CollectLoopStmts(decl.func.body, out);
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) CollectLoopStmts(method.body, out);
+    } else if (decl.kind == DeclKind::Aggregate) {
+      for (const auto& method : decl.aggregate.methods) CollectLoopStmts(method.body, out);
     } else if (decl.kind == DeclKind::Module) {
       for (const auto& fn : decl.module.functions) CollectLoopStmts(fn.body, out);
     }
@@ -182,8 +182,8 @@ void CollectIfChainDecls(const std::vector<Decl>& decls, std::vector<NormalizedI
   for (const auto& decl : decls) {
     if (decl.kind == DeclKind::Function) {
       CollectIfChainStmts(decl.func.body, out);
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) CollectIfChainStmts(method.body, out);
+    } else if (decl.kind == DeclKind::Aggregate) {
+      for (const auto& method : decl.aggregate.methods) CollectIfChainStmts(method.body, out);
     } else if (decl.kind == DeclKind::Module) {
       for (const auto& fn : decl.module.functions) CollectIfChainStmts(fn.body, out);
     }
@@ -328,9 +328,9 @@ void CollectSwitchDecls(const std::vector<Decl>& decls, std::vector<NormalizedSw
       CollectSwitchStmts(decl.func.body, out);
     } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
       CollectSwitchExpr(decl.var.init_expr, out);
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) CollectSwitchStmts(method.body, out);
-      for (const auto& field : decl.artifact.fields) {
+    } else if (decl.kind == DeclKind::Aggregate) {
+      for (const auto& method : decl.aggregate.methods) CollectSwitchStmts(method.body, out);
+      for (const auto& field : decl.aggregate.fields) {
         if (field.has_init_expr) CollectSwitchExpr(field.init_expr, out);
       }
     } else if (decl.kind == DeclKind::Module) {
@@ -400,9 +400,9 @@ void CollectExprShapeDecls(const std::vector<Decl>& decls, std::vector<Normalize
       CollectExprShapeStmts(decl.func.body, out);
     } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
       CollectExprShapeExpr(decl.var.init_expr, out);
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) CollectExprShapeStmts(method.body, out);
-      for (const auto& field : decl.artifact.fields) {
+    } else if (decl.kind == DeclKind::Aggregate) {
+      for (const auto& method : decl.aggregate.methods) CollectExprShapeStmts(method.body, out);
+      for (const auto& field : decl.aggregate.fields) {
         if (field.has_init_expr) CollectExprShapeExpr(field.init_expr, out);
       }
     } else if (decl.kind == DeclKind::Module) {

@@ -175,7 +175,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         return ValType::Ptr;
       case TypeKind::Unspecified:
         if (IsOpaqueHandleType(row)) return ValType::I64;
-        if (IsManagedArtifactType(row) || IsStableDataType(row)) return ValType::Ref;
+        if (IsManagedClassType(row) || IsStableStructType(row)) return ValType::Ref;
         return ValType::Unknown;
       default:
         return ValType::Unknown;

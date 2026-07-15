@@ -13,7 +13,7 @@ ProcessError :: enum {
   IoFailed
 }
 
-ProcessResult :: artifact {
+ProcessResult :: class {
   exitCode :: i32
   stdout :: i32[]
   stderr :: i32[]
