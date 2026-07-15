@@ -1,0 +1,5 @@
+main :: () -> i32 {
+  text : string = "managed"
+  pointer : u8* = @u8*(text)
+  return 0
+}

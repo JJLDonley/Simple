@@ -34,7 +34,7 @@ EnumPacket :: struct {
 }
 
 extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32
-extern ffi.simple_cstr_length : (text :: u8*) -> i32
+extern ffi.simple_u8_length : (text :: u8*) -> i32
 extern ffi.simple_bool_not : (value :: bool) -> bool
 extern ffi.simple_apply_i32 : (callback :: (fn (i32, i32) -> i32)*, a : i32, b : i32) -> i32
 extern ffi.simple_add_i8 : (a : i8, b : i8) -> i8
@@ -67,8 +67,10 @@ main :: () -> i32 {
   if (library == 0) { return 0 }
 
   if (library.simple_add_i32(64, 64) != 128) { return 0 }
-  if (library.simple_cstr_length("This string is a title") != 22) { return 0 }
-  if (library.simple_cstr_length("é") != 2) { return 0 }
+  if (library.simple_u8_length("This string is a title") != 22) { return 0 }
+  if (library.simple_u8_length("é") != 2) { return 0 }
+  managed_text : string = "managed UTF-8 é"
+  if (library.simple_u8_length(@u8*(managed_text)) != 16) { return 0 }
   if (!library.simple_bool_not(false)) { return 0 }
   if (library.simple_bool_not(true)) { return 0 }
   if (library.simple_add_i8(60, 7) != 67) { return 0 }

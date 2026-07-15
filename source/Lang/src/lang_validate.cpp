@@ -76,6 +76,13 @@ bool IsRawPointerShape(const TypeRef& type) {
   return optional_value && optional_value->pointer_depth > 0;
 }
 
+bool IsExternalU8StringCastShape(const Expr& expr) {
+  return expr.kind == ExprKind::Call && expr.cast_type.name == "u8" &&
+         expr.cast_type.pointer_depth == 1 && !expr.cast_type.is_proc &&
+         expr.cast_type.type_args.empty() && expr.cast_type.dims.empty() &&
+         expr.args.size() == 1;
+}
+
 bool IsFunctionPointerShape(const TypeRef& type) {
   if (type.pointer_depth > 0) return type.is_proc;
   const TypeRef* optional_value = TAST::OptionalValueType(type);
@@ -2302,22 +2309,52 @@ bool CheckCallArgTypes(const Expr& call_expr,
   for (size_t i = 0; i < info.params.size() && i < call_expr.args.size(); ++i) {
     TypeRef expected;
     if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
-    const bool c_string_literal =
+    const bool external_u8_literal =
         info.is_external_c && call_expr.args[i].kind == ExprKind::Literal &&
         call_expr.args[i].literal_kind == LiteralKind::String &&
         expected.name == "u8" && expected.pointer_depth == 1 &&
         expected.dims.empty() && !expected.is_optional_syntax;
-    if (c_string_literal) {
+    if (external_u8_literal) {
       if (i >= info.param_mutabilities.size() ||
           info.param_mutabilities[i] != Mutability::Immutable) {
-        if (error) *error = "C string literal requires an immutable external u8 pointer parameter";
+        if (error) *error = "external u8 string literal requires an immutable external u8 pointer parameter";
         return false;
       }
       if (call_expr.args[i].text.find('\0') != std::string::npos) {
-        if (error) *error = "C string literal cannot contain an embedded NUL byte";
+        if (error) *error = "external u8 string literal cannot contain an embedded NUL byte";
         return false;
       }
       continue;
+    }
+    const bool external_u8_conversion =
+        info.is_external_c && IsExternalU8StringCastShape(call_expr.args[i]) &&
+        expected.name == "u8" &&
+        expected.pointer_depth == 1 && expected.type_args.empty() &&
+        expected.dims.empty() && !expected.is_optional_syntax;
+    if (external_u8_conversion) {
+      if (i >= info.param_mutabilities.size() ||
+          info.param_mutabilities[i] != Mutability::Immutable) {
+        if (error) {
+          *error = "managed string conversion requires an immutable external u8 pointer parameter";
+        }
+        return false;
+      }
+      TypeRef string_type;
+      string_type.name = "string";
+      if (!ValidateExprAgainstExpected(call_expr.args[i].args[0], string_type,
+                                       ctx, scopes, current_aggregate, error)) {
+        return false;
+      }
+      if (call_expr.args[i].args[0].kind == ExprKind::Literal &&
+          call_expr.args[i].args[0].literal_kind == LiteralKind::String &&
+          call_expr.args[i].args[0].text.find('\0') != std::string::npos) {
+        if (error) *error = "external u8 string conversion cannot contain an embedded NUL byte";
+        return false;
+      }
+      continue;
+    }
+    if (IsExternalU8StringCastShape(call_expr.args[i])) {
+      return CheckExpr(call_expr.args[i], ctx, scopes, current_aggregate, error);
     }
     TypeRef actual;
     if (!InferExprType(call_expr.args[i], ctx, scopes, current_aggregate, &actual)) {
@@ -3889,6 +3926,7 @@ bool CheckExpr(const Expr& expr,
       }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_aggregate, error)) return false;
       for (const auto& arg : expr.args) {
+        if (IsExternalU8StringCastShape(arg)) continue;
         if (!CheckExpr(arg, ctx, scopes, current_aggregate, error)) return false;
       }
       if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_aggregate, error)) return false;

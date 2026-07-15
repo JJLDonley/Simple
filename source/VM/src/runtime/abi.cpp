@@ -215,7 +215,7 @@ AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind) {
 
 AbiTypeInfo GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind kind) {
   switch (kind) {
-    case AbiExternalWrapperKind::CString:
+    case AbiExternalWrapperKind::NullTerminatedU8:
       return AbiTypeInfo{AbiClass::Scalar, 8, 8, true, true};
     case AbiExternalWrapperKind::StringView:
     case AbiExternalWrapperKind::BytesView:

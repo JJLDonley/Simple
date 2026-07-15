@@ -5,7 +5,7 @@
 
 namespace Simple::Byte {
 
-constexpr uint16_t kOpcodeMetadataVersion = 6;
+constexpr uint16_t kOpcodeMetadataVersion = 7;
 
 enum class ExtendedOpCode : uint16_t {
   CheckedAddI32 = 1,
@@ -151,7 +151,8 @@ enum class ExtendedOpCode : uint16_t {
   VecXor = 147,
   CancelFuture = 148,
   PtrNull = 149,
-  ConstCStr = 150,
+  ConstExternalU8 = 150,
+  StringToExternalU8 = 151,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

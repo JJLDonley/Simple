@@ -126,7 +126,7 @@ blank         = { whitespace } ;
 | ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `3.0`. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `3.2`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -834,6 +834,7 @@ String-specific operations.
 | ✅ | `0x15` | `string.compare` | `none` | `StringCompare` |  |
 | ✅ | `0x16` | `string.find` | `none` | `StringFind` |  |
 | ✅ | `ext 56` | `string.to.bytes` | `none` | `Ext.StringToBytes` | converts string ref to byte-list ref |
+| ✅ | `ext 151` | `string.to.external.u8` | `none` | `Ext.StringToExternalU8` | validates UTF-8/NUL and creates call-duration external `u8*` storage |
 | ✅ | `ext 57` | `bytes.to.string` | `none` | `Ext.BytesToString` | converts byte-list ref to string ref |
 
 ### Pointer and memory

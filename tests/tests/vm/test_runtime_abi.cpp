@@ -1,8 +1,10 @@
 #include "test_utils.h"
 
 #include "ffi/dl_call.h"
+#include "heap.h"
 #include "native/registry.h"
 #include "runtime/abi.h"
+#include "runtime/external_u8.h"
 #include "runtime/promise.h"
 #include "runtime/type_identity.h"
 
@@ -417,16 +419,16 @@ bool VmRuntimeAbiAcceptsExplicitExternalWrappers() {
   using Simple::VM::Runtime::GetExternalCAbiWrapperTypeInfo;
   using Simple::VM::Runtime::ValidateExternalCAbiTypeInfos;
 
-  const auto c_string = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::CString);
+  const auto external_u8 = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::NullTerminatedU8);
   const auto string_view = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::StringView);
   const auto bytes_view = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::BytesView);
   std::string error;
-  return c_string.abi_class == AbiClass::Scalar && c_string.size == 8 && c_string.align == 8 &&
-         GetAbiParameterPassMode(c_string) == AbiPassMode::Direct &&
+  return external_u8.abi_class == AbiClass::Scalar && external_u8.size == 8 && external_u8.align == 8 &&
+         GetAbiParameterPassMode(external_u8) == AbiPassMode::Direct &&
          string_view.abi_class == AbiClass::Aggregate && string_view.size == 16 &&
          string_view.align == 8 && bytes_view.abi_class == AbiClass::Aggregate &&
          bytes_view.size == 16 && bytes_view.align == 8 &&
-         ValidateExternalCAbiTypeInfos({c_string, string_view, bytes_view}, c_string, &error) &&
+         ValidateExternalCAbiTypeInfos({external_u8, string_view, bytes_view}, external_u8, &error) &&
          error.empty();
 }
 
@@ -646,9 +648,9 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
     return false;
   }
 
-  auto cstring = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 2});
-  if (cstring.abi_valid || cstring.vm_marshal_supported ||
-      cstring.reason.find("unsupported VM marshal type") == std::string::npos) {
+  auto managed_string = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {4, 2});
+  if (managed_string.abi_valid || managed_string.vm_marshal_supported ||
+      managed_string.reason.find("unsupported VM marshal type") == std::string::npos) {
     return false;
   }
 
@@ -758,6 +760,32 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
          !ref_layout.external_ffi_callable;
 }
 
+bool VmRuntimeAbiBuildsScopedExternalU8Strings() {
+  Heap heap;
+  const uint32_t valid_handle = CreateString(
+      heap, std::u16string{u'm', u'a', u'n', u'a', u'g', u'e', u'd', u' ',
+                          static_cast<char16_t>(0xC3),
+                          static_cast<char16_t>(0xA9)});
+  const uint32_t nul_handle = CreateString(
+      heap, std::u16string{u'b', u'a', u'd', 0, u't', u'e', u'x', u't'});
+  const uint32_t invalid_handle = CreateString(
+      heap, std::u16string{static_cast<char16_t>(0xC3), u'x'});
+  std::string value;
+  std::string error;
+  if (!Runtime::BuildExternalU8String(heap.Get(valid_handle), &value, &error) ||
+      value != "managed \xC3\xA9") {
+    return false;
+  }
+  if (Runtime::BuildExternalU8String(heap.Get(nul_handle), &value, &error) ||
+      error.find("embedded NUL") == std::string::npos) {
+    return false;
+  }
+  error.clear();
+  return !Runtime::BuildExternalU8String(
+             heap.Get(invalid_handle), &value, &error) &&
+         error.find("invalid UTF-8") != std::string::npos;
+}
+
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_mangles_generic_symbols", VmRuntimeAbiManglesGenericSymbols},
   {"vm_runtime_abi_builds_canonical_type_identities", VmRuntimeAbiBuildsCanonicalTypeIdentities},
@@ -773,6 +801,8 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_builds_result_and_optional_values", VmRuntimeAbiBuildsResultAndOptionalValues},
   {"vm_runtime_abi_classifies_pass_modes", VmRuntimeAbiClassifiesPassModes},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
+  {"vm_runtime_abi_builds_scoped_external_u8_strings",
+   VmRuntimeAbiBuildsScopedExternalU8Strings},
   {"vm_runtime_abi_marks_opaque_vm_references", VmRuntimeAbiMarksOpaqueVmReferences},
   {"vm_runtime_abi_accepts_explicit_external_wrappers", VmRuntimeAbiAcceptsExplicitExternalWrappers},
   {"vm_runtime_abi_validates_external_c_signatures", VmRuntimeAbiValidatesExternalCSignatures},

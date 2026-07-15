@@ -55,7 +55,7 @@ enum class AbiPassMode {
 };
 
 enum class AbiExternalWrapperKind {
-  CString,
+  NullTerminatedU8,
   StringView,
   BytesView,
 };

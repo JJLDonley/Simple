@@ -893,9 +893,19 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
-          case Simple::Byte::ExtendedOpCode::ConstCStr: {
+          case Simple::Byte::ExtendedOpCode::ConstExternalU8: {
             ValType id = pop_type();
-            VerifyResult r = check_type(id, ValType::I32, "CONST_CSTR id type mismatch");
+            VerifyResult r = check_type(id, ValType::I32, "CONST_EXTERNAL_U8 id type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ptr);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::StringToExternalU8: {
+            ValType string_ref = pop_type();
+            VerifyResult r = check_type(
+                string_ref, ValType::Ref,
+                "STRING_TO_EXTERNAL_U8 string type mismatch");
             if (!r.ok) return r;
             push_type(ValType::Ptr);
             pc = next;

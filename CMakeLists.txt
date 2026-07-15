@@ -147,6 +147,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/time.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/abi.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/execution_stats.cpp
+  ${SIMPLEVM_VM_ROOT}/src/runtime/external_u8.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/import_dispatch.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/print_any.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/promise.cpp

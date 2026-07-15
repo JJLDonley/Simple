@@ -1099,10 +1099,15 @@ bool EmitExternalNullablePointerReturn(EmitState& st,
   return true;
 }
 
-bool IsExternalCStringLiteral(const Expr& expr, const TypeRef& expected);
-bool EmitExternalCStringLiteral(EmitState& st,
+bool IsExternalU8StringLiteral(const Expr& expr, const TypeRef& expected);
+bool EmitExternalU8StringLiteral(EmitState& st,
                                 const Expr& expr,
                                 std::string* error);
+bool IsExternalU8StringConversion(const Expr& expr,
+                                  const TypeRef& expected);
+bool EmitExternalU8StringConversion(EmitState& st,
+                                    const Expr& expr,
+                                    std::string* error);
 
 bool EmitDynamicDlCall(EmitState& st,
                        const Expr& handle,
@@ -1172,8 +1177,10 @@ bool EmitDynamicDlCall(EmitState& st,
     }
     if (abi_param) {
       if (!EmitAbiPackAggregateArg(st, args[i], params[i], *abi_param, error)) return false;
-    } else if (IsExternalCStringLiteral(args[i], params[i])) {
-      if (!EmitExternalCStringLiteral(st, args[i], error)) return false;
+    } else if (IsExternalU8StringLiteral(args[i], params[i])) {
+      if (!EmitExternalU8StringLiteral(st, args[i], error)) return false;
+    } else if (IsExternalU8StringConversion(args[i], params[i])) {
+      if (!EmitExternalU8StringConversion(st, args[i], error)) return false;
     } else if (ExternalNullablePointerValueType(params[i], st)) {
       if (!EmitExternalNullablePointerArgument(st, args[i], params[i], error)) return false;
     } else {
@@ -2163,23 +2170,43 @@ bool InferBinaryOperandTypes(const Expr& expr,
   return true;
 }
 
-bool IsExternalCStringLiteral(const Expr& expr, const TypeRef& expected) {
+bool IsExternalU8StringLiteral(const Expr& expr, const TypeRef& expected) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::String &&
          expected.name == "u8" && expected.pointer_depth == 1 &&
          expected.dims.empty() && !expected.is_optional_syntax;
 }
 
-bool EmitExternalCStringLiteral(EmitState& st,
+bool EmitExternalU8StringLiteral(EmitState& st,
                                 const Expr& expr,
                                 std::string* error) {
   if (expr.text.find('\0') != std::string::npos) {
-    if (error) *error = "C string literal cannot contain an embedded NUL byte";
+    if (error) *error = "external u8 string literal cannot contain an embedded NUL byte";
     return false;
   }
   std::string name;
   if (!AddStringConst(st, expr.text, &name)) return false;
-  (*st.out) << "  const cstr " << name << "\n";
+  (*st.out) << "  const external.u8 " << name << "\n";
   return PushStack(st, 1);
+}
+
+bool IsExternalU8StringConversion(const Expr& expr,
+                                  const TypeRef& expected) {
+  return expr.kind == ExprKind::Call && expr.cast_type.name == "u8" &&
+         expr.cast_type.pointer_depth == 1 && !expr.cast_type.is_proc &&
+         expr.cast_type.type_args.empty() && expr.cast_type.dims.empty() &&
+         expr.args.size() == 1 && expected.name == "u8" &&
+         expected.pointer_depth == 1 && expected.type_args.empty() &&
+         expected.dims.empty() && !expected.is_optional_syntax;
+}
+
+bool EmitExternalU8StringConversion(EmitState& st,
+                                    const Expr& expr,
+                                    std::string* error) {
+  TypeRef string_type;
+  string_type.name = "string";
+  if (!EmitExpr(st, expr.args[0], &string_type, error)) return false;
+  (*st.out) << "  string.to.external.u8\n";
+  return true;
 }
 
 bool EmitConstForType(EmitState& st,
@@ -4331,8 +4358,10 @@ bool EmitExpr(EmitState& st,
                 }
                 if (abi_param) {
                   if (!EmitAbiPackAggregateArg(st, expr.args[i], params[i], *abi_param, error)) return false;
-                } else if (IsExternalCStringLiteral(expr.args[i], params[i])) {
-                  if (!EmitExternalCStringLiteral(st, expr.args[i], error)) return false;
+                } else if (IsExternalU8StringLiteral(expr.args[i], params[i])) {
+                  if (!EmitExternalU8StringLiteral(st, expr.args[i], error)) return false;
+                } else if (IsExternalU8StringConversion(expr.args[i], params[i])) {
+                  if (!EmitExternalU8StringConversion(st, expr.args[i], error)) return false;
                 } else if (ExternalNullablePointerValueType(params[i], st)) {
                   if (!EmitExternalNullablePointerArgument(
                           st, expr.args[i], params[i], error)) return false;
@@ -4605,8 +4634,10 @@ bool EmitExpr(EmitState& st,
             }
             if (abi_param) {
               if (!EmitAbiPackAggregateArg(st, expr.args[i], params[i], *abi_param, error)) return false;
-            } else if (IsExternalCStringLiteral(expr.args[i], params[i])) {
-              if (!EmitExternalCStringLiteral(st, expr.args[i], error)) return false;
+            } else if (IsExternalU8StringLiteral(expr.args[i], params[i])) {
+              if (!EmitExternalU8StringLiteral(st, expr.args[i], error)) return false;
+            } else if (IsExternalU8StringConversion(expr.args[i], params[i])) {
+              if (!EmitExternalU8StringConversion(st, expr.args[i], error)) return false;
             } else if (ExternalNullablePointerValueType(params[i], st)) {
               if (!EmitExternalNullablePointerArgument(st, expr.args[i], params[i], error)) return false;
             } else {

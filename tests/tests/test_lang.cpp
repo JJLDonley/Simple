@@ -1009,7 +1009,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 3.1\n", 0) == 0 &&
+  return sir.rfind("sir version 3.2\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2359,6 +2359,8 @@ bool LangPointerLifetimeAndOperationErrors() {
       {"tests/simple_bad/extern_pointer_cast_mismatch.simple", "pointer cast requires identical pointee type or void pointer"},
       {"tests/simple_bad/pointer_index_unbounded.simple", "pointer indexing requires proven VM extent"},
       {"tests/simple_bad/extern_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
+      {"tests/simple_bad/extern_u8_string_conversion_mutable.simple", "managed string conversion requires an immutable external u8 pointer parameter"},
+      {"tests/simple_bad/extern_u8_string_conversion_escape.simple", "pointer cast requires matching pointer depth"},
       {"tests/simple_bad/extern_optional_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
       {"tests/simple_bad/extern_struct_pointer_mutability.simple", "mutable external pointer parameter requires mutable pointee provenance"},
       {"tests/simple_bad/extern_pointer_return_escape.simple", "cannot return borrowed external pointer"},
@@ -2376,20 +2378,29 @@ bool LangPointerLifetimeAndOperationErrors() {
   return true;
 }
 
-bool LangExternalCStringLiteralContext() {
+bool LangExternalU8StringLiteralContext() {
   const char* valid =
       "extern ffi.measure : (text :: u8*) -> i32\n"
       "main :: () -> i32 { return ffi.measure(\"This string is a title\") }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(valid, &sir, &error)) return false;
-  if (sir.find("const cstr") == std::string::npos) return false;
+  if (sir.find("const external.u8") == std::string::npos) return false;
+
+  const char* managed =
+      "extern ffi.measure : (text :: u8*) -> i32\n"
+      "main :: () -> i32 { text : string = \"managed\"; "
+      "return ffi.measure(@u8*(text)) }\n";
+  if (!Simple::Lang::IRE::EmitSirFromString(managed, &sir, &error) ||
+      sir.find("string.to.external.u8") == std::string::npos) {
+    return false;
+  }
 
   const char* mutable_param =
       "extern ffi.mutate : (text : u8*) -> void\n"
       "main :: () -> void { ffi.mutate(\"immutable\") }\n";
   if (Simple::Lang::ValidateProgramFromString(mutable_param, &error)) return false;
-  return error.find("C string literal requires an immutable external u8 pointer parameter") !=
+  return error.find("external u8 string literal requires an immutable external u8 pointer parameter") !=
          std::string::npos;
 }
 
@@ -4073,7 +4084,7 @@ const TestCase kLangTests[] = {
   {"lang_pointer_deref_parses", LangPointerDerefParses},
   {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
   {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
-  {"lang_external_c_string_literal_context", LangExternalCStringLiteralContext},
+  {"lang_external_u8_string_literal_context", LangExternalU8StringLiteralContext},
   {"lang_external_pointer_contracts_reach_sir", LangExternalPointerContractsReachSir},
   {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
   {"lang_struct_managed_field_rejected", LangStructManagedFieldRejected},

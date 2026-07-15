@@ -1898,7 +1898,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return t == "i8" || t == "i16" || t == "i32" || t == "i64" ||
                t == "u8" || t == "u16" || t == "u32" || t == "u64" ||
                t == "isize" || t == "usize" || t == "f32" || t == "f64" || t == "bool" || t == "char" ||
-               t == "string" || t == "cstr" || t == "ref" || t == "null";
+               t == "string" || t == "external.u8" || t == "ref" || t == "null";
       };
       auto has_legacy_typed_suffix = [&](const std::string& mnemonic) {
         const std::vector<std::string> prefixes = {
@@ -2745,7 +2745,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConstChar(static_cast<uint16_t>(value));
         continue;
       }
-      if (op == "const.string" || op == "const.cstr") {
+      if (op == "const.string" || op == "const.external.u8") {
         uint32_t const_id = 0;
         if (args.size() != 1 || !resolve_const_string_id(args[0], &const_id)) {
           return fail(op + " expects const_id");
@@ -2754,7 +2754,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           builder.EmitConstString(const_id);
         } else {
           builder.EmitConstI32(static_cast<int32_t>(const_id));
-          builder.EmitExtended(Simple::Byte::ExtendedOpCode::ConstCStr);
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::ConstExternalU8);
         }
         continue;
       }
@@ -4005,6 +4005,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op == "string.to.bytes") {
         if (!args.empty()) return fail("string.to.bytes expects no operands");
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::StringToBytes);
+        continue;
+      }
+      if (op == "string.to.external.u8") {
+        if (!args.empty()) {
+          return fail("string.to.external.u8 expects no operands");
+        }
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::StringToExternalU8);
         continue;
       }
       if (op == "bytes.to.string") {

@@ -6,7 +6,7 @@ int32_t simple_add_i32(int32_t a, int32_t b) {
   return a + b;
 }
 
-int32_t simple_cstr_length(const uint8_t* text) {
+int32_t simple_u8_length(const uint8_t* text) {
   int32_t length = 0;
   if (!text) return -1;
   while (text[length] != 0) ++length;

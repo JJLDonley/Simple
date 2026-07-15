@@ -683,6 +683,9 @@ and true-value `struct` semantics advances syntax to 4.0, SIR to 3.0, SBC to 8,
 and the runtime ABI to 1.8; opcode metadata remains 6. Exact fixed-width enum
 underlying types and their canonical external-C lowering advance syntax to
 4.1 and SIR to 3.1; SBC, opcode metadata, and the runtime ABI remain unchanged.
+Scoped managed-string conversion to immutable external `u8*` advances SIR to
+3.2, SBC to 9, opcode metadata to 7, and the runtime ABI to 1.9; source syntax
+remains 4.1.
 
 ### `v0.6` generic design
 
@@ -1838,10 +1841,14 @@ Managed `string` values never convert implicitly to `u8*` or a C string. A
 string literal in the contextual position of an immutable external-C `u8*`
 parameter is instead emitted directly as immutable UTF-8, NUL-terminated module
 storage. It is valid only for that call boundary, cannot contain an embedded
-NUL, and is rejected for mutable pointer parameters. Non-literal strings,
-borrowed string views, and byte views require explicit ABI wrapper/conversion
-metadata with encoding, terminator, extent, and lifetime. A native function
-retaining a view must copy it into owned storage.
+NUL, and is rejected for mutable pointer parameters. A managed string may be converted only as a direct immutable external argument
+with `@u8*(value)`. The conversion validates UTF-8, rejects embedded NUL,
+creates NUL-terminated call-duration storage, and destroys that storage as soon
+as the native call returns. It cannot be assigned, returned, captured, stored,
+or passed to a mutable parameter. This is an explicit conversion contract for
+the canonical `u8*` type, not a separate C-derived string type. Borrowed string
+views and byte views retain their own extent metadata. A native function
+retaining any borrowed view must copy it into owned storage.
 
 Dereference, indexing, and `->` require provenance and sufficient known extent.
 An unbounded foreign pointer is pass/compare/round-trip only. External C remains

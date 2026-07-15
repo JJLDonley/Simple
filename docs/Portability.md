@@ -30,7 +30,9 @@ The `v0.6` language contract keeps portable SBC values separate from host C ABI
 marshaling. `usize`/`isize` carry pointer-width ABI intent and are range-checked
 when lowered for the host; pointers are never represented in source as
 `i64`/`u64`. Fixed-width Simple integers map only to matching fixed-width C
-integers. Enums default to `i32` or declare an exact fixed-width integer
+integers. `u8*` is the single portable byte/character pointer type; explicit
+managed-string arguments use bounded call-duration `@u8*(value)` conversion
+without adding C-derived primitive or string types. Enums default to `i32` or declare an exact fixed-width integer
 underlying type; that width and signedness are preserved in stable struct
 layouts and external calls.
 

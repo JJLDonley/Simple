@@ -49,6 +49,7 @@
 #include "scratch_arena.h"
 #include "sbc_verifier.h"
 #include "runtime/execution_stats.h"
+#include "runtime/external_u8.h"
 #include "runtime/import_dispatch.h"
 #include "runtime/print_any.h"
 #include "runtime/runtime_limits.h"
@@ -310,6 +311,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Slot>& stack = interpreter_state.stack;
   std::vector<Simple::VM::Interpreter::FrameState>& call_stack = interpreter_state.call_stack;
   std::vector<Slot>& call_args = interpreter_state.call_args;
+  std::vector<std::unique_ptr<std::string>> external_u8_temporaries;
+  uint64_t external_u8_temporary_bytes = 0;
   std::vector<VmPointerRecord> vm_pointers;
   uint64_t next_pointer_frame_token = 1;
 
@@ -1155,18 +1158,43 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackRef(handle));
               break;
             }
-            case Simple::Byte::ExtendedOpCode::ConstCStr: {
+            case Simple::Byte::ExtendedOpCode::ConstExternalU8: {
               int32_t const_raw = UnpackI32(Pop(stack));
-              if (const_raw < 0) return Trap("CONST_CSTR bad const id");
+              if (const_raw < 0) return Trap("CONST_EXTERNAL_U8 bad const id");
               uint32_t const_id = static_cast<uint32_t>(const_raw);
-              if (const_id + 8 > module.const_pool.size()) return Trap("CONST_CSTR out of bounds");
+              if (const_id + 8 > module.const_pool.size()) return Trap("CONST_EXTERNAL_U8 out of bounds");
               if (ReadU32Payload(module.const_pool, const_id) != 0u) {
-                return Trap("CONST_CSTR wrong const kind");
+                return Trap("CONST_EXTERNAL_U8 wrong const kind");
               }
               uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
-              if (str_offset >= module.const_pool.size()) return Trap("CONST_CSTR bad offset");
+              if (str_offset >= module.const_pool.size()) return Trap("CONST_EXTERNAL_U8 bad offset");
               const uintptr_t address = reinterpret_cast<uintptr_t>(
                   module.const_pool.data() + str_offset);
+              Push(stack, static_cast<Slot>(address));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::StringToExternalU8: {
+              const Slot value = Pop(stack);
+              if (IsNullRef(value)) {
+                return Trap("STRING_TO_EXTERNAL_U8 on null string");
+              }
+              const HeapObject* object = heap.Get(UnpackRef(value));
+              auto temporary = std::make_unique<std::string>();
+              std::string conversion_error;
+              if (!Simple::VM::Runtime::BuildExternalU8String(
+                      object, temporary.get(), &conversion_error)) {
+                return Trap(conversion_error);
+              }
+              const uint64_t bytes = static_cast<uint64_t>(temporary->size()) + 1u;
+              if (limits.max_heap_bytes != 0 &&
+                  (bytes > limits.max_heap_bytes ||
+                   external_u8_temporary_bytes > limits.max_heap_bytes - bytes)) {
+                return Trap("runtime limit exceeded: external u8 temporary bytes");
+              }
+              external_u8_temporary_bytes += bytes;
+              const uintptr_t address =
+                  reinterpret_cast<uintptr_t>(temporary->c_str());
+              external_u8_temporaries.push_back(std::move(temporary));
               Push(stack, static_cast<Slot>(address));
               break;
             }
@@ -3870,9 +3898,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, func_id, call_args, ret, has_ret, error)) {
-            return Trap(error);
-          }
+          const bool dispatched = Simple::VM::Runtime::DispatchImportCallByName(
+              module, options, native_registry, heap, file_handles,
+              resource_registry, promise_registry, dl_last_error, func_id,
+              call_args, ret, has_ret, error);
+          external_u8_temporaries.clear();
+          external_u8_temporary_bytes = 0;
+          if (!dispatched) return Trap(error);
           if (has_ret) Push(stack, ret);
           break;
         }

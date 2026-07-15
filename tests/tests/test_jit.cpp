@@ -45,7 +45,7 @@ extern "C" int64_t SimpleVmLlvmTestAddOneI64(int64_t value) {
   return value + 1;
 }
 
-extern "C" int32_t SimpleVmLlvmTestCStringLength(const char* value) {
+extern "C" int32_t SimpleVmLlvmTestNullTerminatedU8Length(const char* value) {
   return value ? static_cast<int32_t>(std::strlen(value)) : -1;
 }
 
@@ -8813,7 +8813,7 @@ bool RunLlvmJitDynamicDlStringArgInsideLoopTest() {
   size_t exit_jmp = main_code.size();
   AppendI32(main_code, 0);
   AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI64));
-  AppendI64(main_code, static_cast<int64_t>(reinterpret_cast<intptr_t>(&SimpleVmLlvmTestCStringLength)));
+  AppendI64(main_code, static_cast<int64_t>(reinterpret_cast<intptr_t>(&SimpleVmLlvmTestNullTerminatedU8Length)));
   AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
   AppendU32(main_code, 1);
   AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
@@ -8834,7 +8834,7 @@ bool RunLlvmJitDynamicDlStringArgInsideLoopTest() {
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.FFI", "call$cstring",
+      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.FFI", "call$managed_string",
                                                SigSpec{0, 2, {4, 2}}, BuildTypesI32RefStringI64ExternalPtrs(), const_pool));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";

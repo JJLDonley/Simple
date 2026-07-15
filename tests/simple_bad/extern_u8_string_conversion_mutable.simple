@@ -1,0 +1,6 @@
+extern consume : (text : u8*) -> i32
+
+main :: () -> i32 {
+  text : string = "managed"
+  return consume(@u8*(text))
+}

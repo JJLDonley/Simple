@@ -3624,7 +3624,7 @@ bool RunIrTextDuplicateExportFailsTest() {
 
 bool RunIrTextSirVersionDirectiveTest() {
   const char* text =
-      "sir version 3.1\n"
+      "sir version 3.2\n"
       "func main locals=0 stack=4\n"
       "  enter 0\n"
       "  const i32 10\n"
@@ -3824,6 +3824,37 @@ bool RunIrTextStringBytesOpBadTest() {
       "end\n"
       "entry main\n";
   return RunIrTextExpectFail(text, "ir_text_string_bytes_op_bad");
+}
+
+bool RunIrTextExternalU8ConversionOpTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"managed\"\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  string.to.external.u8\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_external_u8_conversion_op");
+  return !module.empty() && RunExpectExit(module, 0);
+}
+
+bool RunIrTextExternalU8ConversionOpBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  string.to.external.u8\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_external_u8_conversion_op_bad");
 }
 
 bool RunIrTextVectorOpsTest() {
@@ -9263,6 +9294,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_gc_barrier_bad", RunIrTextGcBarrierBadTest},
   {"ir_text_string_bytes_ops", RunIrTextStringBytesOpsTest},
   {"ir_text_string_bytes_op_bad", RunIrTextStringBytesOpBadTest},
+  {"ir_text_external_u8_conversion_op", RunIrTextExternalU8ConversionOpTest},
+  {"ir_text_external_u8_conversion_op_bad",
+   RunIrTextExternalU8ConversionOpBadTest},
   {"ir_text_vector_ops", RunIrTextVectorOpsTest},
   {"ir_text_pointer_memory_ops", RunIrTextPointerMemoryOpsTest},
   {"ir_text_pointer_memory_op_bad", RunIrTextPointerMemoryOpBadTest},

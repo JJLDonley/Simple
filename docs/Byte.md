@@ -115,7 +115,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `source
 | ✅ | `27` | `USize` | `usize` | checked host pointer-width unsigned integer |
 
 SBC v8 retains structural optional/Result, managed async layouts, pointer-width
-integer identities, verifier-visible external pointer contracts, and `ConstCStr`.
+integer identities, verifier-visible external pointer contracts, and `ConstExternalU8`.
 It replaces managed-class/stable-struct metadata identities and preserves nested
 struct field type information required for recursive copy and equality.
 `MakeFuture` carries function id and argument count; `Await` carries the result
@@ -166,6 +166,12 @@ SBC v8 is intentionally incompatible with v7 because class/struct identity and
 nested value metadata changed. The loader rejects older modules instead of
 applying a compatibility translation. Opcode metadata remains version `6`; the
 corresponding runtime ABI is `1.8`.
+
+SBC v9 adds verified call-duration managed-string conversion to immutable
+external `u8*` arguments. `Ext.StringToExternalU8` consumes a managed string
+reference and produces a borrowed external pointer whose UTF-8, embedded-NUL,
+size-limit, and post-call destruction checks are enforced by the interpreter.
+Opcode metadata is version 7 and the corresponding runtime ABI is `1.9`.
 
 ## Opcodes
 
