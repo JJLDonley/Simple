@@ -1,6 +1,6 @@
 import Standard.FS
 
-main : i32 () {
+main : () -> i32 {
   path : string = "build/simple_reserved_fs.txt"
   copy_path : string = "build/simple_reserved_fs_copy.txt"
   bytes_path : string = "build/simple_reserved_fs_bytes.bin"

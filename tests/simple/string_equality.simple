@@ -1,4 +1,4 @@
-main : i32 () {
+main : () -> i32 {
   a : string = "linux"
   b : string = "linux"
   c : string = "windows"

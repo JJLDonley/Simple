@@ -1,8 +1,8 @@
-TakeF32 : f32 (value: f32) {
+TakeF32 : (value: f32) -> f32 {
     return value
 }
 
-main : i32 () {
+main : () -> i32 {
     x : f32 = 50.0
     y : f32 = TakeF32(51.0)
     z : f32 = x + 2.0

@@ -2,13 +2,13 @@ module Tests.Stress.SpectralNorm
 
 import Standard.Math
 
-matrixValue :: f64 (i : i32, j : i32) {
+matrixValue :: (i : i32, j : i32) -> f64 {
   sum :: i32 = i + j
   denominator :: i32 = (sum * (sum + 1) / 2) + i + 1
   return 1.0 / @f64(denominator)
 }
 
-multiplyAv :: void (input : f64[], output : f64[], size : i32) {
+multiplyAv :: (input : f64[], output : f64[], size : i32) -> void {
   for (i : i32 = 0; i < size; i += 1) {
     value : f64 = 0.0
     for (j : i32 = 0; j < size; j += 1) {
@@ -18,7 +18,7 @@ multiplyAv :: void (input : f64[], output : f64[], size : i32) {
   }
 }
 
-multiplyAtv :: void (input : f64[], output : f64[], size : i32) {
+multiplyAtv :: (input : f64[], output : f64[], size : i32) -> void {
   for (i : i32 = 0; i < size; i += 1) {
     value : f64 = 0.0
     for (j : i32 = 0; j < size; j += 1) {
@@ -28,12 +28,12 @@ multiplyAtv :: void (input : f64[], output : f64[], size : i32) {
   }
 }
 
-multiplyAtAv :: void (input : f64[], output : f64[], temporary : f64[], size : i32) {
+multiplyAtAv :: (input : f64[], output : f64[], temporary : f64[], size : i32) -> void {
   multiplyAv(input, temporary, size)
   multiplyAtv(temporary, output, size)
 }
 
-main :: i32 () {
+main :: () -> i32 {
   size :: i32 = 60
   u : f64[] = []
   v : f64[] = []

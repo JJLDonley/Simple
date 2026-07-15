@@ -1,7 +1,7 @@
 import System.Bytes
 using System.Bytes
 
-main : i32 () {
+main : () -> i32 {
   b : i32[] = new(4)
   if (!writeU32LE(b, 0, 16909060)) { return 1 }
   if (readU16LE(b, 0) != 772) { return 2 }

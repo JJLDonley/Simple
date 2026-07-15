@@ -2,7 +2,7 @@ import Standard.Log
 import System.Log
 import Standard.FS
 
-main : i32 () {
+main : () -> i32 {
   path : string = "build/test_reserved_log.txt"
   Standard.Log.setLevel(3)
   if (!Standard.Log.setFile(path)) { return 0 }

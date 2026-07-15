@@ -3,6 +3,6 @@ Color :: enum {
   Green = 9
 }
 
-main : i32 () {
+main : () -> i32 {
   return Color.Green
 }

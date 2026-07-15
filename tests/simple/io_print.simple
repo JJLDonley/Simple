@@ -1,5 +1,5 @@
 import Standard.IO
-main : i32 () {
+main : () -> i32 {
   Standard.IO.print("hi")
   Standard.IO.println(42)
   return 0

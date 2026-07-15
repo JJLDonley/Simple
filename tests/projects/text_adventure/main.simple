@@ -3,11 +3,11 @@ module Tests.Projects.TextAdventure.Main
 import Standard.FS
 import "./engine.simple"
 
-append<T> :: void (values : T[], value : T) {
+append<T> :: (values : T[], value : T) -> void {
   values.push(value)
 }
 
-main :: i32 () {
+main :: () -> i32 {
   commandText : string = Standard.FS.readText(
       "tests/projects/text_adventure/commands.txt")
   if (commandText != "east\ntake key\nnorth\nwest\n") { return 1 }
@@ -39,7 +39,7 @@ main :: i32 () {
 
   state : GameState = { 0, 0, 0, [] }
   commands : CommandSet = makeCommands(state, rooms)
-  script : fn Result<string, AdventureError> ()[] = [
+  script : (fn () -> Result<string, AdventureError>)[] = [
     commands.east,
     commands.takeKey,
     commands.north,

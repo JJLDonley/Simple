@@ -1,2 +1,2 @@
 import System.Math
-main : void () { }
+main : () -> void { }

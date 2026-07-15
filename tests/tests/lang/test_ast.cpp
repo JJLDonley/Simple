@@ -12,7 +12,7 @@ bool LangSplitAstLowersCastProgram() {
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString("main : i32 () { x : i32 = 1; return x; }", &cast_program, &error)) {
+  if (!Simple::Lang::CAST::ParseProgramFromString("main : () -> i32 { x : i32 = 1; return x; }", &cast_program, &error)) {
     return false;
   }
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
@@ -27,7 +27,7 @@ bool LangSplitAstLowersCastProgram() {
 
 bool LangAstLowerCastPreservesProgramShape() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = 40 + 2;\n"
       "  return x;\n"
       "}\n";
@@ -45,7 +45,7 @@ bool LangAstLowerCastPreservesProgramShape() {
 
 bool LangAstNormalizesTopLevelScriptBody() {
   const char* src =
-      "add : i32 (a : i32, b : i32) { return a + b; }\n"
+      "add : (a : i32, b : i32) -> i32 { return a + b; }\n"
       "x = add(40, 2);\n"
       "x = x + 1;\n";
   Simple::Lang::Program cast_program;
@@ -61,8 +61,8 @@ bool LangAstNormalizesTopLevelScriptBody() {
 
 bool LangAstNormalizesFnLiteralDeclarations() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b; };\n"
+      "main : () -> i32 {\n"
+      "  f : fn (a : i32,  b : i32) -> i32 = (a, b) { return a + b; };\n"
       "  return f(1, 2);\n"
       "}\n";
   Simple::Lang::Program cast_program;
@@ -82,7 +82,7 @@ bool LangAstNormalizesFnLiteralDeclarations() {
 
 bool LangAstNormalizesLoopShorthand() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  total : i32 = 0;\n"
       "  for (i; i < 3; i++) { total += i; }\n"
       "  while (total < 10) { total += 1; }\n"
@@ -107,7 +107,7 @@ bool LangAstNormalizesLoopShorthand() {
 
 bool LangAstNormalizesIfChain() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = 1;\n"
       "  |> (x == 0) { return 0; }\n"
       "  |> (x == 1) { return 1; }\n"
@@ -129,7 +129,7 @@ bool LangAstNormalizesIfChain() {
 
 bool LangAstNormalizesSwitchBranches() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = 1;\n"
       "  y : i32 = switch (x) {\n"
       "    x == 0 => 0\n"
@@ -163,7 +163,7 @@ bool LangAstNormalizesSwitchBranches() {
 
 bool LangAstClassifiesSwitchUsage() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = 1;\n"
       "  y : i32 = 0;\n"
       "  switch (x) { default => 0 };\n"
@@ -188,7 +188,7 @@ bool LangAstClassifiesSwitchUsage() {
 
 bool LangAstNormalizesCallMemberIndexShapes() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = add(1, 2);\n"
       "  y : i32 = arr[0];\n"
       "  z : i32 = box.score();\n"
@@ -225,7 +225,7 @@ bool LangAstTypeCoverage() {
       "a : i8; b : u8; c : i16; d : u16; e : i32; f : u32; g : i64; h : u64; "
       "i : f32; j : f64; k : bool; l : char; m : string; "
       "arr : i32{2}; list : i32[]; grid : i32[][]; "
-      "proc : fn i32 (); proc2 :: fn bool (a : i32, b : f64);";
+      "proc : fn () -> i32; proc2 :: fn (a : i32,  b : f64) -> bool;";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;

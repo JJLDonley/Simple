@@ -19,7 +19,7 @@ bool LangSplitRastResolvesFunctionSymbol() {
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString("main : i32 () { return 1; }", &cast_program, &error)) {
+  if (!Simple::Lang::CAST::ParseProgramFromString("main : () -> i32 { return 1; }", &cast_program, &error)) {
     return false;
   }
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
@@ -32,13 +32,13 @@ bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () { return self.v; }\n"
+      "  score : () -> i32 { return self.v; }\n"
       "}\n"
       "Config :: namespace {\n"
       "  Max :: i32 = 42\n"
       "}\n"
       "Mode :: enum { Off = 0, On = 1 }\n"
-      "main : i32 () { return Config.Max; }\n";
+      "main : () -> i32 { return Config.Max; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -77,13 +77,13 @@ bool LangRastResolverCollectsCallableScopes() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 (amount : i32) {\n"
+      "  score : (amount : i32) -> i32 {\n"
       "    total : i32 = amount + self.v;\n"
       "    if (total > 0) { branch : i32 = total; return branch; }\n"
       "    return 0;\n"
       "  }\n"
       "}\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  b : Box = { 1 };\n"
       "  return b.score(41);\n"
       "}\n";
@@ -104,7 +104,7 @@ bool LangRastResolverCollectsCallableScopes() {
 
 bool LangRastResolverCollectsSwitchBranchLocals() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  mode : i32 = 1;\n"
       "  value : i32 = switch (mode) {\n"
       "    mode == 1 => { local : i32 = 42; return local }\n"
@@ -131,17 +131,17 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "import System.FFI\n"
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () { return self.v; }\n"
+      "  score : () -> i32 { return self.v; }\n"
       "}\n"
       "Config :: namespace {\n"
       "  Max :: i32 = 40\n"
       "}\n"
       "Mode :: enum { Off = 0, On = 1 }\n"
-      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
-      "extern ffi.simple_add_i32 : i32 (a : i32, b : i32)\n"
+      "extern Ray.InitWindow : (w : i32, h : i32) -> void\n"
+      "extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32\n"
       "glib :: i64 = System.FFI.open(\"libffi.so\", ffi)\n"
-      "UseGlobal : i32 () { return glib.simple_add_i32(3, 4); }\n"
-      "main : i32 () {\n"
+      "UseGlobal : () -> i32 { return glib.simple_add_i32(3, 4); }\n"
+      "main : () -> i32 {\n"
       "  Standard.IO.println(1);\n"
       "  Ray.InitWindow(1, 2);\n"
       "  lib : i64 = System.FFI.open(\"libffi.so\", ffi);\n"
@@ -391,7 +391,7 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
 
 
 bool LangRastAllowsTypeInvalidPrograms() {
-  const char* src = "main : i32 () { return \"not an i32\" }";
+  const char* src = "main : () -> i32 { return \"not an i32\" }";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -405,7 +405,7 @@ bool LangRastAllowsTypeInvalidPrograms() {
 bool LangRastDeclarationResolutionFindsDeclSymbols() {
   const char* src =
       "Point :: artifact { x : i32; }\n"
-      "main : i32 () { return 0 }";
+      "main : () -> i32 { return 0 }";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -425,7 +425,7 @@ bool LangRastDeclarationResolutionFindsDeclSymbols() {
 bool LangRastImportGraphResolvesReservedAliases() {
   const char* src =
       "import Standard.FS as FileSystem\n"
-      "main : void () {}";
+      "main : () -> void {}";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   std::string error;

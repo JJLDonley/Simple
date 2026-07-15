@@ -1,7 +1,7 @@
 import "./stress_import_mid"
 import Standard.IO
 
-main : i32 () {
+main : () -> i32 {
   if (mid_value() != 7) {
     return 1
   }

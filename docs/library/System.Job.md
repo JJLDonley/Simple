@@ -19,13 +19,13 @@ PromiseState<T> :: artifact {
 }
 
 /// Starts low-level host work. Native backing; may allocate and suspend.
-spawn<T> :: Promise<Result<T, JobError>> (work : JobSpec<T>)
+spawn<T> :: (work : JobSpec<T>) -> Promise<Result<T, JobError>>
 
 /// Inspects state without suspending.
-poll<T> :: PromiseState<T> (promise :: Promise<T>)
+poll<T> :: (promise :: Promise<T>) -> PromiseState<T>
 
 /// Requests structured cancellation of this managed Promise.
-cancel<T> :: bool (promise :: Promise<T>)
+cancel<T> :: (promise :: Promise<T>) -> bool
 ```
 
 There is deliberately no `await` member. Source uses prefix

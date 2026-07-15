@@ -2,9 +2,9 @@ Holder :: artifact {
   pointer : i32*
 }
 
-extern source : i32* ()
+extern source : () -> i32*
 
-main :: i32 () {
+main :: () -> i32 {
   holder : Holder = { source() }
   return 0
 }

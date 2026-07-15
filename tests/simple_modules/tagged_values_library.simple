@@ -5,17 +5,17 @@ RemoteFailure :: enum {
 }
 
 RemoteTagged :: namespace {
-  choose<T> :: T? (accept : bool, value : T) {
+  choose<T> :: (accept : bool, value : T) -> T? {
     if (accept) { return { value } }
     return {}
   }
 
-  load :: Result<i32, RemoteFailure> (accept : bool) {
+  load :: (accept : bool) -> Result<i32, RemoteFailure> {
     if (accept) { return { .value = 40 } }
     return { .error = RemoteFailure.Rejected }
   }
 
-  forwarded :: Result<i32, RemoteFailure> (accept : bool) {
+  forwarded :: (accept : bool) -> Result<i32, RemoteFailure> {
     value : i32 = RemoteTagged.load(accept)?
     return { .value = value + 2 }
   }

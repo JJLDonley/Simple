@@ -1,4 +1,4 @@
-main : i32 () {
+main : () -> i32 {
   items : i32[] = []
   items.push(10)
   items.push(20)

@@ -1,6 +1,6 @@
 import System.Bytes
 
-main : i32 () {
+main : () -> i32 {
   b : i32[] = System.Bytes.new(8)
   if (System.Bytes.len(b) != 8) { return 1 }
   if (!System.Bytes.writeU16LE(b, 0, 4660)) { return 2 }

@@ -871,9 +871,9 @@ bool LangSplitTastAbiAndGenericsSmoke() {
 
 bool LangTastCheckerAcceptsResolvedProgram() {
   const char* src =
-      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
+      "extern Ray.InitWindow : (w : i32, h : i32) -> void\n"
       "count : i32 = 1\n"
-      "main : i32 () { return 42; }";
+      "main : () -> i32 { return 42; }";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -894,7 +894,7 @@ bool LangTastCheckerAcceptsResolvedProgram() {
 
 
 bool LangTastCheckerRejectsTypeMismatch() {
-  const char* src = "main : i32 () { x : i32 = true; return x; }";
+  const char* src = "main : () -> i32 { x : i32 = true; return x; }";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -1149,7 +1149,7 @@ bool LangTastControlFlowChecksFunctionReturns() {
 
 bool LangTastControlFlowTracksReturnsAndBreaks() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  while (true) {\n"
       "    if (true) { break; } else { skip; }\n"
       "  }\n"
@@ -1470,8 +1470,8 @@ bool LangTastCheckAssignmentValidatesShape() {
 
 bool LangTastInfersGenericMethodOnIndexedReceiver() {
   const std::string source =
-      "Box<T> :: artifact { item : T; choose<U> :: U (value : U) { return value } }\n"
-      "main :: i32 () { boxes : Box<i32>[] = []; box : Box<i32> = { 1 }; "
+      "Box<T> :: artifact { item : T; choose<U> :: (value : U) -> U { return value } }\n"
+      "main :: () -> i32 { boxes : Box<i32>[] = []; box : Box<i32> = { 1 }; "
       "boxes.push(box); return boxes[0].choose(42) }";
   Simple::Lang::AST::Program program;
   std::string error;
@@ -1520,7 +1520,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 
 bool LangTastRejectsLegacyOptionalGenericName() {
-  const char* src = "main : i32 () { value : Option<i32>; return 0 }";
+  const char* src = "main : () -> i32 { value : Option<i32>; return 0 }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("unknown type: Option") != std::string::npos;
@@ -1528,7 +1528,7 @@ bool LangTastRejectsLegacyOptionalGenericName() {
 
 bool LangTastRejectsTaggedWholeValueEquality() {
   const char* src =
-      "main :: i32 () { a : i32?; b : i32?; if (a == b) { return 1 } return 0 }";
+      "main :: () -> i32 { a : i32?; b : i32?; if (a == b) { return 1 } return 0 }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("requires scalar operands") != std::string::npos;
@@ -1536,8 +1536,8 @@ bool LangTastRejectsTaggedWholeValueEquality() {
 
 bool LangTastRejectsDirectTaggedPayloadAccess() {
   for (const char* src : {
-           "main : i32 () { value : i32? = { 1 }; return value.value }",
-           "Error :: enum { Bad = 1 } main : i32 () { "
+           "main : () -> i32 { value : i32? = { 1 }; return value.value }",
+           "Error :: enum { Bad = 1 } main : () -> i32 { "
            "result : Result<i32, Error> = { .value = 1 }; return result.value }",
        }) {
     std::string error;
@@ -1551,21 +1551,21 @@ bool LangTastRejectsDirectTaggedPayloadAccess() {
 }
 
 bool LangTastRejectsOptionalImplicitLift() {
-  const char* src = "main : i32 () { value : i32? = 42; return 0 }";
+  const char* src = "main : () -> i32 { value : i32? = 42; return 0 }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("initializer type mismatch") != std::string::npos;
 }
 
 bool LangTastRejectsMalformedOptionalLiteral() {
-  const char* src = "main : i32 () { value : i32? = { 1, 2 }; return 0 }";
+  const char* src = "main : () -> i32 { value : i32? = { 1, 2 }; return 0 }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("optional literal must be '{}' or '{ value }'") != std::string::npos;
 }
 
 bool LangTastRejectsUncontextualBraceLiteral() {
-  const char* src = "main : void () { {}; }";
+  const char* src = "main : () -> void { {}; }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("contextual literal requires a typed value context") != std::string::npos;
@@ -1573,7 +1573,7 @@ bool LangTastRejectsUncontextualBraceLiteral() {
 
 bool LangTastRejectsInexhaustiveOptionalPattern() {
   const char* src =
-      "main : i32 () { value : i32?; return switch (value) { "
+      "main : () -> i32 { value : i32?; return switch (value) { "
       "{ present } => return present } }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
@@ -1583,15 +1583,15 @@ bool LangTastRejectsInexhaustiveOptionalPattern() {
 bool LangTastRejectsInvalidResultLiteral() {
   for (const auto& test : {
            std::pair<const char*, const char*>{
-               "Error :: enum { Bad = 1 } main : Result<i32, Error> () { "
+               "Error :: enum { Bad = 1 } main : () -> Result<i32, Error> { "
                "return { .other = 1 } }",
                "'.value' or '.error'"},
            std::pair<const char*, const char*>{
-               "Error :: enum { Bad = 1 } main : i32 () { "
+               "Error :: enum { Bad = 1 } main : () -> i32 { "
                "result : Result<i32, Error> = { .value = \"bad\" }; return 0 }",
                "expression type mismatch"},
            std::pair<const char*, const char*>{
-               "Error :: enum { Bad = 1 } main : i32 () { "
+               "Error :: enum { Bad = 1 } main : () -> i32 { "
                "result : Result<i32, Error>; return switch (result) { "
                "{ .value = value } => return value } }",
                "each state exactly once"},
@@ -1607,8 +1607,8 @@ bool LangTastRejectsInvalidResultLiteral() {
 
 bool LangTastRejectsDiscardedResult() {
   const char* src =
-      "Error :: enum { Bad = 1 } make : Result<i32, Error> () { "
-      "return { .value = 1 } } main : i32 () { make(); return 0 }";
+      "Error :: enum { Bad = 1 } make : () -> Result<i32, Error> { "
+      "return { .value = 1 } } main : () -> i32 { make(); return 0 }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("Result value must be returned, stored, propagated") != std::string::npos;
@@ -1617,13 +1617,13 @@ bool LangTastRejectsDiscardedResult() {
 bool LangTastRejectsIncompatibleOptionalPropagation() {
   for (const auto& test : {
            std::pair<const char*, const char*>{
-               "main : i32 () { value : i32?; return value? }",
+               "main : () -> i32 { value : i32?; return value? }",
                "optional propagation requires an optional return type"},
            std::pair<const char*, const char*>{
-               "main : string? () { value : i32?; number : i32 = value?; return {} }",
+               "main : () -> string? { value : i32?; number : i32 = value?; return {} }",
                "optional propagation requires the same payload type"},
            std::pair<const char*, const char*>{
-               "main : i32? () { value : i32 = 1; number : i32 = value?; return {} }",
+               "main : () -> i32? { value : i32 = 1; number : i32 = value?; return {} }",
                "operator '?' requires optional or Result operand"},
        }) {
     std::string error;
@@ -1638,8 +1638,8 @@ bool LangTastRejectsIncompatibleOptionalPropagation() {
 bool LangTastRejectsMismatchedResultPropagation() {
   const char* src =
       "First :: enum { Bad = 1 } Second :: enum { Bad = 1 } "
-      "source : Result<i32, First> () { return { .error = First.Bad } } "
-      "target : Result<i32, Second> () { value : i32 = source()?; "
+      "source : () -> Result<i32, First> { return { .error = First.Bad } } "
+      "target : () -> Result<i32, Second> { value : i32 = source()?; "
       "return { .value = value } }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&

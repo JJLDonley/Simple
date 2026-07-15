@@ -29,7 +29,7 @@ Room :: artifact {
 }
 
 AdventureWorld :: namespace {
-  move :: Result<i32, AdventureError> (rooms : Room[], current : i32, direction : Direction) {
+  move :: (rooms : Room[], current : i32, direction : Direction) -> Result<i32, AdventureError> {
     room : Room = rooms[current]
     for (i : i32 = 0; i < room.exits.len(); i += 1) {
       if (room.exits[i].direction == direction) {
@@ -39,7 +39,7 @@ AdventureWorld :: namespace {
     return { .error = AdventureError.Blocked }
   }
 
-  findItem :: i32? (room : Room, name : string) {
+  findItem :: (room : Room, name : string) -> i32? {
     for (i : i32 = 0; i < room.items.len(); i += 1) {
       if (room.items[i].name == name) { return { i } }
     }

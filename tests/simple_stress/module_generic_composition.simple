@@ -3,24 +3,24 @@ module Tests.Stress.ModuleGenericComposition
 Box<T> :: artifact {
   value : T
 
-  get :: T () { return self.value }
+  get :: () -> T { return self.value }
 }
 
 GenericOps :: namespace {
-  identity<T> :: T (value : T) {
+  identity<T> :: (value : T) -> T {
     return value
   }
 
-  select<T> :: T (values : T[], index : i32) {
+  select<T> :: (values : T[], index : i32) -> T {
     return GenericOps.identity(values[index])
   }
 
-  boxAgain<T> :: Box<T> (box : Box<T>) {
+  boxAgain<T> :: (box : Box<T>) -> Box<T> {
     return GenericOps.identity(box)
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   values : i32[] = []
   for (i : i32 = 0; i < 2000; i += 1) {
     values.push(i * 2)

@@ -9,7 +9,7 @@ Bullet :: artifact {
     alive: bool
     ttl: f32
 
-    Update: void (dt: f32) {
+    Update: (dt: f32) -> void {
         if (!self.alive) { return }
         self.position.x += self.velocity.x * dt
         self.position.y += self.velocity.y * dt

@@ -3,7 +3,7 @@ Box :: artifact { text : string }
 GlobalText :: string = "global"
 GlobalBox :: Box = { "boxed" }
 
-main : i32 () {
+main : () -> i32 {
   i : i32 = 0
   while (i < 2500) {
     temp : string = "collect"

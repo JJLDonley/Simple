@@ -1,5 +1,5 @@
-read :: i32 (pointer : i32*) {
+read :: (pointer : i32*) -> i32 {
   return pointer[0]
 }
 
-main :: i32 () { return 0 }
+main :: () -> i32 { return 0 }

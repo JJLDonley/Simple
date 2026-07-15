@@ -1,6 +1,6 @@
 import System.Bytes
 
-main : i32 () {
+main : () -> i32 {
   src : i32[] = System.Bytes.new(4)
   dst : i32[] = System.Bytes.new(4)
   if (System.Bytes.len(src) != 4) { return 1 }

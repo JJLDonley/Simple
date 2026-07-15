@@ -1,5 +1,5 @@
-extern host_add : i32 (left : i32, right : i32)
+extern host_add : (left : i32, right : i32) -> i32
 
-main :: i32 () {
+main :: () -> i32 {
   return 0
 }

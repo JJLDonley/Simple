@@ -1,5 +1,5 @@
 module Tests.GenericLibrary
 
-identity<T> :: T (value : T) {
+identity<T> :: (value : T) -> T {
   return value
 }

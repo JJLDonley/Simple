@@ -1,6 +1,6 @@
 import System.FS
 
-main : i32 () {
+main : () -> i32 {
   System.FS.close(-1)
   return 0
 }

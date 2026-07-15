@@ -1,11 +1,11 @@
 X :: namespace {
-    Base: i32 () { return 3 }
+    Base: () -> i32 { return 3 }
 
-    Add: i32 (a: i32, b: i32) {
+    Add: (a: i32, b: i32) -> i32 {
         return a + b
     }
 
-    Mix: i32 (a: i32, b: i32, useMul: bool) {
+    Mix: (a: i32, b: i32, useMul: bool) -> i32 {
         if (useMul) { return a * b }
         return a + b
     }
@@ -15,11 +15,11 @@ Pair :: artifact {
     a: i32
     b: i32
 
-    Sum: i32 () {
+    Sum: () -> i32 {
         return self.a + self.b
     }
 
-    Scale: void (k: i32) {
+    Scale: (k: i32) -> void {
         self.a *= k
         self.b *= k
     }
@@ -29,19 +29,19 @@ Holder :: artifact {
     items: i32[]
     total: i32
 
-    Add: void (v: i32) {
+    Add: (v: i32) -> void {
         self.items.push(v)
         self.total += v
     }
 
-    RemoveFirst: i32 () {
+    RemoveFirst: () -> i32 {
         if (self.items.len() == 0) { return -1 }
         return self.items.remove(0)
     }
 }
 
 Y :: namespace {
-    BuildHolder: Holder (seed: i32) {
+    BuildHolder: (seed: i32) -> Holder {
         h : Holder = { [], 0 }
         for (i : i32 = 0; i < seed; i += 1) {
             h.Add(X.Add(i, X.Base()))
@@ -49,7 +49,7 @@ Y :: namespace {
         return h
     }
 
-    SumArray: i32 (arr: i32{4}) {
+    SumArray: (arr: i32{4}) -> i32 {
         s : i32 = 0
         for (i : i32 = 0; i < 4; i += 1) {
             s += arr[i]
@@ -59,7 +59,7 @@ Y :: namespace {
 }
 
 Z :: namespace {
-    Run: i32 (v: i32) {
+    Run: (v: i32) -> i32 {
         p : Pair = { v, X.Base() }
         p.Scale(2)
         h : Holder = Y.BuildHolder(3)
@@ -87,6 +87,6 @@ Z :: namespace {
     }
 }
 
-main : i32 () {
+main : () -> i32 {
     return Z.Run(5)
 }

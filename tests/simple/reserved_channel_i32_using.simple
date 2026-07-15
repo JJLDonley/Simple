@@ -1,7 +1,7 @@
 import System.Channel
 using System.Channel
 
-main : i32 () {
+main : () -> i32 {
   ch : i64 = newI32()
   ok : bool = sendI32(ch, 9)
   if (!ok) { return 0 }

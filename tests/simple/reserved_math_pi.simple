@@ -1,6 +1,6 @@
 import Standard.Math
 
-main : i32 () {
+main : () -> i32 {
   if (Standard.Math.PI > 3.14159) { return 0 }
   return 1
 }

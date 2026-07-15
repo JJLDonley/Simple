@@ -2,8 +2,8 @@ module Tests.LambdaImportMain
 
 import "./lambda_library.simple"
 
-main :: i32 () {
-  identity : fn i32 (i32) = LambdaOps.makeIdentity<i32>()
-  addTwo : fn i32 (i32) = LambdaOps.makeAdder(2)
+main :: () -> i32 {
+  identity : fn (i32) -> i32 = LambdaOps.makeIdentity<i32>()
+  addTwo : fn (i32) -> i32 = LambdaOps.makeAdder(2)
   return addTwo(20) + identity(20)
 }

@@ -1,6 +1,6 @@
-leak :: i32* () {
+leak :: () -> i32* {
   value : i32 = 1
   return &value
 }
 
-main :: i32 () { return 0 }
+main :: () -> i32 { return 0 }

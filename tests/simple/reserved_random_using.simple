@@ -1,7 +1,7 @@
 import Standard.Random
 using Standard.Random
 
-main : i32 () {
+main : () -> i32 {
   seed(7)
   a : i32 = range(1, 4)
   x : f64 = Standard.Random.f64()

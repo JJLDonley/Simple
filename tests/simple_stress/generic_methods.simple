@@ -3,26 +3,26 @@ module Tests.Stress.GenericMethods
 Box<T> :: artifact {
   value : T
 
-  choose<U> :: U (other : U) {
+  choose<U> :: (other : U) -> U {
     return other
   }
 
-  keep<U> :: T (ignored : U) {
+  keep<U> :: (ignored : U) -> T {
     return self.value
   }
 
-  keepRecursive<U> :: T (fallback : U, count : i32) {
+  keepRecursive<U> :: (fallback : U, count : i32) -> T {
     if (count == 0) { return self.value }
     return self.keepRecursive(fallback, count - 1)
   }
 
-  answer :: i32 () {
+  answer :: () -> i32 {
     return self.choose(42)
   }
 }
 
 Router :: artifact {
-  echo<T> :: T (value : T) {
+  echo<T> :: (value : T) -> T {
     return value
   }
 }
@@ -32,18 +32,18 @@ Holder :: artifact {
 }
 
 Relay :: artifact {
-  ping<T> :: T (value : T, count : i32) {
+  ping<T> :: (value : T, count : i32) -> T {
     if (count == 0) { return value }
     return self.pong(value, count - 1)
   }
 
-  pong<T> :: T (value : T, count : i32) {
+  pong<T> :: (value : T, count : i32) -> T {
     if (count == 0) { return value }
     return self.ping(value, count - 1)
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   box : Box<i32> = { 40 }
   total : i32 = 0
   for (i : i32 = 0; i < 1000; i += 1) {

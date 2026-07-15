@@ -10,16 +10,16 @@ GameState :: artifact {
 }
 
 CommandSet :: artifact {
-  east : fn Result<string, AdventureError> ()
-  takeKey : fn Result<string, AdventureError> ()
-  north : fn Result<string, AdventureError> ()
-  west : fn Result<string, AdventureError> ()
-  executed : fn i32 ()
+  east : fn () -> Result<string, AdventureError>
+  takeKey : fn () -> Result<string, AdventureError>
+  north : fn () -> Result<string, AdventureError>
+  west : fn () -> Result<string, AdventureError>
+  executed : fn () -> i32
 }
 
-takeItem :: Result<string, AdventureError> (
+takeItem :: (
     state : GameState,
-    rooms : Room[]) {
+    rooms : Room[]) -> Result<string, AdventureError> {
   if (state.room != 1 || rooms[state.room].items.len() == 0) {
     return { .error = AdventureError.MissingItem }
   }
@@ -29,9 +29,9 @@ takeItem :: Result<string, AdventureError> (
   return { .value = item.name }
 }
 
-makeCommands :: CommandSet (state : GameState, rooms : Room[]) {
+makeCommands :: (state : GameState, rooms : Room[]) -> CommandSet {
   executed : i32 = 0
-  makeMove : fn fn Result<string, AdventureError> () (Direction) = (direction) {
+  makeMove : fn (Direction) -> fn () -> Result<string, AdventureError> = (direction) {
     return () {
       executed += 1
       room : i32 = AdventureWorld.move(rooms, state.room, direction)?
@@ -40,7 +40,7 @@ makeCommands :: CommandSet (state : GameState, rooms : Room[]) {
       return { .value = rooms[room].name }
     }
   }
-  takeKey : fn Result<string, AdventureError> () = () {
+  takeKey : fn () -> Result<string, AdventureError> = () {
     executed += 1
     return takeItem(state, rooms)
   }

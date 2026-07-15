@@ -1,5 +1,5 @@
 import "./stress_cycle_a"
 
-cycle_b : i32 () {
+cycle_b : () -> i32 {
   return 1
 }

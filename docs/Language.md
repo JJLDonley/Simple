@@ -52,16 +52,16 @@ Point :: data {
 Counter :: artifact {
   value : i32
 
-  inc :: i32 () {
+  inc :: () -> i32 {
     return self.value + 1
   }
 }
 
-add :: i32 (a : i32, b : i32) {
+add :: (a : i32, b : i32) -> i32 {
   return a + b
 }
 
-main :: i32 () {
+main :: () -> i32 {
   p : Point = { .x = 3, .y = 4 }
   c : Counter = { .value = 6 }
   Standard.IO.println("next={}", c.inc())
@@ -212,8 +212,8 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `name : Type` | TAST | Mutable binding with default init if no initializer. |
 | ✅ | `name : Type = expr` | TAST | Mutable binding with typed initializer. |
 | ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
-| ✅ | `name :: Ret (params) block` | TAST | Immutable function or method declaration; canonical for functions that are not reassigned. |
-| ✅ | `name : Ret (params) block` | TAST | Mutable function or method declaration when reassignment is intended. |
+| ✅ | `name :: (params) -> Ret block` | TAST | Immutable function or method declaration; canonical for functions that are not reassigned. |
+| ✅ | `name : (params) -> Ret block` | TAST | Mutable function or method declaration when reassignment is intended. |
 | ✅ | `Name :: artifact { ... }` | TAST | Managed artifact declaration; layout may be optimized. |
 | ✅ | `Name :: data { ... }` | TAST/IRE | Stable data struct declaration; field order/layout is preserved for ABI/data use. |
 | ✅ | `Name :: namespace { ... }` | RAST/TAST | Namespace/module declaration. |
@@ -237,7 +237,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `T{N}` | TAST | Fixed-size array. |
 | ✅ | `T[]` | TAST | Growable list. |
 | ✅ | `T[][]`, `T{N}[]`, etc. | TAST | Nested arrays/lists where supported by lowering/runtime. |
-| ✅ | `fn Ret (params)` | TAST | Procedure/function value type. |
+| ✅ | `fn (params) -> Ret` | TAST | Procedure/function value type. |
 | ✅ | `T*`, `T**` | TAST | Pointer type surface for supported ABI/member paths. |
 | ✅ | `Name<T, ...>` | CAST/TAST/IRE | Concrete named generic types and calls are monomorphized before SIR. |
 | ❌ | `i128`, `u128` | CAST/TAST | Not part of the language surface. |
@@ -305,7 +305,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | enum members | TAST/IRE | Enum values lower as supported integer-like values. |
 | ✅ | `import Module.Name` | RAST | Import source/module identity. |
 | ✅ | `using Module` | RAST | Use reserved/native module member lookup. |
-| ✅ | `extern Name : Ret (params)` | TAST/IRE | External call declaration. |
+| ✅ | `extern Name : (params) -> Ret` | TAST/IRE | External call declaration. |
 | ✅ | `System.FFI.open` manifest pattern | TAST/IRE | Dynamic-library import support. |
 | ❌ | unqualified enum variant | RAST/TAST | Rejected; use `Type.Member`. |
 | ❌ | unknown module/member/import | RAST/TAST | Rejected. |
@@ -382,7 +382,7 @@ Whitespace separates tokens. Comments are ignored by the lexer. Same-line multip
 ```simple
 module Examples.Reference
 
-main :: i32 () { x : i32 = 1; y : i32 = 2; return x + y; }
+main :: () -> i32 { x : i32 = 1; y : i32 = 2; return x + y; }
 ```
 
 ### Numeric literals
@@ -398,7 +398,7 @@ Strings and chars support normal escapes and hex escapes. Invalid escapes are re
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   c : char = '\x41'
   s : string = "A\x42"
   return 0
@@ -413,11 +413,11 @@ Every `.simple` source file starts with a module header naming the source unit, 
 module Examples.Math
 import Standard.Math
 
-square :: i32 (x : i32) {
+square :: (x : i32) -> i32 {
   return x * x
 }
 
-main :: i32 () {
+main :: () -> i32 {
   return square(7)
 }
 ```
@@ -427,7 +427,7 @@ Entry behavior:
 - If top-level executable statements exist, they are normalized into an implicit script entry.
 - If no top-level executable statements exist and `main` exists, `main` is used as the entry.
 - Top-level `return` is invalid.
-- A `main :: void ()` function is valid; a missing explicit return is valid for `void`.
+- A `main :: () -> void` function is valid; a missing explicit return is valid for `void`.
 
 ## File/module headers
 
@@ -443,7 +443,7 @@ The required module header declares the source file's runtime module namespace a
 module Tools.Widget
 
 Widgets :: namespace {
-  widgetValue :: i32 () {
+  widgetValue :: () -> i32 {
     return 42
   }
 }
@@ -456,7 +456,7 @@ module App.Main
 
 import Tools.Widget
 
-main :: i32 () {
+main :: () -> i32 {
   return Widgets.widgetValue()
 }
 ```
@@ -475,7 +475,7 @@ Use `Name :: namespace { ... }` when declarations need an additional named group
 
 ```simple
 Math :: namespace {
-  one :: i32 () { return 1 }
+  one :: () -> i32 { return 1 }
 }
 ```
 
@@ -510,7 +510,7 @@ missing : i32? // absent
 ### Functions
 
 ```simple
-add :: i32 (a : i32, b : i32) {
+add :: (a : i32, b : i32) -> i32 {
   return a + b
 }
 ```
@@ -518,7 +518,7 @@ add :: i32 (a : i32, b : i32) {
 Function declarations use name-first syntax:
 
 ```txt
-name :: ReturnType (params...) { body }
+name :: (params...) -> ReturnType { body }
 ```
 
 The marker before the return type also carries return mutability facts used by validation.
@@ -530,7 +530,7 @@ The marker before the return type also carries return mutability facts used by v
 ```simple
 Pi :: f64 = 3.141592
 Point :: artifact { x : i32; y : i32 }
-Math :: namespace { one :: i32 () { return 1 } }
+Math :: namespace { one :: () -> i32 { return 1 } }
 Color :: enum { Red = 1, Green = 2 }
 ```
 
@@ -541,7 +541,7 @@ Mutability is part of declarations and parameters:
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   x : i32 = 1    // mutable
   y :: i32 = 2   // immutable
   x = x + 1      // ok
@@ -563,7 +563,7 @@ The validator rejects writes to immutable values:
 Parameters follow the same marker rule:
 
 ```simple
-use :: i32 (x : i32, y :: i32) {
+use :: (x : i32, y :: i32) -> i32 {
   x = x + 1   // ok
   return x + y
 }
@@ -672,8 +672,9 @@ external-C scalar validation, `usize`/`isize`, nullable-pointer niche lowering,
 typed external function pointers, and pointer casts advance syntax to 2.4, SIR
 to 2.3, SBC/opcode metadata to 5, and the runtime ABI to 1.5. Frozen pointer
 access, nullability, function-pointer, borrowed-ownership, and external-lifetime
-metadata advance SIR to 2.4, SBC to 6, and the runtime ABI to 1.6; source syntax
-remains 2.4.
+metadata advance SIR to 2.4, SBC to 6, and the runtime ABI to 1.6. The breaking
+parameter-first procedure declaration and callable-type grammar advances source
+syntax to 3.0; SIR, SBC, opcode metadata, and the runtime ABI remain unchanged.
 
 ### `v0.6` generic design
 
@@ -682,7 +683,7 @@ data/artifacts, fields, procedure types, and canonical wrappers use the same typ
 parameter syntax:
 
 ```simple
-identity<T> :: T (value : T) {
+identity<T> :: (value : T) -> T {
   return value
 }
 
@@ -757,7 +758,7 @@ module Example.Fetch
 
 import Standard.HTTP
 
-fetchBody :: async Result<string, HttpError> (url : string) {
+fetchBody :: async (url : string) -> Result<string, HttpError> {
   response :: Response = await Standard.HTTP.get(url)?
   return response.bodyText()
 }
@@ -798,7 +799,7 @@ explicit; there is no default error type and no exception path hidden beside
 the return type.
 
 ```simple
-readConfig :: Result<string, IoError> () {
+readConfig :: () -> Result<string, IoError> {
   // Produces either a success payload or an error payload.
 }
 ```
@@ -879,12 +880,12 @@ Optional values use exhaustive structural patterns rather than named
 constructors:
 
 ```simple
-findUser :: User? (id : i32) {
+findUser :: (id : i32) -> User? {
   if (!userExists(id)) { return {} }
   return { loadUser(id) }
 }
 
-userName :: string (candidate : User?) {
+userName :: (candidate : User?) -> string {
   switch (candidate) {
     { user } => return user.name
     {} => return "missing"
@@ -911,12 +912,12 @@ parser contexts.
   enclosing `Result<U,E>` with the same `E`.
 
 ```simple
-getDataFromAlgo :: async i32? () {
+getDataFromAlgo :: async () -> i32? {
   if (!algorithmHasResult()) { return {} }
   return { calculateResult() }
 }
 
-doubleData :: async i32? () {
+doubleData :: async () -> i32? {
   result :: i32? = await getDataFromAlgo()
   value :: i32 = result?
   return { value * 2 }
@@ -1036,9 +1037,9 @@ separate from `Result` and structured cancellation.
 ### Procedure types
 
 ```simple
-fn i32 ()
-fn bool (i32, string)
-fn i32 (a : i32, b : i32)
+fn () -> i32
+fn (i32, string) -> bool
+fn (a : i32, b : i32) -> i32
 ```
 
 Procedure values are supported in local, global, and namespace variables; parameters and returns; generic specializations; switch expressions; artifact members; and list/fixed-array elements. They remain rejected at extern ABI boundaries because VM callables are managed references, not external-C function pointers.
@@ -1049,7 +1050,7 @@ Procedure values are supported in local, global, and namespace variables; parame
 i32*
 void**
 i32*?                 // optional raw pointer
-fn i32 (i32)*?        // optional external function pointer
+(fn (i32) -> i32)*?        // optional external function pointer
 ```
 
 The current compiler parses `T*`/`T**` and validates supported `->` paths. The
@@ -1114,11 +1115,11 @@ Primitive casts require the `@` prefix:
 ```simple
 module Examples.Reference
 
-add :: i32 (a : i32, b : i32) {
+add :: (a : i32, b : i32) -> i32 {
   return a + b
 }
 
-main :: i32 () {
+main :: () -> i32 {
   a : i8 = 40
   b : i8 = 2
   return add(@i32(a), @i32(b))
@@ -1130,7 +1131,7 @@ String conversions use the same syntax where supported:
 ```simple
 module Examples.Reference
 
-main :: string () {
+main :: () -> string {
   x : i32 = 42
   return @string(x)
 }
@@ -1145,7 +1146,7 @@ Using primitive type names as normal functions for casts is rejected. The expect
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   return 0
 }
 ```
@@ -1157,7 +1158,7 @@ Non-void functions must return on all required paths. `void` functions may fall 
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   x : i32 = 7
   if (x > 5) {
     return 1
@@ -1170,7 +1171,7 @@ main :: i32 () {
 Condition chains use `|>` branches. They are checked for return flow and can end with `|> default`:
 
 ```simple
-scoreLabel :: string (score : i32) {
+scoreLabel :: (score : i32) -> string {
   |> (score >= 90) { return "great" }
   |> (score >= 70) { return "solid" }
   |> default { return "needs work" }
@@ -1184,7 +1185,7 @@ Nested `if`/`else` chains are also normalized and checked for return flow, but `
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   i : i32 = 0
   sum : i32 = 0
   while (i < 10) {
@@ -1206,7 +1207,7 @@ Three-part `for` loops are supported:
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   total : i32 = 0
   for (i : i32 = 1; i <= 5; i += 1) {
     total += i
@@ -1241,7 +1242,7 @@ Switch expressions use `=>` branches and `default`:
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   x : i32 = 1
   return switch (x) {
     x > 0 => { local : i32 = 10; return local }
@@ -1355,7 +1356,7 @@ Strings are first-class heap values. `==` and `!=` compare string contents:
 ```simple
 module Examples.Reference
 
-main :: i32 () {
+main :: () -> i32 {
   s : string = "hello"
   if (s == "hello") { return len(s) }
   return 0
@@ -1369,7 +1370,7 @@ module Examples.Reference
 
 import Standard.IO
 
-main :: void () {
+main :: () -> void {
   Standard.IO.print("answer={}", 42)
   Standard.IO.println(" done")
 }
@@ -1386,7 +1387,7 @@ Point :: artifact {
   x : i32
   y : i32
 
-  sum :: i32 () {
+  sum :: () -> i32 {
     return self.x + self.y
   }
 }
@@ -1407,7 +1408,7 @@ Artifact methods may mutate mutable fields:
 Counter :: artifact {
   value : i32
 
-  inc :: void () {
+  inc :: () -> void {
     self.value += 1
   }
 }
@@ -1425,12 +1426,12 @@ module Examples.Reference
 Math :: namespace {
   base :: i32 = 2
 
-  add :: i32 (a : i32, b : i32) {
+  add :: (a : i32, b : i32) -> i32 {
     return a + b
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   return Math.add(Math.base, 3)
 }
 ```
@@ -1449,7 +1450,7 @@ Color :: enum {
   Green = 2
 }
 
-main :: i32 () {
+main :: () -> i32 {
   return Color.Green
 }
 ```
@@ -1496,7 +1497,7 @@ module Examples.Reference
 import System.Channel
 using System.Channel
 
-main :: i32 () {
+main :: () -> i32 {
   ch : i64 = newI32()
   sendI32(ch, 9)
   return recvI32(ch)
@@ -1557,7 +1558,7 @@ module Examples.Reference
 import System.Bytes
 using System.Bytes
 
-main :: i32 () {
+main :: () -> i32 {
   b : i32[] = new(4)
   return len(b)
 }
@@ -1570,8 +1571,8 @@ Procedure values use `fn` types:
 ```simple
 module Examples.Reference
 
-main :: i32 () {
-  f :: fn i32 (a : i32, b : i32) = (a, b) { return a + b }
+main :: () -> i32 {
+  f :: fn (a : i32, b : i32) -> i32 = (a, b) { return a + b }
   return f(40, 2)
 }
 ```
@@ -1597,9 +1598,9 @@ and resource-safe composition. Function
 literals keep the existing `fn` procedure type and lexical body syntax:
 
 ```simple
-main :: i32 () {
+main :: () -> i32 {
   base :: i32 = 40
-  addBase :: fn i32 (value : i32) = (value) {
+  addBase :: fn (value : i32) -> i32 = (value) {
     return base + value
   }
   return addBase(2)
@@ -1623,7 +1624,7 @@ The implemented semantics are:
 - host worker threads do not execute closures or access their environments
   directly; async closure execution resumes on VM-owned scheduler state.
 
-A closure's callable type remains `fn ReturnType (...)`. Capture layout is an
+A closure's callable type remains `fn (...) -> ReturnType`. Capture layout is an
 implementation detail recorded in TAST/SIR/SBC metadata, not part of source type
 identity. Two literals with the same `fn` signature are callable through that
 signature but retain distinct environments.
@@ -1649,11 +1650,11 @@ module Examples.Reference
 
 import System.FFI
 
-extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32
 
 lib :: i64 = System.FFI.open("tests/ffi/libsimpleffi.so", ffi)
 
-main :: i32 () {
+main :: () -> i32 {
   return ffi.simple_add_i32(40, 2)
 }
 ```
@@ -1699,12 +1700,12 @@ i32*                  // pointer to i32
 i32**                 // pointer to pointer to i32
 void*                 // opaque untyped address
 i32*?                 // optional pointer to i32
-fn i32 (i32)*         // external-C function pointer
-fn i32 (i32)*?        // optional external-C function pointer
+(fn (i32) -> i32)*         // external-C function pointer
+(fn (i32) -> i32)*?        // optional external-C function pointer
 ```
 
-A plain `fn Return(params)` is a VM callable and may carry a closure
-environment. `fn Return(params)*` is an external function pointer with no Simple
+A plain `fn (params) -> Return` is a VM callable and may carry a closure
+environment. `(fn (params) -> Return)*` is an external function pointer with no Simple
 capture environment. The two representations are never implicitly converted.
 
 ### ZII pointer states and C nullability
@@ -1764,17 +1765,17 @@ metadata. An immutable `::` pointer parameter is an input/read-only pointee
 view; mutable `:` permits the declared output or in/out access:
 
 ```simple
-extern ffi.findByte : u8*? (
+extern ffi.findByte : (
   data :: u8*,
   count :: usize,
   needle :: u8
-)
+) -> u8*?
 
-extern ffi.copyBytes : void (
+extern ffi.copyBytes : (
   destination : u8*,
   source :: u8*,
   count :: usize
-)
+) -> void
 ```
 
 The compiler rejects writes through immutable provenance even if a later alias

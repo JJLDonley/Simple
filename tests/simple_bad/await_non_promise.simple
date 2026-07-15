@@ -1,1 +1,1 @@
-main :: async i32 () { return await 42 }
+main :: async () -> i32 { return await 42 }

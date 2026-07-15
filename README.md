@@ -216,7 +216,7 @@ module examples.hello
 
 import Standard.IO
 
-main :: i32 () {
+main :: () -> i32 {
   Standard.IO.println("hello, world")
   return 0
 }
@@ -255,7 +255,7 @@ svm run hello.simple
 count : i32 = 0
 limit :: i32 = 10
 
-add :: i32 (a : i32, b : i32) {
+add :: (a : i32, b : i32) -> i32 {
   return a + b
 }
 
@@ -272,12 +272,12 @@ module Examples.Reference
 Counter :: artifact {
   value : i32
 
-  increment :: void () {
+  increment :: () -> void {
     self.value += 1
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   counter : Counter = { .value = 0 }
   counter.increment()
   return counter.value
@@ -300,7 +300,7 @@ A module declaration is required for scripts and declaration-oriented source fil
 module Tools.Math
 
 MathTools :: namespace {
-  add :: i32 (a : i32, b : i32) {
+  add :: (a : i32, b : i32) -> i32 {
     return a + b
   }
 }
@@ -313,7 +313,7 @@ module App.Main
 
 import Tools.Math
 
-main :: i32 () {
+main :: () -> i32 {
   return MathTools.add(40, 2)
 }
 ```

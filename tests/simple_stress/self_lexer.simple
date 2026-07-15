@@ -9,7 +9,7 @@ ScanResult :: artifact {
   error : i32
 }
 
-isIdentifier :: bool (source : string, index : i32) {
+isIdentifier :: (source : string, index : i32) -> bool {
   c :: char = source[index]
   if (c >= 'a') { if (c <= 'z') { return true } }
   if (c >= 'A') { if (c <= 'Z') { return true } }
@@ -18,7 +18,7 @@ isIdentifier :: bool (source : string, index : i32) {
   return false
 }
 
-scan :: ScanResult (source : string) {
+scan :: (source : string) -> ScanResult {
   result : ScanResult = { 0, 1, 1, 0 }
   index : i32 = 0
   while (index < len(source)) {
@@ -100,7 +100,7 @@ scan :: ScanResult (source : string) {
   return result
 }
 
-main :: i32 () {
+main :: () -> i32 {
   source :: string = System.FS.readText("tests/simple_stress/self_lexer.simple")
   if (len(source) < 1000) { return 1 }
   own :: ScanResult = scan(source)

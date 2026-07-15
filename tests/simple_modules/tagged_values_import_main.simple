@@ -2,7 +2,7 @@ module Tests.TaggedValuesImportMain
 
 import "./tagged_values_library.simple"
 
-main :: i32 () {
+main :: () -> i32 {
   maybe :: i32? = RemoteTagged.choose(true, 42)
   loaded :: Result<i32, RemoteFailure> = RemoteTagged.forwarded(true)
   value : i32 = switch (maybe) {

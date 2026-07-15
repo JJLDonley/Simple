@@ -2,7 +2,7 @@ import System.Time
 import Standard.Time
 using Standard.Time
 
-main : i32 () {
+main : () -> i32 {
   System.Time.mono_ns()
   wall : i64 = System.Time.wall_ns()
   text : string = Standard.Time.formatWallNs(wall)

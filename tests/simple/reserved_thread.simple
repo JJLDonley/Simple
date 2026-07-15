@@ -1,6 +1,6 @@
 import System.Thread
 
-main : i32 () {
+main : () -> i32 {
   System.Thread.yield()
   System.Thread.sleep(1)
   n : i32 = System.Thread.hardwareConcurrency()

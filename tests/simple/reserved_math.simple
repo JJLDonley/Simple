@@ -1,6 +1,6 @@
 import Standard.Math
 
-main : i32 () {
+main : () -> i32 {
   a :: i32 = Standard.Math.abs(-5)
   b :: i32 = Standard.Math.min(3, 7)
   c :: i32 = Standard.Math.max(3, 7)

@@ -3,7 +3,7 @@ module Tests.Projects.Traffic.Main
 import Standard.FS
 import "./controller.simple"
 
-main :: async i32 () {
+main :: async () -> i32 {
   fixture : string = Standard.FS.readText(
       "tests/projects/traffic_management/demand.txt")
   if (fixture != "north=8\neast=3\nwest=5\n") { return 1 }

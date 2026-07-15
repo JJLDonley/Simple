@@ -1,9 +1,9 @@
 Math :: namespace {
-  bad : i32 () {
+  bad : () -> i32 {
     return "nope"
   }
 }
 
-main : i32 () {
+main : () -> i32 {
   return Math.bad()
 }

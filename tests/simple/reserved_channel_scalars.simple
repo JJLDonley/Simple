@@ -1,6 +1,6 @@
 import System.Channel
 
-main : i32 () {
+main : () -> i32 {
   i64ch : i64 = System.Channel.newI64()
   f32ch : i64 = System.Channel.newF32()
   f64ch : i64 = System.Channel.newF64()

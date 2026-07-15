@@ -13,31 +13,31 @@ I32View :: data {
   length :: usize
 }
 
-extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
-extern ffi.simple_apply_i32 : i32 (callback :: fn i32 (i32, i32)*, a : i32, b : i32)
-extern ffi.simple_add_i8 : i8 (a : i8, b : i8)
-extern ffi.simple_add_i16 : i16 (a : i16, b : i16)
-extern ffi.simple_add_u8 : u8 (a : u8, b : u8)
-extern ffi.simple_add_u16 : u16 (a : u16, b : u16)
-extern ffi.simple_add_u32 : u32 (a : u32, b : u32)
-extern ffi.simple_add_u64 : u64 (a : u64, b : u64)
-extern ffi.simple_mix_i32_f64 : f64 (a : i32, b : f64)
-extern ffi.simple_sink_i32 : void (value : i32)
-extern ffi.simple_color_sum : i32 (color : Color)
-extern ffi.simple_add_usize : usize (a : usize, b : usize)
-extern ffi.simple_add_isize : isize (a : isize, b : isize)
-extern ffi.simple_i32_pointer : i32* ()
-extern ffi.simple_maybe_i32_pointer : i32*? (present : i32)
-extern ffi.simple_write_i32_pointer : void (pointer : i32*, value :: i32)
-extern ffi.simple_i32_pointer_slot : i32** ()
-extern ffi.simple_write_i32_pointer_slot : void (destination : i32**, value :: i32*)
-extern ffi.simple_read_i32_pointer_slot : i32 (slot :: i32**)
-extern ffi.simple_i32_view : I32View ()
-extern ffi.simple_read_i32_view : i32 (view :: I32View)
-extern ffi.simple_read_i32_pointer : i32 (pointer :: i32*)
-extern ffi.simple_pointer_is_null : i32 (pointer :: i32*?)
+extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32
+extern ffi.simple_apply_i32 : (callback :: (fn (i32, i32) -> i32)*, a : i32, b : i32) -> i32
+extern ffi.simple_add_i8 : (a : i8, b : i8) -> i8
+extern ffi.simple_add_i16 : (a : i16, b : i16) -> i16
+extern ffi.simple_add_u8 : (a : u8, b : u8) -> u8
+extern ffi.simple_add_u16 : (a : u16, b : u16) -> u16
+extern ffi.simple_add_u32 : (a : u32, b : u32) -> u32
+extern ffi.simple_add_u64 : (a : u64, b : u64) -> u64
+extern ffi.simple_mix_i32_f64 : (a : i32, b : f64) -> f64
+extern ffi.simple_sink_i32 : (value : i32) -> void
+extern ffi.simple_color_sum : (color : Color) -> i32
+extern ffi.simple_add_usize : (a : usize, b : usize) -> usize
+extern ffi.simple_add_isize : (a : isize, b : isize) -> isize
+extern ffi.simple_i32_pointer : () -> i32*
+extern ffi.simple_maybe_i32_pointer : (present : i32) -> i32*?
+extern ffi.simple_write_i32_pointer : (pointer : i32*, value :: i32) -> void
+extern ffi.simple_i32_pointer_slot : () -> i32**
+extern ffi.simple_write_i32_pointer_slot : (destination : i32**, value :: i32*) -> void
+extern ffi.simple_read_i32_pointer_slot : (slot :: i32**) -> i32
+extern ffi.simple_i32_view : () -> I32View
+extern ffi.simple_read_i32_view : (view :: I32View) -> i32
+extern ffi.simple_read_i32_pointer : (pointer :: i32*) -> i32
+extern ffi.simple_pointer_is_null : (pointer :: i32*?) -> i32
 
-main :: i32 () {
+main :: () -> i32 {
   path : string = System.Env.get("SIMPLE_TEST_FFI_LIBRARY")
   library : i64 = System.FFI.open(path, ffi)
   if (library == 0) { return 0 }
@@ -74,7 +74,7 @@ main :: i32 () {
   if (library.simple_read_i32_view(view) != 73) { return 0 }
 
   raw : void* = System.FFI.sym(library, "simple_add_i32")
-  add : fn i32 (i32, i32)* = @fn i32 (i32, i32)*(raw)
+  add : (fn (i32, i32) -> i32)* = @(fn (i32, i32) -> i32)*(raw)
   if (add(40, 2) != 42) { return 0 }
   if (library.simple_apply_i32(add, 19, 23) != 42) { return 0 }
 

@@ -17,7 +17,7 @@ bool LangSplitIrbBuildsModule() {
   Simple::Lang::TAST::TypedProgram typed;
   Simple::Lang::IRB::Module module;
   std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString("main : i32 () { return 3; }", &cast_program, &error)) {
+  if (!Simple::Lang::CAST::ParseProgramFromString("main : () -> i32 { return 3; }", &cast_program, &error)) {
     return false;
   }
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
@@ -31,9 +31,9 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () { return self.v + 40; }\n"
+      "  score : () -> i32 { return self.v + 40; }\n"
       "}\n"
-      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+      "main : () -> i32 { b : Box = { 2 }; return b.score(); }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -93,9 +93,9 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
 
 bool LangIrbCollectsAllocationMetadata() {
   const char* src =
-      "extern host.consume : i32 (value : i32)\n"
+      "extern host.consume : (value : i32) -> i32\n"
       "g : i32 = 7\n"
-      "main : i32 () { host.consume(7); return g; }\n";
+      "main : () -> i32 { host.consume(7); return g; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -133,7 +133,7 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
   const char* src =
       "Inner :: artifact { x : i32; y : i32 }\n"
       "Outer :: artifact { inner : Inner; z : f64 }\n"
-      "main : i32 () { return 0; }\n";
+      "main : () -> i32 { return 0; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -158,8 +158,8 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
 
 bool LangIrbIreKeepsSirOutputStable() {
   const char* src =
-      "Box :: artifact { v : i32; score : i32 () { return self.v + 40; } }\n"
-      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+      "Box :: artifact { v : i32; score : () -> i32 { return self.v + 40; } }\n"
+      "main : () -> i32 { b : Box = { 2 }; return b.score(); }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;

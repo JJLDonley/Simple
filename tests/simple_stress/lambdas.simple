@@ -1,41 +1,41 @@
 module Tests.Stress.Lambdas
 
 Box :: artifact {
-  callable : fn i32 (i32)
+  callable : fn (i32) -> i32
 }
 
-global : fn i32 (i32) = (value : i32) { return value + 1 }
+global : fn (i32) -> i32 = (value : i32) { return value + 1 }
 
 Ops :: namespace {
-  stored : fn i32 (i32) = (value) { return value + 2 }
+  stored : fn (i32) -> i32 = (value) { return value + 2 }
 }
 
-apply<T> :: T (callable : fn T (T), value : T) {
+apply<T> :: (callable : fn (T) -> T, value : T) -> T {
   return callable(value)
 }
 
-makeIdentity<T> :: fn T (T) () {
+makeIdentity<T> :: () -> fn (T) -> T {
   return (value : T) { return value }
 }
 
-makeBox :: Box () {
+makeBox :: () -> Box {
   return { (value) { return value + 3 } }
 }
 
-makeNested :: fn i32 (i32) () {
+makeNested :: () -> fn (i32) -> i32 {
   return (value : i32) {
-    increment : fn i32 (i32) = (inner) { return inner + 1 }
+    increment : fn (i32) -> i32 = (inner) { return inner + 1 }
     return increment(value)
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   (() { })()
-  identity : fn i32 (i32) = makeIdentity<i32>()
-  nested : fn i32 (i32) = makeNested()
+  identity : fn (i32) -> i32 = makeIdentity<i32>()
+  nested : fn (i32) -> i32 = makeNested()
   box : Box = makeBox()
-  callables : fn i32 (i32)[] = [global, Ops.stored, box.callable]
-  fixed : fn i32 (i32){2} = {(value) { return value + 4 }, identity}
+  callables : (fn (i32) -> i32)[] = [global, Ops.stored, box.callable]
+  fixed : (fn (i32) -> i32){2} = {(value) { return value + 4 }, identity}
   assigned : i32 = 0
   assigned = ((value : i32) { return value + 2 })(40)
   boxes : Box[] = []

@@ -7,14 +7,14 @@
 module Standard.Promise
 
 /// Returns state without suspending.
-poll<T> :: PromiseState<T> (promise :: Promise<T>)
+poll<T> :: (promise :: Promise<T>) -> PromiseState<T>
 
-isPending<T> :: bool (promise :: Promise<T>)
-isCompleted<T> :: bool (promise :: Promise<T>)
-isCancelled<T> :: bool (promise :: Promise<T>)
+isPending<T> :: (promise :: Promise<T>) -> bool
+isCompleted<T> :: (promise :: Promise<T>) -> bool
+isCancelled<T> :: (promise :: Promise<T>) -> bool
 
 /// Requests structured cancellation when the producer supports it.
-cancel<T> :: bool (promise :: Promise<T>)
+cancel<T> :: (promise :: Promise<T>) -> bool
 ```
 
 There is deliberately no `await` function or method. `await` is a language

@@ -1,10 +1,10 @@
 import "stress_raylib_like_types"
 
 World :: namespace {
-    Width: f32 () { return 100.0 }
-    Height: f32 () { return 100.0 }
+    Width: () -> f32 { return 100.0 }
+    Height: () -> f32 { return 100.0 }
 
-    WrapPosition: Vector2 (p: Vector2) {
+    WrapPosition: (p: Vector2) -> Vector2 {
         v : Vector2 = p
         if (v.x < 0.0) { v.x = World.Width() }
         else if (v.x > World.Width()) { v.x = 0.0 }
@@ -13,7 +13,7 @@ World :: namespace {
         return v
     }
 
-    SpawnChunks: Vector2[] (position: Vector2, size: Vector2) {
+    SpawnChunks: (position: Vector2, size: Vector2) -> Vector2[] {
         halfSize :: Vector2 = { size.x / 2.0, size.y / 2.0 }
         return [
             { position.x - halfSize.x, position.y - halfSize.y },
@@ -29,7 +29,7 @@ Player :: artifact {
     bullets: Bullet[]
     fireCooldown: f32
 
-    Update: void (dt: f32, fire: bool) {
+    Update: (dt: f32, fire: bool) -> void {
         if (fire && (self.fireCooldown <= 0.0)) {
             self.fireCooldown = 0.1
             b : Bullet = {
@@ -56,7 +56,7 @@ Player :: artifact {
     }
 }
 
-main : i32 () {
+main : () -> i32 {
     player : Player = {
         .position = { 0.0, 0.0 },
         .bullets = [],

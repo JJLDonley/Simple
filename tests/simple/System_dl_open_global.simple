@@ -1,16 +1,16 @@
 import System.FFI
 import System.Env
 
-extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+extern ffi.simple_add_i32 : (a : i32, b : i32) -> i32
 
 lib_path :: string = System.Env.get("SIMPLE_TEST_FFI_LIBRARY")
 lib :: i64 = System.FFI.open(lib_path, ffi)
 
-AddViaGlobal : i32 (a : i32, b : i32) {
+AddViaGlobal : (a : i32, b : i32) -> i32 {
   return lib.simple_add_i32(a, b)
 }
 
-main : i32 () {
+main : () -> i32 {
   if (lib == 0) {
     return 0
   }

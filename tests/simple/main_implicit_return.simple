@@ -1,4 +1,4 @@
 import Standard.IO
-main : i32 () {
+main : () -> i32 {
   Standard.IO.print("hi")
 }

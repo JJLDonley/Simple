@@ -2,17 +2,17 @@ module Tests.Projects.Traffic.Controller
 
 import "./model.simple"
 
-computeWindow :: async Result<i32, TrafficError> (
+computeWindow :: async (
     demand : i32,
-    policy : fn i32 (i32)) {
+    policy : fn (i32) -> i32) -> Result<i32, TrafficError> {
   if (demand < 0) { return { .error = TrafficError.InvalidDemand } }
   return { .value = policy(demand) }
 }
 
-advance :: async Result<i32, TrafficError> (
+advance :: async (
     intersection : Intersection,
     demand : i32,
-    policy : fn i32 (i32)) {
+    policy : fn (i32) -> i32) -> Result<i32, TrafficError> {
   window : i32 = await computeWindow(demand, policy)?
   intersection.signal = TrafficModel.nextSignal(intersection.signal)
   intersection.ticks += window
@@ -22,10 +22,10 @@ advance :: async Result<i32, TrafficError> (
   return { .value = window }
 }
 
-runCycle :: async Result<i32, TrafficError> (
+runCycle :: async (
     intersections : Intersection[],
     demands : i32[],
-    policy : fn i32 (i32)) {
+    policy : fn (i32) -> i32) -> Result<i32, TrafficError> {
   pending : Promise<Result<i32, TrafficError>>[] = []
   for (i : i32 = 0; i < intersections.len(); i += 1) {
     pending.push(advance(intersections[i], demands[i], policy))
@@ -38,11 +38,11 @@ runCycle :: async Result<i32, TrafficError> (
 }
 
 PolicySet :: artifact {
-  apply : fn i32 (i32)
-  observations : fn i32 ()
+  apply : fn (i32) -> i32
+  observations : fn () -> i32
 }
 
-makePolicy :: PolicySet (bias : i32) {
+makePolicy :: (bias : i32) -> PolicySet {
   observations : i32 = 0
   return {
     (demand) {

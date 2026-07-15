@@ -1,6 +1,6 @@
 import System.Json
 
-main : i32 () {
+main : () -> i32 {
   h : i64 = System.Json.parse("{\"answer\":42,\"ok\":true,\"items\":[1,2,null]}")
   if (h == 0) { return 1 }
   text : string = System.Json.stringify(h)

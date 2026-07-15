@@ -2,7 +2,7 @@ import Standard.Random
 import System.Random
 import System.Bytes
 
-main : i32 () {
+main : () -> i32 {
   Standard.Random.seed(123)
   a : i32 = Standard.Random.range(5, 10)
   b : i32 = Standard.Random.i32()

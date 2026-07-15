@@ -1,5 +1,5 @@
 Kind :: enum { A = 1 }
 
-main : i32 () {
+main : () -> i32 {
   return Kind
 }

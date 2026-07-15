@@ -1,4 +1,4 @@
-main :: i32 () {
+main :: () -> i32 {
   left_value : i32 = 1
   right_value : i32 = 2
   left : i32* = &left_value

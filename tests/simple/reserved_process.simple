@@ -4,7 +4,7 @@ import System.Process
 import Standard.Process
 import Standard.Promise
 
-main :: i32 () {
+main :: () -> i32 {
   arguments : string[] = ["--version"]
   text : string = Standard.Process.runText("build/bin/svm", arguments)
   if (len(text) == 0) { return 1 }

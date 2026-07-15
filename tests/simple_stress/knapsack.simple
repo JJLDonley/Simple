@@ -1,6 +1,6 @@
 module Tests.Stress.Knapsack
 
-main :: i32 () {
+main :: () -> i32 {
   capacity :: i32 = 200
   best : i32[] = []
   for (i : i32 = 0; i <= capacity; i += 1) { best.push(0) }

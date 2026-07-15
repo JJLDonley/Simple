@@ -8,7 +8,7 @@ namespace {
 bool LangSplitCastParsesFunctionDecl() {
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString("main : i32 () { return 7; }", &program, &error)) {
+  if (!Simple::Lang::CAST::ParseProgramFromString("main : () -> i32 { return 7; }", &program, &error)) {
     return false;
   }
   if (program.decls.size() != 1) return false;
@@ -24,7 +24,7 @@ bool LangCastParserModuleParsesArtifactSwitch() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () {\n"
+      "  score : () -> i32 {\n"
       "    return switch (self.v) {\n"
       "      self.v > 0 => { local : i32 = 1; return local }\n"
       "      default => return 0\n"
@@ -45,7 +45,7 @@ bool LangCastParserModuleParsesArtifactSwitch() {
 
 
 bool LangParseMissingSemicolonSameLine() {
-  const char* src = "main : i32 () { x : i32 = 1 y : i32 = 2 }";
+  const char* src = "main : () -> i32 { x : i32 = 1 y : i32 = 2 }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -54,7 +54,7 @@ bool LangParseMissingSemicolonSameLine() {
 
 
 bool LangParseErrorIncludesLocation() {
-  const char* src = "main : i32 () { $ }";
+  const char* src = "main : () -> i32 { $ }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -72,7 +72,7 @@ bool LangParseArtifactCommaDiagnosticHint() {
 
 
 bool LangParseReservedKeywordParameterDiagnosticHint() {
-  const char* src = "f : void (artifact: i32) { return; }";
+  const char* src = "f : (artifact: i32) -> void { return; }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -193,7 +193,7 @@ bool LangParsesTypeLiterals() {
   }
 
   Simple::Lang::TypeRef proc;
-  if (!Simple::Lang::CAST::ParseTypeFromString("fn bool (i32, string)", &proc, &error)) return false;
+  if (!Simple::Lang::CAST::ParseTypeFromString("fn (i32, string) -> bool", &proc, &error)) return false;
   if (!proc.is_proc) return false;
   if (proc.proc_params.size() != 2) return false;
   if (proc.proc_params[0].name != "i32") return false;
@@ -202,11 +202,42 @@ bool LangParsesTypeLiterals() {
   if (proc.proc_return->name != "bool") return false;
 
   Simple::Lang::TypeRef fn_ret;
-  if (!Simple::Lang::CAST::ParseTypeFromString("fn i32 ()", &fn_ret, &error)) return false;
+  if (!Simple::Lang::CAST::ParseTypeFromString("fn () -> i32", &fn_ret, &error)) return false;
   if (!fn_ret.is_proc) return false;
   if (!fn_ret.proc_return) return false;
   if (fn_ret.proc_return->name != "i32") return false;
   if (!fn_ret.proc_params.empty()) return false;
+
+  Simple::Lang::TypeRef nested_proc;
+  if (!Simple::Lang::CAST::ParseTypeFromString(
+          "fn (fn (i32) -> string) -> fn (bool) -> i64", &nested_proc, &error)) {
+    return false;
+  }
+  if (!nested_proc.is_proc || nested_proc.proc_params.size() != 1 ||
+      !nested_proc.proc_params[0].is_proc || !nested_proc.proc_return ||
+      !nested_proc.proc_return->is_proc) {
+    return false;
+  }
+
+  Simple::Lang::TypeRef optional_fn_pointer;
+  if (!Simple::Lang::CAST::ParseTypeFromString(
+          "(fn (i32) -> i32)*?", &optional_fn_pointer, &error)) {
+    return false;
+  }
+  if (!optional_fn_pointer.is_optional_syntax || optional_fn_pointer.type_args.size() != 1 ||
+      optional_fn_pointer.type_args[0].pointer_depth != 1 ||
+      !optional_fn_pointer.type_args[0].is_proc) {
+    return false;
+  }
+
+  Simple::Lang::TypeRef malformed_proc;
+  if (Simple::Lang::CAST::ParseTypeFromString("fn (i32) i32", &malformed_proc, &error) ||
+      error.find("expected '->' after fn parameter list") == std::string::npos) {
+    return false;
+  }
+  if (Simple::Lang::CAST::ParseTypeFromString("fn i32 (i32)", &malformed_proc, &error)) {
+    return false;
+  }
 
   Simple::Lang::TypeRef ptr;
   if (!Simple::Lang::CAST::ParseTypeFromString("i32*", &ptr, &error)) return false;
@@ -226,7 +257,7 @@ bool LangRejectsBadArraySize() {
 
 
 bool LangParsesFuncDecl() {
-  const char* src = "add : i32 (a : i32, b :: i32) { return a + b; }";
+  const char* src = "add : (a : i32, b :: i32) -> i32 { return a + b; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -244,25 +275,25 @@ bool LangParsesFuncDecl() {
 }
 
 
-bool LangParsesFnKeywordDecl() {
-  const char* src = "fn main :: void () { return; }";
+bool LangRejectsFnKeywordDecl() {
+  const char* src = "fn main :: () -> void { return; }";
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
-  if (program.decls.size() != 1) return false;
-  const auto& decl = program.decls[0];
-  if (decl.kind != Simple::Lang::DeclKind::Function) return false;
-  if (decl.func.name != "main") return false;
-  if (decl.func.return_type.name != "void") return false;
-  if (decl.func.body.empty()) return false;
-  if (decl.func.body[0].kind != Simple::Lang::StmtKind::Return) return false;
-  if (decl.func.body[0].has_return_expr) return false;
-  return true;
+  return !Simple::Lang::CAST::ParseProgramFromString(src, &program, &error) &&
+         error.find("expected expression") != std::string::npos;
+}
+
+bool LangRejectsReturnFirstFunctionDecl() {
+  const char* src = "main :: i32 (value : i32) { return value; }";
+  Simple::Lang::Program program;
+  std::string error;
+  return !Simple::Lang::CAST::ParseProgramFromString(src, &program, &error) &&
+         error.find("return-first procedure declarations are not supported") != std::string::npos;
 }
 
 
 bool LangParserRecoversInBlock() {
-  const char* src = "main : void () { +; x : i32 = 1; }";
+  const char* src = "main : () -> void { +; x : i32 = 1; }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -309,7 +340,7 @@ bool LangParsesVarDeclNoInit() {
 
 
 bool LangParsesLocalVarDeclNoInit() {
-  const char* src = "main : void () { x : i32; }";
+  const char* src = "main : () -> void { x : i32; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -322,7 +353,7 @@ bool LangParsesLocalVarDeclNoInit() {
 
 
 bool LangParsesArtifactDecl() {
-  const char* src = "Point :: artifact { x : f32; y :: f32; len : i32 () { return 1; } }";
+  const char* src = "Point :: artifact { x : f32; y :: f32; len : () -> i32 { return 1; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -353,7 +384,7 @@ bool LangParsesDataDecl() {
 
 
 bool LangParsesArtifactDeclCapitalized() {
-  const char* src = "Point :: artifact { x : f32; y :: f32; len : i32 () { return 1; } }";
+  const char* src = "Point :: artifact { x : f32; y :: f32; len : () -> i32 { return 1; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -368,7 +399,7 @@ bool LangParsesArtifactDeclCapitalized() {
 
 
 bool LangParsesModuleDecl() {
-  const char* src = "Math :: namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: namespace { scale : i32 = 2; add : (a : i32, b : i32) -> i32 { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -383,7 +414,7 @@ bool LangParsesModuleDecl() {
 
 
 bool LangParsesModuleDeclCapitalized() {
-  const char* src = "Math :: namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: namespace { scale : i32 = 2; add : (a : i32, b : i32) -> i32 { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -441,7 +472,7 @@ bool LangParsesImportDeclUnquotedPath() {
 
 
 bool LangParsesExternDecl() {
-  const char* src = "extern Ray.InitWindow : void (w : i32, h : i32)";
+  const char* src = "extern Ray.InitWindow : (w : i32, h : i32) -> void";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -503,7 +534,7 @@ bool LangParsesEnumDeclCapitalized() {
 }
 
 bool LangParsesReturnExpr() {
-  const char* src = "main : i32 () { return 1 + 2 * 3; }";
+  const char* src = "main : () -> i32 { return 1 + 2 * 3; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -520,7 +551,7 @@ bool LangParsesReturnExpr() {
 
 
 bool LangParsesCallAndMember() {
-  const char* src = "main : i32 () { return foo(1, 2).bar + 3; }";
+  const char* src = "main : () -> i32 { return foo(1, 2).bar + 3; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -534,7 +565,7 @@ bool LangParsesCallAndMember() {
 
 
 bool LangParsesSelf() {
-  const char* src = "Point :: artifact { x : i32; get : i32 () { return self.x; } }";
+  const char* src = "Point :: artifact { x : i32; get : () -> i32 { return self.x; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -553,7 +584,7 @@ bool LangParsesSelf() {
 
 
 bool LangParsesQualifiedMember() {
-  const char* src = "main : i32 () { return Standard.Math.PI; }";
+  const char* src = "main : () -> i32 { return Standard.Math.PI; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -566,7 +597,7 @@ bool LangParsesQualifiedMember() {
 
 
 bool LangRejectsDoubleColonMember() {
-  const char* src = "main : i32 () { return Math::PI; }";
+  const char* src = "main : () -> i32 { return Math::PI; }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -575,7 +606,7 @@ bool LangRejectsDoubleColonMember() {
 
 
 bool LangParsesComparisons() {
-  const char* src = "main : bool () { return 1 + 2 * 3 == 7 && 4 < 5; }";
+  const char* src = "main : () -> bool { return 1 + 2 * 3 == 7 && 4 < 5; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -587,7 +618,7 @@ bool LangParsesComparisons() {
 
 
 bool LangParsesBitwisePrecedence() {
-  const char* src = "main : i32 () { return 1 | 2 ^ 3 & 4 << 1; }";
+  const char* src = "main : () -> i32 { return 1 | 2 ^ 3 & 4 << 1; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -605,7 +636,7 @@ bool LangParsesBitwisePrecedence() {
 
 
 bool LangParsesArrayListAndIndex() {
-  const char* src = "main : i32 () { return [1,2,3][0] + [][0]; }";
+  const char* src = "main : () -> i32 { return [1,2,3][0] + [][0]; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -622,7 +653,7 @@ bool LangParsesArrayListAndIndex() {
 bool LangParsesDelimitedStringLiterals() {
   const char* src =
       "Pair :: artifact { left : string; right : string }\n"
-      "main : void () { values : string[] = [\"alpha\", \"beta\"]; "
+      "main : () -> void { values : string[] = [\"alpha\", \"beta\"]; "
       "pair : Pair = { \"gamma\", \"delta\" }; "
       "named : Pair = { .left = \"epsilon\", .right = \"zeta\" }; }";
   Simple::Lang::Program program;
@@ -647,7 +678,7 @@ bool LangParsesDelimitedStringLiterals() {
 
 
 bool LangParsesArtifactLiteral() {
-  const char* src = "main : void () { foo({ .x = 1, .y = 2 }); }";
+  const char* src = "main : () -> void { foo({ .x = 1, .y = 2 }); }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -667,7 +698,7 @@ bool LangParsesArtifactLiteral() {
 
 
 bool LangParsesFnLiteral() {
-  const char* src = "main : void () { f : fn i32 (x : i32) = (x) { return x; }; }";
+  const char* src = "main : () -> void { f : fn (x : i32) -> i32 = (x) { return x; }; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -684,7 +715,7 @@ bool LangParsesFnLiteral() {
 
 
 bool LangParsesFnShorthandLiteralBinding() {
-  const char* src = "main : void () { f : fn i32 (a : i32, b : i32) = (a, b) { return a + b; }; }";
+  const char* src = "main : () -> void { f : fn (a : i32,  b : i32) -> i32 = (a, b) { return a + b; }; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -705,7 +736,7 @@ bool LangParsesFnShorthandLiteralBinding() {
 
 
 bool LangParsesAssignments() {
-  const char* src = "main : i32 () { x : i32 = 1; x += 2; x = x * 3; return x; }";
+  const char* src = "main : () -> i32 { x : i32 = 1; x += 2; x = x * 3; return x; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -720,7 +751,7 @@ bool LangParsesAssignments() {
 
 
 bool LangParsesIncDec() {
-  const char* src = "main : void () { x++; ++x; x--; --x; }";
+  const char* src = "main : () -> void { x++; ++x; x--; --x; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -735,7 +766,7 @@ bool LangParsesIncDec() {
 
 
 bool LangParsesIfChain() {
-  const char* src = "main : i32 () { |> (true) { return 1; } |> default { return 2; } }";
+  const char* src = "main : () -> i32 { |> (true) { return 1; } |> default { return 2; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -748,7 +779,7 @@ bool LangParsesIfChain() {
 
 
 bool LangParsesIfElse() {
-  const char* src = "main : i32 () { if (x < 1) { return 1; } else { return 2; } }";
+  const char* src = "main : () -> i32 { if (x < 1) { return 1; } else { return 2; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -761,7 +792,7 @@ bool LangParsesIfElse() {
 
 
 bool LangParsesWhileLoop() {
-  const char* src = "main : void () { while (x < 10) { x = x + 1; } }";
+  const char* src = "main : () -> void { while (x < 10) { x = x + 1; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -772,7 +803,7 @@ bool LangParsesWhileLoop() {
 
 
 bool LangParsesBreakSkip() {
-  const char* src = "main : void () { while (true) { break; skip; } }";
+  const char* src = "main : () -> void { while (true) { break; skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -786,7 +817,7 @@ bool LangParsesBreakSkip() {
 
 
 bool LangParsesForLoop() {
-  const char* src = "main : void () { for (i : i32 = 0; i < 10; i = i + 1) { skip; } }";
+  const char* src = "main : () -> void { for (i : i32 = 0; i < 10; i = i + 1) { skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -797,7 +828,7 @@ bool LangParsesForLoop() {
 
 
 bool LangParsesForLoopPostInc() {
-  const char* src = "main : void () { for (i : i32 = 0; i < 10; i++) { skip; } }";
+  const char* src = "main : () -> void { for (i : i32 = 0; i < 10; i++) { skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -809,7 +840,7 @@ bool LangParsesForLoopPostInc() {
 
 
 bool LangParsesForLoopRange() {
-  const char* src = "main : void () { for (i : i32 = 0; i <= 10; i++) { skip; } }";
+  const char* src = "main : () -> void { for (i : i32 = 0; i <= 10; i++) { skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -826,8 +857,8 @@ bool LangParsesForLoopRange() {
 bool LangParsesNestedGenericCallTypeArguments() {
   const char* src =
       "Box<T> :: artifact { value : T } "
-      "head<T> :: T (values : T[]) { return values[0] } "
-      "main :: Box<i32> () { return head<Box<i32>>([{ 1 }]) }";
+      "head<T> :: (values : T[]) -> T { return values[0] } "
+      "main :: () -> Box<i32> { return head<Box<i32>>([{ 1 }]) }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -839,7 +870,7 @@ bool LangParsesNestedGenericCallTypeArguments() {
 
 bool LangParsesTaggedPatternsAndPropagation() {
   const char* src =
-      "main : i32? (candidate : i32?) { value : i32 = candidate?; "
+      "main : (candidate : i32?) -> i32? { value : i32 = candidate?; "
       "return switch (candidate) { { present } => return { present }; "
       "{} => return {} } }";
   Simple::Lang::Program program;
@@ -860,7 +891,7 @@ bool LangParsesTaggedPatternsAndPropagation() {
 }
 
 bool LangParsesForLoopRangeDefaultType() {
-  const char* src = "main : void () { for (i; i < 10; i += 1) { skip; } }";
+  const char* src = "main : () -> void { for (i; i < 10; i += 1) { skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -874,8 +905,8 @@ bool LangParsesForLoopRangeDefaultType() {
 
 bool LangParsesAsyncAwaitOrdering() {
   const char* source =
-      "get :: async Result<i32, string> () { return { .value = 1 } }\n"
-      "pipeline :: async Result<i32, string> () {\n"
+      "get :: async () -> Result<i32, string> { return { .value = 1 } }\n"
+      "pipeline :: async () -> Result<i32, string> {\n"
       "  value : i32 = await get()?\n"
       "  return { .value = value }\n"
       "}\n";
@@ -898,7 +929,8 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_type_literals", LangParsesTypeLiterals},
   {"lang_parse_bad_array_size", LangRejectsBadArraySize},
   {"lang_parse_func_decl", LangParsesFuncDecl},
-  {"lang_parse_fn_keyword", LangParsesFnKeywordDecl},
+  {"lang_reject_fn_keyword_declaration", LangRejectsFnKeywordDecl},
+  {"lang_reject_return_first_function_declaration", LangRejectsReturnFirstFunctionDecl},
   {"lang_parse_var_decl", LangParsesVarDecl},
   {"lang_parse_var_decl_no_init", LangParsesVarDeclNoInit},
   {"lang_parse_local_var_decl_no_init", LangParsesLocalVarDeclNoInit},

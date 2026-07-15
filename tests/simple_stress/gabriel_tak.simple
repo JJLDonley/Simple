@@ -1,6 +1,6 @@
 module Tests.Stress.GabrielTak
 
-tak :: i32 (x : i32, y : i32, z : i32) {
+tak :: (x : i32, y : i32, z : i32) -> i32 {
   if (y >= x) { return z }
   return tak(
     tak(x - 1, y, z),
@@ -8,7 +8,7 @@ tak :: i32 (x : i32, y : i32, z : i32) {
     tak(z - 1, x, y))
 }
 
-main :: i32 () {
+main :: () -> i32 {
   if (tak(14, 8, 4) != 5) { return 1 }
   return 0
 }

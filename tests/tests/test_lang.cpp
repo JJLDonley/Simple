@@ -56,7 +56,7 @@ bool RunSimpleFileExpectExit(const std::string& path, int32_t expected) {
 }
 
 bool LangSirEmitsReturnI32() {
-  const char* src = "main : i32 () { return 40 + 2; }";
+  const char* src = "main : () -> i32 { return 40 + 2; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -84,7 +84,7 @@ bool LangIreSerializesPrecomputedSirLines() {
 }
 
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
-  Simple::Lang::Lexer lexer("main : i32 () { return 0; }");
+  Simple::Lang::Lexer lexer("main : () -> i32 { return 0; }");
   if (!lexer.Lex()) return false;
   if (lexer.Tokens().empty()) return false;
   if (lexer.Tokens().front().kind != Simple::Lang::TokenKind::Identifier) return false;
@@ -108,7 +108,7 @@ bool LangNestedArtifactMethodSwitchIfChainRuntime() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () {\n"
+      "  score : () -> i32 {\n"
       "    tmp : i32 = 0;\n"
       "    out : i32 = switch (self.v) {\n"
       "      self.v > 0 => {\n"
@@ -121,7 +121,7 @@ bool LangNestedArtifactMethodSwitchIfChainRuntime() {
       "    return out;\n"
       "  }\n"
       "}\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  b : Box = { 2 };\n"
       "  return b.score();\n"
       "}\n";
@@ -138,7 +138,7 @@ bool LangNestedArtifactMethodSwitchIfChainBadCondition() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () {\n"
+      "  score : () -> i32 {\n"
       "    tmp : i32 = 0;\n"
       "    out : i32 = switch (self.v) {\n"
       "      self.v > 0 => {\n"
@@ -160,7 +160,7 @@ bool LangNestedSwitchBranchBlockLocalRuntime() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () {\n"
+      "  score : () -> i32 {\n"
       "    return switch (self.v) {\n"
       "      self.v > 0 => {\n"
       "        local : i32 = self.v + 40;\n"
@@ -170,7 +170,7 @@ bool LangNestedSwitchBranchBlockLocalRuntime() {
       "    };\n"
       "  }\n"
       "}\n"
-      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+      "main : () -> i32 { b : Box = { 2 }; return b.score(); }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
@@ -184,7 +184,7 @@ bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
   const char* src =
       "Box :: artifact {\n"
       "  v : i32\n"
-      "  score : i32 () {\n"
+      "  score : () -> i32 {\n"
       "    while (true) {\n"
       "      out : i32 = switch (self.v) {\n"
       "        self.v > 0 => {\n"
@@ -199,7 +199,7 @@ bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
       "    return 9;\n"
       "  }\n"
       "}\n"
-      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+      "main : () -> i32 { b : Box = { 2 }; return b.score(); }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
@@ -211,7 +211,7 @@ bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
 
 bool LangNestedSwitchBranchSiblingLocalsRuntime() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  mode : i32 = 2;\n"
       "  value : i32 = switch (mode) {\n"
       "    mode == 1 => { local : i32 = 10; return local }\n"
@@ -232,7 +232,7 @@ bool LangNestedSwitchBranchSiblingLocalsRuntime() {
 
 bool LangNestedIfSiblingLocalsRuntime() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  out : i32 = 0;\n"
       "  if (true) { local : i32 = 42; out = local; }\n"
       "  else { local : i32 = 1; out = local; }\n"
@@ -250,7 +250,7 @@ bool LangNestedIfSiblingLocalsRuntime() {
 
 bool LangConditionalReturnMainImplicitFallbackRuntime() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  if (false) { return 7; }\n"
       "}\n";
   std::string sir;
@@ -264,7 +264,7 @@ bool LangConditionalReturnMainImplicitFallbackRuntime() {
 
 bool LangIfChainAllBranchesReturnNoFallbackRuntime() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = 2;\n"
       "  |> (x == 1) { return 1; }\n"
       "  |> (x == 2) { return 42; }\n"
@@ -281,7 +281,7 @@ bool LangIfChainAllBranchesReturnNoFallbackRuntime() {
 
 bool LangSwitchExprStmtBranchLocalRuntime() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  mode : i32 = 1;\n"
       "  switch (mode) {\n"
       "    mode == 1 => { local : i32 = 42; return local }\n"
@@ -300,7 +300,7 @@ bool LangSwitchExprStmtBranchLocalRuntime() {
 
 bool LangSirTopLevelScriptExecutes() {
   const char* src =
-      "add : i32 (a : i32, b : i32) { return a + b; }\n"
+      "add : (a : i32, b : i32) -> i32 { return a + b; }\n"
       "x : i32 = add(40, 2);\n"
       "x = x + 1;\n";
   std::string sir;
@@ -313,7 +313,7 @@ bool LangSirTopLevelScriptExecutes() {
 bool LangSirMainOverridesTopLevel() {
   const char* src =
       "x : i32 = 1;\n"
-      "main : i32 () { return 7; }\n";
+      "main : () -> i32 { return 7; }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -724,8 +724,8 @@ bool LangStressEnumAsTypeRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
       "Task :: artifact { state : State }\n"
-      "touch : State (s : State) { return s }\n"
-      "main : i32 () {\n"
+      "touch : (s : State) -> State { return s }\n"
+      "main : () -> i32 {\n"
       "  t : Task = { touch(State.Running) }\n"
       "  return 1\n"
       "}";
@@ -738,7 +738,7 @@ bool LangStressEnumAsTypeRuntime() {
 bool LangStressEnumAsTypeRejectScalarAssignment() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  s : State = 1\n"
       "  return 0\n"
       "}";
@@ -750,7 +750,7 @@ bool LangStressEnumAsTypeRejectScalarAssignment() {
 bool LangEnumEqualityRuntime() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  state : State = State.Idle\n"
       "  if (state == State.Idle && state != State.Running) { return 42 }\n"
       "  return 0\n"
@@ -764,7 +764,7 @@ bool LangEnumEqualityRuntime() {
 bool LangEnumOrderingRejected() {
   const char* src =
       "State :: enum { Idle = 0, Running = 1 }\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  state : State = State.Idle\n"
       "  if (state < State.Running) { return 1 }\n"
       "  return 0\n"
@@ -778,10 +778,10 @@ bool LangStressArtifactMethodMutationRuntime() {
   const char* src =
       "Counter :: artifact {\n"
       "  value : i32\n"
-      "  add : void (step : i32) { self.value = self.value + step }\n"
-      "  get : i32 () { return self.value }\n"
+      "  add : (step : i32) -> void { self.value = self.value + step }\n"
+      "  get : () -> i32 { return self.value }\n"
       "}\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  c : Counter = { 0 }\n"
       "  c.add(19)\n"
       "  c.add(23)\n"
@@ -797,9 +797,9 @@ bool LangStressArtifactMethodTypeStrict() {
   const char* src =
       "Counter :: artifact {\n"
       "  value : i32\n"
-      "  add : void (step : i32) { self.value = self.value + step }\n"
+      "  add : (step : i32) -> void { self.value = self.value + step }\n"
       "}\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  c : Counter = { 0 }\n"
       "  c.add(\"bad\")\n"
       "  return 0\n"
@@ -811,10 +811,10 @@ bool LangStressArtifactMethodTypeStrict() {
 
 bool LangStressProcedureVariableRuntime() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b }\n"
-      "  g : fn i32 (x : i32) = (x) { return x + 2 }\n"
-      "  h : fn i32 (a : i32, b : i32) = f\n"
+      "main : () -> i32 {\n"
+      "  f : fn (a : i32,  b : i32) -> i32 = (a, b) { return a + b }\n"
+      "  g : fn (x : i32) -> i32 = (x) { return x + 2 }\n"
+      "  h : fn (a : i32,  b : i32) -> i32 = f\n"
       "  return 42\n"
       "}";
   std::string error;
@@ -823,8 +823,8 @@ bool LangStressProcedureVariableRuntime() {
 
 bool LangStressProcedureParameterRuntime() {
   const char* src =
-      "accept : void (f : fn i32 (x : i32, y : i32)) { return }\n"
-      "main : i32 () {\n"
+      "accept : (f : fn (x : i32,  y : i32) -> i32) -> void { return }\n"
+      "main : () -> i32 {\n"
       "  accept((x, y) { return x + y })\n"
       "  return 0\n"
       "}";
@@ -834,8 +834,8 @@ bool LangStressProcedureParameterRuntime() {
 
 bool LangStressProcedureSwitchExprRuntime() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 () = switch (1) {\n"
+      "main : () -> i32 {\n"
+      "  f : fn () -> i32 = switch (1) {\n"
       "    1 == 1 => return () { return 42 }\n"
       "    default => return () { return 0 }\n"
       "  }\n"
@@ -849,8 +849,8 @@ bool LangStressProcedureSwitchExprRuntime() {
 
 bool LangStressProcedureMemberCallRuntime() {
   const char* src =
-      "Box :: artifact { f : fn i32 () }\n"
-      "main : i32 () {\n"
+      "Box :: artifact { f : fn () -> i32 }\n"
+      "main : () -> i32 {\n"
       "  b : Box = { () { return 42 } }\n"
       "  return b.f()\n"
       "}";
@@ -862,9 +862,9 @@ bool LangStressProcedureMemberCallRuntime() {
 
 bool LangStressProcedureClosureCaptureRuns() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  x : i32 = 41\n"
-      "  f : fn i32 () = () { return x + 1 }\n"
+      "  f : fn () -> i32 = () { return x + 1 }\n"
       "  return f()\n"
       "}";
   std::string sir;
@@ -875,8 +875,8 @@ bool LangStressProcedureClosureCaptureRuns() {
 
 bool LangClosureUnknownCaptureRejected() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 () = () { return missing }\n"
+      "main : () -> i32 {\n"
+      "  f : fn () -> i32 = () { return missing }\n"
       "  return f()\n"
       "}";
   std::string error;
@@ -886,9 +886,9 @@ bool LangClosureUnknownCaptureRejected() {
 
 bool LangClosureImmutableCaptureAssignmentRejected() {
   const char* src =
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  value :: i32 = 1\n"
-      "  f : fn i32 () = () { value += 1; return value }\n"
+      "  f : fn () -> i32 = () { value += 1; return value }\n"
       "  return f()\n"
       "}";
   std::string error;
@@ -898,9 +898,9 @@ bool LangClosureImmutableCaptureAssignmentRejected() {
 
 bool LangStressProcedureNestedLambdasRun() {
   const char* src =
-      "main : i32 () {\n"
-      "  outer : fn i32 () = () {\n"
-      "    inner : fn i32 () = () { return 42 }\n"
+      "main : () -> i32 {\n"
+      "  outer : fn () -> i32 = () {\n"
+      "    inner : fn () -> i32 = () { return 42 }\n"
       "    return inner()\n"
       "  }\n"
       "  return outer()\n"
@@ -913,8 +913,8 @@ bool LangStressProcedureNestedLambdasRun() {
 
 bool LangStressProcedureListRuns() {
   const char* src =
-      "main : i32 () {\n"
-      "  fs : fn i32 (i32)[] = [(x) { return x + 1 }, (x) { return x + 2 }]\n"
+      "main : () -> i32 {\n"
+      "  fs : (fn (i32) -> i32)[] = [(x) { return x + 1 }, (x) { return x + 2 }]\n"
       "  return fs[0](20) + fs[1](19)\n"
       "}";
   std::string sir;
@@ -925,8 +925,8 @@ bool LangStressProcedureListRuns() {
 
 bool LangStressProcedureExternBoundaryRejected() {
   const char* src =
-      "extern C.call : void (f : fn i32 ())\n"
-      "main : void () { return }";
+      "extern C.call : (f : fn () -> i32) -> void\n"
+      "main : () -> void { return }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("extern ABI parameter type is not supported") != std::string::npos;
@@ -934,9 +934,9 @@ bool LangStressProcedureExternBoundaryRejected() {
 
 bool LangStressProcedureGenericEmissionRuns() {
   const char* src =
-      "id<T> : T (x : T) { return x }\n"
-      "main : i32 () {\n"
-      "  f : fn i32 () = id<fn i32 ()>(() { return 42 })\n"
+      "id<T> : (x : T) -> T { return x }\n"
+      "main : () -> i32 {\n"
+      "  f : fn () -> i32 = id<fn () -> i32>(() { return 42 })\n"
       "  return f()\n"
       "}";
   std::string sir;
@@ -947,8 +947,8 @@ bool LangStressProcedureGenericEmissionRuns() {
 
 bool LangGenericFunctionEmissionRuns() {
   const char* src =
-      "id<T> : T (x : T) { return x }\n"
-      "main : i32 () { return id<i32>(42) }";
+      "id<T> : (x : T) -> T { return x }\n"
+      "main : () -> i32 { return id<i32>(42) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -958,7 +958,7 @@ bool LangGenericFunctionEmissionRuns() {
 bool LangGenericArtifactEmissionRuns() {
   const char* src =
       "Box<T> :: artifact { v : T }\n"
-      "main : i32 () { b : Box<i32> = { 42 }; return b.v }";
+      "main : () -> i32 { b : Box<i32> = { 42 }; return b.v }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -967,8 +967,8 @@ bool LangGenericArtifactEmissionRuns() {
 
 bool LangGenericModuleFunctionEmissionRuns() {
   const char* src =
-      "Generic :: namespace { identity<T> :: T (value : T) { return value } }\n"
-      "main : i32 () { return Generic.identity(42) }";
+      "Generic :: namespace { identity<T> :: (value : T) -> T { return value } }\n"
+      "main : () -> i32 { return Generic.identity(42) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -978,8 +978,8 @@ bool LangGenericModuleFunctionEmissionRuns() {
 
 bool LangGenericMethodEmissionRuns() {
   const char* src =
-      "Box<T> :: artifact { value : T; choose<U> :: U (other : U) { return other } }\n"
-      "main : i32 () { box : Box<i32> = { 40 }; return box.choose(42) }";
+      "Box<T> :: artifact { value : T; choose<U> :: (other : U) -> U { return other } }\n"
+      "main : () -> i32 { box : Box<i32> = { 40 }; return box.choose(42) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -989,11 +989,11 @@ bool LangGenericMethodEmissionRuns() {
 bool LangTaggedValueEmissionRuns() {
   const char* src =
       "Error :: enum { Bad = 1 }\n"
-      "forward : Result<i32, Error> (good : bool) { "
+      "forward : (good : bool) -> Result<i32, Error> { "
       "if (good) { return { .value = 42 } } return { .error = Error.Bad } }\n"
-      "unwrap : Result<i32, Error> (good : bool) { value : i32 = forward(good)?; "
+      "unwrap : (good : bool) -> Result<i32, Error> { value : i32 = forward(good)?; "
       "return { .value = value } }\n"
-      "main : i32 () { maybe : i32? = { 42 }; missing : i32?; "
+      "main : () -> i32 { maybe : i32? = { 42 }; missing : i32?; "
       "result : Result<i32, Error> = unwrap(true); "
       "a : i32 = switch (maybe) { { value } => return value; {} => return 0 }; "
       "b : i32 = switch (missing) { { value } => return value; {} => return 0 }; "
@@ -1011,9 +1011,9 @@ bool LangTaggedValueEmissionRuns() {
 
 bool LangGenericTemporaryReceiverEmissionRuns() {
   const char* src =
-      "Box<T> :: artifact { value : T; choose<U> :: U (other : U) { return other } }\n"
-      "Factory :: namespace { make<T> :: Box<T> (value : T) { return { value } } }\n"
-      "main : i32 () { return Factory.make(1).choose(42) }";
+      "Box<T> :: artifact { value : T; choose<U> :: (other : U) -> U { return other } }\n"
+      "Factory :: namespace { make<T> :: (value : T) -> Box<T> { return { value } } }\n"
+      "main : () -> i32 { return Factory.make(1).choose(42) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -1024,16 +1024,16 @@ bool LangGenericTemporaryReceiverEmissionRuns() {
 bool LangGenericRecursiveMethodEmissionRuns() {
   const char* src =
       "Relay :: artifact {\n"
-      "  ping<T> :: T (value : T, count : i32) {\n"
+      "  ping<T> :: (value : T, count : i32) -> T {\n"
       "    if (count == 0) { return value }\n"
       "    return self.pong(value, count - 1)\n"
       "  }\n"
-      "  pong<T> :: T (value : T, count : i32) {\n"
+      "  pong<T> :: (value : T, count : i32) -> T {\n"
       "    if (count == 0) { return value }\n"
       "    return self.ping(value, count - 1)\n"
       "  }\n"
       "}\n"
-      "main : i32 () { relay : Relay = {}; return relay.ping(42, 20) }";
+      "main : () -> i32 { relay : Relay = {}; return relay.ping(42, 20) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -1043,8 +1043,8 @@ bool LangGenericRecursiveMethodEmissionRuns() {
 
 bool LangGenericTypeArgInferenceEmissionRuns() {
   const char* src =
-      "id<T> : T (x : T) { return x }\n"
-      "main : i32 () { value : i32 = 42; return id(value) }";
+      "id<T> : (x : T) -> T { return x }\n"
+      "main : () -> i32 { value : i32 = 42; return id(value) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -1053,8 +1053,8 @@ bool LangGenericTypeArgInferenceEmissionRuns() {
 
 bool LangGenericSpecializationNamingRuns() {
   const char* src =
-      "id<T> : T (x : T) { return x }\n"
-      "main : i32 () { a : i32 = id<i32>(1); b : bool = id<bool>(true); return a }";
+      "id<T> : (x : T) -> T { return x }\n"
+      "main : () -> i32 { a : i32 = id<i32>(1); b : bool = id<bool>(true); return a }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1065,8 +1065,8 @@ bool LangGenericSpecializationNamingRuns() {
 
 bool LangGenericDuplicateSpecializationReusesSymbol() {
   const char* src =
-      "id<T> : T (x : T) { return x }\n"
-      "main : i32 () { a : i32 = id<i32>(1); b : i32 = id<i32>(2); return a + b }";
+      "id<T> : (x : T) -> T { return x }\n"
+      "main : () -> i32 { a : i32 = id<i32>(1); b : i32 = id<i32>(2); return a + b }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1078,8 +1078,8 @@ bool LangGenericDuplicateSpecializationReusesSymbol() {
 bool LangGenericRejectsExpandingSpecializationRecursion() {
   const char* src =
       "Box<T> :: artifact { value : T }\n"
-      "grow<T> :: i32 (value : T) { return grow<Box<T>>({ value }) }\n"
-      "main :: i32 () { return grow<i32>(1) }";
+      "grow<T> :: (value : T) -> i32 { return grow<Box<T>>({ value }) }\n"
+      "main :: () -> i32 { return grow<i32>(1) }";
   std::string sir;
   std::string error;
   return !Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -1089,8 +1089,8 @@ bool LangGenericRejectsExpandingSpecializationRecursion() {
 
 bool LangGenericRejectsContextualFnArgumentMismatch() {
   const char* src =
-      "take<T> :: T (callable : fn T (T), value : T) { return callable(value) }\n"
-      "main :: i32 () { return take<i32>(() { return 1 }, 5) }";
+      "take<T> :: (callable : fn (T) -> T, value : T) -> T { return callable(value) }\n"
+      "main :: () -> i32 { return take<i32>(() { return 1 }, 5) }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error) &&
          error.find("fn literal parameter count mismatch") != std::string::npos;
@@ -1098,8 +1098,8 @@ bool LangGenericRejectsContextualFnArgumentMismatch() {
 
 bool LangStressProcedureArgTypeStrict() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 (x : i32) = (x) { return x }\n"
+      "main : () -> i32 {\n"
+      "  f : fn (x : i32) -> i32 = (x) { return x }\n"
       "  return f(\"oops\")\n"
       "}";
   std::string error;
@@ -1109,9 +1109,9 @@ bool LangStressProcedureArgTypeStrict() {
 
 bool LangStressProcedureReturnTypeStrict() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 (x : i32) = (x) { return true }\n"
-      "  g : fn string (x : i32) = f\n"
+      "main : () -> i32 {\n"
+      "  f : fn (x : i32) -> i32 = (x) { return true }\n"
+      "  g : fn (x : i32) -> string = f\n"
       "  return 0\n"
       "}";
   std::string error;
@@ -1122,15 +1122,15 @@ bool LangStressProcedureReturnTypeStrict() {
 bool LangStressEnumArtifactProcedureCompositionRuntime() {
   const char* src =
       "Op :: enum { Add = 1, Mul = 2 }\n"
-      "add : i32 (a : i32, b : i32) { return a + b }\n"
-      "mul : i32 (a : i32, b : i32) { return a * b }\n"
+      "add : (a : i32, b : i32) -> i32 { return a + b }\n"
+      "mul : (a : i32, b : i32) -> i32 { return a * b }\n"
       "Acc :: artifact {\n"
       "  op : Op\n"
       "  value : i32\n"
-      "  step_add : void (x : i32) { self.value = add(self.value, x) }\n"
-      "  step_mul : void (x : i32) { self.value = mul(self.value, x) }\n"
+      "  step_add : (x : i32) -> void { self.value = add(self.value, x) }\n"
+      "  step_mul : (x : i32) -> void { self.value = mul(self.value, x) }\n"
       "}\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  a : Acc = { Op.Add, 2 }\n"
       "  a.step_add(5)\n"
       "  a.step_mul(6)\n"
@@ -1145,7 +1145,7 @@ bool LangStressEnumArtifactProcedureCompositionRuntime() {
 bool LangStressTypeExplicitArtifactFieldFail() {
   const char* src =
       "Wrap :: artifact { x : i32 }\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  w : Wrap = { 1 }\n"
       "  w.x = \"bad\"\n"
       "  return 0\n"
@@ -1157,7 +1157,7 @@ bool LangStressTypeExplicitArtifactFieldFail() {
 
 bool LangStressParseCallMemberIndexPrecedence() {
   const char* src =
-      "main : i32 () { return f(1).items[2].value + 3; }";
+      "main : () -> i32 { return f(1).items[2].value + 3; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -1181,8 +1181,8 @@ bool LangStressParseCallMemberIndexPrecedence() {
 
 bool LangStressParseFnLiteralCallInCallArg() {
   const char* src =
-      "apply : i32 (f : fn i32 (x : i32), x : i32) { return x; }"
-      "main : i32 () { return apply((x) { return x + 1; }, 41); }";
+      "apply : (f : fn (x : i32) -> i32, x : i32) -> i32 { return x; }"
+      "main : () -> i32 { return apply((x) { return x + 1; }, 41); }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -1195,7 +1195,7 @@ bool LangStressParseFnLiteralCallInCallArg() {
 }
 
 bool LangRejectExcessiveExpressionNesting() {
-  std::string source = "main : i32 () { return ";
+  std::string source = "main : () -> i32 { return ";
   source.append(300, '(');
   source += "1";
   source.append(300, ')');
@@ -1209,7 +1209,7 @@ bool LangRejectExcessiveExpressionNesting() {
 
 bool LangStressParseForLoopComplexStep() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  i : i32 = 0;"
       "  for (i : i32 = 0; i < 10; i += 2) { skip; }"
       "  return i;"
@@ -1228,7 +1228,7 @@ bool LangStressParseForLoopComplexStep() {
 
 bool LangStressParseNestedIfElseInElseBranch() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  if (false) { return 0; }"
       "  else { if (true) { return 1; } else { return 2; } }"
       "}";
@@ -1607,7 +1607,7 @@ bool LangReservedLogUsingRun() {
 }
 
 bool LangSirEmitsLocalAssign() {
-  const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
+  const char* src = "main : () -> i32 { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1615,7 +1615,7 @@ bool LangSirEmitsLocalAssign() {
 }
 
 bool LangSirEmitsIfElse() {
-  const char* src = "main : i32 () { x : i32 = 1; if (x == 1) { return 7; } else { return 9; } }";
+  const char* src = "main : () -> i32 { x : i32 = 1; if (x == 1) { return 7; } else { return 9; } }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1624,7 +1624,7 @@ bool LangSirEmitsIfElse() {
 
 bool LangSirEmitsWhileLoop() {
   const char* src =
-      "main : i32 () { i : i32 = 0; sum : i32 = 0; while (i < 5) { sum = sum + i; i = i + 1; } return sum; }";
+      "main : () -> i32 { i : i32 = 0; sum : i32 = 0; while (i < 5) { sum = sum + i; i = i + 1; } return sum; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1633,8 +1633,8 @@ bool LangSirEmitsWhileLoop() {
 
 bool LangSirEmitsFunctionCall() {
   const char* src =
-      "add : i32 (a : i32, b : i32) { return a + b; }"
-      "main : i32 () { return add(20, 22); }";
+      "add : (a : i32, b : i32) -> i32 { return a + b; }"
+      "main : () -> i32 { return add(20, 22); }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1644,7 +1644,7 @@ bool LangSirEmitsFunctionCall() {
 bool LangSirEmitsIoPrintString() {
   const char* src =
       "import Standard.IO\n"
-      "main : i32 () { Standard.IO.print(\"hi\"); return 1; }";
+      "main : () -> i32 { Standard.IO.print(\"hi\"); return 1; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1654,7 +1654,7 @@ bool LangSirEmitsIoPrintString() {
 bool LangSirEmitsIoPrintI32() {
   const char* src =
       "import Standard.IO\n"
-      "main : i32 () { Standard.IO.print(42); return 2; }";
+      "main : () -> i32 { Standard.IO.print(42); return 2; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1664,7 +1664,7 @@ bool LangSirEmitsIoPrintI32() {
 bool LangSirEmitsIoPrintNewline() {
   const char* src =
       "import Standard.IO\n"
-      "main : i32 () { Standard.IO.print(\"hello\\n\"); return 3; }";
+      "main : () -> i32 { Standard.IO.print(\"hello\\n\"); return 3; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1674,7 +1674,7 @@ bool LangSirEmitsIoPrintNewline() {
 bool LangSirEmitsIoPrintFormat() {
   const char* src =
       "import Standard.IO\n"
-      "main : i32 () { x : i32 = 7; Standard.IO.println(\"value={}\", x); return x; }";
+      "main : () -> i32 { x : i32 = 7; Standard.IO.println(\"value={}\", x); return x; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1685,8 +1685,8 @@ bool LangSirEmitsExternAbiFlatten() {
   const char* src =
       "Tex :: data { id : u32; width : i32; }\n"
       "RT :: data { id : u32; tex : Tex; }\n"
-      "extern ffi.Use : void (t : RT)\n"
-      "main : void () { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
+      "extern ffi.Use : (t : RT) -> void\n"
+      "main : () -> void { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1696,7 +1696,7 @@ bool LangSirEmitsExternAbiFlatten() {
 bool LangSirImplicitMainReturn() {
   const char* src =
       "import Standard.IO\n"
-      "main : i32 () { Standard.IO.print(\"hi\") }";
+      "main : () -> i32 { Standard.IO.print(\"hi\") }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1704,7 +1704,7 @@ bool LangSirImplicitMainReturn() {
 }
 
 bool LangValidateErrorIncludesLocation() {
-  const char* src = "main : i32 () { return missing }";
+  const char* src = "main : () -> i32 { return missing }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("undeclared identifier") != std::string::npos &&
@@ -1713,7 +1713,7 @@ bool LangValidateErrorIncludesLocation() {
 
 bool LangSirEmitsIncDec() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 1;"
       "  y : i32 = x++;"
       "  z : i32 = ++x;"
@@ -1727,7 +1727,7 @@ bool LangSirEmitsIncDec() {
 
 bool LangSirEmitsCompoundAssignLocal() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 5;"
       "  x += 3;"
       "  x *= 2;"
@@ -1741,7 +1741,7 @@ bool LangSirEmitsCompoundAssignLocal() {
 
 bool LangSirEmitsBitwiseShift() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 5;"
       "  y : i32 = 3;"
       "  return (x & y) | (1 << 3);"
@@ -1754,7 +1754,7 @@ bool LangSirEmitsBitwiseShift() {
 
 bool LangSirEmitsIndexCompoundAssign() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  values : i32{2} = {1, 2};"
       "  values[1] += 5;"
       "  return values[1];"
@@ -1768,7 +1768,7 @@ bool LangSirEmitsIndexCompoundAssign() {
 bool LangSirEmitsMemberCompoundAssign() {
   const char* src =
       "Point :: artifact { x : i32; y : i32 }"
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  p : Point = { 1, 2 };"
       "  p.x *= 3;"
       "  return p.x;"
@@ -1781,7 +1781,7 @@ bool LangSirEmitsMemberCompoundAssign() {
 
 bool LangSirEmitsIndexIncDec() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  values : i32{1} = {1};"
       "  x : i32 = values[0]++;"
       "  y : i32 = ++values[0];"
@@ -1796,7 +1796,7 @@ bool LangSirEmitsIndexIncDec() {
 bool LangSirEmitsMemberIncDec() {
   const char* src =
       "Point :: artifact { x : i32 }"
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  p : Point = { 1 };"
       "  a : i32 = p.x++;"
       "  b : i32 = ++p.x;"
@@ -1809,7 +1809,7 @@ bool LangSirEmitsMemberIncDec() {
 }
 
 bool LangSirEmitsArrayLiteralIndex() {
-  const char* src = "main : i32 () { values : i32{3} = {1, 2, 3}; return values[1]; }";
+  const char* src = "main : () -> i32 { values : i32{3} = {1, 2, 3}; return values[1]; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1817,7 +1817,7 @@ bool LangSirEmitsArrayLiteralIndex() {
 }
 
 bool LangSirEmitsArrayAssign() {
-  const char* src = "main : i32 () { values : i32{2} = {1, 2}; values[1] = 7; return values[1]; }";
+  const char* src = "main : () -> i32 { values : i32{2} = {1, 2}; values[1] = 7; return values[1]; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1825,7 +1825,7 @@ bool LangSirEmitsArrayAssign() {
 }
 
 bool LangSirEmitsListLiteralIndex() {
-  const char* src = "main : i32 () { values : i32[] = [1, 2, 3]; return values[2]; }";
+  const char* src = "main : () -> i32 { values : i32[] = [1, 2, 3]; return values[2]; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1833,7 +1833,7 @@ bool LangSirEmitsListLiteralIndex() {
 }
 
 bool LangSirEmitsListAssign() {
-  const char* src = "main : i32 () { values : i32[] = [1, 2, 3]; values[0] = 9; return values[0]; }";
+  const char* src = "main : () -> i32 { values : i32[] = [1, 2, 3]; values[0] = 9; return values[0]; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1841,7 +1841,7 @@ bool LangSirEmitsListAssign() {
 }
 
 bool LangSirEmitsLen() {
-  const char* src = "main : i32 () { values : i32[] = [1, 2, 3, 4]; return len(values); }";
+  const char* src = "main : () -> i32 { values : i32[] = [1, 2, 3, 4]; return len(values); }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1851,7 +1851,7 @@ bool LangSirEmitsLen() {
 bool LangSirEmitsArtifactLiteralAndMember() {
   const char* src =
       "Point :: artifact { x : i32; y : i32 }"
-      "main : i32 () { p : Point = { 1, 2 }; return p.x + p.y; }";
+      "main : () -> i32 { p : Point = { 1, 2 }; return p.x + p.y; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1861,7 +1861,7 @@ bool LangSirEmitsArtifactLiteralAndMember() {
 bool LangSirEmitsArtifactMemberAssign() {
   const char* src =
       "Point :: artifact { x : i32; y : i32 }"
-      "main : i32 () { p : Point = { 1, 2 }; p.y = 7; return p.y; }";
+      "main : () -> i32 { p : Point = { 1, 2 }; p.y = 7; return p.y; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1871,7 +1871,7 @@ bool LangSirEmitsArtifactMemberAssign() {
 bool LangSirEmitsEnumValue() {
   const char* src =
       "Color :: enum { Red = 1, Green = 2, Blue = 3 }"
-      "main : i32 () { return Color.Green; }";
+      "main : () -> i32 { return Color.Green; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1880,8 +1880,8 @@ bool LangSirEmitsEnumValue() {
 
 bool LangSirEmitsFnLiteralCall() {
   const char* src =
-      "main : i32 () {"
-      "  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b; };"
+      "main : () -> i32 {"
+      "  f : fn (a : i32,  b : i32) -> i32 = (a, b) { return a + b; };"
       "  return f(20, 22);"
       "}";
   std::string sir;
@@ -1893,7 +1893,7 @@ bool LangSirEmitsFnLiteralCall() {
 bool LangValidateSystemImportMixedCaseOk() {
   const char* src =
       "import Standard.IO\n"
-      "main : void () { Standard.IO.println(1); }";
+      "main : () -> void { Standard.IO.println(1); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -1902,14 +1902,14 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   const char* src =
       "import Standard.IO\n"
       "using Standard.IO\n"
-      "main : void () { println(1); }";
+      "main : () -> void { println(1); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateProgramReturnsStructuredDiagnostic() {
   Simple::Lang::Diagnostics::Diagnostic diagnostic;
-  if (Simple::Lang::ValidateProgramFromStringDiagnostic("main : i32 () { return true }", &diagnostic)) {
+  if (Simple::Lang::ValidateProgramFromStringDiagnostic("main : () -> i32 { return true }", &diagnostic)) {
     return false;
   }
   return diagnostic.code == "E4001" &&
@@ -1965,7 +1965,7 @@ bool LangDiagnosticsFormatStructuredDiagnostic() {
 bool LangValidateSystemOsHostFacts() {
   const char* src =
       "import System.OS\n"
-      "main : void () { platform : string = System.OS.platform(); arch : string = System.OS.arch(); linux : bool = System.OS.isLinux(); macos : bool = System.OS.isMacos(); windows : bool = System.OS.isWindows(); pid : i32 = System.OS.pid(); cpus : i32 = System.OS.cpuCount(); page : i32 = System.OS.pageSize(); }";
+      "main : () -> void { platform : string = System.OS.platform(); arch : string = System.OS.arch(); linux : bool = System.OS.isLinux(); macos : bool = System.OS.isMacos(); windows : bool = System.OS.isWindows(); pid : i32 = System.OS.pid(); cpus : i32 = System.OS.cpuCount(); page : i32 = System.OS.pageSize(); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -1973,7 +1973,7 @@ bool LangValidateSystemOsHostFacts() {
 bool LangRejectSystemOsForeignDomains() {
   const char* src =
       "import System.OS\n"
-      "main : void () { count : i32 = System.OS.args_count(); }";
+      "main : () -> void { count : i32 = System.OS.args_count(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -1982,7 +1982,7 @@ bool LangRejectSystemOsForeignDomains() {
 bool LangValidateSystemDlCapabilityConstant() {
   const char* src =
       "import System.FFI\n"
-      "main : i32 () { if (System.FFI.supported) { return 1 } return 0 }";
+      "main : () -> i32 { if (System.FFI.supported) { return 1 } return 0 }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -1990,7 +1990,7 @@ bool LangValidateSystemDlCapabilityConstant() {
 bool LangValidateUnknownReservedMemberSuggestsClosest() {
   const char* src =
       "import Standard.IO\n"
-      "main : void () { Standard.IO.printlnn(1); }";
+      "main : () -> void { Standard.IO.printlnn(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'println'") != std::string::npos;
@@ -1999,7 +1999,7 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
 bool LangValidateNativeMetadataReservedFsFdApis() {
   const char* src =
       "import System.FS\n"
-      "main : void () { fd : i32 = System.FS.open(\"build/missing\", 0); System.FS.close(fd); }";
+      "main : () -> void { fd : i32 = System.FS.open(\"build/missing\", 0); System.FS.close(fd); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2007,7 +2007,7 @@ bool LangValidateNativeMetadataReservedFsFdApis() {
 bool LangValidateNativeMetadataReservedFsSuggestion() {
   const char* src =
       "import System.FS\n"
-      "main : void () { fd : i32 = System.FS.opne(\"build/missing\", 0); }";
+      "main : () -> void { fd : i32 = System.FS.opne(\"build/missing\", 0); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'open'") != std::string::npos;
@@ -2016,7 +2016,7 @@ bool LangValidateNativeMetadataReservedFsSuggestion() {
 bool LangRejectStandardFsHandleApis() {
   const char* src =
       "import Standard.FS\n"
-      "main : void () { fd : i32 = Standard.FS.open(\"build/missing\", 0); Standard.FS.close(fd); }";
+      "main : () -> void { fd : i32 = Standard.FS.open(\"build/missing\", 0); Standard.FS.close(fd); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2025,7 +2025,7 @@ bool LangRejectStandardFsHandleApis() {
 bool LangRejectStandardPathPlatformFacts() {
   const char* src =
       "import Standard.Path\n"
-      "main : void () { separator : string = Standard.Path.separator(); }";
+      "main : () -> void { separator : string = Standard.Path.separator(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2034,7 +2034,7 @@ bool LangRejectStandardPathPlatformFacts() {
 bool LangValidateSystemPathPlatformApis() {
   const char* src =
       "import System.Path\nimport Standard.Path\n"
-      "main : void () { separator : string = System.Path.separator(); delimiter : string = System.Path.delimiter(); absolute : bool = System.Path.isAbsolute(\"/tmp\"); stem : string = Standard.Path.stem(\"a.txt\"); }";
+      "main : () -> void { separator : string = System.Path.separator(); delimiter : string = System.Path.delimiter(); absolute : bool = System.Path.isAbsolute(\"/tmp\"); stem : string = Standard.Path.stem(\"a.txt\"); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2042,7 +2042,7 @@ bool LangValidateSystemPathPlatformApis() {
 bool LangRejectStandardPathFsProbeApis() {
   const char* src =
       "import Standard.Path\n"
-      "main : void () { ok : bool = Standard.Path.exists(\".\"); }";
+      "main : () -> void { ok : bool = Standard.Path.exists(\".\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2051,7 +2051,7 @@ bool LangRejectStandardPathFsProbeApis() {
 bool LangRejectSystemTimeFormattingApi() {
   const char* src =
       "import System.Time\n"
-      "main : void () { text : string = System.Time.formatWallNs(0); }";
+      "main : () -> void { text : string = System.Time.formatWallNs(0); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2060,7 +2060,7 @@ bool LangRejectSystemTimeFormattingApi() {
 bool LangValidateStandardTimeFormattingApi() {
   const char* src =
       "import Standard.Time\n"
-      "main : void () { text : string = Standard.Time.formatWallNs(0); }";
+      "main : () -> void { text : string = Standard.Time.formatWallNs(0); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2068,7 +2068,7 @@ bool LangValidateStandardTimeFormattingApi() {
 bool LangValidateSystemRandomFillBytesApi() {
   const char* src =
       "import System.Random\nimport System.Bytes\n"
-      "main : void () { bytes : i32[] = System.Bytes.new(8); ok : bool = System.Random.fillBytes(bytes); }";
+      "main : () -> void { bytes : i32[] = System.Bytes.new(8); ok : bool = System.Random.fillBytes(bytes); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2076,7 +2076,7 @@ bool LangValidateSystemRandomFillBytesApi() {
 bool LangRejectStandardRandomFillBytesApi() {
   const char* src =
       "import Standard.Random\nimport System.Bytes\n"
-      "main : void () { bytes : i32[] = System.Bytes.new(8); ok : bool = Standard.Random.fillBytes(bytes); }";
+      "main : () -> void { bytes : i32[] = System.Bytes.new(8); ok : bool = Standard.Random.fillBytes(bytes); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2085,7 +2085,7 @@ bool LangRejectStandardRandomFillBytesApi() {
 bool LangValidateRandomI64Apis() {
   const char* src =
       "import System.Random\nimport Standard.Random\n"
-      "main : void () { raw : i64 = System.Random.i64(); value : i64 = Standard.Random.i64(); }";
+      "main : () -> void { raw : i64 = System.Random.i64(); value : i64 = Standard.Random.i64(); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2093,7 +2093,7 @@ bool LangValidateRandomI64Apis() {
 bool LangRejectSystemRandomRangeApi() {
   const char* src =
       "import System.Random\n"
-      "main : void () { value : i32 = System.Random.range(1, 3); }";
+      "main : () -> void { value : i32 = System.Random.range(1, 3); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2102,7 +2102,7 @@ bool LangRejectSystemRandomRangeApi() {
 bool LangValidateStandardRandomRangeApi() {
   const char* src =
       "import Standard.Random\n"
-      "main : void () { value : i32 = Standard.Random.range(1, 3); }";
+      "main : () -> void { value : i32 = Standard.Random.range(1, 3); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2110,7 +2110,7 @@ bool LangValidateStandardRandomRangeApi() {
 bool LangRejectUnimplementedStandardJson() {
   const char* src =
       "import Standard.Json\n"
-      "main : void () { value : i64 = Standard.Json.parse(\"{}\"); }";
+      "main : () -> void { value : i64 = Standard.Json.parse(\"{}\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2119,7 +2119,7 @@ bool LangRejectUnimplementedStandardJson() {
 bool LangValidateSystemJsonHandleApi() {
   const char* src =
       "import System.Json\n"
-      "main : void () { value : i64 = System.Json.parse(\"{}\"); text : string = System.Json.stringify(value); ok : bool = System.Json.free(value); }";
+      "main : () -> void { value : i64 = System.Json.parse(\"{}\"); text : string = System.Json.stringify(value); ok : bool = System.Json.free(value); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2127,7 +2127,7 @@ bool LangValidateSystemJsonHandleApi() {
 bool LangRejectStandardBytesLowLevelApis() {
   const char* src =
       "import Standard.Bytes\n"
-      "main : void () { data : i32[] = Standard.Bytes.new(4); size : i32 = Standard.Bytes.len(data); }";
+      "main : () -> void { data : i32[] = Standard.Bytes.new(4); size : i32 = Standard.Bytes.len(data); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2136,13 +2136,13 @@ bool LangRejectStandardBytesLowLevelApis() {
 bool LangValidateSplitBytesApis() {
   const char* src =
       "import System.Bytes\nimport Standard.Bytes\n"
-      "main : void () { data : i32[] = Standard.Bytes.new(4); size : i32 = System.Bytes.len(data); part : i32[] = Standard.Bytes.slice(data, 0, 2); }";
+      "main : () -> void { data : i32[] = Standard.Bytes.new(4); size : i32 = System.Bytes.len(data); part : i32[] = Standard.Bytes.slice(data, 0, 2); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemBufferImport() {
-  const char* src = "import System.Buffer\nmain : void () { b : i32[] = System.Buffer.new(4); size : i32 = System.Buffer.len(b); }";
+  const char* src = "import System.Buffer\nmain : () -> void { b : i32[] = System.Buffer.new(4); size : i32 = System.Buffer.len(b); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2150,7 +2150,7 @@ bool LangValidateSystemBufferImport() {
 bool LangRejectSystemLogConvenienceApis() {
   const char* src =
       "import System.Log\n"
-      "main : void () { System.Log.info(\"no\"); }";
+      "main : () -> void { System.Log.info(\"no\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2159,7 +2159,7 @@ bool LangRejectSystemLogConvenienceApis() {
 bool LangRejectStandardLogRawApi() {
   const char* src =
       "import Standard.Log\n"
-      "main : void () { Standard.Log.log(\"no\", 1); }";
+      "main : () -> void { Standard.Log.log(\"no\", 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2168,7 +2168,7 @@ bool LangRejectStandardLogRawApi() {
 bool LangRejectLegacySystemLogArgumentOrder() {
   const char* src =
       "import System.Log\n"
-      "main : void () { System.Log.log(\"message\", 1); }";
+      "main : () -> void { System.Log.log(\"message\", 1); }";
   std::string error;
   return !Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2176,7 +2176,7 @@ bool LangRejectLegacySystemLogArgumentOrder() {
 bool LangValidateSplitLogApis() {
   const char* src =
       "import System.Log\nimport Standard.Log\n"
-      "main : void () { System.Log.log(1, \"raw\"); ok : bool = System.Log.flush(); Standard.Log.info(\"hi\"); }";
+      "main : () -> void { System.Log.log(1, \"raw\"); ok : bool = System.Log.flush(); Standard.Log.info(\"hi\"); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2184,7 +2184,7 @@ bool LangValidateSplitLogApis() {
 bool LangValidateStandardFsProbeApis() {
   const char* src =
       "import Standard.FS\n"
-      "main : void () { ok : bool = Standard.FS.exists(\".\"); file :: bool = Standard.FS.isFile(\".\"); dir :: bool = Standard.FS.isDir(\".\"); }";
+      "main : () -> void { ok : bool = Standard.FS.exists(\".\"); file :: bool = Standard.FS.isFile(\".\"); dir :: bool = Standard.FS.isDir(\".\"); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2192,7 +2192,7 @@ bool LangValidateStandardFsProbeApis() {
 bool LangRejectStandardIoBufferApis() {
   const char* src =
       "import Standard.IO\n"
-      "main : i32 () { Standard.IO.buffer_new(4); }";
+      "main : () -> i32 { Standard.IO.buffer_new(4); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos;
@@ -2201,7 +2201,7 @@ bool LangRejectStandardIoBufferApis() {
 bool LangValidateSystemBytesBufferApis() {
   const char* src =
       "import System.Bytes\n"
-      "main : i32 () {\n"
+      "main : () -> i32 {\n"
       "  a : i32[] = System.Bytes.new(4);\n"
       "  b : i32[] = System.Bytes.new(4);\n"
       "  System.Bytes.writeU16LE(a, 0, 7);\n"
@@ -2214,8 +2214,8 @@ bool LangValidateSystemBytesBufferApis() {
 
 bool LangValidateExternCallOk() {
   const char* src =
-      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
-      "main : i32 () { Ray.InitWindow(1, 2); return 0; }";
+      "extern Ray.InitWindow : (w : i32, h : i32) -> void\n"
+      "main : () -> i32 { Ray.InitWindow(1, 2); return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2223,7 +2223,7 @@ bool LangValidateExternCallOk() {
 bool LangValidateExternRecursiveArtifactRejected() {
   const char* src =
       "Node :: artifact { next : Node }\n"
-      "extern C.walk : void (head : Node)\n";
+      "extern C.walk : (head : Node) -> void\n";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("extern ABI") != std::string::npos;
@@ -2232,8 +2232,8 @@ bool LangValidateExternRecursiveArtifactRejected() {
 bool LangValidateExternPointerCallOk() {
   const char* src =
       "Node :: data { next: Node* }\n"
-      "extern C.walk : Node* (head : Node*)\n"
-      "main : i32 () { return 0; }";
+      "extern C.walk : (head : Node*) -> Node*\n"
+      "main : () -> i32 { return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2241,7 +2241,7 @@ bool LangValidateExternPointerCallOk() {
 bool LangValidatePointerMemberAccessOk() {
   const char* src =
       "Node :: artifact { value : i32 }\n"
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  n : Node = { 1 };"
       "  p : Node* = &n;"
       "  p->value = 2;"
@@ -2255,7 +2255,7 @@ bool LangValidatePointerMemberAccessOk() {
 bool LangValidatePointerMemberRequiresPointer() {
   const char* src =
       "Node :: artifact { value : i32 }\n"
-      "main : void () {"
+      "main : () -> void {"
       "  n : Node = { 1 };"
       "  n->value = 2;"
       "}";
@@ -2267,7 +2267,7 @@ bool LangValidatePointerMemberRequiresPointer() {
 bool LangValidatePointerToImmutableRejectsMutation() {
   const char* src =
       "Node :: artifact { value : i32 }\n"
-      "main : void () {"
+      "main : () -> void {"
       "  n :: Node = { 1 };"
       "  p : Node* = &n;"
       "  p->value = 2;"
@@ -2280,7 +2280,7 @@ bool LangValidatePointerToImmutableRejectsMutation() {
 bool LangValidatePointerToMutableAllowsMutation() {
   const char* src =
       "Node :: artifact { value : i32 }\n"
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  n : Node = { 1 };"
       "  p : Node* = &n;"
       "  p->value = 2;"
@@ -2293,7 +2293,7 @@ bool LangValidatePointerToMutableAllowsMutation() {
 
 bool LangValidateAddressOfRequiresLValue() {
   const char* src =
-      "main : void () {"
+      "main : () -> void {"
       "  p : i32* = &(1 + 2);"
       "}";
   std::string error;
@@ -2302,7 +2302,7 @@ bool LangValidateAddressOfRequiresLValue() {
 }
 
 bool LangPointerStorageEmissionWorks() {
-  const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return *p }";
+  const char* src = "main : () -> i32 { x : i32 = 1; p : i32* = &x; return *p }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -2311,7 +2311,7 @@ bool LangPointerStorageEmissionWorks() {
 }
 
 bool LangPointerDerefParses() {
-  const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return *p }";
+  const char* src = "main : () -> i32 { x : i32 = 1; p : i32* = &x; return *p }";
   std::string error;
   Simple::Lang::Program program;
   return Simple::Lang::CAST::ParseProgramFromString(src, &program, &error);
@@ -2353,9 +2353,9 @@ bool LangPointerLifetimeAndOperationErrors() {
 bool LangExternalPointerContractsReachSir() {
   const char* src =
       "View :: data { data :: i32* }\n"
-      "extern probe :: i32* (input :: i32*, output : i32**, "
-      "maybe :: i32*?, callback :: fn i32 (i32)*, view :: View)\n"
-      "main :: i32 () { return 0 }\n";
+      "extern probe :: (input :: i32*, output : i32**, "
+      "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32*\n"
+      "main :: () -> i32 { return 0 }\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -2383,7 +2383,7 @@ bool LangExternManagedTypesRejected() {
 }
 
 bool LangPointerNullInitRejected() {
-  const char* src = "main : i32 () { p : i32* = 0; return 0 }";
+  const char* src = "main : () -> i32 { p : i32* = 0; return 0 }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
@@ -2392,7 +2392,7 @@ bool LangPointerNullInitRejected() {
 bool LangPointerToRefShapesValidate() {
   const char* src =
       "Node :: artifact { v : i32 }"
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  n : Node = { 1 }; pn : Node* = &n;"
       "  values : i32[] = []; pv : i32[]* = &values;"
       "  text : string = \"x\"; ps : string* = &text;"
@@ -2405,7 +2405,7 @@ bool LangPointerToRefShapesValidate() {
 bool LangValidateArtifactDefaultFieldOk() {
   const char* src =
       "Point :: artifact { x : i32 = 1; y : i32 }\n"
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  p : Point = { .y = 3 };"
       "  return p.x + p.y;"
       "}";
@@ -2418,7 +2418,7 @@ bool LangValidateArtifactDefaultFieldOk() {
 bool LangValidateModuleDefaultFieldOk() {
   const char* src =
       "Config :: namespace { width : i32 = 10; height : i32 = 20 }\n"
-      "main : i32 () { return Config.width + Config.height; }";
+      "main : () -> i32 { return Config.width + Config.height; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -2427,7 +2427,7 @@ bool LangValidateModuleDefaultFieldOk() {
 
 bool LangValidateSwitchMissingDefaultRejected() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 1;"
       "  return switch (x) { x == 1 => 2; };"
       "}";
@@ -2438,7 +2438,7 @@ bool LangValidateSwitchMissingDefaultRejected() {
 
 bool LangValidateSwitchMultipleDefaultRejected() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 1;"
       "  return switch (x) { default => 1; default => 2; };"
       "}";
@@ -2449,12 +2449,12 @@ bool LangValidateSwitchMultipleDefaultRejected() {
 
 bool LangValidateProcReturnProcOk() {
   const char* src =
-      "make_adder : fn i32 (a : i32, b : i32) () {\n"
-      "  adder : fn i32 (a : i32, b : i32) = (a, b) { return a + b; };\n"
+      "make_adder : () -> fn (a : i32, b : i32) -> i32 {\n"
+      "  adder : fn (a : i32,  b : i32) -> i32 = (a, b) { return a + b; };\n"
       "  return adder;\n"
       "}\n"
-      "main : i32 () {\n"
-      "  adder : fn i32 (a : i32, b : i32) = make_adder();\n"
+      "main : () -> i32 {\n"
+      "  adder : fn (a : i32,  b : i32) -> i32 = make_adder();\n"
       "  return adder(2, 3);\n"
       "}\n";
   std::string sir;
@@ -2464,7 +2464,7 @@ bool LangValidateProcReturnProcOk() {
 }
 
 bool LangValidateEnumQualified() {
-  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color.Red; }";
+  const char* src = "Color :: enum { Red = 1 } main : () -> i32 { return Color.Red; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2473,8 +2473,8 @@ bool LangValidateEnumQualified() {
 bool LangEnumMemberTargetContextRuntime() {
   const char* src =
       "Key :: enum { Right = 42 } "
-      "consume :: i32 (key : i32) { return key } "
-      "main :: i32 () { return consume(Key.Right) }";
+      "consume :: (key : i32) -> i32 { return key } "
+      "main :: () -> i32 { return consume(Key.Right) }";
   std::string sir;
   std::string error;
   return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
@@ -2484,22 +2484,22 @@ bool LangEnumMemberTargetContextRuntime() {
 bool LangEnumMemberDoesNotInferGenericType() {
   const char* src =
       "Key :: enum { Right = 42 } "
-      "identity<T> :: T (value : T) { return value } "
-      "main :: i32 () { return identity(Key.Right) }";
+      "identity<T> :: (value : T) -> T { return value } "
+      "main :: () -> i32 { return identity(Key.Right) }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("cannot infer type arguments for call") != std::string::npos;
 }
 
 bool LangValidateEnumQualifiedDot() {
-  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color::Red; }";
+  const char* src = "Color :: enum { Red = 1 } main : () -> i32 { return Color::Red; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumUnqualified() {
-  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Red; }";
+  const char* src = "Color :: enum { Red = 1 } main : () -> i32 { return Red; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2520,28 +2520,28 @@ bool LangValidateEnumMissingValue() {
 }
 
 bool LangValidateEnumTypeNotValue() {
-  const char* src = "Color :: enum { Red = 1 } main : i32 () { x : i32 = Color; return x; }";
+  const char* src = "Color :: enum { Red = 1 } main : () -> i32 { x : i32 = Color; return x; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumUnknownMember() {
-  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color.Blue; }";
+  const char* src = "Color :: enum { Red = 1 } main : () -> i32 { return Color.Blue; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateModuleNotValue() {
-  const char* src = "Math :: namespace { } main : void () { x : i32 = Math; }";
+  const char* src = "Math :: namespace { } main : () -> void { x : i32 = Math; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArtifactTypeNotValue() {
-  const char* src = "Point :: artifact { x : i32 } main : void () { p : Point = Point; }";
+  const char* src = "Point :: artifact { x : i32 } main : () -> void { p : Point = Point; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2555,14 +2555,14 @@ bool LangValidateTopLevelDuplicate() {
 }
 
 bool LangValidateLocalDuplicateSameScope() {
-  const char* src = "main : void () { x : i32 = 1; x : i32 = 2; }";
+  const char* src = "main : () -> void { x : i32 = 1; x : i32 = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateLocalDuplicateShadowAllowed() {
-  const char* src = "main : void () { x : i32 = 1; if (true) { x : i32 = 2; } }";
+  const char* src = "main : () -> void { x : i32 = 1; if (true) { x : i32 = 2; } }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2570,7 +2570,7 @@ bool LangValidateLocalDuplicateShadowAllowed() {
 
 bool LangValidateForLoopScope() {
   const char* src =
-    "main : void () {"
+    "main : () -> void {"
     "  x : i32 = 0;"
     "  for (x : i32 = x; x < 1; x = x + 1) { x : i32 = 2; }"
     "}";
@@ -2596,7 +2596,7 @@ bool LangValidateModuleDuplicateMember() {
 bool LangValidateModuleVarNoInit() {
   const char* src =
     "Math :: namespace { x : i32; }"
-    "main : i32 () { return 0; }";
+    "main : () -> i32 { return 0; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2605,35 +2605,35 @@ bool LangValidateModuleVarNoInit() {
 bool LangValidateGlobalVarNoInit() {
   const char* src =
     "g : i32;"
-    "main : i32 () { return g; }";
+    "main : () -> i32 { return g; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateDuplicateParams() {
-  const char* src = "add : i32 (a : i32, a : i32) { return a; }";
+  const char* src = "add : (a : i32, a : i32) -> i32 { return a; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateVoidReturnValue() {
-  const char* src = "main : void () { return 1; }";
+  const char* src = "main : () -> void { return 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateNonVoidMissingReturn() {
-  const char* src = "main : i32 () { return; }";
+  const char* src = "main : () -> i32 { return; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateNonVoidNoReturn() {
-  const char* src = "foo : i32 () { x : i32 = 1; }";
+  const char* src = "foo : () -> i32 { x : i32 = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2641,7 +2641,7 @@ bool LangValidateNonVoidNoReturn() {
 
 bool LangValidateNonVoidAllPathsReturn() {
   const char* src =
-    "main : i32 () {"
+    "main : () -> i32 {"
     "  if (true) { return 1; } else { return 2; }"
     "}";
   std::string error;
@@ -2651,7 +2651,7 @@ bool LangValidateNonVoidAllPathsReturn() {
 
 bool LangValidateNonVoidMissingPath() {
   const char* src =
-    "foo : i32 () {"
+    "foo : () -> i32 {"
     "  if (true) { return 1; }"
     "}";
   std::string error;
@@ -2660,49 +2660,49 @@ bool LangValidateNonVoidMissingPath() {
 }
 
 bool LangValidateBreakOutsideLoop() {
-  const char* src = "main : void () { break; }";
+  const char* src = "main : () -> void { break; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateSkipOutsideLoop() {
-  const char* src = "main : void () { skip; }";
+  const char* src = "main : () -> void { skip; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateUndeclaredIdentifier() {
-  const char* src = "main : i32 () { return foo; }";
+  const char* src = "main : () -> i32 { return foo; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateUnknownType() {
-  const char* src = "main : i32 () { x : NotAType = 1; return 0; }";
+  const char* src = "main : () -> i32 { x : NotAType = 1; return 0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateVoidValueType() {
-  const char* src = "main : i32 () { x : void = 1; return 0; }";
+  const char* src = "main : () -> i32 { x : void = 1; return 0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateVoidParamType() {
-  const char* src = "main : i32 (x : void) { return 0; }";
+  const char* src = "main : (x : void) -> i32 { return 0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidatePrimitiveTypeArgs() {
-  const char* src = "main : i32 () { x : i32<i32> = 1; return 0; }";
+  const char* src = "main : () -> i32 { x : i32<i32> = 1; return 0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2710,7 +2710,7 @@ bool LangValidatePrimitiveTypeArgs() {
 
 bool LangValidateCanonicalGenericTypes() {
   const char* src =
-      "main : i32 () { value : Promise<Result<i32?, string>>; "
+      "main : () -> i32 { value : Promise<Result<i32?, string>>; "
       "nested : Promise<i32? ?>; return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -2718,8 +2718,8 @@ bool LangValidateCanonicalGenericTypes() {
 
 bool LangValidateCanonicalGenericTypeArity() {
   for (const char* src : {
-           "main : i32 () { value : Result<i32>; return 0; }",
-           "main : i32 () { value : Promise; return 0; }",
+           "main : () -> i32 { value : Result<i32>; return 0; }",
+           "main : () -> i32 { value : Promise; return 0; }",
        }) {
     std::string error;
     if (Simple::Lang::ValidateProgramFromString(src, &error) ||
@@ -2738,28 +2738,28 @@ bool LangValidateCanonicalGenericTypeRedeclaration() {
 }
 
 bool LangValidateTypeParamOk() {
-  const char* src = "id<T> : T (v : T) { return v; }";
+  const char* src = "id<T> : (v : T) -> T { return v; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateTypeParamWithArgs() {
-  const char* src = "id<T> : i32 (v : T<i32>) { return 0; }";
+  const char* src = "id<T> : (v : T<i32>) -> i32 { return 0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateImmutableVarAssign() {
-  const char* src = "main : void () { x :: i32 = 1; x = 2; }";
+  const char* src = "main : () -> void { x :: i32 = 1; x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateImmutableParamAssign() {
-  const char* src = "main : void (x :: i32) { x = 2; }";
+  const char* src = "main : (x :: i32) -> void { x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2768,7 +2768,7 @@ bool LangValidateImmutableParamAssign() {
 bool LangValidateImmutableFieldAssign() {
   const char* src =
     "Point :: artifact { x :: i32 }"
-    "main : void () { p : Point = { 1 }; p.x = 2; }";
+    "main : () -> void { p : Point = { 1 }; p.x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2776,7 +2776,7 @@ bool LangValidateImmutableFieldAssign() {
 
 bool LangValidateImmutableSelfFieldAssign() {
   const char* src =
-    "Point :: artifact { x :: i32 set : void () { self.x = 1; } }";
+    "Point :: artifact { x :: () -> i32 set : void { self.x = 1; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2785,7 +2785,7 @@ bool LangValidateImmutableSelfFieldAssign() {
 bool LangValidateImmutableModuleAssign() {
   const char* src =
     "Math :: namespace { PI :: f64 = 3.14; }"
-    "main : void () { Standard.Math.PI = 0.0; }";
+    "main : () -> void { Standard.Math.PI = 0.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2793,8 +2793,8 @@ bool LangValidateImmutableModuleAssign() {
 
 bool LangValidateAssignToFunctionFail() {
   const char* src =
-    "add : i32 (a : i32, b : i32) { return a + b; }"
-    "main : void () { add = 1; }";
+    "add : (a : i32, b : i32) -> i32 { return a + b; }"
+    "main : () -> void { add = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2802,8 +2802,8 @@ bool LangValidateAssignToFunctionFail() {
 
 bool LangValidateAssignToModuleFunctionFail() {
   const char* src =
-    "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
-    "main : void () { Standard.Math.add = 1; }";
+    "Math :: namespace { add : (a : i32, b : i32) -> i32 { return a + b; } }"
+    "main : () -> void { Standard.Math.add = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2904,7 +2904,7 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
 }
 
 bool LangRejectLegacyReservedImports() {
-  const char* src = "import IO\nmain : void () { }";
+  const char* src = "import IO\nmain : () -> void { }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("use Standard.IO") != std::string::npos;
@@ -2916,7 +2916,7 @@ bool LangValidateCanonicalSystemStandardImports() {
     "import Standard.Math\n"
     "import System.Time\n"
     "import System.FFI\n"
-    "main : void () { Standard.IO.println(\"ok\"); best : i32 = Standard.Math.max(1, 2); now : i64 = System.Time.mono_ns(); ok :: bool = System.FFI.supported; }";
+    "main : () -> void { Standard.IO.println(\"ok\"); best : i32 = Standard.Math.max(1, 2); now : i64 = System.Time.mono_ns(); ok :: bool = System.FFI.supported; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2932,13 +2932,13 @@ bool LangValidateAllPlannedSystemStandardImports() {
     "import Standard.Text\nimport Standard.Json\nimport Standard.Math\nimport Standard.Random\nimport Standard.Time\n"
     "import Standard.Log\nimport Standard.Process\nimport Standard.Net\nimport Standard.HTTP\nimport Standard.HTTPS\n"
     "import Standard.Terminal\nimport Standard.Promise\nimport Standard.Channel\nimport Standard.Collections\n"
-    "main : void () { }";
+    "main : () -> void { }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangRejectSystemIoPrintln() {
-  const char* src = "import System.IO\nmain : void () { System.IO.println(1); }";
+  const char* src = "import System.IO\nmain : () -> void { System.IO.println(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos ||
@@ -2957,7 +2957,7 @@ bool LangRejectUnimplementedStandardDuplicateRootMembers() {
       "import Standard.Console\n"
       "import Standard.Process\n"
       "import Standard.Json\n"
-      "main : void () { Standard.Console.println(1); Standard.Process.sleep_ms(1); Standard.Json.parse(\"{}\"); }";
+      "main : () -> void { Standard.Console.println(1); Standard.Process.sleep_ms(1); Standard.Json.parse(\"{}\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("unknown module member") != std::string::npos ||
@@ -2976,14 +2976,14 @@ bool LangValidateNamespaceExternManifestAndCall() {
     std::ofstream raylib(dir / "raylib.simple", std::ios::binary);
     raylib << "module Raylib\n"
            << "import System.FFI\n"
-           << "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : u8*?) }\n"
+           << "Raylib :: namespace { extern InitWindow : (w : i32, h : i32, title : u8*?) -> void }\n"
            << "lib :: i64 = System.FFI.open(\"libraylib.so\", Raylib)\n";
   }
   {
     std::ofstream main_file(dir / "main.simple", std::ios::binary);
     main_file << "import Raylib\n"
               << "using Raylib.Raylib\n"
-              << "main : void () { Raylib.Raylib.InitWindow(1, 2, {}); InitWindow(1, 2, {}); }\n";
+              << "main : () -> void { Raylib.Raylib.InitWindow(1, 2, {}); InitWindow(1, 2, {}); }\n";
   }
 
   Simple::Lang::Program program;
@@ -2994,8 +2994,8 @@ bool LangValidateNamespaceExternManifestAndCall() {
 
 bool LangValidateAssignToArtifactMethodFail() {
   const char* src =
-    "Point :: artifact { x : i32 get : i32 () { return x; } }"
-    "main : void () { p : Point = { 1 }; p.get = 1; }";
+    "Point :: artifact { x : () -> i32 get : i32 { return x; } }"
+    "main : () -> void { p : Point = { 1 }; p.get = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3003,8 +3003,8 @@ bool LangValidateAssignToArtifactMethodFail() {
 
 bool LangValidateProcValueRejectsArtifactMethod() {
   const char* src =
-    "Point :: artifact { x : i32; get : i32 () { return self.x; } }"
-    "main : void () { p : Point = { 1 }; f : fn i32 () = p.get; }";
+    "Point :: artifact { x : i32; get : () -> i32 { return self.x; } }"
+    "main : () -> void { p : Point = { 1 }; f : fn () -> i32 = p.get; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
@@ -3012,8 +3012,8 @@ bool LangValidateProcValueRejectsArtifactMethod() {
 
 bool LangValidateProcValueRejectsModuleFunction() {
   const char* src =
-    "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
-    "main : void () { f : fn i32 (i32, i32) = Math.add; }";
+    "Math :: namespace { add : (a : i32, b : i32) -> i32 { return a + b; } }"
+    "main : () -> void { f : fn (i32, i32) -> i32 = Math.add; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
@@ -3021,21 +3021,21 @@ bool LangValidateProcValueRejectsModuleFunction() {
 
 bool LangValidateAssignToSelfMethodFail() {
   const char* src =
-    "Point :: artifact { x : i32 get : i32 () { return x; } set : void () { self.get = 1; } }";
+    "Point :: artifact { x : () -> i32 get : i32 { return x; } set : () -> void { self.get = 1; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIncDecImmutableLocal() {
-  const char* src = "main : void () { x :: i32 = 1; x++; }";
+  const char* src = "main : () -> void { x :: i32 = 1; x++; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIncDecInvalidTarget() {
-  const char* src = "main : void () { (1 + 2)++; }";
+  const char* src = "main : () -> void { (1 + 2)++; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3044,7 +3044,7 @@ bool LangValidateIncDecInvalidTarget() {
 bool LangValidateUnknownModuleMember() {
   const char* src =
     "Math :: namespace { x : i32 = 1; }"
-    "main : i32 () { return Standard.Math.y; }";
+    "main : () -> i32 { return Standard.Math.y; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3053,7 +3053,7 @@ bool LangValidateUnknownModuleMember() {
 bool LangValidateMutableFieldAssignOk() {
   const char* src =
     "Point :: artifact { x : i32 }"
-    "main : void () { p : Point = { 1 }; p.x = 2; }";
+    "main : () -> void { p : Point = { 1 }; p.x = 2; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3062,14 +3062,14 @@ bool LangValidateMutableFieldAssignOk() {
 bool LangValidateUnknownArtifactMember() {
   const char* src =
     "Point :: artifact { x : i32 }"
-    "main : i32 () { p : Point = { 1 }; return p.y; }";
+    "main : () -> i32 { p : Point = { 1 }; return p.y; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateSelfOutsideMethod() {
-  const char* src = "main : void () { self; }";
+  const char* src = "main : () -> void { self; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3078,7 +3078,7 @@ bool LangValidateSelfOutsideMethod() {
 bool LangValidateArtifactLiteralTooManyPositional() {
   const char* src =
     "Point :: artifact { x : i32 y : i32 }"
-    "main : void () { p : Point = { 1, 2, 3 }; }";
+    "main : () -> void { p : Point = { 1, 2, 3 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3087,7 +3087,7 @@ bool LangValidateArtifactLiteralTooManyPositional() {
 bool LangValidateArtifactLiteralDuplicateNamed() {
   const char* src =
     "Point :: artifact { x : i32 y : i32 }"
-    "main : void () { p : Point = { .x = 1, .x = 2 }; }";
+    "main : () -> void { p : Point = { .x = 1, .x = 2 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3096,7 +3096,7 @@ bool LangValidateArtifactLiteralDuplicateNamed() {
 bool LangValidateArtifactLiteralUnknownField() {
   const char* src =
     "Point :: artifact { x : i32; y : i32 }"
-    "main : void () { p : Point = { .z = 1 }; }";
+    "main : () -> void { p : Point = { .z = 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3105,7 +3105,7 @@ bool LangValidateArtifactLiteralUnknownField() {
 bool LangValidateArtifactLiteralPositionalThenNamedDuplicate() {
   const char* src =
     "Point :: artifact { x : i32; y : i32 }"
-    "main : void () { p : Point = { 1, .x = 2 }; }";
+    "main : () -> void { p : Point = { 1, .x = 2 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3114,7 +3114,7 @@ bool LangValidateArtifactLiteralPositionalThenNamedDuplicate() {
 bool LangValidateArtifactLiteralNamedOk() {
   const char* src =
     "Point :: artifact { x : i32; y : i32 }"
-    "main : void () { p : Point = { .x = 1, .y = 2 }; }";
+    "main : () -> void { p : Point = { .x = 1, .y = 2 }; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3123,7 +3123,7 @@ bool LangValidateArtifactLiteralNamedOk() {
 bool LangValidateArtifactLiteralTypeMismatchPositional() {
   const char* src =
     "Point :: artifact { x : i32; y : i32 }"
-    "main : void () { p : Point = { 1, true }; }";
+    "main : () -> void { p : Point = { 1, true }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3132,63 +3132,63 @@ bool LangValidateArtifactLiteralTypeMismatchPositional() {
 bool LangValidateArtifactLiteralTypeMismatchNamed() {
   const char* src =
     "Point :: artifact { x : i32; y : i32 }"
-    "main : void () { p : Point = { .y = true }; }";
+    "main : () -> void { p : Point = { .y = true }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexFloatLiteral() {
-  const char* src = "main : i32 () { return [1,2,3][1.5]; }";
+  const char* src = "main : () -> i32 { return [1,2,3][1.5]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexStringLiteral() {
-  const char* src = "main : i32 () { return [1,2,3][\"no\"]; }";
+  const char* src = "main : () -> i32 { return [1,2,3][\"no\"]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexLiteralBase() {
-  const char* src = "main : i32 () { return 123[0]; }";
+  const char* src = "main : () -> i32 { return 123[0]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexIntOk() {
-  const char* src = "main : i32 () { return [1,2,3][1]; }";
+  const char* src = "main : () -> i32 { return [1,2,3][1]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexNonIndexableVar() {
-  const char* src = "main : i32 () { x : i32 = 1; return x[0]; }";
+  const char* src = "main : () -> i32 { x : i32 = 1; return x[0]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexNonIntegerExpr() {
-  const char* src = "main : i32 () { a : i32[] = []; return a[true]; }";
+  const char* src = "main : () -> i32 { a : i32[] = []; return a[true]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCallArgCount() {
-  const char* src = "add : i32 (a : i32, b : i32) { return a; } main : i32 () { return add(1); }";
+  const char* src = "add : (a : i32, b : i32) -> i32 { return a; } main : () -> i32 { return add(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCallNonFunction() {
-  const char* src = "x : i32 = 1; main : i32 () { return x(1); }";
+  const char* src = "x : i32 = 1; main : () -> i32 { return x(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3196,8 +3196,8 @@ bool LangValidateCallNonFunction() {
 
 bool LangValidateCallModuleFuncCount() {
   const char* src =
-    "Math :: namespace { add : i32 (a : i32, b : i32) { return a; } }"
-    "main : i32 () { return Standard.Math.add(1); }";
+    "Math :: namespace { add : (a : i32, b : i32) -> i32 { return a; } }"
+    "main : () -> i32 { return Standard.Math.add(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3206,7 +3206,7 @@ bool LangValidateCallModuleFuncCount() {
 bool LangValidateCallModuleVar() {
   const char* src =
     "Math :: namespace { PI :: f64 = 3.14; }"
-    "main : i32 () { return Standard.Math.PI(1); }";
+    "main : () -> i32 { return Standard.Math.PI(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3214,8 +3214,8 @@ bool LangValidateCallModuleVar() {
 
 bool LangValidateCallMethodArgCount() {
   const char* src =
-    "Point :: artifact { x : i32 get : i32 () { return self.x; } }"
-    "main : i32 () { p : Point = { 1 }; return p.get(1); }";
+    "Point :: artifact { x : () -> i32 get : i32 { return self.x; } }"
+    "main : () -> i32 { p : Point = { 1 }; return p.get(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3224,68 +3224,68 @@ bool LangValidateCallMethodArgCount() {
 bool LangValidateCallFieldAsMethod() {
   const char* src =
     "Point :: artifact { x : i32 }"
-    "main : i32 () { p : Point = { 1 }; return p.x(1); }";
+    "main : () -> i32 { p : Point = { 1 }; return p.x(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintArgCountFail() {
-  const char* src = "import Standard.IO\nmain : void () { Standard.IO.print(); }";
+  const char* src = "import Standard.IO\nmain : () -> void { Standard.IO.print(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintTypeArgsOk() {
-  const char* src = "import Standard.IO\nmain : void () { Standard.IO.print<i32>(1); }";
+  const char* src = "import Standard.IO\nmain : () -> void { Standard.IO.print<i32>(1); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintRejectsArray() {
-  const char* src = "import Standard.IO\nmain : void () { a : i32[] = [1,2]; Standard.IO.print(a); }";
+  const char* src = "import Standard.IO\nmain : () -> void { a : i32[] = [1,2]; Standard.IO.print(a); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintFormatOk() {
-  const char* src = "import Standard.IO\nmain : void () { x : i32 = 42; Standard.IO.println(\"x={}\", x); }";
+  const char* src = "import Standard.IO\nmain : () -> void { x : i32 = 42; Standard.IO.println(\"x={}\", x); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateIoPrintFormatPlaceholderMismatch() {
-  const char* src = "import Standard.IO\nmain : void () { Standard.IO.println(\"x={}, y={}\", 1); }";
+  const char* src = "import Standard.IO\nmain : () -> void { Standard.IO.println(\"x={}, y={}\", 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format placeholder count mismatch") != std::string::npos;
 }
 
 bool LangValidateIoPrintFormatNeedsStringLiteral() {
-  const char* src = "import Standard.IO\nmain : void () { fmt : string = \"x={}\"; Standard.IO.println(fmt, 1); }";
+  const char* src = "import Standard.IO\nmain : () -> void { fmt : string = \"x={}\"; Standard.IO.println(fmt, 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format call expects string literal") != std::string::npos;
 }
 
 bool LangValidateFormatExprOk() {
-  const char* src = "main : string () { x : i32 = 42; return \"x={}\", x; }";
+  const char* src = "main : () -> string { x : i32 = 42; return \"x={}\", x; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateFormatExprPlaceholderMismatch() {
-  const char* src = "main : string () { return \"x={} y={}\", 1; }";
+  const char* src = "main : () -> string { return \"x={} y={}\", 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format placeholder count mismatch") != std::string::npos;
 }
 
 bool LangValidateFormatExprRejectsList() {
-  const char* src = "main : string () { a : i32[] = [1,2]; return \"{}\", a; }";
+  const char* src = "main : () -> string { a : i32[] = [1,2]; return \"{}\", a; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format expects scalar") != std::string::npos ||
@@ -3299,7 +3299,7 @@ bool LangRunsSimpleFixtures() {
 
 bool LangValidateCallFnLiteralCount() {
   const char* src =
-    "main : i32 () { f : fn i32 (x : i32) = (x) { return x; }; return f(1, 2); }";
+    "main : () -> i32 { f : fn (x : i32) -> i32 = (x) { return x; }; return f(1, 2); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3307,7 +3307,7 @@ bool LangValidateCallFnLiteralCount() {
 
 bool LangValidateCallFnLiteralOk() {
   const char* src =
-    "main : i32 () { f : fn i32 (x : i32) = (x) { return x; }; return f(1); }";
+    "main : () -> i32 { f : fn (x : i32) -> i32 = (x) { return x; }; return f(1); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3315,7 +3315,7 @@ bool LangValidateCallFnLiteralOk() {
 
 bool LangValidateArtifactMemberRequiresSelfField() {
   const char* src =
-    "Point :: artifact { x : i32; get : i32 () { return x; } }";
+    "Point :: artifact { x : i32; get : () -> i32 { return x; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3323,7 +3323,7 @@ bool LangValidateArtifactMemberRequiresSelfField() {
 
 bool LangValidateArtifactMemberRequiresSelfMethod() {
   const char* src =
-    "Point :: artifact { get : i32 () { return 1; } use : i32 () { return get(); } }";
+    "Point :: artifact { get : () -> i32 { return 1; } use : () -> i32 { return get(); } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3331,42 +3331,42 @@ bool LangValidateArtifactMemberRequiresSelfMethod() {
 
 bool LangValidateArtifactMemberSelfOk() {
   const char* src =
-    "Point :: artifact { x : i32; get : i32 () { return self.x; } use : i32 () { return self.get(); } }";
+    "Point :: artifact { x : i32; get : () -> i32 { return self.x; } use : () -> i32 { return self.get(); } }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateTypeMismatchVarInit() {
-  const char* src = "main : void () { x : i32 = \"hi\"; }";
+  const char* src = "main : () -> void { x : i32 = \"hi\"; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateTypeMismatchAssign() {
-  const char* src = "main : void () { x : i32 = 1; x = \"hi\"; }";
+  const char* src = "main : () -> void { x : i32 = 1; x = \"hi\"; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateFnLiteralAssignOk() {
-  const char* src = "main : void () { f : fn i32 (a : i32) = (a) { return a; }; }";
+  const char* src = "main : () -> void { f : fn (a : i32) -> i32 = (a) { return a; }; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateFnLiteralAssignTypeMismatch() {
-  const char* src = "main : void () { f : fn i32 (a : i32, b : i32) = (a) { return a; }; }";
+  const char* src = "main : () -> void { f : fn (a : i32,  b : i32) -> i32 = (a) { return a; }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateFnLiteralAssignNotProcType() {
-  const char* src = "main : void () { f : i32 = (a) { return a; }; }";
+  const char* src = "main : () -> void { f : i32 = (a) { return a; }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3375,8 +3375,8 @@ bool LangValidateFnLiteralAssignNotProcType() {
 bool LangValidateFnShorthandAssignAndCallOk() {
   const char* src =
       "Player :: artifact { position : i32; velocity : i32 }\n"
-      "main : i32 () {\n"
-      "  update : fn void (p : Player) = (p) { p.position += p.velocity }\n"
+      "main : () -> i32 {\n"
+      "  update : fn (p : Player) -> void = (p) { p.position += p.velocity }\n"
       "  player : Player = { 40, 2 }\n"
       "  update(player)\n"
       "  return player.position\n"
@@ -3388,8 +3388,8 @@ bool LangValidateFnShorthandAssignAndCallOk() {
 
 bool LangSirEmitsFnShorthandAssignAndCall() {
   const char* src =
-      "main : i32 () {\n"
-      "  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b }\n"
+      "main : () -> i32 {\n"
+      "  f : fn (a : i32,  b : i32) -> i32 = (a, b) { return a + b }\n"
       "  return f(20, 22)\n"
       "}";
   std::string sir;
@@ -3401,9 +3401,9 @@ bool LangSirEmitsFnShorthandAssignAndCall() {
 bool LangValidateFnParamWithFnArgOk() {
   const char* src =
       "import Standard.IO\n"
-      "invoke : void (cb : fn void (x : i32), x : i32) { cb(x) }\n"
-      "main : i32 () {\n"
-      "  printv : fn void (v : i32) = (v) { Standard.IO.println(v) }\n"
+      "invoke : (cb : fn (x : i32) -> void, x : i32) -> void { cb(x) }\n"
+      "main : () -> i32 {\n"
+      "  printv : fn (v : i32) -> void = (v) { Standard.IO.println(v) }\n"
       "  invoke(printv, 42)\n"
       "  return 0\n"
       "}";
@@ -3414,9 +3414,9 @@ bool LangValidateFnParamWithFnArgOk() {
 
 bool LangSirEmitsFnParamWithFnArgCall() {
   const char* src =
-      "invoke : void (cb : fn void (x : i32), x : i32) { cb(x) }\n"
-      "main : i32 () {\n"
-      "  noop : fn void (v : i32) = (v) { return; }\n"
+      "invoke : (cb : fn (x : i32) -> void, x : i32) -> void { cb(x) }\n"
+      "main : () -> i32 {\n"
+      "  noop : fn (v : i32) -> void = (v) { return; }\n"
       "  invoke(noop, 7)\n"
       "  return 0\n"
       "}";
@@ -3427,147 +3427,147 @@ bool LangSirEmitsFnParamWithFnArgCall() {
 }
 
 bool LangValidateCompoundAssignNumericOk() {
-  const char* src = "main : void () { x : i32 = 1; x += 2; x <<= 1; }";
+  const char* src = "main : () -> void { x : i32 = 1; x += 2; x <<= 1; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCompoundAssignTypeMismatch() {
-  const char* src = "main : void () { x : i32 = 1; x += 1.0; }";
+  const char* src = "main : () -> void { x : i32 = 1; x += 1.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCompoundAssignInvalidType() {
-  const char* src = "main : void () { x : bool = true; x += false; }";
+  const char* src = "main : () -> void { x : bool = true; x += false; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateReturnTypeMismatch() {
-  const char* src = "main : i32 () { return \"hi\"; }";
+  const char* src = "main : () -> i32 { return \"hi\"; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateReturnTypeMatch() {
-  const char* src = "main : string () { return \"hi\"; }";
+  const char* src = "main : () -> string { return \"hi\"; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexTypeOk() {
-  const char* src = "main : void () { arr : i32{2} = {1,2}; x : i32 = arr[0]; }";
+  const char* src = "main : () -> void { arr : i32{2} = {1,2}; x : i32 = arr[0]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexTypeMismatch() {
-  const char* src = "main : void () { arr : i32{2} = {1,2}; x : f64 = arr[0]; }";
+  const char* src = "main : () -> void { arr : i32{2} = {1,2}; x : f64 = arr[0]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexNestedArrayTypeOk() {
-  const char* src = "main : void () { arr : i32{2}{2} = {{1,2},{3,4}}; row : i32{2} = arr[0]; }";
+  const char* src = "main : () -> void { arr : i32{2}{2} = {{1,2},{3,4}}; row : i32{2} = arr[0]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexListTypeOk() {
-  const char* src = "main : void () { list : string[] = [\"a\"]; s : string = list[0]; }";
+  const char* src = "main : () -> void { list : string[] = [\"a\"]; s : string = list[0]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexListTypeMismatch() {
-  const char* src = "main : void () { list : string[] = [\"a\"]; x : i32 = list[0]; }";
+  const char* src = "main : () -> void { list : string[] = [\"a\"]; x : i32 = list[0]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateAssignExprStatementMismatch() {
-  const char* src = "main : void () { x : i32 = 0; (x = \"hi\"); }";
+  const char* src = "main : () -> void { x : i32 = 0; (x = \"hi\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateAssignExprStatementOk() {
-  const char* src = "main : void () { x : i32 = 0; (x = 1); }";
+  const char* src = "main : () -> void { x : i32 = 0; (x = 1); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateImmutableBaseFieldAssign() {
-  const char* src = "Point :: artifact { x : i32 } main : void () { p :: Point = { 1 }; p.x = 2; }";
+  const char* src = "Point :: artifact { x : i32 } main : () -> void { p :: Point = { 1 }; p.x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateImmutableBaseIndexAssign() {
-  const char* src = "main : void () { a :: i32[] = [1, 2]; a[0] = 3; }";
+  const char* src = "main : () -> void { a :: i32[] = [1, 2]; a[0] = 3; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateImmutableReturnAssign() {
-  const char* src = "Point :: artifact { x : i32 } make :: Point () { return { 1 }; } main : void () { make().x = 2; }";
+  const char* src = "Point :: artifact { x : i32 } make :: () -> Point { return { 1 }; } main : () -> void { make().x = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCallArgTypeMismatch() {
-  const char* src = "add : i32 (a : i32, b : i32) { return a + b; } main : void () { add(1, \"hi\"); }";
+  const char* src = "add : (a : i32, b : i32) -> i32 { return a + b; } main : () -> void { add(1, \"hi\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCallArgTypeOk() {
-  const char* src = "add : i32 (a : i32, b : i32) { return a + b; } main : void () { add(1, 2); }";
+  const char* src = "add : (a : i32, b : i32) -> i32 { return a + b; } main : () -> void { add(1, 2); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericArtifactLiteralOk() {
-  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { 1 }; }";
+  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { 1 }; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericArtifactLiteralMismatch() {
-  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { \"hi\" }; }";
+  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { \"hi\" }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericFieldAccessOk() {
-  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { 1 }; x : i32 = b.value; }";
+  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { 1 }; x : i32 = b.value; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericFieldAccessMismatch() {
-  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { 1 }; x : f64 = b.value; }";
+  const char* src = "Box<T> :: artifact { value : T } main : () -> void { b : Box<i32> = { 1 }; x : f64 = b.value; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3575,8 +3575,8 @@ bool LangValidateGenericFieldAccessMismatch() {
 
 bool LangValidateGenericMethodReturnOk() {
   const char* src =
-      "Box<T> :: artifact { value : T; get : T () { return self.value; } } "
-      "main : void () { b : Box<i32> = { 1 }; x : i32 = b.get(); }";
+      "Box<T> :: artifact { value : T; get : () -> T { return self.value; } } "
+      "main : () -> void { b : Box<i32> = { 1 }; x : i32 = b.get(); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3584,8 +3584,8 @@ bool LangValidateGenericMethodReturnOk() {
 
 bool LangValidateGenericMethodReturnMismatch() {
   const char* src =
-      "Box<T> :: artifact { value : T; get : T () { return self.value; } } "
-      "main : void () { b : Box<i32> = { 1 }; x : f64 = b.get(); }";
+      "Box<T> :: artifact { value : T; get : () -> T { return self.value; } } "
+      "main : () -> void { b : Box<i32> = { 1 }; x : f64 = b.get(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3593,8 +3593,8 @@ bool LangValidateGenericMethodReturnMismatch() {
 
 bool LangValidateGenericCallExplicit() {
   const char* src =
-      "identity<T> : T (value : T) { return value; } "
-      "main : void () { x : i32 = identity<i32>(10); }";
+      "identity<T> : (value : T) -> T { return value; } "
+      "main : () -> void { x : i32 = identity<i32>(10); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3602,8 +3602,8 @@ bool LangValidateGenericCallExplicit() {
 
 bool LangValidateGenericCallInferred() {
   const char* src =
-      "identity<T> : T (value : T) { return value; } "
-      "main : void () { x : i32 = identity(10); }";
+      "identity<T> : (value : T) -> T { return value; } "
+      "main : () -> void { x : i32 = identity(10); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3611,8 +3611,8 @@ bool LangValidateGenericCallInferred() {
 
 bool LangValidateGenericCallInferFail() {
   const char* src =
-      "identity<T> : T (value : T) { return value; } "
-      "main : void () { x : i32 = identity(); }";
+      "identity<T> : (value : T) -> T { return value; } "
+      "main : () -> void { x : i32 = identity(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3620,8 +3620,8 @@ bool LangValidateGenericCallInferFail() {
 
 bool LangValidateGenericCallTypeMismatch() {
   const char* src =
-      "identity<T> : T (value : T) { return value; } "
-      "main : void () { x : i32 = identity<i32>(\"hi\"); }";
+      "identity<T> : (value : T) -> T { return value; } "
+      "main : () -> void { x : i32 = identity<i32>(\"hi\"); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3629,134 +3629,134 @@ bool LangValidateGenericCallTypeMismatch() {
 
 bool LangValidateNonGenericCallTypeArgs() {
   const char* src =
-      "add : i32 (a : i32) { return a; } "
-      "main : void () { x : i32 = add<i32>(1); }";
+      "add : (a : i32) -> i32 { return a; } "
+      "main : () -> void { x : i32 = add<i32>(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericTypeArgsMismatch() {
-  const char* src = "Box<T> :: artifact { value : T } main : void () { x : Box = { 1 }; }";
+  const char* src = "Box<T> :: artifact { value : T } main : () -> void { x : Box = { 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateGenericTypeArgsWrongCount() {
-  const char* src = "Box<T> :: artifact { value : T } main : void () { x : Box<i32, i32> = { 1 }; }";
+  const char* src = "Box<T> :: artifact { value : T } main : () -> void { x : Box<i32, i32> = { 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateNonGenericTypeArgs() {
-  const char* src = "Point :: artifact { x : i32 } main : void () { p : Point<i32> = { 1 }; }";
+  const char* src = "Point :: artifact { x : i32 } main : () -> void { p : Point<i32> = { 1 }; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumTypeArgsRejected() {
-  const char* src = "Color :: enum { Red } main : void () { c : Color<i32> = Color.Red; }";
+  const char* src = "Color :: enum { Red } main : () -> void { c : Color<i32> = Color.Red; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateModuleNotType() {
-  const char* src = "Math :: namespace { pi : i32 = 3; } main : void () { x : Math = 1; }";
+  const char* src = "Math :: namespace { pi : i32 = 3; } main : () -> void { x : Math = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateFunctionNotType() {
-  const char* src = "fn Foo : i32 () { return 0; } main : void () { x : Foo = 1; }";
+  const char* src = "fn Foo : () -> i32 { return 0; } main : () -> void { x : Foo = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralShapeMatch() {
-  const char* src = "main : void () { a : i32{2}{2} = {{1,2},{3,4}}; }";
+  const char* src = "main : () -> void { a : i32{2}{2} = {{1,2},{3,4}}; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralShapeMismatch() {
-  const char* src = "main : void () { a : i32{2} = {1,2,3}; }";
+  const char* src = "main : () -> void { a : i32{2} = {1,2,3}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralNestedMismatch() {
-  const char* src = "main : void () { a : i32{2}{2} = {{1,2,3},{4,5,6}}; }";
+  const char* src = "main : () -> void { a : i32{2}{2} = {{1,2,3},{4,5,6}}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralNonArrayChild() {
-  const char* src = "main : void () { a : i32{2}{2} = {1,2}; }";
+  const char* src = "main : () -> void { a : i32{2}{2} = {1,2}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralEmptyMismatch() {
-  const char* src = "main : void () { a : i32{2} = {}; }";
+  const char* src = "main : () -> void { a : i32{2} = {}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralElementMismatch() {
-  const char* src = "main : void () { a : i32{2} = {1, true}; }";
+  const char* src = "main : () -> void { a : i32{2} = {1, true}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralNestedElementMismatch() {
-  const char* src = "main : void () { a : i32{2}{2} = {{1,2},{3,4}}; b : i32{2}{2} = {{1,2},{3,true}}; }";
+  const char* src = "main : () -> void { a : i32{2}{2} = {{1,2},{3,4}}; b : i32{2}{2} = {{1,2},{3,true}}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateListLiteralElementMismatch() {
-  const char* src = "main : void () { a : i32[] = [1, true]; }";
+  const char* src = "main : () -> void { a : i32[] = [1, true]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateNestedListLiteralElementMismatch() {
-  const char* src = "main : void () { a : i32[][] = [[1,2],[3,true]]; }";
+  const char* src = "main : () -> void { a : i32[][] = [[1,2],[3,true]]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralScalarTarget() {
-  const char* src = "main : void () { a : i32 = [1,2]; }";
+  const char* src = "main : () -> void { a : i32 = [1,2]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateListLiteralScalarTarget() {
-  const char* src = "main : void () { a : i32 = []; }";
+  const char* src = "main : () -> void { a : i32 = []; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateListLiteralOk() {
-  const char* src = "main : void () { a : i32[] = [1,2]; }";
+  const char* src = "main : () -> void { a : i32[] = [1,2]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3765,7 +3765,7 @@ bool LangValidateListLiteralOk() {
 bool LangValidateArtifactArrayLiteralOk() {
   const char* src =
       "Bullet :: artifact { x : i32 } "
-      "main : void () { bullets : Bullet{2} = {{1}, {2}}; }";
+      "main : () -> void { bullets : Bullet{2} = {{1}, {2}}; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3773,7 +3773,7 @@ bool LangValidateArtifactArrayLiteralOk() {
 
 bool LangValidateSwitchAssignRequiresReturn() {
   const char* src =
-      "main : void () {"
+      "main : () -> void {"
       "  x : i32 = 1;"
       "  y : i32 = switch (x) { x == 1 => 10; default => 20 };"
       "}";
@@ -3784,7 +3784,7 @@ bool LangValidateSwitchAssignRequiresReturn() {
 
 bool LangSwitchAssignRuntime() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 1;"
       "  y : i32 = switch (x) { x == 1 => return 10; default => return 20 };"
       "  return y;"
@@ -3797,7 +3797,7 @@ bool LangSwitchAssignRuntime() {
 
 bool LangSwitchExprRuntime() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 2;"
       "  return switch (x) { x == 1 => 5; default => 7 };"
       "}";
@@ -3809,7 +3809,7 @@ bool LangSwitchExprRuntime() {
 
 bool LangSwitchBlockBranchRuntime() {
   const char* src =
-      "main : i32 () {"
+      "main : () -> i32 {"
       "  x : i32 = 0;"
       "  y : i32 = switch (x) { x == 0 => { return 3 }; default => return 9 };"
       "  return y;"
@@ -3821,154 +3821,154 @@ bool LangSwitchBlockBranchRuntime() {
 }
 
 bool LangValidateIfConditionTypeMismatch() {
-  const char* src = "main : void () { if (1) { return; } }";
+  const char* src = "main : () -> void { if (1) { return; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIfChainConditionTypeMismatch() {
-  const char* src = "main : void () { |> (1) { return; } }";
+  const char* src = "main : () -> void { |> (1) { return; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateWhileConditionTypeMismatch() {
-  const char* src = "main : void () { while (1) { break; } }";
+  const char* src = "main : () -> void { while (1) { break; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateForConditionTypeMismatch() {
-  const char* src = "main : void () { for (i : i32 = 0; 1; i = i + 1) { break; } }";
+  const char* src = "main : () -> void { for (i : i32 = 0; 1; i = i + 1) { break; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateLenArrayOk() {
-  const char* src = "main : i32 () { a : i32{3} = {1,2,3}; return len(a); }";
+  const char* src = "main : () -> i32 { a : i32{3} = {1,2,3}; return len(a); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateLenListOk() {
-  const char* src = "main : i32 () { a : i32[] = [1,2,3]; return len(a); }";
+  const char* src = "main : () -> i32 { a : i32[] = [1,2,3]; return len(a); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateLenStringOk() {
-  const char* src = "main : i32 () { s : string = \"hi\"; return len(s); }";
+  const char* src = "main : () -> i32 { s : string = \"hi\"; return len(s); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateStrFromI32Ok() {
-  const char* src = "main : string () { x : i32 = 1; return @string(x); }";
+  const char* src = "main : () -> string { x : i32 = 1; return @string(x); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateStrFromBoolOk() {
-  const char* src = "main : string () { return @string(true); }";
+  const char* src = "main : () -> string { return @string(true); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateStrFromStringFail() {
-  const char* src = "main : string () { s : string = \"hi\"; return @string(s); }";
+  const char* src = "main : () -> string { s : string = \"hi\"; return @string(s); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateI32FromStringOk() {
-  const char* src = "main : i32 () { s : string = \"42\"; return @i32(s); }";
+  const char* src = "main : () -> i32 { s : string = \"42\"; return @i32(s); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateI32FromI32Ok() {
-  const char* src = "main : i32 () { x : i32 = 1; return @i32(x); }";
+  const char* src = "main : () -> i32 { x : i32 = 1; return @i32(x); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateCastWithoutAtFails() {
-  const char* src = "main : i32 () { x : i8 = 1; return i32(x); }";
+  const char* src = "main : () -> i32 { x : i8 = 1; return i32(x); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("primitive cast syntax requires '@'") != std::string::npos;
 }
 
 bool LangValidateF64FromStringOk() {
-  const char* src = "main : f64 () { s : string = \"1.5\"; return @f64(s); }";
+  const char* src = "main : () -> f64 { s : string = \"1.5\"; return @f64(s); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateF64FromF64Ok() {
-  const char* src = "main : f64 () { x : f64 = 1.0; return @f64(x); }";
+  const char* src = "main : () -> f64 { x : f64 = 1.0; return @f64(x); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateLenScalarFail() {
-  const char* src = "main : i32 () { x : i32 = 1; return len(x); }";
+  const char* src = "main : () -> i32 { x : i32 = 1; return len(x); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateLenArgCountFail() {
-  const char* src = "main : i32 () { a : i32[] = []; return len(a, a); }";
+  const char* src = "main : () -> i32 { a : i32[] = []; return len(a, a); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateUnaryTypeMismatch() {
-  const char* src = "main : i32 () { return !1; }";
+  const char* src = "main : () -> i32 { return !1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateBinaryTypeMismatch() {
-  const char* src = "main : i32 () { return 1 + 2.0; }";
+  const char* src = "main : () -> i32 { return 1 + 2.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateComparisonTypeMismatch() {
-  const char* src = "main : bool () { return 1 < true; }";
+  const char* src = "main : () -> bool { return 1 < true; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateBitwiseTypeMismatch() {
-  const char* src = "main : i32 () { return 1 & 2.0; }";
+  const char* src = "main : () -> i32 { return 1 & 2.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateModuloFloatMismatch() {
-  const char* src = "main : f64 () { return 1.0 % 2.0; }";
+  const char* src = "main : () -> f64 { return 1.0 % 2.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;

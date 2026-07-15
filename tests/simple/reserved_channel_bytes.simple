@@ -1,6 +1,6 @@
 import System.Channel
 
-main : i32 () {
+main : () -> i32 {
   ch : i64 = System.Channel.newBytes()
   data : i32[] = [1, 2, 3, 4]
   if (!System.Channel.sendBytes(ch, data)) { return 0 }

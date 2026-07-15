@@ -1,6 +1,6 @@
 Box :: artifact { text : string }
 
-main : i32 () {
+main : () -> i32 {
   value : string = "gamma"
   box : Box = { value }
   held : string = "rooted"

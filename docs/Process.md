@@ -9,7 +9,7 @@ module Example.Process
 
 import System.Process
 
-main :: i32 () {
+main :: () -> i32 {
   arguments : string[] = ["--version"]
   child : i64 = System.Process.spawn("svm", arguments)
   code : i32 = System.Process.wait(child)

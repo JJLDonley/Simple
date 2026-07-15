@@ -1,7 +1,7 @@
 import System.Channel
 using System.Channel
 
-main : i32 () {
+main : () -> i32 {
   ch : i64 = newBytes()
   data : i32[] = [5, 6]
   if (!trySendBytes(ch, data)) { return 0 }

@@ -7,6 +7,9 @@
 
 namespace {
 
+constexpr const char* kReturnFirstProcedureDiagnostic =
+    "return-first procedure declarations are not supported; expected '(params) -> return_type'";
+
 bool ParseIntegerLiteral(const std::string& text, uint64_t* out) {
   if (!out) return false;
   try {
@@ -176,7 +179,7 @@ bool Parser::ParseTypeSuffixes(TypeRef* out) {
   if (!out) return false;
   while (pending_type_argument_closes_ == 0) {
     if (Peek().line > LastTokenLine()) break;
-    if (Peek().kind == TokenKind::LBracket || Peek().kind == TokenKind::LBrace) {
+    if (Peek().kind == TokenKind::LBracket || IsTypeDimensionBrace()) {
       if (!ParseTypeDims(out)) return false;
       continue;
     }
@@ -206,32 +209,22 @@ bool Parser::ParseTypeInner(TypeRef* out) {
   if (Match(TokenKind::KwFn)) {
     TypeRef proc;
     proc.is_proc = true;
-    proc.proc_params.clear();
-    proc.proc_return.reset();
     proc.proc_return_mutability = Mutability::Mutable;
-    proc.type_args.clear();
-    proc.dims.clear();
-    proc.pointer_depth = 0;
 
     if (Match(TokenKind::Lt)) {
       if (!ParseTypeArgs(&proc.type_args)) return false;
     }
-
-    TypeRef ret;
-    if (!ParseTypeInner(&ret)) return false;
-    proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
-
     if (!Match(TokenKind::LParen)) {
-      error_ = "expected '(' after fn return type";
+      error_ = "expected '(' after fn";
       return false;
     }
     if (!Match(TokenKind::RParen)) {
       for (;;) {
-        // Allow optional parameter name and mutability; only the type is stored.
         if (Peek().kind == TokenKind::Identifier &&
-            (Peek(1).kind == TokenKind::Colon || Peek(1).kind == TokenKind::DoubleColon)) {
-          Advance(); // name
-          Advance(); // ':' or '::'
+            (Peek(1).kind == TokenKind::Colon ||
+             Peek(1).kind == TokenKind::DoubleColon)) {
+          Advance();
+          Advance();
         }
         TypeRef param;
         if (!ParseTypeInner(&param)) return false;
@@ -242,9 +235,25 @@ bool Parser::ParseTypeInner(TypeRef* out) {
         return false;
       }
     }
-
-    if (!ParseTypeSuffixes(&proc)) return false;
+    if (!Match(TokenKind::Arrow)) {
+      error_ = "expected '->' after fn parameter list";
+      return false;
+    }
+    proc.proc_return = std::make_unique<TypeRef>();
+    if (!ParseTypeInner(proc.proc_return.get())) return false;
     *out = std::move(proc);
+    return true;
+  }
+
+  if (Match(TokenKind::LParen)) {
+    TypeRef grouped;
+    if (!ParseTypeInner(&grouped)) return false;
+    if (!Match(TokenKind::RParen)) {
+      error_ = "expected ')' after grouped type";
+      return false;
+    }
+    if (!ParseTypeSuffixes(&grouped)) return false;
+    *out = std::move(grouped);
     return true;
   }
 
@@ -300,48 +309,6 @@ bool Parser::ParseDecl(Decl* out) {
     if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) return true;
     error_ = "expected end of module declaration";
     return false;
-  }
-  if (Match(TokenKind::KwFn)) {
-    const Token& name_tok = Peek();
-    if (name_tok.kind != TokenKind::Identifier) {
-      error_ = "expected function name after 'fn'";
-      return false;
-    }
-    Advance();
-
-    std::vector<std::string> generics;
-    if (Match(TokenKind::Lt)) {
-      if (!ParseGenerics(&generics)) return false;
-    }
-
-    Mutability mut = Mutability::Immutable;
-    if (Match(TokenKind::Colon)) {
-      mut = Mutability::Mutable;
-    } else if (Match(TokenKind::DoubleColon)) {
-      mut = Mutability::Immutable;
-    } else {
-      error_ = "expected ':' or '::' after function name";
-      return false;
-    }
-
-    const bool is_async = Match(TokenKind::KwAsync);
-    TypeRef return_type;
-    if (!ParseTypeInner(&return_type)) return false;
-    if (!Match(TokenKind::LParen)) {
-      error_ = "expected '(' after function return type";
-      return false;
-    }
-    if (out) {
-      out->kind = DeclKind::Function;
-      out->func.name = name_tok.text;
-      out->func.generics = std::move(generics);
-      out->func.is_async = is_async;
-      out->func.return_mutability = mut;
-      out->func.return_type = std::move(return_type);
-    }
-    if (!ParseParamList(&out->func.params)) return false;
-    if (!ParseBlockStmts(&out->func.body)) return false;
-    return true;
   }
   if (Match(TokenKind::KwImport)) {
     std::string import_path;
@@ -452,13 +419,8 @@ bool Parser::ParseDecl(Decl* out) {
       return false;
     }
     TypeRef return_type;
-    if (!ParseTypeInner(&return_type)) return false;
-    if (!Match(TokenKind::LParen)) {
-      error_ = "expected '(' after extern return type";
-      return false;
-    }
     std::vector<ParamDecl> params;
-    if (!ParseParamList(&params)) return false;
+    if (!ParseCallableSignature(&return_type, &params)) return false;
     if (out) {
       out->kind = DeclKind::Extern;
       out->ext.name = extern_name;
@@ -508,18 +470,16 @@ bool Parser::ParseDecl(Decl* out) {
     }
     Mutability mut = Mutability::Immutable;
     const bool is_async = Match(TokenKind::KwAsync);
-    TypeRef return_or_type;
-    if (!ParseTypeInner(&return_or_type)) return false;
-    if (Match(TokenKind::LParen)) {
+    if (Peek().kind == TokenKind::LParen) {
       if (out) {
         out->kind = DeclKind::Function;
         out->func.name = name_tok.text;
         out->func.generics = std::move(generics);
         out->func.is_async = is_async;
         out->func.return_mutability = mut;
-        out->func.return_type = std::move(return_or_type);
       }
-      if (!ParseParamList(&out->func.params)) return false;
+      if (!ParseCallableSignature(
+              &out->func.return_type, &out->func.params)) return false;
       if (!ParseBlockStmts(&out->func.body)) return false;
       return true;
     }
@@ -527,11 +487,17 @@ bool Parser::ParseDecl(Decl* out) {
       error_ = "async is valid only on function declarations";
       return false;
     }
+    TypeRef value_type;
+    if (!ParseTypeInner(&value_type)) return false;
+    if (Peek().kind == TokenKind::LParen) {
+      error_ = kReturnFirstProcedureDiagnostic;
+      return false;
+    }
     if (out) {
       out->kind = DeclKind::Variable;
       out->var.name = name_tok.text;
       out->var.mutability = mut;
-      out->var.type = std::move(return_or_type);
+      out->var.type = std::move(value_type);
     }
     if (Match(TokenKind::Assign)) {
       Expr init;
@@ -557,19 +523,16 @@ bool Parser::ParseDecl(Decl* out) {
   }
 
   const bool is_async = Match(TokenKind::KwAsync);
-  TypeRef return_or_type;
-  if (!ParseTypeInner(&return_or_type)) return false;
-
-  if (Match(TokenKind::LParen)) {
+  if (Peek().kind == TokenKind::LParen) {
     if (out) {
       out->kind = DeclKind::Function;
       out->func.name = name_tok.text;
       out->func.generics = std::move(generics);
       out->func.is_async = is_async;
       out->func.return_mutability = mut;
-      out->func.return_type = std::move(return_or_type);
     }
-    if (!ParseParamList(&out->func.params)) return false;
+    if (!ParseCallableSignature(
+            &out->func.return_type, &out->func.params)) return false;
     if (!ParseBlockStmts(&out->func.body)) return false;
     return true;
   }
@@ -578,11 +541,17 @@ bool Parser::ParseDecl(Decl* out) {
     error_ = "async is valid only on function declarations";
     return false;
   }
+  TypeRef value_type;
+  if (!ParseTypeInner(&value_type)) return false;
+  if (Peek().kind == TokenKind::LParen) {
+    error_ = kReturnFirstProcedureDiagnostic;
+    return false;
+  }
   if (out) {
     out->kind = DeclKind::Variable;
     out->var.name = name_tok.text;
     out->var.mutability = mut;
-    out->var.type = std::move(return_or_type);
+    out->var.type = std::move(value_type);
   }
   if (Match(TokenKind::Assign)) {
     Expr init;
@@ -717,10 +686,7 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
   }
 
   const bool is_async = Match(TokenKind::KwAsync);
-  TypeRef type;
-  if (!ParseTypeInner(&type)) return false;
-
-  if (Match(TokenKind::LParen)) {
+  if (Peek().kind == TokenKind::LParen) {
     if (out && out->is_data) {
       error_ = "data declarations cannot contain methods";
       return false;
@@ -730,8 +696,7 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     fn.generics = std::move(generics);
     fn.is_async = is_async;
     fn.return_mutability = mut;
-    fn.return_type = std::move(type);
-    if (!ParseParamList(&fn.params)) return false;
+    if (!ParseCallableSignature(&fn.return_type, &fn.params)) return false;
     if (!ParseBlockStmts(&fn.body)) return false;
     if (out) out->methods.push_back(std::move(fn));
     return true;
@@ -746,10 +711,16 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
     return false;
   }
 
+  TypeRef field_type;
+  if (!ParseTypeInner(&field_type)) return false;
+  if (Peek().kind == TokenKind::LParen) {
+    error_ = kReturnFirstProcedureDiagnostic;
+    return false;
+  }
   VarDecl field;
   field.name = name_tok.text;
   field.mutability = mut;
-  field.type = std::move(type);
+  field.type = std::move(field_type);
   if (Match(TokenKind::Assign)) {
     Expr init;
     if (!ParseExpr(&init)) return false;
@@ -804,13 +775,8 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
       return false;
     }
     TypeRef return_type;
-    if (!ParseTypeInner(&return_type)) return false;
-    if (!Match(TokenKind::LParen)) {
-      error_ = "expected '(' after extern return type";
-      return false;
-    }
     std::vector<ParamDecl> params;
-    if (!ParseParamList(&params)) return false;
+    if (!ParseCallableSignature(&return_type, &params)) return false;
     if (out) {
       ExternDecl ext;
       ext.name = extern_name;
@@ -849,17 +815,13 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
   }
 
   const bool is_async = Match(TokenKind::KwAsync);
-  TypeRef type;
-  if (!ParseTypeInner(&type)) return false;
-
-  if (Match(TokenKind::LParen)) {
+  if (Peek().kind == TokenKind::LParen) {
     FuncDecl fn;
     fn.name = name_tok.text;
     fn.generics = std::move(generics);
     fn.is_async = is_async;
     fn.return_mutability = mut;
-    fn.return_type = std::move(type);
-    if (!ParseParamList(&fn.params)) return false;
+    if (!ParseCallableSignature(&fn.return_type, &fn.params)) return false;
     if (!ParseBlockStmts(&fn.body)) return false;
     if (out) out->functions.push_back(std::move(fn));
     return true;
@@ -874,10 +836,16 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
     return false;
   }
 
+  TypeRef value_type;
+  if (!ParseTypeInner(&value_type)) return false;
+  if (Peek().kind == TokenKind::LParen) {
+    error_ = kReturnFirstProcedureDiagnostic;
+    return false;
+  }
   VarDecl var;
   var.name = name_tok.text;
   var.mutability = mut;
-  var.type = std::move(type);
+  var.type = std::move(value_type);
   if (Match(TokenKind::Assign)) {
     Expr init;
     if (!ParseExpr(&init)) return false;
@@ -931,6 +899,21 @@ bool Parser::ParseParamList(std::vector<ParamDecl>* out) {
     return false;
   }
   return true;
+}
+
+bool Parser::ParseCallableSignature(TypeRef* return_type,
+                                    std::vector<ParamDecl>* params) {
+  if (!return_type || !params) return false;
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected parameter-first function signature '(params) -> return_type'";
+    return false;
+  }
+  if (!ParseParamList(params)) return false;
+  if (!Match(TokenKind::Arrow)) {
+    error_ = "expected '->' after function parameter list";
+    return false;
+  }
+  return ParseTypeInner(return_type);
 }
 
 bool Parser::ParseParam(ParamDecl* out) {
@@ -1022,6 +1005,13 @@ bool Parser::RecoverStatementInBlock() {
   }
   if (error_.empty()) error_ = "unterminated block";
   return false;
+}
+
+bool Parser::IsTypeDimensionBrace() const {
+  if (Peek().kind != TokenKind::LBrace) return false;
+  if (Peek(1).kind == TokenKind::Integer) return true;
+  return index_ > 0 && Peek().line == tokens_[index_ - 1].line &&
+         Peek().column == tokens_[index_ - 1].column + tokens_[index_ - 1].text.size();
 }
 
 uint32_t Parser::LastTokenLine() const {
@@ -2099,7 +2089,7 @@ bool Parser::ParseTypeDims(TypeRef* out) {
       error_ = "static array types use '{N}' or '{}' (lists use '[]')";
       return false;
     }
-    if (!Match(TokenKind::LBrace)) break;
+    if (!IsTypeDimensionBrace() || !Match(TokenKind::LBrace)) break;
     TypeDim dim;
     dim.is_list = false;
     if (Match(TokenKind::RBrace)) {

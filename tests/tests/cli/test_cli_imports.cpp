@@ -64,7 +64,7 @@ bool CliAcceptsModuleHeaderInCheckCommand() {
   const auto path = TestTempPath("simple_cli_module_header.simple");
   {
     std::ofstream out(path);
-    out << "module main\n\nmain : i32 () { return 0 }\n";
+    out << "module main\n\nmain : () -> i32 { return 0 }\n";
   }
   const bool ok = RunCliSvmQuiet({"check", path.string()});
   std::filesystem::remove(path);
@@ -84,7 +84,7 @@ bool CliLocalUsingImportDoesNotReachValidator() {
   }
   {
     std::ofstream main(dir / "main.simple");
-    main << "module Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
+    main << "module Main\nimport Lib\nusing Lib\nmain : () -> i32 { f : Foo = { 7 }; return f.x }\n";
   }
   const bool ok = RunCliSvmQuiet({"check", (dir / "main.simple").string()});
   fs::remove_all(dir, ec);
@@ -112,7 +112,7 @@ bool CliSplitImportsBuildSharedSimpleFileIndex() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "Thing.simple");
-    out << "main : i32 () { return 0 }";
+    out << "main : () -> i32 { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex index;
   const bool ok = Simple::Lang::RAST::BuildSimpleFileIndex(dir, &index);
@@ -125,7 +125,7 @@ bool CliSplitImportsBuildSharedModuleIndex() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "widget.simple");
-    out << "module Tools.Widget\nmain : i32 () { return 0 }";
+    out << "module Tools.Widget\nmain : () -> i32 { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex files;
   Simple::Lang::RAST::ImportPathIndex modules;
@@ -140,12 +140,12 @@ bool CliSplitImportsLoadProgramWithSharedEntryPoint() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "lib.simple");
-    out << "module Load.Lib\nloaded : i32 () { return 2 }";
+    out << "module Load.Lib\nloaded : () -> i32 { return 2 }";
   }
   const auto entry = dir / "main.simple";
   {
     std::ofstream out(entry);
-    out << "import Load.Lib\nmain : i32 () { return loaded() }";
+    out << "import Load.Lib\nmain : () -> i32 { return loaded() }";
   }
   Simple::Lang::Program program;
   std::string error;
@@ -159,12 +159,12 @@ bool CliSplitImportsAppendProgramWithSharedLoader() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "lib.simple");
-    out << "module Lib\nvalue : i32 () { return 1 }";
+    out << "module Lib\nvalue : () -> i32 { return 1 }";
   }
   const auto entry = dir / "main.simple";
   {
     std::ofstream out(entry);
-    out << "import Lib\nmain : i32 () { return value() }";
+    out << "import Lib\nmain : () -> i32 { return value() }";
   }
   Simple::Lang::RAST::ImportPathIndex files;
   Simple::Lang::RAST::ImportPathIndex modules;
@@ -186,7 +186,7 @@ bool CliSplitImportsResolveSharedModuleImport() {
   const auto file = dir / "widget.simple";
   {
     std::ofstream out(file);
-    out << "module Resolve.Widget\nmain : i32 () { return 0 }";
+    out << "module Resolve.Widget\nmain : () -> i32 { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex files;
   Simple::Lang::RAST::ImportPathIndex modules;
@@ -206,7 +206,7 @@ bool CliSplitImportsWriteSharedAutoModuleMap() {
   const auto file = dir / "thing.simple";
   {
     std::ofstream out(file);
-    out << "module Auto.Thing\nmain : i32 () { return 0 }";
+    out << "module Auto.Thing\nmain : () -> i32 { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex modules;
   modules["Auto.Thing"].push_back(file);
@@ -226,12 +226,12 @@ bool CliSplitImportsParseSharedModuleMapLines() {
 
 bool CliSplitImportsExtractsModuleHeaderOnly() {
   std::string name;
-  if (!Simple::Lang::RAST::ExtractModuleHeaderName("module Tools.Widget\nmain : i32 () { return 0 }", &name)) {
+  if (!Simple::Lang::RAST::ExtractModuleHeaderName("module Tools.Widget\nmain : () -> i32 { return 0 }", &name)) {
     return false;
   }
   if (name != "Tools.Widget") return false;
   name.clear();
-  return !Simple::Lang::RAST::ExtractModuleHeaderName("package Tools.Widget\nmain : i32 () { return 0 }", &name);
+  return !Simple::Lang::RAST::ExtractModuleHeaderName("package Tools.Widget\nmain : () -> i32 { return 0 }", &name);
 }
 
 bool CliSplitImportsNormalizesSimplePaths() {

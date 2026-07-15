@@ -1,7 +1,7 @@
 import Standard.FS
 using Standard.FS
 
-main : i32 () {
+main : () -> i32 {
   path : string = "build/simple_reserved_fs_using.txt"
   remove(path)
   if (!writeText(path, "abc")) { return 0 }

@@ -1,13 +1,13 @@
 module Tests.GenericSpecialization
 
-identity<T> :: T (value : T) {
+identity<T> :: (value : T) -> T {
   return value
 }
 
 Box<T> :: artifact {
   value : T
 
-  get :: T () {
+  get :: () -> T {
     return self.value
   }
 }
@@ -16,11 +16,11 @@ Wrap<T> :: artifact {
   box : Box<T>
 }
 
-twice<T> :: T (value : T) {
+twice<T> :: (value : T) -> T {
   return identity(identity(value))
 }
 
-main :: i32 () {
+main :: () -> i32 {
   wrapped : Wrap<i32> = { { twice(42) } }
   ok :: bool = identity<bool>(true)
   if (!ok) { return 1 }

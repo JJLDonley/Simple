@@ -3,7 +3,7 @@ import Standard.FS
 using Standard.Path
 using Standard.FS
 
-main : i32 () {
+main : () -> i32 {
   p : string = join("tests/simple", "hello.simple")
   if (!exists(p)) { return 0 }
   if (!isFile(p)) { return 0 }

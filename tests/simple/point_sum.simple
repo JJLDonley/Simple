@@ -3,7 +3,7 @@ Point :: artifact {
   y : i32
 }
 
-main : i32 () {
+main : () -> i32 {
   p : Point = { 2, 5 }
   return p.x + p.y
 }

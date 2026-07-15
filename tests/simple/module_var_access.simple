@@ -2,6 +2,6 @@ Math :: namespace {
   x : i32 = 5
 }
 
-main : i32 () {
+main : () -> i32 {
   return Math.x
 }

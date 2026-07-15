@@ -16166,13 +16166,13 @@ bool RunNativeTimeModuleTest() {
 }
 
 bool RunCompatibilityVersionConstantsTest() {
-  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 2);
+  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 3);
   static_assert(Simple::Lang::kSirVersionMajor == 2);
   static_assert(Simple::Lang::kStdlibVersionMajor == 2);
   static_assert(Simple::Byte::kSbcVersion == 0x0006u);
   static_assert(Simple::Byte::kOpcodeMetadataVersion == 5);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 4 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 0 &&
          Simple::Lang::kSirVersionMinor == 4 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
          Simple::VM::kRuntimeAbiVersionMinor == 6;

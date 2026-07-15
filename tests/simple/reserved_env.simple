@@ -1,7 +1,7 @@
 import System.Env
 import System.OS
 
-main : i32 () {
+main : () -> i32 {
   count : i32 = System.Env.argsCount()
   platform : string = System.OS.platform()
   arch : string = System.OS.arch()

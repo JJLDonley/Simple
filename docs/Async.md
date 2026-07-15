@@ -12,7 +12,7 @@ pre-execution LLVM fallback so async state remains owned by the executing VM.
 The implemented language design is:
 
 ```simple
-fetchBody :: async Result<string, HttpError> (url : string) {
+fetchBody :: async (url : string) -> Result<string, HttpError> {
   response :: Response = await Standard.HTTP.get(url)?
   return response.bodyText()
 }
@@ -39,12 +39,12 @@ external-FFI pointer contract, and conformance burn-in are complete.
 An async optional pipeline uses both postfix roles without ambiguity:
 
 ```simple
-getDataFromAlgo :: async i32? () {
+getDataFromAlgo :: async () -> i32? {
   if (!algorithmHasResult()) { return {} }
   return { calculateResult() }
 }
 
-consumeData :: async i32? () {
+consumeData :: async () -> i32? {
   result :: i32? = await getDataFromAlgo()
   value :: i32 = result?
   return { value * 2 }
@@ -193,7 +193,7 @@ module Examples.Promise
 
 import Standard.Promise
 
-main :: i32 () {
+main :: () -> i32 {
   promise : i64 = Standard.Promise.run(5, 42)
   value : i64 = Standard.Promise.await(promise)
   Standard.Promise.close(promise)

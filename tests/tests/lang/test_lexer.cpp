@@ -16,7 +16,7 @@ bool ExpectTokenKinds(const std::vector<Simple::Lang::Token>& tokens,
 }
 
 bool LangSplitLexerTokenizesBasicProgram() {
-  Simple::Lang::Lexer lexer("main : i32 () { return 1; }");
+  Simple::Lang::Lexer lexer("main : () -> i32 { return 1; }");
   if (!lexer.Lex()) return false;
   const auto& tokens = lexer.Tokens();
   bool saw_main = false;
@@ -51,17 +51,17 @@ bool LangLexerModuleTokenizesSwitchArrow() {
 
 
 bool LangLexesKeywordsAndOps() {
-  const char* src = "fn main :: void() { return; }";
+  const char* src = "main :: () -> void { return; }";
   Simple::Lang::Lexer lex(src);
   if (!lex.Lex()) return false;
   const auto& toks = lex.Tokens();
   std::vector<Simple::Lang::TokenKind> kinds = {
-    Simple::Lang::TokenKind::KwFn,
     Simple::Lang::TokenKind::Identifier,
     Simple::Lang::TokenKind::DoubleColon,
-    Simple::Lang::TokenKind::Identifier,
     Simple::Lang::TokenKind::LParen,
     Simple::Lang::TokenKind::RParen,
+    Simple::Lang::TokenKind::Arrow,
+    Simple::Lang::TokenKind::Identifier,
     Simple::Lang::TokenKind::LBrace,
     Simple::Lang::TokenKind::KwReturn,
     Simple::Lang::TokenKind::Semicolon,
@@ -72,7 +72,7 @@ bool LangLexesKeywordsAndOps() {
 
 
 bool LangLexesAsyncTokens() {
-  Simple::Lang::Lexer lex("work :: async i32 () { return await next() }");
+  Simple::Lang::Lexer lex("work :: async () -> i32 { return await next() }");
   if (!lex.Lex()) return false;
   const auto& tokens = lex.Tokens();
   bool saw_async = false;

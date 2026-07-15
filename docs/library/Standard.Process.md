@@ -20,16 +20,16 @@ ProcessResult :: artifact {
 }
 
 /// Starts, drains, and reaps a child without blocking the async caller.
-run :: Promise<Result<ProcessResult, ProcessError>> (
+run :: (
   program : string,
   arguments : string[]
-)
+) -> Promise<Result<ProcessResult, ProcessError>>
 
 /// Explicit blocking counterpart for scripts that do not use async functions.
-runBlocking :: Result<ProcessResult, ProcessError> (
+runBlocking :: (
   program : string,
   arguments : string[]
-)
+) -> Result<ProcessResult, ProcessError>
 ```
 
 The target surface replaces transitional `runAsync`; it does not retain an

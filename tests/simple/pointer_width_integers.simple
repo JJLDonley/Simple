@@ -1,4 +1,4 @@
-main :: i32 () {
+main :: () -> i32 {
   size : usize = 40
   offset : isize = 0
   size += 2

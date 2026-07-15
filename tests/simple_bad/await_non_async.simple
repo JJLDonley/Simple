@@ -1,2 +1,2 @@
-work :: async i32 () { return 42 }
-main :: i32 () { return await work() }
+work :: async () -> i32 { return 42 }
+main :: () -> i32 { return await work() }

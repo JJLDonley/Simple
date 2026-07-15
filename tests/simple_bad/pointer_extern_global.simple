@@ -1,8 +1,8 @@
-extern consume : void (value : i32*)
+extern consume : (value : i32*) -> void
 
 global_value : i32 = 1
 
-main :: i32 () {
+main :: () -> i32 {
   pointer : i32* = &global_value
   consume(pointer)
   return 0

@@ -1,19 +1,19 @@
 Box :: artifact { text : string }
 
-makeText : string (i : i32) {
+makeText : (i : i32) -> string {
   if (i % 2 == 0) { return "even" }
   return "odd"
 }
 
-wrap : Box (text : string) {
+wrap : (text : string) -> Box {
   return { text }
 }
 
-measure : i32 (box : Box) {
+measure : (box : Box) -> i32 {
   return len(box.text)
 }
 
-main : i32 () {
+main : () -> i32 {
   i : i32 = 0
   total : i32 = 0
   while (i < 2500) {

@@ -3,7 +3,7 @@ module Tests.Stress.GenericComposition
 Box<T> :: artifact {
   value : T
 
-  get :: T () {
+  get :: () -> T {
     return self.value
   }
 }
@@ -13,19 +13,19 @@ Pair<A, B> :: artifact {
   second : B
 }
 
-identity<T> :: T (value : T) {
+identity<T> :: (value : T) -> T {
   return value
 }
 
-makeBox<T> :: Box<T> (value : T) {
+makeBox<T> :: (value : T) -> Box<T> {
   return { identity(value) }
 }
 
-headValue<T> :: T (values : T[]) {
+headValue<T> :: (values : T[]) -> T {
   return values[0]
 }
 
-main :: i32 () {
+main :: () -> i32 {
   boxes : Box<i32>[] = []
   for (i : i32 = 0; i < 1000; i += 1) {
     box : Box<i32> = { i }

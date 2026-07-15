@@ -9,25 +9,25 @@ Player :: artifact {
   size : Vector2
   grounded : bool
 
-  Update :: void () {
+  Update :: () -> void {
     self.velocity.y -= 0.6
     self.position.y -= self.velocity.y
   }
 
-  CanLand :: bool (previousBottom : f32, platformY : f32) {
+  CanLand :: (previousBottom : f32, platformY : f32) -> bool {
     currentBottom : f32 = self.position.y + self.size.y
     return self.velocity.y <= 0.0 &&
            previousBottom < platformY && currentBottom >= platformY
   }
 
-  Land :: void (platformY : f32) {
+  Land :: (platformY : f32) -> void {
     self.position.y = platformY - self.size.y
     self.velocity.y = 0.0
     self.grounded = true
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   player : Player = {
     .position = { 0.0, 420.0 },
     .velocity = { 0.0, 0.0 },

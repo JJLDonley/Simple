@@ -1,4 +1,4 @@
 Box :: artifact { value : i32 }
-extern consume : void (box : Box)
+extern consume : (box : Box) -> void
 
-main :: i32 () { return 0 }
+main :: () -> i32 { return 0 }

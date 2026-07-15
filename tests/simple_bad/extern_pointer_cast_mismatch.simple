@@ -1,4 +1,4 @@
-main :: i32 () {
+main :: () -> i32 {
   value : i32 = 1
   pointer : i32* = &value
   other : u32* = @u32*(pointer)

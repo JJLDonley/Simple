@@ -1,6 +1,6 @@
-extern consume : i32 (value : i32)
+extern consume : (value : i32) -> i32
 
-main :: i32 () {
+main :: () -> i32 {
   consume()
   return 0
 }

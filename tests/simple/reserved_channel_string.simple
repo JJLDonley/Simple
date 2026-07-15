@@ -1,6 +1,6 @@
 import System.Channel
 
-main : i32 () {
+main : () -> i32 {
   ch : i64 = System.Channel.newString()
   if (!System.Channel.sendString(ch, "hello")) { return 0 }
   s : string = System.Channel.recvString(ch)

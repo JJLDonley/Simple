@@ -12,7 +12,7 @@ Body :: artifact {
   mass : f64
 }
 
-advance :: void (bodies : Body[], dt : f64) {
+advance :: (bodies : Body[], dt : f64) -> void {
   for (i : i32 = 0; i < bodies.len(); i += 1) {
     for (j : i32 = i + 1; j < bodies.len(); j += 1) {
       dx :: f64 = bodies[i].x - bodies[j].x
@@ -35,7 +35,7 @@ advance :: void (bodies : Body[], dt : f64) {
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   bodies : Body[] = [
     { -1.0, 0.0, 0.0, 0.0, -0.1, 0.0, 1.0 },
     { 1.0, 0.0, 0.0, 0.0, 0.1, 0.0, 1.0 }

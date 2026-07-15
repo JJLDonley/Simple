@@ -1,5 +1,5 @@
-bad :: void (pointer : void*) {
+bad :: (pointer : void*) -> void {
   *pointer
 }
 
-main :: i32 () { return 0 }
+main :: () -> i32 { return 0 }

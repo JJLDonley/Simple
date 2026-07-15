@@ -33,6 +33,8 @@ private:
   bool ParseDecl(Decl* out);
   bool ParseGenerics(std::vector<std::string>* out);
   bool ParseParamList(std::vector<ParamDecl>* out);
+  bool ParseCallableSignature(TypeRef* return_type,
+                              std::vector<ParamDecl>* params);
   bool ParseParam(ParamDecl* out);
   bool ParseArtifactDecl(const Token& name_tok,
                          std::vector<std::string> generics,
@@ -67,6 +69,7 @@ private:
   int GetBinaryPrecedence(const Token& tok) const;
   bool ConsumeStmtTerminator(const char* ctx);
   bool IsImplicitStmtTerminator() const;
+  bool IsTypeDimensionBrace() const;
   uint32_t LastTokenLine() const;
   bool RecoverStatementInBlock();
 

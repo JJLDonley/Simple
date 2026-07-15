@@ -4,74 +4,74 @@ Pair<A, B> :: artifact {
   first : A
   second : B
 
-  choose<C> :: C (value : C) { return value }
+  choose<C> :: (value : C) -> C { return value }
 }
 
 Box<T> :: artifact {
   value : T
 
-  pair<U> :: Pair<T, U> (other : U) { return { self.value, other } }
-  choose<U> :: U (other : U) { return other }
+  pair<U> :: (other : U) -> Pair<T, U> { return { self.value, other } }
+  choose<U> :: (other : U) -> U { return other }
 }
 
-identity<T> :: T (value : T) { return value }
+identity<T> :: (value : T) -> T { return value }
 
-relayA<T> :: T (value : T, count : i32) {
+relayA<T> :: (value : T, count : i32) -> T {
   if (count == 0) { return value }
   return relayB<T>(value, count - 1)
 }
 
-relayB<T> :: T (value : T, count : i32) {
+relayB<T> :: (value : T, count : i32) -> T {
   if (count == 0) { return value }
   return relayA<T>(value, count - 1)
 }
 
-invoke<T> :: T (callable : fn T (T), value : T) {
+invoke<T> :: (callable : fn (T) -> T, value : T) -> T {
   return callable(value)
 }
 
-applyMethod<T, U> :: U (box : Box<T>, value : U) {
+applyMethod<T, U> :: (box : Box<T>, value : U) -> U {
   return box.choose(value)
 }
 
-applyFixedMethod<T, V> :: i32 (box : Box<T>, value : i32, unused : V) {
+applyFixedMethod<T, V> :: (box : Box<T>, value : i32, unused : V) -> i32 {
   return box.choose(value)
 }
 
-fromOptional<T> :: T (value : T?, fallback : T) {
+fromOptional<T> :: (value : T?, fallback : T) -> T {
   return switch (value) {
     { present } => return present
     {} => return fallback
   }
 }
 
-fromResult<T, E> :: T (value : Result<T, E>, fallback : T) {
+fromResult<T, E> :: (value : Result<T, E>, fallback : T) -> T {
   return switch (value) {
     { .value = present } => return present
     { .error = error } => return fallback
   }
 }
 
-chooseOptional<T> :: i32 (value : Box<T>?) {
+chooseOptional<T> :: (value : Box<T>?) -> i32 {
   return switch (value) {
     { box } => return box.choose(12)
     {} => return 0
   }
 }
 
-chooseResult<T, E> :: i32 (value : Result<Box<T>, E>) {
+chooseResult<T, E> :: (value : Result<Box<T>, E>) -> i32 {
   return switch (value) {
     { .value = box } => return box.choose(13)
     { .error = error } => return 0
   }
 }
 
-firstRow<T> :: T (values : T{3}) { return values[0] }
-head<T> :: T (values : T[]) { return values[0] }
+firstRow<T> :: (values : T{3}) -> T { return values[0] }
+head<T> :: (values : T[]) -> T { return values[0] }
 
 Factory :: namespace {
-  make<T> :: Box<T> (value : T) { return { value } }
-  relay<T> :: T (value : T) { return identity<T>(value) }
+  make<T> :: (value : T) -> Box<T> { return { value } }
+  relay<T> :: (value : T) -> T { return identity<T>(value) }
   stored : Box<i32> = identity<Box<i32>>({ 5 })
 }
 
@@ -79,7 +79,7 @@ globalValue : i32 = identity(7)
 globalBox : Box<i32> = { 1 }
 globalMethodValue : i32 = globalBox.choose(6)
 
-main :: i32 () {
+main :: () -> i32 {
   box : Box<i32> = Factory.make(20)
   pair : Pair<i32, string> = box.pair("text")
   nested : Box<Pair<i32, string>> = { pair }

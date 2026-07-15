@@ -3,10 +3,10 @@ View :: data {
   length :: usize
 }
 
-extern source : View ()
+extern source : () -> View
 
-leak :: View () {
+leak :: () -> View {
   return source()
 }
 
-main :: i32 () { return 0 }
+main :: () -> i32 { return 0 }

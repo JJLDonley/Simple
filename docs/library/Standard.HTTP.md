@@ -28,17 +28,17 @@ Response :: artifact {
   headers :: Header[]
   body :: i32[]
 
-  bodyText :: Result<string, TextError> ()
+  bodyText :: () -> Result<string, TextError>
 }
 
 /// Async HTTP GET. Requires the network-client capability.
-get :: Promise<Result<Response, HttpError>> (url : string)
+get :: (url : string) -> Promise<Result<Response, HttpError>>
 
 /// Async HTTP POST. Requires the network-client capability.
-post :: Promise<Result<Response, HttpError>> (
+post :: (
   url : string,
   body : i32[]
-)
+) -> Promise<Result<Response, HttpError>>
 ```
 
 The public members are `get` and `post`, not `getAsync` and `postAsync`.

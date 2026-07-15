@@ -8,11 +8,11 @@ Vector3 :: artifact {
   z : f64
 }
 
-dot :: f64 (a : Vector3, b : Vector3) {
+dot :: (a : Vector3, b : Vector3) -> f64 {
   return a.x * b.x + a.y * b.y + a.z * b.z
 }
 
-cross :: Vector3 (a : Vector3, b : Vector3) {
+cross :: (a : Vector3, b : Vector3) -> Vector3 {
   return {
     a.y * b.z - a.z * b.y,
     a.z * b.x - a.x * b.z,
@@ -20,13 +20,13 @@ cross :: Vector3 (a : Vector3, b : Vector3) {
   }
 }
 
-normalize :: Vector3 (v : Vector3) {
+normalize :: (v : Vector3) -> Vector3 {
   length :: f64 = Standard.Math.sqrt(dot(v, v))
   if (length == 0.0) { return { 0.0, 0.0, 0.0 } }
   return { v.x / length, v.y / length, v.z / length }
 }
 
-multiply :: f64{4} (m : f64{4}{4}, v : f64{4}) {
+multiply :: (m : f64{4}{4}, v : f64{4}) -> f64{4} {
   out : f64{4} = { 0.0, 0.0, 0.0, 0.0 }
   for (row : i32 = 0; row < 4; row += 1) {
     for (column : i32 = 0; column < 4; column += 1) {
@@ -36,7 +36,7 @@ multiply :: f64{4} (m : f64{4}{4}, v : f64{4}) {
   return out
 }
 
-main :: i32 () {
+main :: () -> i32 {
   a : Vector3 = { 1.0, 2.0, 3.0 }
   b : Vector3 = { 4.0, 5.0, 6.0 }
   if (dot(a, b) != 32.0) { return 1 }

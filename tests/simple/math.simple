@@ -1,5 +1,5 @@
 import Standard.IO
-main : i32 () {
+main : () -> i32 {
     x :: f64 = 55.5555
     squared :: f64 = x * x
     Standard.IO.println(squared)

@@ -9,31 +9,31 @@ Holder<T> :: artifact {
   value : T
 }
 
-present<T> :: T? (value : T) {
+present<T> :: (value : T) -> T? {
   return { value }
 }
 
-absent<T> :: T? () {
+absent<T> :: () -> T? {
   return {}
 }
 
-orElse<T> :: T (candidate : T?, fallback : T) {
+orElse<T> :: (candidate : T?, fallback : T) -> T {
   return switch (candidate) {
     { value } => return value
     {} => return fallback
   }
 }
 
-preserve<T> :: T? (candidate : T?) {
+preserve<T> :: (candidate : T?) -> T? {
   value : T = candidate?
   return { value }
 }
 
-asResult<T> :: Result<T, Failure> (value : T) {
+asResult<T> :: (value : T) -> Result<T, Failure> {
   return { .value = value }
 }
 
-flatten :: i32? (candidate : i32??) {
+flatten :: (candidate : i32??) -> i32? {
   flattened : i32? = switch (candidate) {
     { inner } => {
       value : i32 = inner?
@@ -44,18 +44,18 @@ flatten :: i32? (candidate : i32??) {
   return flattened
 }
 
-requireNonnegative :: Result<i32, Failure> (value : i32) {
+requireNonnegative :: (value : i32) -> Result<i32, Failure> {
   if (value < 0) { return { .error = Failure.Invalid } }
   return { .value = value }
 }
 
-propagationStops :: Result<i32, Failure> () {
+propagationStops :: () -> Result<i32, Failure> {
   value : i32 = requireNonnegative(-1)?
   globalCounter = value + 1
   return { .value = value }
 }
 
-sumTo :: Result<i32, Failure> (limit : i32) {
+sumTo :: (limit : i32) -> Result<i32, Failure> {
   if (limit < 0) { return { .error = Failure.Invalid } }
   total : i32 = 0
   for (i : i32 = 0; i < limit; i += 1) {
@@ -65,7 +65,7 @@ sumTo :: Result<i32, Failure> (limit : i32) {
   return { .value = total }
 }
 
-label :: Result<string, Failure> (valid : bool) {
+label :: (valid : bool) -> Result<string, Failure> {
   input : i32 = -1
   if (valid) { input = 1 }
   value : i32 = requireNonnegative(input)?
@@ -77,7 +77,7 @@ globalMissing : i32?
 globalResult : Result<i32, Failure>
 globalCounter : i32
 
-main :: i32 () {
+main :: () -> i32 {
   missing : i32?
   presentZero : i32? = { 0 }
   defaultResult : Result<i32, Failure>

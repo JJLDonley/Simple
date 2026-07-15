@@ -5,46 +5,46 @@ Failure :: enum {
 Counter :: artifact {
   value : i32
 
-  add : async i32 (amount : i32) {
+  add : async (amount : i32) -> i32 {
     self.value += amount
     return self.value
   }
 }
 
-identity<T> :: async T (value : T) {
+identity<T> :: async (value : T) -> T {
   return value
 }
 
-sumTo :: async i32 (value : i32) {
+sumTo :: async (value : i32) -> i32 {
   if (value == 0) { return 0 }
   return value + await sumTo(value - 1)
 }
 
-load :: async Result<i32, Failure> (accepted : bool) {
+load :: async (accepted : bool) -> Result<i32, Failure> {
   if (accepted) { return { .value = 40 } }
   return { .error = Failure.Rejected }
 }
 
-pipeline :: async Result<i32, Failure> () {
+pipeline :: async () -> Result<i32, Failure> {
   value : i32 = await load(true)?
   return { .value = value + 2 }
 }
 
-optionalValue :: async i32? (present : bool) {
+optionalValue :: async (present : bool) -> i32? {
   if (present) { return { 21 } }
   return {}
 }
 
-optionalPipeline :: async i32? () {
+optionalPipeline :: async () -> i32? {
   value : i32 = await optionalValue(true)?
   return { value * 2 }
 }
 
-apply :: async i32 (callback : fn i32 (i32), value : i32) {
+apply :: async (callback : fn (i32) -> i32, value : i32) -> i32 {
   return callback(value)
 }
 
-main :: async i32 () {
+main :: async () -> i32 {
   if (await identity(42) != 42) { return 1 }
   if (await sumTo(9) != 45) { return 2 }
 
@@ -77,7 +77,7 @@ main :: async i32 () {
 
   textPromise : Promise<string> = identity("forty-two")
   offset : i32 = 2
-  callback : fn i32 (i32) = (value) { return value + offset }
+  callback : fn (i32) -> i32 = (value) { return value + offset }
   callbackPromise : Promise<i32> = apply(callback, 40)
   garbage : string[] = []
   for (i : i32 = 0; i < 5000; i += 1) {

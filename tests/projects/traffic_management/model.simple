@@ -18,7 +18,7 @@ TrafficError :: enum {
 }
 
 TrafficModel :: namespace {
-  nextSignal :: Signal (current : Signal) {
+  nextSignal :: (current : Signal) -> Signal {
     if (current == Signal.Red) { return Signal.Green }
     if (current == Signal.Green) { return Signal.Yellow }
     return Signal.Red

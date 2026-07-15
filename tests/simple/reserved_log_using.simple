@@ -1,7 +1,7 @@
 import Standard.Log
 using Standard.Log
 
-main : i32 () {
+main : () -> i32 {
   setLevel(4)
   info("hidden")
   warn("hidden")

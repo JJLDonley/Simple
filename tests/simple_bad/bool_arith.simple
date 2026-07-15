@@ -1,4 +1,4 @@
-main : i32 () {
+main : () -> i32 {
   b : bool = true
   return b + 1
 }

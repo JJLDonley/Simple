@@ -17,7 +17,7 @@ bool LangDlImportsEmitSystemNamespace() {
   const char* source = R"simple(
 import System.FFI
 
-main :: i32 () {
+main :: () -> i32 {
   h : i64 = System.FFI.open("libc.so.6")
   return 0
 }
@@ -37,7 +37,7 @@ Point :: data {
   wide : i64
 }
 
-main : i32 () { return 0 }
+main : () -> i32 { return 0 }
 )simple";
   if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, &error)) return false;
   return sir.find("type Point size=16 kind=data") != std::string::npos &&
@@ -54,7 +54,7 @@ Box :: artifact {
   wide : i64
 }
 
-main : i32 () { return 0 }
+main : () -> i32 { return 0 }
 )simple";
   if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, &error)) return false;
   return sir.find("type Box size=16 kind=artifact") != std::string::npos &&
@@ -71,7 +71,7 @@ Particle :: artifact {
   alpha : u8
 }
 
-main : i32 () {
+main : () -> i32 {
   particles : Particle[] = []
   particles.push({ .life=7.0, .alpha=255 })
   particles[0].alpha = @u8((particles[0].life / 7.0) * 255.0)
@@ -92,7 +92,7 @@ bool LangSplitIreEmitsSirModule() {
   Simple::Lang::IRB::Module module;
   std::string sir;
   std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString("main : i32 () { return 4; }", &cast_program, &error)) {
+  if (!Simple::Lang::CAST::ParseProgramFromString("main : () -> i32 { return 4; }", &cast_program, &error)) {
     return false;
   }
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;

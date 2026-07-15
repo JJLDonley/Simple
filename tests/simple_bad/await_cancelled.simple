@@ -1,4 +1,4 @@
-main :: async i32 () {
+main :: async () -> i32 {
   canceled : Promise<i32>
   return await canceled
 }

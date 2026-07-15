@@ -1,6 +1,6 @@
 import System.Channel
 
-main : i32 () {
+main : () -> i32 {
   ch : i64 = System.Channel.newI32()
   if (!System.Channel.sendI32(ch, 42)) { return 0 }
   a : i32 = System.Channel.tryRecvI32(ch)

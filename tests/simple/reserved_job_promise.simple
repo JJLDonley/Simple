@@ -3,7 +3,7 @@ module Tests.JobPromise
 import System.Job
 import Standard.Promise
 
-main :: i32 () {
+main :: () -> i32 {
   job : i64 = System.Job.spawn(5, 42)
   if (job == 0) { return 1 }
   if (System.Job.await(job) != 42) { return 2 }

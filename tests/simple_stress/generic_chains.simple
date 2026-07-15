@@ -3,26 +3,26 @@ module Tests.Stress.GenericChains
 Box<T> :: artifact {
   value : T
 
-  choose<U> :: U (other : U) {
+  choose<U> :: (other : U) -> U {
     return other
   }
 
-  selfBox :: Box<T> () {
+  selfBox :: () -> Box<T> {
     return self
   }
 }
 
-makeBox<T> :: Box<T> (value : T) {
+makeBox<T> :: (value : T) -> Box<T> {
   return { value }
 }
 
 Factory :: namespace {
-  make<T> :: Box<T> (value : T) {
+  make<T> :: (value : T) -> Box<T> {
     return { value }
   }
 }
 
-main :: i32 () {
+main :: () -> i32 {
   total : i32 = 0
   for (i : i32 = 0; i < 1000; i += 1) {
     total += Factory.make(i).choose(i)
