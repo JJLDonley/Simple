@@ -660,6 +660,15 @@ bool LangStressClosuresJit() {
   return RunCliSvm({"run", "tests/simple_stress/closures.simple"}) == 0;
 }
 
+bool LangProjectTextAdventureInterpreter() {
+  return RunCliSvm(
+             {"run", "--interpreter", "tests/projects/text_adventure/main.simple"}) == 0;
+}
+
+bool LangProjectTextAdventureJit() {
+  return RunCliSvm({"run", "tests/projects/text_adventure/main.simple"}) == 0;
+}
+
 bool LangTaggedValuesImportRuntime() {
   return RunCliSvm({"run", "tests/simple_modules/tagged_values_import_main.simple"}) == 42;
 }
@@ -689,6 +698,33 @@ bool LangStressEnumAsTypeRejectScalarAssignment() {
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("type mismatch") != std::string::npos;
+}
+
+bool LangEnumEqualityRuntime() {
+  const char* src =
+      "State :: enum { Idle = 0, Running = 1 }\n"
+      "main : i32 () {\n"
+      "  state : State = State.Idle\n"
+      "  if (state == State.Idle && state != State.Running) { return 42 }\n"
+      "  return 0\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangEnumOrderingRejected() {
+  const char* src =
+      "State :: enum { Idle = 0, Running = 1 }\n"
+      "main : i32 () {\n"
+      "  state : State = State.Idle\n"
+      "  if (state < State.Running) { return 1 }\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("enum operands support only '==' and '!='") != std::string::npos;
 }
 
 bool LangStressArtifactMethodMutationRuntime() {
@@ -3965,6 +4001,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_lambdas_jit", LangStressLambdasJit},
   {"lang_stress_closures", LangStressClosures},
   {"lang_stress_closures_jit", LangStressClosuresJit},
+  {"lang_project_text_adventure_interpreter", LangProjectTextAdventureInterpreter},
+  {"lang_project_text_adventure_jit", LangProjectTextAdventureJit},
   {"lang_tagged_values_import_runtime", LangTaggedValuesImportRuntime},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
@@ -3989,6 +4027,8 @@ const TestCase kLangTests[] = {
   {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
+  {"lang_enum_equality_runtime", LangEnumEqualityRuntime},
+  {"lang_enum_ordering_rejected", LangEnumOrderingRejected},
   {"lang_stress_artifact_method_mutation_runtime", LangStressArtifactMethodMutationRuntime},
   {"lang_stress_artifact_method_type_strict", LangStressArtifactMethodTypeStrict},
   {"lang_stress_procedure_variable_runtime", LangStressProcedureVariableRuntime},

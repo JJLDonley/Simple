@@ -1,0 +1,4 @@
+east
+take key
+north
+west

@@ -1,0 +1,54 @@
+module Tests.Projects.TextAdventure.Engine
+
+import "./world.simple"
+
+GameState :: artifact {
+  room : i32
+  score : i32
+  moves : i32
+  inventory : string[]
+}
+
+CommandSet :: artifact {
+  east : fn Result<string, AdventureError> ()
+  takeKey : fn Result<string, AdventureError> ()
+  north : fn Result<string, AdventureError> ()
+  west : fn Result<string, AdventureError> ()
+  executed : fn i32 ()
+}
+
+takeItem :: Result<string, AdventureError> (
+    state : GameState,
+    rooms : Room[]) {
+  if (state.room != 1 || rooms[state.room].items.len() == 0) {
+    return { .error = AdventureError.MissingItem }
+  }
+  item : Item = rooms[state.room].items[0]
+  state.inventory.push(item.name)
+  state.score += item.points
+  return { .value = item.name }
+}
+
+makeCommands :: CommandSet (state : GameState, rooms : Room[]) {
+  executed : i32 = 0
+  makeMove : fn fn Result<string, AdventureError> () (Direction) = (direction) {
+    return () {
+      executed += 1
+      room : i32 = AdventureWorld.move(rooms, state.room, direction)?
+      state.room = room
+      state.moves += 1
+      return { .value = rooms[room].name }
+    }
+  }
+  takeKey : fn Result<string, AdventureError> () = () {
+    executed += 1
+    return takeItem(state, rooms)
+  }
+  return {
+    makeMove(Direction.East),
+    takeKey,
+    makeMove(Direction.North),
+    makeMove(Direction.West),
+    () { return executed }
+  }
+}

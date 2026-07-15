@@ -3206,10 +3206,25 @@ bool CheckBinaryOpTypes(const Expr& expr,
   } else if (lhs_direct || rhs_direct) {
     if (error) *error = "direct fn literal call requires a typed result context";
     return false;
+  } else if (have_lhs && !have_rhs && ctx.enum_types.find(lhs.name) != ctx.enum_types.end()) {
+    if (!ValidateExprAgainstExpected(*rhs_expr, lhs, ctx, scopes, current_artifact, error) ||
+        !CloneTypeRef(lhs, &rhs)) {
+      return false;
+    }
+  } else if (!have_lhs && have_rhs && ctx.enum_types.find(rhs.name) != ctx.enum_types.end()) {
+    if (!ValidateExprAgainstExpected(*lhs_expr, rhs, ctx, scopes, current_artifact, error) ||
+        !CloneTypeRef(rhs, &lhs)) {
+      return false;
+    }
   } else if (!have_lhs || !have_rhs) {
     return true;
   }
 
+  if (TypeEquals(lhs, rhs) && ctx.enum_types.find(lhs.name) != ctx.enum_types.end()) {
+    if (expr.op == "==" || expr.op == "!=") return true;
+    if (error) *error = "enum operands support only '==' and '!='";
+    return false;
+  }
   return CheckBinaryOpTypeRules(expr.op, lhs, rhs, *lhs_expr, *rhs_expr, error);
 }
 

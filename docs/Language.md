@@ -1441,8 +1441,10 @@ Qualified enum members are contextual constants. An expected enum type or the
 current `i32` enum representation may consume `Color.Green`, including at a
 call-argument site. The member does not independently synthesize a type and
 therefore cannot infer a generic type parameter; generic calls need another
-independently typed argument or explicit type arguments. Tests reject
-unqualified variants (`Green` instead of `Color.Green`), unknown members, and
+independently typed argument or explicit type arguments. Values of the same
+enum type support `==` and `!=`; ordering and arithmetic remain invalid rather
+than implicitly coercing enums to integers. Tests reject unqualified variants
+(`Green` instead of `Color.Green`), unknown members, mismatched enum types, and
 using the enum type itself as a value.
 
 ## Imports and `using`

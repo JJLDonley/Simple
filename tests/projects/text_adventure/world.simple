@@ -1,0 +1,48 @@
+module Tests.Projects.TextAdventure.World
+
+Direction :: enum {
+  North = 0,
+  South = 1,
+  East = 2,
+  West = 3
+}
+
+AdventureError :: enum {
+  Blocked = 0,
+  MissingItem = 1
+}
+
+Item :: artifact {
+  name : string
+  points : i32
+}
+
+Exit :: artifact {
+  direction : Direction
+  destination : i32
+}
+
+Room :: artifact {
+  name : string
+  exits : Exit[]
+  items : Item[]
+}
+
+AdventureWorld :: namespace {
+  move :: Result<i32, AdventureError> (rooms : Room[], current : i32, direction : Direction) {
+    room : Room = rooms[current]
+    for (i : i32 = 0; i < room.exits.len(); i += 1) {
+      if (room.exits[i].direction == direction) {
+        return { .value = room.exits[i].destination }
+      }
+    }
+    return { .error = AdventureError.Blocked }
+  }
+
+  findItem :: i32? (room : Room, name : string) {
+    for (i : i32 = 0; i < room.items.len(); i += 1) {
+      if (room.items[i].name == name) { return { i } }
+    }
+    return {}
+  }
+}

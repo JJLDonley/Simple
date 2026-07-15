@@ -1,0 +1,71 @@
+module Tests.Projects.TextAdventure.Main
+
+import Standard.FS
+import "./engine.simple"
+
+append<T> :: void (values : T[], value : T) {
+  values.push(value)
+}
+
+main :: i32 () {
+  commandText : string = Standard.FS.readText(
+      "tests/projects/text_adventure/commands.txt")
+  if (commandText != "east\ntake key\nnorth\nwest\n") { return 1 }
+
+  rooms : Room[] = [
+    {
+      "Atrium",
+      [{ Direction.East, 1 }],
+      []
+    },
+    {
+      "Library",
+      [{ Direction.West, 0 }, { Direction.North, 2 }],
+      [{ "key", 7 }]
+    },
+    {
+      "Vault",
+      [{ Direction.South, 1 }],
+      []
+    }
+  ]
+
+  keyLookup : i32? = AdventureWorld.findItem(rooms[1], "key")
+  keyIndex : i32 = switch (keyLookup) {
+    { index } => return index
+    {} => return -1
+  }
+  if (keyIndex != 0) { return 2 }
+
+  state : GameState = { 0, 0, 0, [] }
+  commands : CommandSet = makeCommands(state, rooms)
+  script : fn Result<string, AdventureError> ()[] = [
+    commands.east,
+    commands.takeKey,
+    commands.north,
+    commands.west
+  ]
+  transcript : string[] = []
+  errors : i32 = 0
+
+  for (i : i32 = 0; i < script.len(); i += 1) {
+    outcome : Result<string, AdventureError> = script[i]()
+    errorDelta : i32 = switch (outcome) {
+      { .value = message } => {
+        append(transcript, message)
+        return 0
+      }
+      { .error = error } => return 1
+    }
+    errors += errorDelta
+  }
+
+  if (state.room != 2 || state.moves != 2) { return 3 }
+  if (state.score != 7 || state.inventory.len() != 1) { return 4 }
+  if (state.inventory[0] != "key") { return 5 }
+  if (commands.executed() != 4 || errors != 1) { return 6 }
+  if (transcript.len() != 3) { return 7 }
+  if (transcript[0] != "Library" || transcript[1] != "key" ||
+      transcript[2] != "Vault") { return 8 }
+  return 0
+}

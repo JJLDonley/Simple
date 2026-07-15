@@ -2966,7 +2966,8 @@ bool EmitBinary(EmitState& st,
       (*st.out) << (expr.op == "==" ? "  string.eq\n" : "  string.ne\n");
       return true;
     }
-    const char* op_type = NormalizeNumericOpType(type.name);
+    const bool is_enum = st.enum_values.find(type.name) != st.enum_values.end();
+    const char* op_type = is_enum ? "i32" : NormalizeNumericOpType(type.name);
     if (!op_type) {
       if (error) *error = "unsupported operand type for '" + expr.op + "'";
       return false;
