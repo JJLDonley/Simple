@@ -1,0 +1,58 @@
+module Tests.Stress.Lambdas
+
+Box :: artifact {
+  callable : fn i32 (i32)
+}
+
+global : fn i32 (i32) = (value : i32) { return value + 1 }
+
+Ops :: namespace {
+  stored : fn i32 (i32) = (value) { return value + 2 }
+}
+
+apply<T> :: T (callable : fn T (T), value : T) {
+  return callable(value)
+}
+
+makeIdentity<T> :: fn T (T) () {
+  return (value : T) { return value }
+}
+
+makeBox :: Box () {
+  return { (value) { return value + 3 } }
+}
+
+makeNested :: fn i32 (i32) () {
+  return (value : i32) {
+    increment : fn i32 (i32) = (inner) { return inner + 1 }
+    return increment(value)
+  }
+}
+
+main :: i32 () {
+  (() { })()
+  identity : fn i32 (i32) = makeIdentity<i32>()
+  nested : fn i32 (i32) = makeNested()
+  box : Box = makeBox()
+  callables : fn i32 (i32)[] = [global, Ops.stored, box.callable]
+  fixed : fn i32 (i32){2} = {(value) { return value + 4 }, identity}
+  assigned : i32 = 0
+  assigned = ((value : i32) { return value + 2 })(40)
+  boxes : Box[] = []
+  for (i : i32 = 0; i < 2000; i += 1) {
+    boxes.push(makeBox())
+  }
+
+  if (boxes[1999].callable(39) != 42) { return 1 }
+  if (assigned != 42) { return 2 }
+  if (identity(42) != 42) { return 3 }
+  if (nested(41) != 42) { return 4 }
+  if (apply((value) { return value + 2 }, 40) != 42) { return 5 }
+  if (((value : i32) { return value + 2 })(40) != 42) { return 6 }
+  if (callables[0](41) != 42) { return 7 }
+  if (callables[1](40) != 42) { return 8 }
+  if (callables[2](39) != 42) { return 9 }
+  if (fixed[0](38) != 42) { return 10 }
+  if (fixed[1](42) != 42) { return 11 }
+  return 0
+}

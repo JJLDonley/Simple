@@ -233,6 +233,45 @@ extern "C" uint64_t SimpleVmLlvmNewObject(uint32_t type_id, uint32_t size) {
   return Simple::VM::Runtime::PackRef(handle);
 }
 
+extern "C" uint64_t SimpleVmLlvmNewClosure(uint32_t method_id) {
+  if (!g_llvm_heap) { g_llvm_trap = true; return 0; }
+  const uint32_t size = static_cast<uint32_t>(Simple::VM::HeapLayout::kClosureUpvalueDataOffset);
+  const uint32_t handle =
+      g_llvm_heap->Allocate(Simple::VM::ObjectKind::Closure, method_id, size);
+  Simple::VM::HeapObject* object = g_llvm_heap->Get(handle);
+  if (!object) { g_llvm_trap = true; return 0; }
+  Simple::VM::WriteU32Payload(
+      object->payload, Simple::VM::HeapLayout::kClosureMethodIdOffset, method_id);
+  Simple::VM::WriteU32Payload(
+      object->payload, Simple::VM::HeapLayout::kClosureUpvalueCountOffset, 0);
+  return Simple::VM::Runtime::PackRef(handle);
+}
+
+extern "C" uint32_t SimpleVmLlvmClosureFunction(
+    const Simple::Byte::SbcModule* module, uint64_t closure_slot) {
+  if (!module) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  const uint32_t handle = Simple::VM::Runtime::UnpackRef(closure_slot);
+  const Simple::VM::HeapObject* object = g_llvm_heap ? g_llvm_heap->Get(handle) : nullptr;
+  if (object && object->header.kind == Simple::VM::ObjectKind::Closure &&
+      object->payload.size() >= Simple::VM::HeapLayout::kClosureUpvalueDataOffset) {
+    const uint32_t method_id = Simple::VM::ReadU32Payload(
+        object->payload, Simple::VM::HeapLayout::kClosureMethodIdOffset);
+    for (size_t i = 0; i < module->functions.size(); ++i) {
+      if (module->functions[i].method_id == method_id) return static_cast<uint32_t>(i);
+    }
+  } else {
+    const int32_t function_id = Simple::VM::Runtime::UnpackI32(closure_slot);
+    if (function_id >= 0 && static_cast<size_t>(function_id) < module->functions.size()) {
+      return static_cast<uint32_t>(function_id);
+    }
+  }
+  g_llvm_trap = true;
+  return 0;
+}
+
 extern "C" uint64_t SimpleVmLlvmLoadField32(uint64_t ref_slot, uint32_t offset) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return 0; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
@@ -1135,7 +1174,9 @@ bool LlvmJitBackend::TryRunFunction(const Simple::Byte::SbcModule& module,
                                     Slot& out_ret,
                                     bool& out_has_ret,
                                     std::string& reason) const {
-  return TryRunFunctionWithRuntime(module, func_index, args, nullptr, nullptr, nullptr, out_ret, out_has_ret, reason);
+  Simple::VM::Heap heap;
+  return TryRunFunctionWithRuntime(
+      module, func_index, args, &heap, nullptr, nullptr, out_ret, out_has_ret, reason);
 }
 
 bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& module,
@@ -2431,6 +2472,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmStoreGlobal), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmNewObject")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmNewObject), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmNewClosure")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmNewClosure), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmClosureFunction")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmClosureFunction), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmLoadField32")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmLoadField32), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmStoreField32")] = llvm::orc::ExecutorSymbolDef(
@@ -2540,6 +2585,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::FunctionType* load_global_type = llvm::FunctionType::get(i64, {i32}, false);
   llvm::FunctionType* store_global_type = llvm::FunctionType::get(builder.getVoidTy(), {i32, i64}, false);
   llvm::FunctionType* new_object_type = llvm::FunctionType::get(i64, {i32, i32}, false);
+  llvm::FunctionType* new_closure_type = llvm::FunctionType::get(i64, {i32}, false);
+  llvm::FunctionType* closure_function_type =
+      llvm::FunctionType::get(i32, {slot_ptr, i64}, false);
   llvm::FunctionType* load_field_type = llvm::FunctionType::get(i64, {i64, i32}, false);
   llvm::FunctionType* object_eq_type = llvm::FunctionType::get(i64, {i64, i64}, false);
   llvm::FunctionType* store_field_type = llvm::FunctionType::get(builder.getVoidTy(), {i64, i32, i64}, false);
@@ -2571,6 +2619,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::FunctionCallee load_global_helper = ir_module->getOrInsertFunction("SimpleVmLlvmLoadGlobal", load_global_type);
   llvm::FunctionCallee store_global_helper = ir_module->getOrInsertFunction("SimpleVmLlvmStoreGlobal", store_global_type);
   llvm::FunctionCallee new_object_helper = ir_module->getOrInsertFunction("SimpleVmLlvmNewObject", new_object_type);
+  llvm::FunctionCallee new_closure_helper =
+      ir_module->getOrInsertFunction("SimpleVmLlvmNewClosure", new_closure_type);
+  llvm::FunctionCallee closure_function_helper =
+      ir_module->getOrInsertFunction("SimpleVmLlvmClosureFunction", closure_function_type);
   llvm::FunctionCallee load_field_helper = ir_module->getOrInsertFunction("SimpleVmLlvmLoadField32", load_field_type);
   llvm::FunctionCallee store_field_helper = ir_module->getOrInsertFunction("SimpleVmLlvmStoreField32", store_field_type);
   llvm::FunctionCallee load_field64_helper = ir_module->getOrInsertFunction("SimpleVmLlvmLoadField64", load_field_type);
@@ -4520,12 +4572,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         if (skipping_unreachable) break;
         if (method_id >= module.methods.size()) { reason = "LLVM JIT NEW_CLOSURE bad method id"; return false; }
         if (upvalue_count != 0) { reason = "unsupported: NEW_CLOSURE with upvalues needs closure runtime ABI"; return false; }
-        int32_t target_func = -1;
-        for (size_t i = 0; i < module.functions.size(); ++i) {
-          if (module.functions[i].method_id == method_id) { target_func = static_cast<int32_t>(i); break; }
-        }
-        if (target_func < 0) { reason = "LLVM JIT NEW_CLOSURE method not found"; return false; }
-        stack.push_back(builder.getInt32(target_func));
+        stack.push_back(builder.CreateCall(
+            new_closure_helper, {builder.getInt32(method_id)}));
         break;
       }
       case OpCode::NewObject: {
@@ -4804,8 +4852,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL_INDIRECT stack underflow";
           return false;
         }
-        llvm::Value* target_func = to_i32(stack.back());
+        llvm::Value* closure_slot = to_slot(stack.back());
         stack.pop_back();
+        llvm::Value* target_func = builder.CreateCall(
+            closure_function_helper, {module_ptr, closure_slot});
         llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count == 0 ? 1 : arg_count), "call_indirect_args");
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           llvm::Value* arg = to_slot(stack.back());

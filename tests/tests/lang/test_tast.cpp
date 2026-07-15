@@ -336,12 +336,7 @@ bool LangTastFnLiteralChecksTargetProcedureShape() {
   if (Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error)) return false;
   if (error.find("parameter type mismatch") == std::string::npos) return false;
   target.proc_params[0].name = "i32";
-  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::KwReturn, "return", 0, 0});
-  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::LParen, "(", 0, 0});
-  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::RParen, ")", 0, 0});
-  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::LBrace, "{", 0, 0});
-  if (Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error)) return false;
-  return error.find("nested fn literals are not supported") != std::string::npos;
+  return Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error);
 }
 
 bool LangGenBuildsSpecializationPlanFromProgram() {

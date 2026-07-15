@@ -64,7 +64,6 @@ private:
   bool ParseCallArgs(std::vector<Expr>* out);
   bool ParseBracketExprList(std::vector<Expr>* out);
   bool ParseFnLiteral(Expr* out);
-  bool ParseTypedFnLiteral(Expr* out, TypeRef* out_proc_type);
   int GetBinaryPrecedence(const Token& tok) const;
   bool ConsumeStmtTerminator(const char* ctx);
   bool IsImplicitStmtTerminator() const;

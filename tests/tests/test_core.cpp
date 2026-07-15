@@ -16158,7 +16158,7 @@ bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Byte::kSbcVersion == 0x0002u);
   static_assert(Simple::Byte::kOpcodeMetadataVersion == 2);
   static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
-  return Simple::Lang::kLangSyntaxVersionMinor == 0 &&
+  return Simple::Lang::kLangSyntaxVersionMinor == 1 &&
          Simple::Lang::kSirVersionMinor == 0 &&
          Simple::Lang::kStdlibVersionMinor == 0 &&
          Simple::VM::kRuntimeAbiVersionMinor == 2;

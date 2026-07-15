@@ -144,6 +144,22 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        const TypeRef* expected_return = nullptr,
                        bool return_is_void = false,
                        int loop_depth = 0);
+bool IsDirectFnLiteralCall(const Expr& expr) {
+  return expr.kind == ExprKind::Call && !expr.children.empty() &&
+         expr.children[0].kind == ExprKind::FnLiteral;
+}
+bool BuildDirectFnLiteralSignature(
+    const Expr& call,
+    const TypeRef& result_type,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    TypeRef* signature,
+    std::string* error);
+bool ValidateFnLiteralBody(const Expr& expr,
+                           const TypeRef& signature,
+                           const ValidateContext& ctx,
+                           std::string* error);
 bool ValidateExprAgainstExpected(
     const Expr& expr,
     const TypeRef& expected,
@@ -808,9 +824,6 @@ bool InferExprType(const Expr& expr,
       TypeRef result;
       if (!CloneTypeRef(base_type, &result)) return false;
       result.dims.erase(result.dims.begin());
-      result.is_proc = false;
-      result.proc_params.clear();
-      result.proc_return.reset();
       return CloneTypeRef(result, out);
     }
     case ExprKind::Unary: {
@@ -1867,6 +1880,21 @@ bool CheckCallArgTypes(const Expr& call_expr,
   const Expr* call_callee = nullptr;
   if (!IsCallExpr(call_expr, &call_callee)) return true;
   const Expr& callee = *call_callee;
+  if (callee.kind == ExprKind::FnLiteral) {
+    TypeRef void_type = MakeSimpleType("void");
+    TypeRef signature;
+    if (!BuildDirectFnLiteralSignature(
+            call_expr, void_type, ctx, scopes, current_artifact, &signature, error)) {
+      return false;
+    }
+    for (size_t i = 0; i < call_expr.args.size(); ++i) {
+      if (!ValidateExprAgainstExpected(call_expr.args[i], signature.proc_params[i],
+                                       ctx, scopes, current_artifact, error)) {
+        return false;
+      }
+    }
+    return true;
+  }
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
     std::string module_name;
@@ -2223,6 +2251,89 @@ bool ValidateArtifactLiteral(const Expr& expr,
   return true;
 }
 
+bool BuildDirectFnLiteralSignature(
+    const Expr& call,
+    const TypeRef& result_type,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const ArtifactDecl* current_artifact,
+    TypeRef* signature,
+    std::string* error) {
+  if (!signature || call.kind != ExprKind::Call || call.children.empty() ||
+      call.children[0].kind != ExprKind::FnLiteral) {
+    return false;
+  }
+  const Expr& literal = call.children[0];
+  if (literal.fn_params.size() != call.args.size()) {
+    if (error) {
+      *error = "call argument count mismatch for fn literal: expected " +
+               std::to_string(literal.fn_params.size()) + ", got " +
+               std::to_string(call.args.size());
+    }
+    return false;
+  }
+  *signature = TypeRef{};
+  signature->is_proc = true;
+  signature->proc_return = std::make_unique<TypeRef>();
+  if (!CloneTypeRef(result_type, signature->proc_return.get())) return false;
+  signature->proc_params.reserve(call.args.size());
+  for (size_t i = 0; i < call.args.size(); ++i) {
+    TypeRef param_type;
+    if (!literal.fn_params[i].type.name.empty() || literal.fn_params[i].type.is_proc) {
+      if (!CloneTypeRef(literal.fn_params[i].type, &param_type)) return false;
+    } else if (!InferExprType(
+                   call.args[i], ctx, scopes, current_artifact, &param_type)) {
+      if (error) *error = "cannot infer direct fn literal parameter type";
+      return false;
+    }
+    signature->proc_params.push_back(std::move(param_type));
+  }
+  return true;
+}
+
+bool ValidateFnLiteralBody(const Expr& expr,
+                           const TypeRef& signature,
+                           const ValidateContext& ctx,
+                           std::string* error) {
+  if (!CheckFnLiteralAgainstType(expr, signature, error)) return false;
+  if (!signature.proc_return) {
+    if (error) *error = "fn literal procedure type is missing a return type";
+    return false;
+  }
+
+  FuncDecl lambda;
+  lambda.return_mutability = signature.proc_return_mutability;
+  if (!CloneTypeRef(*signature.proc_return, &lambda.return_type)) return false;
+  lambda.body = expr.fn_body;
+  std::vector<std::unordered_map<std::string, LocalInfo>> lambda_scopes(1);
+  std::unordered_set<std::string> names;
+  for (size_t i = 0; i < expr.fn_params.size(); ++i) {
+    if (!CheckUniqueParamName(
+            expr.fn_params[i].name, &names, "duplicate fn literal parameter: ", error)) {
+      return false;
+    }
+    LocalInfo info;
+    info.mutability = expr.fn_params[i].mutability;
+    info.type = &signature.proc_params[i];
+    lambda_scopes.back().emplace(expr.fn_params[i].name, std::move(info));
+  }
+
+  const bool returns_void = lambda.return_type.name == "void";
+  const std::unordered_set<std::string> type_params;
+  for (const auto& stmt : lambda.body) {
+    if (!CheckStmt(stmt, ctx, type_params, &lambda.return_type, returns_void, 0,
+                   lambda_scopes, nullptr, error)) {
+      if (error && !error->empty()) *error = "in fn literal: " + *error;
+      return false;
+    }
+  }
+  if (!CheckFunctionReturnFlow(lambda, error)) {
+    if (error && !error->empty()) *error = "in fn literal: " + *error;
+    return false;
+  }
+  return true;
+}
+
 bool ValidateExprAgainstExpected(
     const Expr& expr,
     const TypeRef& expected,
@@ -2230,6 +2341,23 @@ bool ValidateExprAgainstExpected(
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
     const ArtifactDecl* current_artifact,
     std::string* error) {
+  if (expr.kind == ExprKind::Call && !expr.children.empty() &&
+      expr.children[0].kind == ExprKind::FnLiteral) {
+    TypeRef signature;
+    if (!BuildDirectFnLiteralSignature(
+            expr, expected, ctx, scopes, current_artifact, &signature, error) ||
+        !ValidateFnLiteralBody(expr.children[0], signature, ctx, error)) {
+      return false;
+    }
+    for (size_t i = 0; i < expr.args.size(); ++i) {
+      if (!ValidateExprAgainstExpected(
+              expr.args[i], signature.proc_params[i], ctx, scopes, current_artifact, error)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   TaggedTypeInfo tagged;
   if (ResolveTaggedType(expected, ctx, &tagged) && expr.kind == ExprKind::ArtifactLiteral) {
     if (tagged.kind == TaggedArtifactKind::Optional) {
@@ -2296,7 +2424,7 @@ bool ValidateExprAgainstExpected(
                                          error);
   }
   if (expr.kind == ExprKind::FnLiteral) {
-    return CheckFnLiteralAgainstType(expr, expected, error);
+    return ValidateFnLiteralBody(expr, expected, ctx, error);
   }
   if (expr.kind == ExprKind::Member && !expr.children.empty() &&
       expr.children[0].kind == ExprKind::Identifier &&
@@ -2340,12 +2468,16 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckReturnStmtValuePresence(stmt, return_is_void, error)) return false;
       if (stmt.has_return_expr) {
         if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
-        if (expected_return && stmt.expr.kind == ExprKind::ArtifactLiteral &&
+        const bool direct_fn_call = IsDirectFnLiteralCall(stmt.expr);
+        const bool contextual_return =
+            stmt.expr.kind == ExprKind::ArtifactLiteral ||
+            stmt.expr.kind == ExprKind::FnLiteral || direct_fn_call;
+        if (expected_return && contextual_return &&
             !ValidateExprAgainstExpected(
                 stmt.expr, *expected_return, ctx, scopes, current_artifact, error)) {
           return false;
         }
-        if (expected_return) {
+        if (expected_return && !contextual_return) {
           TypeRef actual;
           if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &actual)) {
             if (!CheckTypesCompatibleForExpr(*expected_return, actual, stmt.expr,
@@ -2361,6 +2493,13 @@ bool CheckStmt(const Stmt& stmt,
         return false;
       }
       if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+      if (IsDirectFnLiteralCall(stmt.expr)) {
+        const TypeRef void_type = MakeSimpleType("void");
+        if (!ValidateExprAgainstExpected(
+                stmt.expr, void_type, ctx, scopes, current_artifact, error)) {
+          return false;
+        }
+      }
       TypeRef expression_type;
       if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &expression_type)) {
         TaggedTypeInfo tagged;
@@ -2404,11 +2543,18 @@ bool CheckStmt(const Stmt& stmt,
                                          expected_return,
                                          return_is_void,
                                          loop_depth);
+        } else if (have_target && IsDirectFnLiteralCall(stmt.expr)) {
+          if (!ValidateExprAgainstExpected(
+                  stmt.expr, target_type, ctx, scopes, current_artifact, error) ||
+              !CloneTypeRef(target_type, &value_type)) {
+            return false;
+          }
+          have_value = true;
         } else {
           have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
         }
         if (have_target && stmt.expr.kind == ExprKind::FnLiteral) {
-          if (!CheckFnLiteralAgainstType(stmt.expr, target_type, error)) return false;
+          if (!ValidateFnLiteralBody(stmt.expr, target_type, ctx, error)) return false;
         }
         if (have_target && have_value &&
             !CheckTypesCompatibleForExpr(target_type, value_type, stmt.expr,
@@ -2740,7 +2886,8 @@ bool ValidateVarInitExpr(const VarDecl& var,
   const bool is_tagged_literal =
       var.init_expr.kind == ExprKind::ArtifactLiteral &&
       ResolveTaggedType(var.type, ctx, &tagged_target);
-  if (is_tagged_literal &&
+  const bool is_direct_fn_call = IsDirectFnLiteralCall(var.init_expr);
+  if ((is_tagged_literal || is_direct_fn_call) &&
       !ValidateExprAgainstExpected(
           var.init_expr, var.type, ctx, scopes, current_artifact, error)) {
     return false;
@@ -2750,7 +2897,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
     return false;
   }
   if (var.init_expr.kind == ExprKind::FnLiteral) {
-    if (!CheckFnLiteralAgainstType(var.init_expr, var.type, error)) {
+    if (!ValidateFnLiteralBody(var.init_expr, var.type, ctx, error)) {
       return false;
     }
   }
@@ -2789,7 +2936,10 @@ bool ValidateVarInitExpr(const VarDecl& var,
   }
   TypeRef init_type;
   bool have_init_type = false;
-  if (var.init_expr.kind == ExprKind::Switch) {
+  if (is_direct_fn_call) {
+    if (!CloneTypeRef(var.type, &init_type)) return false;
+    have_init_type = true;
+  } else if (var.init_expr.kind == ExprKind::Switch) {
     if (AnalyzeSwitchExpr(var.init_expr,
                           ctx,
                           scopes,
@@ -3032,8 +3182,26 @@ bool CheckBinaryOpTypes(const Expr& expr,
   if (!IsBinaryExpr(expr, &lhs_expr, &rhs_expr)) return true;
   TypeRef lhs;
   TypeRef rhs;
-  if (!InferExprType(*lhs_expr, ctx, scopes, current_artifact, &lhs)) return true;
-  if (!InferExprType(*rhs_expr, ctx, scopes, current_artifact, &rhs)) return true;
+  const bool have_lhs = InferExprType(*lhs_expr, ctx, scopes, current_artifact, &lhs);
+  const bool have_rhs = InferExprType(*rhs_expr, ctx, scopes, current_artifact, &rhs);
+  const bool lhs_direct = IsDirectFnLiteralCall(*lhs_expr);
+  const bool rhs_direct = IsDirectFnLiteralCall(*rhs_expr);
+  if (lhs_direct && have_rhs && !rhs_direct) {
+    if (!ValidateExprAgainstExpected(*lhs_expr, rhs, ctx, scopes, current_artifact, error) ||
+        !CloneTypeRef(rhs, &lhs)) {
+      return false;
+    }
+  } else if (rhs_direct && have_lhs && !lhs_direct) {
+    if (!ValidateExprAgainstExpected(*rhs_expr, lhs, ctx, scopes, current_artifact, error) ||
+        !CloneTypeRef(lhs, &rhs)) {
+      return false;
+    }
+  } else if (lhs_direct || rhs_direct) {
+    if (error) *error = "direct fn literal call requires a typed result context";
+    return false;
+  } else if (!have_lhs || !have_rhs) {
+    return true;
+  }
 
   return CheckBinaryOpTypeRules(expr.op, lhs, rhs, *lhs_expr, *rhs_expr, error);
 }
@@ -3145,7 +3313,15 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
         if (have_target && expr.children[1].kind == ExprKind::FnLiteral) {
-          if (!CheckFnLiteralAgainstType(expr.children[1], target_type, error)) return false;
+          if (!ValidateFnLiteralBody(expr.children[1], target_type, ctx, error)) return false;
+        }
+        if (have_target && IsDirectFnLiteralCall(expr.children[1])) {
+          if (!ValidateExprAgainstExpected(
+                  expr.children[1], target_type, ctx, scopes, current_artifact, error) ||
+              !CloneTypeRef(target_type, &value_type)) {
+            return false;
+          }
+          have_value = true;
         }
         if (have_target &&
             !target_type.dims.empty() &&

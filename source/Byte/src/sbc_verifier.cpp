@@ -175,6 +175,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         return ValType::F64;
       case TypeKind::Ref:
       case TypeKind::String:
+      case TypeKind::Array:
+      case TypeKind::List:
+      case TypeKind::Function:
       case TypeKind::Result:
       case TypeKind::Optional:
         return ValType::Ref;

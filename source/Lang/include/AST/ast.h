@@ -81,6 +81,7 @@ struct ParamDecl {
 };
 
 struct SwitchBranch;
+struct Stmt;
 
 enum class ExprKind : uint8_t {
   Identifier,
@@ -117,7 +118,7 @@ struct Expr {
   std::vector<std::string> field_names;
   std::vector<Expr> field_values;
   std::vector<ParamDecl> fn_params;
-  std::vector<Token> fn_body_tokens;
+  std::vector<Stmt> fn_body;
   std::vector<SwitchBranch> switch_branches;
   uint32_t line = 0;
   uint32_t column = 0;
@@ -311,7 +312,7 @@ struct NormalizedFnLiteralDecl {
   std::string binding_name;
   TypeRef signature;
   std::vector<ParamDecl> params;
-  std::vector<Token> body_tokens;
+  std::vector<Stmt> body;
   uint32_t line = 0;
   uint32_t column = 0;
 };

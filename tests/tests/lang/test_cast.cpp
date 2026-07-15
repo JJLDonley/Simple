@@ -678,7 +678,7 @@ bool LangParsesFnLiteral() {
   const auto& init = body[0].var_decl.init_expr;
   if (init.kind != Simple::Lang::ExprKind::FnLiteral) return false;
   if (init.fn_params.size() != 1) return false;
-  if (init.fn_body_tokens.empty()) return false;
+  if (init.fn_body.empty()) return false;
   return true;
 }
 

@@ -119,6 +119,7 @@ bool TypeEquals(const Simple::Lang::AST::TypeRef& a,
   if (a.is_optional_syntax != b.is_optional_syntax) return false;
   if (a.is_proc != b.is_proc) return false;
   if (a.is_proc) {
+    if (!TypeDimsEqual(a.dims, b.dims)) return false;
     if (a.proc_return_mutability != b.proc_return_mutability) return false;
     if (a.proc_params.size() != b.proc_params.size()) return false;
     for (size_t i = 0; i < a.proc_params.size(); ++i) {

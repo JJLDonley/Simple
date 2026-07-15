@@ -1,0 +1,9 @@
+module Tests.LambdaLibrary
+
+LambdaOps :: namespace {
+  stored : fn i32 (i32) = (value : i32) { return value + 2 }
+
+  makeIdentity<T> :: fn T (T) () {
+    return (value : T) { return value }
+  }
+}

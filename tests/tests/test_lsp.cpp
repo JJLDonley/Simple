@@ -257,6 +257,26 @@ bool LspDidOpenPublishesDiagnostics() {
          out_contents.find("undeclared identifier") != std::string::npos;
 }
 
+bool LspDidOpenAcceptsLambdas() {
+  const std::string session_name = "simple_lsp_lambda_diag";
+  const std::string uri = "file:///workspace/lambda.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main :: i32 () { f : fn i32 (i32) = (x : i32) { return x + 1 }; return f(41) }\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input = BuildLspFrame(init_req) + BuildLspFrame(open_req) +
+                            BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req);
+  std::string out_contents;
+  std::string err_contents;
+  if (!RunLspSession(session_name, input, &out_contents, &err_contents)) return false;
+  return err_contents.empty() &&
+         out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
+         out_contents.find("\"diagnostics\":[]") != std::string::npos;
+}
+
 bool LspDidOpenEmptyDocumentClearsDiagnostics() {
   const std::string session_name = "simple_lsp_empty_diag";
   const std::string uri = "file:///workspace/empty.simple";
@@ -4175,6 +4195,7 @@ const TestCase kLspTests[] = {
   {"lsp_diagnostic_bridge_publishes_structured_diagnostic", LspDiagnosticBridgePublishesStructuredDiagnostic},
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
+  {"lsp_did_open_accepts_lambdas", LspDidOpenAcceptsLambdas},
   {"lsp_did_open_empty_document_clears_diagnostics", LspDidOpenEmptyDocumentClearsDiagnostics},
   {"lsp_did_open_accepts_tagged_values", LspDidOpenAcceptsTaggedValues},
   {"lsp_did_open_resolves_local_file_import", LspDidOpenResolvesLocalFileImport},

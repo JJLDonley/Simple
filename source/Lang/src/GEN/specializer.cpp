@@ -123,7 +123,10 @@ bool CollectFromStmtList(const std::vector<Simple::Lang::AST::Stmt>& stmts,
 
 bool CollectFromExpr(const Simple::Lang::AST::Expr& expr,
                      std::vector<GenericInstantiationRequest>* out) {
-  if (!CollectFromTypeList(expr.type_args, out)) return false;
+  if (!CollectFromTypeList(expr.type_args, out) ||
+      !CollectFromStmtList(expr.fn_body, out)) {
+    return false;
+  }
   if (expr.kind == Simple::Lang::AST::ExprKind::Call && !expr.type_args.empty() &&
       !expr.children.empty()) {
     GenericInstantiationRequest request;
@@ -450,6 +453,12 @@ bool CollectMethodRequestsFromExpr(const Simple::Lang::AST::Expr& expr,
       }
     }
   }
+  MethodTypeScope lambda_scope;
+  for (const auto& param : expr.fn_params) lambda_scope[param.name] = param.type;
+  if (!CollectMethodRequestsFromStatements(
+          expr.fn_body, program, std::move(lambda_scope), nullptr, out)) {
+    return false;
+  }
   for (const auto& child : expr.children) {
     if (!CollectMethodRequestsFromExpr(child, program, scope, current_artifact, out)) return false;
   }
@@ -624,6 +633,9 @@ bool ApplySubstitutionToExpr(Simple::Lang::AST::Expr* expr,
   if (!ApplySubstitutionToTypeList(&expr->type_args, substitutions)) return false;
   for (auto& param : expr->fn_params) {
     if (!Simple::Lang::TAST::ApplyTypeSubstitution(&param.type, substitutions)) return false;
+  }
+  for (auto& stmt : expr->fn_body) {
+    if (!ApplySubstitutionToStmt(&stmt, substitutions)) return false;
   }
   for (auto& child : expr->children) {
     if (!ApplySubstitutionToExpr(&child, substitutions)) return false;
@@ -1701,6 +1713,16 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
     for (auto& param : expr->fn_params) {
       if (!rewrite_type_fn(rewrite_type_fn, &param.type)) return false;
     }
+    const MethodTypeScope outer_scope = rewrite_scope;
+    rewrite_scope = global_rewrite_scope;
+    for (const auto& param : expr->fn_params) rewrite_scope[param.name] = param.type;
+    for (auto& stmt : expr->fn_body) {
+      if (!rewrite_stmt(rewrite_stmt, self, rewrite_type_fn, &stmt)) {
+        rewrite_scope = outer_scope;
+        return false;
+      }
+    }
+    rewrite_scope = outer_scope;
     for (auto& child : expr->children) {
       if (!self(self, rewrite_type_fn, &child)) return false;
     }

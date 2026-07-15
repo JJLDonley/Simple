@@ -39,7 +39,12 @@ bool IsRefLikeGlobal(const Simple::Byte::SbcModule& module, size_t global_index)
   if (type_id >= module.types.size()) return false;
   const auto& row = module.types[type_id];
   const auto kind = static_cast<Simple::Byte::TypeKind>(row.kind);
-  if (kind == Simple::Byte::TypeKind::Ref || kind == Simple::Byte::TypeKind::String) return true;
+  if (kind == Simple::Byte::TypeKind::Ref || kind == Simple::Byte::TypeKind::String ||
+      kind == Simple::Byte::TypeKind::Array || kind == Simple::Byte::TypeKind::List ||
+      kind == Simple::Byte::TypeKind::Function || kind == Simple::Byte::TypeKind::Result ||
+      kind == Simple::Byte::TypeKind::Optional) {
+    return true;
+  }
   return kind == Simple::Byte::TypeKind::Unspecified && (row.flags & 0x1u) != 0u;
 }
 

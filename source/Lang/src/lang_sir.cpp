@@ -1306,6 +1306,15 @@ bool InferExprType(const Expr& expr,
                    const EmitState& st,
                    TypeRef* out,
                    std::string* error);
+bool IsDirectFnLiteralCall(const Expr& expr) {
+  return expr.kind == ExprKind::Call && !expr.children.empty() &&
+         expr.children[0].kind == ExprKind::FnLiteral;
+}
+bool InferBinaryOperandTypes(const Expr& expr,
+                             const EmitState& st,
+                             TypeRef* left,
+                             TypeRef* right,
+                             std::string* error);
 bool EmitExpr(EmitState& st,
               const Expr& expr,
               const TypeRef* expected,
@@ -1576,8 +1585,7 @@ bool InferExprType(const Expr& expr,
       }
       TypeRef left;
       TypeRef right;
-      if (!InferExprType(expr.children[0], st, &left, error)) return false;
-      if (!InferExprType(expr.children[1], st, &right, error)) return false;
+      if (!InferBinaryOperandTypes(expr, st, &left, &right, error)) return false;
       const bool is_bool_op =
           (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
            expr.op == ">" || expr.op == ">=" || expr.op == "&&" || expr.op == "||");
@@ -1593,7 +1601,10 @@ bool InferExprType(const Expr& expr,
       } else if (IsFloatLiteralExpr(expr.children[1]) && TAST::IsFloatTypeName(left.name)) {
         if (!CloneTypeRef(left, &matched)) return false;
       } else {
-        if (error) *error = "operand type mismatch for '" + expr.op + "'";
+        if (error) {
+          *error = "operand type mismatch for '" + expr.op + "': " +
+                   GEN::TypeRefIdentity(left) + " and " + GEN::TypeRefIdentity(right);
+        }
         return false;
       }
       if (is_bool_op) {
@@ -1908,13 +1919,41 @@ bool InferExprType(const Expr& expr,
           }
         }
       }
-      if (error) *error = "call type not supported in SIR emission";
+      TypeRef callable_type;
+      if (InferExprType(callee, st, &callable_type, nullptr) && callable_type.is_proc &&
+          callable_type.proc_return) {
+        return CloneTypeRef(*callable_type.proc_return, out);
+      }
+      if (error) {
+        *error = "call type not supported in SIR emission";
+        if (!callee.text.empty()) *error += ": " + callee.text;
+      }
       return false;
     }
     default:
       if (error) *error = "expression not supported for SIR emission";
       return false;
   }
+}
+
+bool InferBinaryOperandTypes(const Expr& expr,
+                             const EmitState& st,
+                             TypeRef* left,
+                             TypeRef* right,
+                             std::string* error) {
+  const bool have_left = InferExprType(expr.children[0], st, left, nullptr);
+  const bool have_right = InferExprType(expr.children[1], st, right, nullptr);
+  if (!have_left && have_right && IsDirectFnLiteralCall(expr.children[0])) {
+    if (!CloneTypeRef(*right, left)) return false;
+  } else if (!have_left) {
+    return InferExprType(expr.children[0], st, left, error);
+  }
+  if (!have_right && have_left && IsDirectFnLiteralCall(expr.children[1])) {
+    if (!CloneTypeRef(*left, right)) return false;
+  } else if (!have_right) {
+    return InferExprType(expr.children[1], st, right, error);
+  }
+  return true;
 }
 
 bool EmitConstForType(EmitState& st,
@@ -2637,9 +2676,8 @@ bool EmitBinary(EmitState& st,
     return false;
   }
   TypeRef left_type;
-  if (!InferExprType(expr.children[0], st, &left_type, error)) return false;
   TypeRef right_type;
-  if (!InferExprType(expr.children[1], st, &right_type, error)) return false;
+  if (!InferBinaryOperandTypes(expr, st, &left_type, &right_type, error)) return false;
   const bool is_cmp =
       (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
        expr.op == ">" || expr.op == ">=");
@@ -2657,7 +2695,10 @@ bool EmitBinary(EmitState& st,
     } else if (IsFloatLiteralExpr(expr.children[1]) && TAST::IsFloatTypeName(left_type.name)) {
       if (!CloneTypeRef(left_type, &right_type)) return false;
     } else {
-      if (error) *error = "operand type mismatch for '" + expr.op + "'";
+      if (error) {
+        *error = "operand type mismatch for '" + expr.op + "': " +
+                 GEN::TypeRefIdentity(left_type) + " and " + GEN::TypeRefIdentity(right_type);
+      }
       return false;
     }
   }
@@ -3014,6 +3055,28 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       const Expr& callee = expr.children[0];
+      auto emit_indirect_call = [&](const TypeRef& proc_type,
+                                    const std::string& target_name) -> bool {
+        if (!proc_type.is_proc || !proc_type.proc_return) {
+          if (error) *error = "call target is not a procedure: " + target_name;
+          return false;
+        }
+        if (expr.args.size() != proc_type.proc_params.size()) {
+          if (error) *error = "call argument count mismatch for '" + target_name + "'";
+          return false;
+        }
+        for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+          if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
+        }
+        if (!EmitExpr(st, callee, &proc_type, error)) return false;
+        const std::string sig_name = GetProcSigName(st, proc_type, error);
+        if (sig_name.empty()) return false;
+        (*st.out) << "  call.indirect " << sig_name << " "
+                  << proc_type.proc_params.size() << "\n";
+        PopStack(st, static_cast<uint32_t>(proc_type.proc_params.size() + 1));
+        if (proc_type.proc_return->name != "void") PushStack(st, 1);
+        return true;
+      };
       if (callee.kind == ExprKind::Identifier) {
         std::string using_module;
         if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
@@ -3199,6 +3262,11 @@ bool EmitExpr(EmitState& st,
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
+        TypeRef member_callee_type;
+        if (InferExprType(callee, st, &member_callee_type, nullptr) &&
+            member_callee_type.is_proc) {
+          return emit_indirect_call(member_callee_type, callee.text);
+        }
         if (IsIoPrintCallExpr(callee, st)) {
           if (expr.args.empty()) {
             if (error) *error = "call argument count mismatch for 'IO." + callee.text + "'";
@@ -3817,8 +3885,31 @@ bool EmitExpr(EmitState& st,
         }
       }
       if (callee.kind == ExprKind::FnLiteral) {
-        if (error) *error = "calling fn literal directly is not supported in SIR emission";
-        return false;
+        if (!expected) {
+          if (error) *error = "direct fn literal call requires a typed result context";
+          return false;
+        }
+        if (callee.fn_params.size() != expr.args.size()) {
+          if (error) *error = "call argument count mismatch for fn literal";
+          return false;
+        }
+        TypeRef call_type;
+        call_type.is_proc = true;
+        call_type.proc_return = std::make_unique<TypeRef>();
+        if (!CloneTypeRef(*expected, call_type.proc_return.get())) return false;
+        for (size_t i = 0; i < expr.args.size(); ++i) {
+          TypeRef param_type;
+          if (!callee.fn_params[i].type.name.empty() || callee.fn_params[i].type.is_proc) {
+            if (!CloneTypeRef(callee.fn_params[i].type, &param_type)) return false;
+          } else if (!InferExprType(expr.args[i], st, &param_type, error)) {
+            if (error && error->empty()) {
+              *error = "cannot infer direct fn literal parameter type";
+            }
+            return false;
+          }
+          call_type.proc_params.push_back(std::move(param_type));
+        }
+        return emit_indirect_call(call_type, "fn literal");
       }
       const std::string& name = callee.text;
       if (name == "len") {
@@ -3936,29 +4027,11 @@ bool EmitExpr(EmitState& st,
       if (callee.kind == ExprKind::Identifier) {
         auto local_it = st.local_types.find(name);
         if (local_it != st.local_types.end()) {
-          const TypeRef& proc_type = local_it->second;
-          if (!proc_type.is_proc) {
-            if (error) *error = "call target is not a function: " + name;
-            return false;
-          }
-          TypeRef call_type;
-          if (!CloneTypeRef(proc_type, &call_type)) return false;
-          if (expr.args.size() != proc_type.proc_params.size()) {
-            if (error) *error = "call argument count mismatch for '" + name + "'";
-            return false;
-          }
-          for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
-            if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
-          }
-          if (!EmitExpr(st, callee, &proc_type, error)) return false;
-          std::string sig_name = GetProcSigName(st, call_type, error);
-          if (sig_name.empty()) return false;
-          (*st.out) << "  call.indirect " << sig_name << " " << call_type.proc_params.size() << "\n";
-          PopStack(st, static_cast<uint32_t>(call_type.proc_params.size() + 1));
-          if (call_type.proc_return && call_type.proc_return->name != "void") {
-            PushStack(st, 1);
-          }
-          return true;
+          return emit_indirect_call(local_it->second, name);
+        }
+        auto global_it = st.global_types.find(name);
+        if (global_it != st.global_types.end() && global_it->second.is_proc) {
+          return emit_indirect_call(global_it->second, name);
         }
         auto ext_it = st.extern_ids.find(name);
         if (ext_it != st.extern_ids.end()) {
@@ -4049,24 +4122,7 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "call target not supported in SIR emission";
         return false;
       }
-      TypeRef call_type;
-      if (!CloneTypeRef(callee_type, &call_type)) return false;
-      if (expr.args.size() != callee_type.proc_params.size()) {
-        if (error) *error = "call argument count mismatch for callee";
-        return false;
-      }
-      for (size_t i = 0; i < callee_type.proc_params.size(); ++i) {
-        if (!EmitExpr(st, expr.args[i], &callee_type.proc_params[i], error)) return false;
-      }
-      if (!EmitExpr(st, callee, &callee_type, error)) return false;
-      std::string sig_name = GetProcSigName(st, call_type, error);
-      if (sig_name.empty()) return false;
-      (*st.out) << "  call.indirect " << sig_name << " " << call_type.proc_params.size() << "\n";
-      PopStack(st, static_cast<uint32_t>(call_type.proc_params.size() + 1));
-      if (call_type.proc_return && call_type.proc_return->name != "void") {
-        PushStack(st, 1);
-      }
-      return true;
+      return emit_indirect_call(callee_type, "callee");
     }
     case ExprKind::FormatString: {
       size_t placeholder_count = 0;
@@ -4422,36 +4478,7 @@ bool EmitExpr(EmitState& st,
         lambda.params.push_back(std::move(cloned_param));
       }
 
-      std::vector<Token> tokens;
-      size_t body_start = 0;
-      if (!expr.fn_body_tokens.empty() && expr.fn_body_tokens[0].kind == TokenKind::LParen) {
-        body_start = 1;
-      }
-      tokens.reserve(expr.fn_body_tokens.size() + 3);
-      Token brace;
-      brace.kind = TokenKind::LBrace;
-      if (body_start < expr.fn_body_tokens.size()) {
-        brace.line = expr.fn_body_tokens[body_start].line;
-        brace.column = expr.fn_body_tokens[body_start].column;
-      }
-      tokens.push_back(brace);
-      tokens.insert(tokens.end(), expr.fn_body_tokens.begin() + body_start, expr.fn_body_tokens.end());
-      Token rbrace;
-      rbrace.kind = TokenKind::RBrace;
-      if (body_start < expr.fn_body_tokens.size()) {
-        rbrace.line = expr.fn_body_tokens.back().line;
-        rbrace.column = expr.fn_body_tokens.back().column;
-      }
-      tokens.push_back(rbrace);
-      Token end;
-      end.kind = TokenKind::End;
-      tokens.push_back(end);
-
-      CAST::Parser parser(std::move(tokens));
-      if (!parser.ParseBlock(&lambda.body)) {
-        if (error) *error = parser.Error();
-        return false;
-      }
+      lambda.body = expr.fn_body;
 
       uint32_t func_id = st.base_func_count + static_cast<uint32_t>(st.lambda_funcs.size());
       st.func_ids[lambda.name] = func_id;
@@ -4931,7 +4958,14 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       if (InferExprType(stmt.expr, st, &expr_type, nullptr) && expr_type.name == "void") {
         pop_result = false;
       }
-      if (!EmitExpr(st, stmt.expr, nullptr, error)) return false;
+      TypeRef void_type;
+      const TypeRef* expected = nullptr;
+      if (IsDirectFnLiteralCall(stmt.expr)) {
+        void_type.name = "void";
+        expected = &void_type;
+        pop_result = false;
+      }
+      if (!EmitExpr(st, stmt.expr, expected, error)) return false;
       if (pop_result) {
         (*st.out) << "  pop\n";
         PopStack(st, 1);
@@ -6004,11 +6038,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   }
 
   for (size_t i = 0; i < st.lambda_funcs.size(); ++i) {
+    const FuncDecl lambda = st.lambda_funcs[i];
     std::string func_body;
     if (!EmitFunction(st,
-                      st.lambda_funcs[i],
-                      st.lambda_funcs[i].name,
-                      st.lambda_funcs[i].name,
+                      lambda,
+                      lambda.name,
+                      lambda.name,
                       nullptr,
                       false,
                       nullptr,

@@ -77,7 +77,7 @@ bool LangAstNormalizesFnLiteralDeclarations() {
   if (fn.signature.proc_return->name != "i32") return false;
   if (fn.signature.proc_params.size() != 2) return false;
   if (fn.params.size() != 2 || fn.params[0].name != "a" || fn.params[1].name != "b") return false;
-  return !fn.body_tokens.empty();
+  return !fn.body.empty();
 }
 
 bool LangAstNormalizesLoopShorthand() {

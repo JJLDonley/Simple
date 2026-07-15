@@ -504,6 +504,10 @@ bool LangGenericNamespaceSpecializationAcrossImport() {
   return RunCliSvm({"run", "tests/simple_modules/generic_namespace_import_main.simple"}) == 42;
 }
 
+bool LangLambdasAcrossImport() {
+  return RunCliSvm({"run", "tests/simple_modules/lambda_import_main.simple"}) == 42;
+}
+
 bool LangSimpleFixtureReservedIoBuffer() {
   return RunSimpleFileExpectExit("tests/simple/reserved_io_buffer.simple", 0);
 }
@@ -632,6 +636,14 @@ bool LangStressTaggedValues() {
   return RunCliSvm({"run", "tests/simple_stress/tagged_values.simple"}) == 0;
 }
 
+bool LangStressLambdas() {
+  return RunSimpleFileExpectExit("tests/simple_stress/lambdas.simple", 0);
+}
+
+bool LangStressLambdasJit() {
+  return RunCliSvm({"run", "tests/simple_stress/lambdas.simple"}) == 0;
+}
+
 bool LangTaggedValuesImportRuntime() {
   return RunCliSvm({"run", "tests/simple_modules/tagged_values_import_main.simple"}) == 42;
 }
@@ -756,13 +768,12 @@ bool LangStressProcedureClosureCaptureRejected() {
       "  f : fn i32 () = () { return x + 1 }\n"
       "  return f()\n"
       "}";
-  std::string sir;
   std::string error;
-  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return error.find("unknown local 'x'") != std::string::npos;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("undeclared identifier: x") != std::string::npos;
 }
 
-bool LangStressProcedureNestedClosureRejected() {
+bool LangStressProcedureNestedLambdasRun() {
   const char* src =
       "main : i32 () {\n"
       "  outer : fn i32 () = () {\n"
@@ -771,20 +782,22 @@ bool LangStressProcedureNestedClosureRejected() {
       "  }\n"
       "  return outer()\n"
       "}";
+  std::string sir;
   std::string error;
-  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
-  return error.find("nested fn literals are not supported") != std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         RunSirTextExpectExit(sir, 42);
 }
 
-bool LangStressProcedureListArrayRejected() {
+bool LangStressProcedureListRuns() {
   const char* src =
       "main : i32 () {\n"
-      "  fs : fn i32 ()[] = []\n"
-      "  return 0\n"
+      "  fs : fn i32 (i32)[] = [(x) { return x + 1 }, (x) { return x + 2 }]\n"
+      "  return fs[0](20) + fs[1](19)\n"
       "}";
+  std::string sir;
   std::string error;
-  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
-  return error.find("procedure types cannot have array/list dimensions") != std::string::npos;
+  return Simple::Lang::IRE::EmitSirFromString(src, &sir, &error) &&
+         RunSirTextExpectExit(sir, 42);
 }
 
 bool LangStressProcedureExternBoundaryRejected() {
@@ -980,7 +993,7 @@ bool LangStressProcedureReturnTypeStrict() {
       "}";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
-  return error.find("initializer type mismatch") != std::string::npos;
+  return error.find("return type mismatch") != std::string::npos;
 }
 
 bool LangStressEnumArtifactProcedureCompositionRuntime() {
@@ -3177,6 +3190,7 @@ bool LangSirEmitsFnShorthandAssignAndCall() {
 
 bool LangValidateFnParamWithFnArgOk() {
   const char* src =
+      "import Standard.IO\n"
       "invoke : void (cb : fn void (x : i32), x : i32) { cb(x) }\n"
       "main : i32 () {\n"
       "  printv : fn void (v : i32) = (v) { Standard.IO.println(v) }\n"
@@ -3884,6 +3898,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_generic_type_system", LangStressGenericTypeSystem},
   {"lang_stress_generic_type_system_jit", LangStressGenericTypeSystemJit},
   {"lang_stress_tagged_values", LangStressTaggedValues},
+  {"lang_stress_lambdas", LangStressLambdas},
+  {"lang_stress_lambdas_jit", LangStressLambdasJit},
   {"lang_tagged_values_import_runtime", LangTaggedValuesImportRuntime},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
@@ -3904,6 +3920,7 @@ const TestCase kLangTests[] = {
   {"lang_generic_specialization_across_import", LangGenericSpecializationAcrossImport},
   {"lang_generic_namespace_specialization_across_import",
    LangGenericNamespaceSpecializationAcrossImport},
+  {"lang_lambdas_across_import", LangLambdasAcrossImport},
   {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
@@ -3914,8 +3931,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
   {"lang_stress_procedure_member_call_runtime", LangStressProcedureMemberCallRuntime},
   {"lang_stress_procedure_closure_capture_rejected", LangStressProcedureClosureCaptureRejected},
-  {"lang_stress_procedure_nested_closure_rejected", LangStressProcedureNestedClosureRejected},
-  {"lang_stress_procedure_list_array_rejected", LangStressProcedureListArrayRejected},
+  {"lang_stress_procedure_nested_lambdas_run", LangStressProcedureNestedLambdasRun},
+  {"lang_stress_procedure_list_runs", LangStressProcedureListRuns},
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
   {"lang_stress_procedure_generic_emission_runs", LangStressProcedureGenericEmissionRuns},
   {"lang_generic_function_emission_runs", LangGenericFunctionEmissionRuns},

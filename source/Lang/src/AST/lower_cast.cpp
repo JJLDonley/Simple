@@ -5,6 +5,10 @@
 namespace Simple::Lang::AST {
 namespace {
 
+void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out);
+void CollectFnLiteralStmts(const std::vector<Stmt>& stmts,
+                           std::vector<NormalizedFnLiteralDecl>* out);
+
 void CollectFnLiteralExpr(const Expr& expr,
                           const std::string& binding_name,
                           const TypeRef* signature,
@@ -15,10 +19,11 @@ void CollectFnLiteralExpr(const Expr& expr,
     fn.binding_name = binding_name;
     if (signature) fn.signature = *signature;
     fn.params = expr.fn_params;
-    fn.body_tokens = expr.fn_body_tokens;
+    fn.body = expr.fn_body;
     fn.line = expr.line;
     fn.column = expr.column;
     out->push_back(std::move(fn));
+    CollectFnLiteralStmts(expr.fn_body, out);
   }
   for (const auto& child : expr.children) CollectFnLiteralExpr(child, {}, nullptr, out);
   for (const auto& arg : expr.args) CollectFnLiteralExpr(arg, {}, nullptr, out);
@@ -39,7 +44,6 @@ void CollectFnLiteralExpr(const Expr& expr,
   }
 }
 
-void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out);
 void CollectLoopStmt(const Stmt& stmt, std::vector<NormalizedLoop>* out);
 void CollectIfChainStmt(const Stmt& stmt, std::vector<NormalizedIfChain>* out);
 void CollectSwitchExpr(const Expr& expr,

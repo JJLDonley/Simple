@@ -659,7 +659,9 @@ language-completion work.
 This breaking transition sets language syntax to 2.0, SIR to 2.0, SBC and
 opcode metadata to version 2, runtime ABI to 1.2, and the standard-library
 catalog to 2.0. Versioned old inputs are rejected; no translation shim or alias
-is retained.
+is retained. The completed lambda grammar advances the current language syntax
+version to 2.1; SIR remains 2.0 because lambda bodies lower through existing
+function, closure, and indirect-call instructions.
 
 ### `v0.6` generic design
 
@@ -706,7 +708,7 @@ Language completion includes all of the following as one dependency-ordered
 milestone family:
 
 1. complete concrete generics across every supported language boundary;
-2. complete lambda expressions, callable typing, and generic lambda behavior;
+2. complete lambda expressions, callable typing, and generic lambda behavior (completed in v0.5.18);
 3. complete closures with captured lexical state, escaping lifetimes, mutable
    sharing, and precise GC rooting;
 4. ZII, `Result<T,E>`, optional type `T?`, postfix expression `expr?`,
@@ -1022,7 +1024,7 @@ fn bool (i32, string)
 fn i32 (a : i32, b : i32)
 ```
 
-Procedure values are supported in local variables, parameters, generic specializations, switch expressions, and artifact members where covered by tests. Procedure values are rejected at extern ABI boundaries and in list/array contexts until callable collection lowering is completed.
+Procedure values are supported in local, global, and namespace variables; parameters and returns; generic specializations; switch expressions; artifact members; and list/fixed-array elements. They remain rejected at extern ABI boundaries because VM callables are managed references, not external-C function pointers.
 
 ### Pointer types
 
@@ -1549,25 +1551,22 @@ main :: i32 () {
 }
 ```
 
-Procedure variables and procedure parameters are validated by tests. Function literals can appear in supported typed contexts, including call arguments where the receiving type is known.
+Function literals use `(parameters) { body }`. Parameters may be target-typed or explicitly typed, as in `(value : i32) { return value + 1 }`. Literals are supported in local, global, namespace, field, argument, return, generic, list, and fixed-array contexts. Nested no-capture literals and direct anonymous invocation are supported when a result type is available from context. Interpreter and LLVM execution both use heap-backed callable references for source literals.
 
 Unsupported/rejected procedure cases include:
 
-- closure captures in current procedure literal emission
-- nested closure forms that require unsupported capture behavior
+- lexical capture; free local bindings are rejected until closure environments are completed
 - procedure values at extern ABI boundaries
-- procedure values inside unsupported list/array/generic emission paths
-- direct inline invocation of an anonymous function literal
+- direct anonymous invocation without a typed result context
 
 ### `v0.6` lambda and closure design
 
 Lambda expressions are the existing anonymous function literals, not a future
-second syntax. Language completion freezes one `(parameters) { body }` grammar
-and completes contextual and explicit typing, direct invocation, nesting,
-arguments, returns, fields, supported collections, generic specialization, and
-all other contexts where an `fn` value is valid. Generic lambda behavior is
-finished with the rest of concrete generics; no runtime-erased callable or
-library-specific lambda syntax is introduced.
+second syntax. The frozen `(parameters) { body }` grammar supports contextual
+and explicit parameter typing, direct invocation, nesting, arguments, returns,
+globals, namespaces, fields, supported collections, and concrete generic
+specialization. Generic lambda behavior uses ordinary monomorphization; no
+runtime-erased callable or library-specific lambda syntax is introduced.
 
 Closures are part of language completion because async jobs, callbacks, and
 resource-safe composition require behavior plus captured state. Function
@@ -1813,9 +1812,7 @@ Current tests intentionally reject or limit:
 - language-level `Promise<T>` layout and execution semantics
 - closure capture for procedure literals
 - procedure values at extern boundaries
-- procedure values in unsupported containers/generic contexts
 - recursive artifact ABI for extern/FFI
-- direct inline invocation of anonymous function literals
 - using modules/functions as types or enum types as values
 
 ## Compatibility APIs

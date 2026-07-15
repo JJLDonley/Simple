@@ -1919,7 +1919,7 @@ bool Parser::ParseSwitchExpr(Expr* out) {
 
 bool Parser::ParseFnLiteral(Expr* out) {
   if (!Match(TokenKind::LParen)) return false;
-  size_t start_index = index_ - 1;
+  const Token lparen = tokens_[index_ - 1];
   std::vector<ParamDecl> params;
   if (!Match(TokenKind::RParen)) {
     for (;;) {
@@ -1931,6 +1931,12 @@ bool Parser::ParseFnLiteral(Expr* out) {
       Advance();
       ParamDecl param;
       param.name = name_tok.text;
+      if (Match(TokenKind::Colon) || Match(TokenKind::DoubleColon)) {
+        param.mutability = tokens_[index_ - 1].kind == TokenKind::Colon
+                               ? Mutability::Mutable
+                               : Mutability::Immutable;
+        if (!ParseTypeInner(&param.type)) return false;
+      }
       params.push_back(std::move(param));
       if (Match(TokenKind::Comma)) continue;
       if (Match(TokenKind::RParen)) break;
@@ -1938,61 +1944,14 @@ bool Parser::ParseFnLiteral(Expr* out) {
       return false;
     }
   }
-  std::vector<Token> body_tokens;
-  if (!ParseBlockTokens(&body_tokens)) return false;
-  body_tokens.insert(body_tokens.begin(), tokens_[start_index]);
+  std::vector<Stmt> body;
+  if (!ParseBlockStmts(&body)) return false;
   if (out) {
     out->kind = ExprKind::FnLiteral;
     out->fn_params = std::move(params);
-    out->fn_body_tokens = std::move(body_tokens);
-  }
-  return true;
-}
-
-bool Parser::ParseTypedFnLiteral(Expr* out, TypeRef* out_proc_type) {
-  TypeRef return_type;
-  if (!ParseTypeInner(&return_type)) return false;
-  if (!Match(TokenKind::LParen)) {
-    error_ = "expected '(' after function return type";
-    return false;
-  }
-  Token lparen_tok = tokens_[index_ - 1];
-  std::vector<ParamDecl> params;
-  if (!Match(TokenKind::RParen)) {
-    for (;;) {
-      ParamDecl param;
-      if (!ParseParam(&param)) return false;
-      params.push_back(std::move(param));
-      if (Match(TokenKind::Comma)) continue;
-      if (Match(TokenKind::RParen)) break;
-      error_ = "expected ',' or ')' after parameter";
-      return false;
-    }
-  }
-
-  std::vector<Token> body_tokens;
-  if (!ParseBlockTokens(&body_tokens)) return false;
-  body_tokens.insert(body_tokens.begin(), lparen_tok);
-
-  if (out) {
-    out->kind = ExprKind::FnLiteral;
-    out->fn_params = params;
-    out->fn_body_tokens = std::move(body_tokens);
-  }
-
-  if (out_proc_type) {
-    out_proc_type->name.clear();
-    out_proc_type->pointer_depth = 0;
-    out_proc_type->type_args.clear();
-    out_proc_type->dims.clear();
-    out_proc_type->is_proc = true;
-    out_proc_type->proc_return_mutability = Mutability::Mutable;
-    out_proc_type->proc_params.clear();
-    out_proc_type->proc_params.reserve(params.size());
-    for (const auto& param : params) {
-      out_proc_type->proc_params.push_back(param.type);
-    }
-    out_proc_type->proc_return = std::make_unique<TypeRef>(std::move(return_type));
+    out->fn_body = std::move(body);
+    out->line = lparen.line;
+    out->column = lparen.column;
   }
   return true;
 }
@@ -2072,10 +2031,6 @@ bool Parser::ParseTypeDims(TypeRef* out) {
   if (!out) return false;
   for (;;) {
     if (Match(TokenKind::LBracket)) {
-      if (out->is_proc) {
-        error_ = "procedure types cannot have array/list dimensions";
-        return false;
-      }
       // [] is list-only in the new syntax.
       if (Match(TokenKind::RBracket)) {
         TypeDim dim;
@@ -2088,10 +2043,6 @@ bool Parser::ParseTypeDims(TypeRef* out) {
       return false;
     }
     if (!Match(TokenKind::LBrace)) break;
-    if (out->is_proc) {
-      error_ = "procedure types cannot have array/list dimensions";
-      return false;
-    }
     TypeDim dim;
     dim.is_list = false;
     if (Match(TokenKind::RBrace)) {

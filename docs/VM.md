@@ -71,7 +71,7 @@ Scalar integer/bool/char types use exact-width ABI payloads (`bool` is one byte,
 
 Each call frame tracks function id, program counter, locals, stack boundaries, return behavior, and closure/self context where needed.
 
-Supported call forms include direct calls, indirect calls, tail calls, imported calls, and runtime intrinsic/syscall dispatch.
+Supported call forms include direct calls, indirect calls, tail calls, imported calls, and runtime intrinsic/syscall dispatch. Source function literals create heap-backed no-capture closure objects carrying the target method id. `CallIndirect` resolves the closure to the concrete function in both the interpreter and LLVM JIT, avoiding ambiguity between function indexes and managed heap handles. Standalone LLVM execution supplies a transient heap for managed callable operations; VM-owned execution uses the runtime heap and root maps.
 
 ## Heap objects
 
