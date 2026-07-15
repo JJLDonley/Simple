@@ -197,6 +197,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
   std::vector<uint32_t> llvm_reject_counts(module.functions.size(), 0);
+  std::vector<uint8_t> llvm_rejected(module.functions.size(), 0);
   std::vector<std::string> llvm_reject_reasons(module.functions.size());
   std::vector<Simple::VM::Native::NativeHandleId> file_handles;
   auto promise_registry = std::make_shared<Simple::VM::Runtime::PromiseRegistry>();
@@ -272,6 +273,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   };
   auto record_llvm_reject = [&](size_t index, const std::string& reason) {
     if (index >= llvm_reject_counts.size()) return;
+    llvm_rejected[index] = 1;
     llvm_reject_counts[index] += 1;
     if (!reason.empty()) llvm_reject_reasons[index] = reason;
   };
@@ -3607,7 +3609,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           if (has_ret) Push(stack, ret);
           break;
         }
-        if (enable_jit) {
+        if (enable_jit && !llvm_rejected[func_id]) {
           jit_dispatch_counts[func_id] += 1;
           Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
           Slot ret = 0;
@@ -3694,8 +3696,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         }
 
-        if (enable_jit) {
-          size_t target_index = static_cast<size_t>(func_index);
+        size_t target_index = static_cast<size_t>(func_index);
+        if (enable_jit && !llvm_rejected[target_index]) {
           jit_dispatch_counts[target_index] += 1;
           Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
           Slot ret = 0;
@@ -3771,7 +3773,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         }
 
-        if (enable_jit) {
+        if (enable_jit && !llvm_rejected[func_id]) {
           jit_dispatch_counts[func_id] += 1;
           Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
           Slot ret = 0;

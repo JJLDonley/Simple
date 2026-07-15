@@ -680,7 +680,7 @@ int main(int argc, char** argv) {
     std::cerr << "[jit] requested=" << (use_jit ? "yes" : "no")
               << " force_interpreter=" << (force_interpreter ? "yes" : "no")
               << " llvm=" << (llvm_status.available ? "on" : "off") << "\n";
-    const size_t count = std::max({exec.jit_tiers.size(), exec.call_counts.size(), exec.opcode_counts.size(),
+    const size_t count = std::max({exec.jit_tiers.size(), exec.call_counts.size(), exec.func_opcode_counts.size(),
                                    exec.compile_counts.size(), exec.jit_dispatch_counts.size(),
                                    exec.jit_compiled_exec_counts.size(), exec.jit_tier1_exec_counts.size(),
                                    exec.llvm_reject_counts.size()});
@@ -695,7 +695,7 @@ int main(int argc, char** argv) {
     }
     for (size_t i = 0; i < count; ++i) {
       uint32_t calls = i < exec.call_counts.size() ? exec.call_counts[i] : 0;
-      uint64_t ops = i < exec.opcode_counts.size() ? exec.opcode_counts[i] : 0;
+      uint64_t ops = i < exec.func_opcode_counts.size() ? exec.func_opcode_counts[i] : 0;
       uint32_t compiles = i < exec.compile_counts.size() ? exec.compile_counts[i] : 0;
       uint32_t dispatches = i < exec.jit_dispatch_counts.size() ? exec.jit_dispatch_counts[i] : 0;
       uint32_t compiled_execs = i < exec.jit_compiled_exec_counts.size() ? exec.jit_compiled_exec_counts[i] : 0;

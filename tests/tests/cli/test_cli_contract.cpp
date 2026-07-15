@@ -69,6 +69,23 @@ bool CliJitStatsPrintFunctionNames() {
          stderr_text.find("name=\"main\"") != std::string::npos;
 }
 
+bool CliJitStatsUsePerFunctionOpcodesAndCacheRejects() {
+  int exit_code = -1;
+  const std::string stderr_text = RunCliSvmCaptureStderr(
+      {"run", "tests/simple/jit_managed_method_state.simple", "-jit", "--jit-stats"},
+      "simple_cli_contract_stderr.txt", &exit_code);
+  const size_t update_pos = stderr_text.find("name=\"Player__Update\"");
+  if (exit_code != 0 || update_pos == std::string::npos) return false;
+  const size_t update_end = stderr_text.find('\n', update_pos);
+  const std::string update_line = stderr_text.substr(update_pos, update_end - update_pos);
+  return stderr_text.find("unsupported=4") != std::string::npos &&
+         update_line.find("calls=9") != std::string::npos &&
+         update_line.find("opcodes=162") != std::string::npos &&
+         update_line.find("dispatch=1") != std::string::npos &&
+         update_line.find("llvm_reject=1") != std::string::npos &&
+         stderr_text.find("[jit] func#112") == std::string::npos;
+}
+
 bool CliSplitContractDetectsToolModesAndCommands() {
   const auto simple = Simple::CLI::DetectToolMode("simple");
   const auto svm = Simple::CLI::DetectToolMode("svm");
@@ -99,6 +116,8 @@ const TestCase kCliContractTests[] = {
   {"cli_svm_run_simple", CliSvmRunSimple},
   {"cli_exit_code_contract", CliExitCodeContract},
   {"cli_jit_stats_print_function_names", CliJitStatsPrintFunctionNames},
+  {"cli_jit_stats_use_per_function_opcodes_and_cache_rejects",
+   CliJitStatsUsePerFunctionOpcodesAndCacheRejects},
   {"cli_split_contract_detects_tool_modes_and_commands", CliSplitContractDetectsToolModesAndCommands},
   {"cli_split_contract_classifies_input_extensions", CliSplitContractClassifiesInputExtensions},
 };
