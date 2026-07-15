@@ -884,7 +884,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         return Fail("import symbol name offset invalid");
       }
       if (row.sig_id >= module.sigs.size()) return Fail("import signature id out of range");
-      if ((row.flags & ~0x000Fu) != 0u) return Fail("import flags invalid");
+      if ((row.flags & ~kImportFlagsKnownMask) != 0u) {
+        return Fail("import flags invalid");
+      }
       std::string mod = ReadStringAt(module.const_pool, row.module_name_str);
       std::string sym = ReadStringAt(module.const_pool, row.symbol_name_str);
       std::string key = mod + '\0' + sym;

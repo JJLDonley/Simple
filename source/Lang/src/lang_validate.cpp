@@ -4718,6 +4718,13 @@ static bool ValidateProgramImpl(
         break;
       case DeclKind::Extern:
         {
+          if ((decl.ext.capture_errno || decl.ext.capture_platform_error) &&
+              !decl.ext.has_module) {
+            if (error) {
+              *error = "native error capture requires a qualified extern module";
+            }
+            return false;
+          }
           std::unordered_set<std::string> param_names;
           std::unordered_set<std::string> type_params;
           if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;

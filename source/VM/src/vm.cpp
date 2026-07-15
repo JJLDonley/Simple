@@ -261,6 +261,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   auto promise_registry = std::make_shared<Simple::VM::Runtime::PromiseRegistry>();
   Simple::VM::Native::NativeResourceRegistry resource_registry;
   std::string dl_last_error;
+  int32_t ffi_errno = 0;
+  uint32_t ffi_platform_error = 0;
   uint64_t compile_tick = 0;
   Simple::VM::Native::NativeRegistry native_registry = Simple::VM::Native::BuildDefaultRegistry();
   for (size_t i = 0; i < module.globals.size(); ++i) {
@@ -464,7 +466,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     Slot native_ret = 0;
     bool native_has_ret = false;
     std::string llvm_reason;
-    if (llvm_backend.TryRunFunctionWithRuntime(module, entry_func_index, {}, &heap, &globals, &options, native_ret, native_has_ret, llvm_reason)) {
+    if (llvm_backend.TryRunFunctionWithRuntime(module, entry_func_index, {}, &heap, &globals, &options, native_ret, native_has_ret, llvm_reason, &ffi_errno, &ffi_platform_error)) {
       jit_tiers[entry_func_index] = JitTier::Tier1;
       compile_counts[entry_func_index] += 1;
       compile_ticks_tier1[entry_func_index] = ++compile_tick;
@@ -3900,8 +3902,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           std::string error;
           const bool dispatched = Simple::VM::Runtime::DispatchImportCallByName(
               module, options, native_registry, heap, file_handles,
-              resource_registry, promise_registry, dl_last_error, func_id,
-              call_args, ret, has_ret, error);
+              resource_registry, promise_registry, dl_last_error, ffi_errno,
+              ffi_platform_error, func_id, call_args, ret, has_ret, error);
           external_u8_temporaries.clear();
           external_u8_temporary_bytes = 0;
           if (!dispatched) return Trap(error);
@@ -3914,7 +3916,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string llvm_reason;
-          if (llvm_backend.TryRunFunctionWithRuntime(module, func_id, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason)) {
+          if (llvm_backend.TryRunFunctionWithRuntime(module, func_id, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason, &ffi_errno, &ffi_platform_error)) {
             jit_tiers[func_id] = JitTier::Tier1;
             jit_compiled_exec_counts[func_id] += 1;
             jit_tier1_exec_counts[func_id] += 1;
@@ -3989,7 +3991,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
+          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, ffi_errno, ffi_platform_error, static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (has_ret) Push(stack, ret);
@@ -4003,7 +4005,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string llvm_reason;
-          if (llvm_backend.TryRunFunctionWithRuntime(module, target_index, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason)) {
+          if (llvm_backend.TryRunFunctionWithRuntime(module, target_index, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason, &ffi_errno, &ffi_platform_error)) {
             jit_tiers[target_index] = JitTier::Tier1;
             jit_compiled_exec_counts[target_index] += 1;
             jit_tier1_exec_counts[target_index] += 1;
@@ -4052,7 +4054,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, func_id, call_args, ret, has_ret, error)) {
+          if (!Simple::VM::Runtime::DispatchImportCallByName(module, options, native_registry, heap, file_handles, resource_registry, promise_registry, dl_last_error, ffi_errno, ffi_platform_error, func_id, call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (call_stack.empty()) {
@@ -4080,7 +4082,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string llvm_reason;
-          if (llvm_backend.TryRunFunctionWithRuntime(module, func_id, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason)) {
+          if (llvm_backend.TryRunFunctionWithRuntime(module, func_id, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason, &ffi_errno, &ffi_platform_error)) {
             jit_tiers[func_id] = JitTier::Tier1;
             jit_compiled_exec_counts[func_id] += 1;
             jit_tier1_exec_counts[func_id] += 1;

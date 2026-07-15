@@ -142,6 +142,8 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   context.argv = runtime.argv;
   context.file_handles = runtime.file_handles;
   context.dl_last_error = runtime.dl_last_error;
+  context.ffi_errno = runtime.ffi_errno;
+  context.ffi_platform_error = runtime.ffi_platform_error;
   context.resource_registry = runtime.resource_registry;
   context.promise_registry = std::move(runtime.promise_registry);
   NativeCallResult result = spec->handler(context);

@@ -1,6 +1,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <errno.h>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 int32_t simple_add_i32(int32_t a, int32_t b) {
   return a + b;
@@ -15,6 +21,20 @@ int32_t simple_u8_length(const uint8_t* text) {
 
 bool simple_bool_not(bool value) {
   return !value;
+}
+
+int32_t simple_fail_errno(int32_t code) {
+  errno = code;
+  return -1;
+}
+
+int32_t simple_fail_platform(uint32_t code) {
+#if defined(_WIN32)
+  SetLastError((DWORD)code);
+#else
+  errno = (int)code;
+#endif
+  return -1;
 }
 
 typedef int32_t (*SimpleBinaryI32)(int32_t, int32_t);

@@ -247,6 +247,8 @@ struct ExternDecl {
   std::string module;
   bool has_module = false;
   Mutability return_mutability = Mutability::Immutable;
+  bool capture_errno = false;
+  bool capture_platform_error = false;
   TypeRef return_type;
   std::vector<ParamDecl> params;
 };

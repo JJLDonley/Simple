@@ -157,6 +157,24 @@ bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
                           Simple::Lang::AST::TypeRef* out) {
   if (!out) return false;
   switch (kind) {
+    case Simple::Byte::TypeKind::I8:
+      *out = MakeSimpleType("i8");
+      return true;
+    case Simple::Byte::TypeKind::I16:
+      *out = MakeSimpleType("i16");
+      return true;
+    case Simple::Byte::TypeKind::U8:
+      *out = MakeSimpleType("u8");
+      return true;
+    case Simple::Byte::TypeKind::U16:
+      *out = MakeSimpleType("u16");
+      return true;
+    case Simple::Byte::TypeKind::U32:
+      *out = MakeSimpleType("u32");
+      return true;
+    case Simple::Byte::TypeKind::U64:
+      *out = MakeSimpleType("u64");
+      return true;
     case Simple::Byte::TypeKind::Bool:
       *out = MakeSimpleType("bool");
       return true;

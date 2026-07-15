@@ -9,7 +9,12 @@
 namespace Simple::Byte {
 
 constexpr uint32_t kSbcMagic = 0x30434253u; // 'SBC0'
-constexpr uint16_t kSbcVersion = 0x000Au;
+constexpr uint16_t kSbcVersion = 0x000Bu;
+
+constexpr uint32_t kImportFlagCaptureErrno = 0x0001u;
+constexpr uint32_t kImportFlagCapturePlatformError = 0x0002u;
+constexpr uint32_t kImportFlagsKnownMask =
+    kImportFlagCaptureErrno | kImportFlagCapturePlatformError;
 constexpr size_t kSbcHeaderSize = 32u;
 constexpr size_t kSbcSectionRowSize = 16u;
 constexpr size_t kSbcHeaderMagicOffset = 0x00u;

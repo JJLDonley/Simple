@@ -75,7 +75,15 @@ enum class SystemPathMember { Separator, Delimiter, IsAbsolute, Normalize, Absol
 enum class SystemEnvMember { ArgsCount, Arg, Get, Set, Unset, ExePath };
 enum class SystemOSMember { Platform, Arch, IsLinux, IsMacos, IsWindows, Pid, CpuCount, PageSize, Exit, SleepMs, ArgsCount, ArgsGet, EnvGet, CwdGet, TimeMonoNs, TimeWallNs, FormatWallNs };
 enum class SystemTimeMember { MonoNs, WallNs, SleepNs, SleepMs, TimerStart, TimerCancel, MonoSnake, WallSnake };
-enum class SystemFFIMember { Supported, Open, Sym, Close, LastError };
+enum class SystemFFIMember {
+  Supported,
+  Open,
+  Sym,
+  Close,
+  LastError,
+  Errno,
+  PlatformError,
+};
 enum class SystemASMMember { FromC, FromDynASM, Compile, Symbol, LinkStub, LinkAot, CloseUnit, CloseObject };
 enum class SystemBytesMember { New, Len, Get, Set, Slice, Copy, ReadU16LE, ReadU32LE, ReadU64LE, WriteU16LE, WriteU32LE, WriteU64LE };
 enum class SystemJsonMember { Parse, Free, Stringify, Kind, Get, At, Len, AsString, AsI64, AsF64, AsBool };
@@ -425,6 +433,8 @@ inline std::string_view ToMember(SystemFFIMember member) {
     case SystemFFIMember::Sym: return "sym";
     case SystemFFIMember::Close: return "close";
     case SystemFFIMember::LastError: return "lastError";
+    case SystemFFIMember::Errno: return "errno";
+    case SystemFFIMember::PlatformError: return "platformError";
   }
   return {};
 }
@@ -1090,7 +1100,7 @@ inline std::vector<std::string_view> MemberNames(SystemModule module) {
     case SystemModule::Env: return {ToMember(SystemEnvMember::ArgsCount), ToMember(SystemEnvMember::Arg), ToMember(SystemEnvMember::Get), ToMember(SystemEnvMember::Set), ToMember(SystemEnvMember::Unset), ToMember(SystemEnvMember::ExePath)};
     case SystemModule::OS: return {ToMember(SystemOSMember::Platform), ToMember(SystemOSMember::Arch), ToMember(SystemOSMember::IsLinux), ToMember(SystemOSMember::IsMacos), ToMember(SystemOSMember::IsWindows), ToMember(SystemOSMember::Pid), ToMember(SystemOSMember::CpuCount), ToMember(SystemOSMember::PageSize), ToMember(SystemOSMember::Exit), ToMember(SystemOSMember::SleepMs)};
     case SystemModule::Time: return {ToMember(SystemTimeMember::MonoNs), ToMember(SystemTimeMember::WallNs), ToMember(SystemTimeMember::SleepNs), ToMember(SystemTimeMember::SleepMs), ToMember(SystemTimeMember::TimerStart), ToMember(SystemTimeMember::TimerCancel), ToMember(SystemTimeMember::MonoSnake), ToMember(SystemTimeMember::WallSnake)};
-    case SystemModule::FFI: return {ToMember(SystemFFIMember::Supported), ToMember(SystemFFIMember::Open), ToMember(SystemFFIMember::Sym), ToMember(SystemFFIMember::Close), ToMember(SystemFFIMember::LastError)};
+    case SystemModule::FFI: return {ToMember(SystemFFIMember::Supported), ToMember(SystemFFIMember::Open), ToMember(SystemFFIMember::Sym), ToMember(SystemFFIMember::Close), ToMember(SystemFFIMember::LastError), ToMember(SystemFFIMember::Errno), ToMember(SystemFFIMember::PlatformError)};
     case SystemModule::ASM: return {ToMember(SystemASMMember::FromC), ToMember(SystemASMMember::FromDynASM), ToMember(SystemASMMember::Compile), ToMember(SystemASMMember::Symbol), ToMember(SystemASMMember::LinkStub), ToMember(SystemASMMember::LinkAot), ToMember(SystemASMMember::CloseUnit), ToMember(SystemASMMember::CloseObject)};
     case SystemModule::Buffer: return {ToMember(SystemBufferMember::New), ToMember(SystemBufferMember::Len), ToMember(SystemBufferMember::Get), ToMember(SystemBufferMember::Set), ToMember(SystemBufferMember::Slice), ToMember(SystemBufferMember::Copy), ToMember(SystemBufferMember::ReadU16LE), ToMember(SystemBufferMember::ReadU32LE), ToMember(SystemBufferMember::ReadU64LE), ToMember(SystemBufferMember::WriteU16LE), ToMember(SystemBufferMember::WriteU32LE), ToMember(SystemBufferMember::WriteU64LE)};
     case SystemModule::Bytes: return {ToMember(SystemBytesMember::New), ToMember(SystemBytesMember::Len), ToMember(SystemBytesMember::Get), ToMember(SystemBytesMember::Set), ToMember(SystemBytesMember::Slice), ToMember(SystemBytesMember::Copy), ToMember(SystemBytesMember::ReadU16LE), ToMember(SystemBytesMember::ReadU32LE), ToMember(SystemBytesMember::ReadU64LE), ToMember(SystemBytesMember::WriteU16LE), ToMember(SystemBytesMember::WriteU32LE), ToMember(SystemBytesMember::WriteU64LE)};
@@ -1200,7 +1210,7 @@ inline std::optional<SystemMember> ParseMember(SystemModule module, std::string_
     case SystemModule::Env: if (auto value = ParseEnumMember<SystemEnvMember>(member, {SystemEnvMember::ArgsCount, SystemEnvMember::Arg, SystemEnvMember::Get, SystemEnvMember::Set, SystemEnvMember::Unset, SystemEnvMember::ExePath})) return SystemMember(*value); break;
     case SystemModule::OS: if (auto value = ParseEnumMember<SystemOSMember>(member, {SystemOSMember::Platform, SystemOSMember::Arch, SystemOSMember::IsLinux, SystemOSMember::IsMacos, SystemOSMember::IsWindows, SystemOSMember::Pid, SystemOSMember::CpuCount, SystemOSMember::PageSize, SystemOSMember::Exit, SystemOSMember::SleepMs, SystemOSMember::ArgsCount, SystemOSMember::ArgsGet, SystemOSMember::EnvGet, SystemOSMember::CwdGet, SystemOSMember::TimeMonoNs, SystemOSMember::TimeWallNs, SystemOSMember::FormatWallNs})) return SystemMember(*value); break;
     case SystemModule::Time: if (auto value = ParseEnumMember<SystemTimeMember>(member, {SystemTimeMember::MonoNs, SystemTimeMember::WallNs, SystemTimeMember::SleepNs, SystemTimeMember::SleepMs, SystemTimeMember::TimerStart, SystemTimeMember::TimerCancel, SystemTimeMember::MonoSnake, SystemTimeMember::WallSnake})) return SystemMember(*value); break;
-    case SystemModule::FFI: if (auto value = ParseEnumMember<SystemFFIMember>(member, {SystemFFIMember::Supported, SystemFFIMember::Open, SystemFFIMember::Sym, SystemFFIMember::Close, SystemFFIMember::LastError})) return SystemMember(*value); break;
+    case SystemModule::FFI: if (auto value = ParseEnumMember<SystemFFIMember>(member, {SystemFFIMember::Supported, SystemFFIMember::Open, SystemFFIMember::Sym, SystemFFIMember::Close, SystemFFIMember::LastError, SystemFFIMember::Errno, SystemFFIMember::PlatformError})) return SystemMember(*value); break;
     case SystemModule::ASM: if (auto value = ParseEnumMember<SystemASMMember>(member, {SystemASMMember::FromC, SystemASMMember::FromDynASM, SystemASMMember::Compile, SystemASMMember::Symbol, SystemASMMember::LinkStub, SystemASMMember::LinkAot, SystemASMMember::CloseUnit, SystemASMMember::CloseObject})) return SystemMember(*value); break;
     case SystemModule::Buffer: if (auto value = ParseEnumMember<SystemBufferMember>(member, {SystemBufferMember::New, SystemBufferMember::Len, SystemBufferMember::Get, SystemBufferMember::Set, SystemBufferMember::Slice, SystemBufferMember::Copy, SystemBufferMember::ReadU16LE, SystemBufferMember::ReadU32LE, SystemBufferMember::ReadU64LE, SystemBufferMember::WriteU16LE, SystemBufferMember::WriteU32LE, SystemBufferMember::WriteU64LE})) return SystemMember(*value); break;
     case SystemModule::Bytes: if (auto value = ParseEnumMember<SystemBytesMember>(member, {SystemBytesMember::New, SystemBytesMember::Len, SystemBytesMember::Get, SystemBytesMember::Set, SystemBytesMember::Slice, SystemBytesMember::Copy, SystemBytesMember::ReadU16LE, SystemBytesMember::ReadU32LE, SystemBytesMember::ReadU64LE, SystemBytesMember::WriteU16LE, SystemBytesMember::WriteU32LE, SystemBytesMember::WriteU64LE})) return SystemMember(*value); break;
@@ -1424,6 +1434,8 @@ inline std::optional<LibrarySignatureSpec> GetSystemLibrarySignature(SystemModul
         case SystemFFIMember::Sym: return LibrarySignature({LibraryParam("handle", "i64"), LibraryParam("name", "string")}, "void*");
         case SystemFFIMember::Close: return LibrarySignature({LibraryParam("handle", "i64")}, "i32");
         case SystemFFIMember::LastError: return LibrarySignature({}, "string");
+        case SystemFFIMember::Errno: return LibrarySignature({}, "i32");
+        case SystemFFIMember::PlatformError: return LibrarySignature({}, "u32");
         case SystemFFIMember::Supported: return std::nullopt;
       }
       return std::nullopt;

@@ -1256,6 +1256,8 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   Simple::Lang::AST::TypeRef mapped;
   if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::I64, &mapped)) return false;
   if (mapped.name != "i64" || !mapped.dims.empty()) return false;
+  if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::U32, &mapped)) return false;
+  if (mapped.name != "u32" || !mapped.dims.empty()) return false;
   if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::Ref, &mapped)) return false;
   if (mapped.name != "i32" || mapped.dims.size() != 1 || !mapped.dims[0].is_list) return false;
 

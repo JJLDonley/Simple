@@ -1,7 +1,13 @@
 #include "ffi/dl_call.h"
 
+#include <cerrno>
 #include <cstring>
 #include <memory>
+
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+#endif
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -903,6 +909,9 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                            const std::vector<Slot>& args,
                            size_t arg_base,
                            Heap& heap,
+                           uint32_t capture_flags,
+                           int32_t* captured_errno,
+                           uint32_t* captured_platform_error,
                            Slot* out_ret,
                            std::string* out_error) {
   if (!ValidateDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids, out_error)) return false;
@@ -977,11 +986,30 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     ret_ptr = ret_storage.data();
   }
 
+  const bool capture_errno =
+      (capture_flags & Simple::Byte::kImportFlagCaptureErrno) != 0u;
+  const bool capture_platform =
+      (capture_flags & Simple::Byte::kImportFlagCapturePlatformError) != 0u;
+  if (capture_errno || capture_platform) errno = 0;
+#if defined(_WIN32)
+  if (capture_platform) SetLastError(ERROR_SUCCESS);
+#endif
   void (*fn)() = reinterpret_cast<void (*)()>(static_cast<uintptr_t>(ptr_bits));
   ffi_call(&cif,
            FFI_FN(fn),
            ret_ptr,
            ffi_arg_values.data());
+  const int32_t saved_errno = static_cast<int32_t>(errno);
+#if defined(_WIN32)
+  const uint32_t saved_platform_error =
+      capture_platform ? static_cast<uint32_t>(GetLastError()) : 0u;
+#else
+  const uint32_t saved_platform_error = static_cast<uint32_t>(saved_errno);
+#endif
+  if (capture_errno && captured_errno) *captured_errno = saved_errno;
+  if (capture_platform && captured_platform_error) {
+    *captured_platform_error = saved_platform_error;
+  }
 
   if (!has_ret) return true;
   if (!out_ret) {

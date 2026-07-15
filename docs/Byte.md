@@ -178,6 +178,11 @@ input, in/out, and output flow plus call-duration lifetime in each external
 pointer type row. Output destinations are non-null. The corresponding runtime
 ABI is `1.10`; opcode metadata remains version 7.
 
+SBC v11 defines import flags for immediate `errno` and platform-native error
+capture. The FFI adapter clears requested thread-local state immediately before
+the call and records it immediately after the call, before unmarshalling. The
+corresponding runtime ABI is `1.11`; opcode metadata remains version 7.
+
 ## Opcodes
 
 Opcodes are defined in `source/Byte/include/opcode.h` with metadata in `source/Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.

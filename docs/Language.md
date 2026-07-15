@@ -128,7 +128,9 @@ program        = module-header-decl { import-decl | using-decl | extern-decl | t
 module-header-decl   = "module" qualified-name ;
 import-decl    = "import" ( qualified-name | string-literal ) [ "as" ident ] ;
 using-decl     = "using" qualified-name ;
-extern-decl    = "extern" [ qualified-name ] function-signature ;
+extern-decl    = "extern" [ qualified-name ] function-signature
+                 [ "capture" "(" error-kind { "," error-kind } ")" ] ;
+error-kind     = "errno" | "platform" ;
 top-decl       = var-decl | func-decl | class-decl | struct-decl | namespace-decl | enum-decl ;
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
@@ -689,7 +691,8 @@ Scoped managed-string conversion to immutable external `u8*` advances SIR to
 3.2, SBC to 9, opcode metadata to 7, and the runtime ABI to 1.9; source syntax
 remains 4.1. Explicit external pointer `inout`/`out` flow advances syntax to
 4.2, SIR to 3.3, SBC to 10, and the runtime ABI to 1.10; opcode metadata
-remains 7.
+remains 7. Explicit immediate native-error capture advances syntax to 4.3,
+SIR to 3.4, SBC to 11, and the runtime ABI to 1.11; opcode metadata remains 7.
 
 ### `v0.6` generic design
 
@@ -1863,6 +1866,22 @@ An unbounded foreign pointer is pass/compare/round-trip only. External C remains
 capability-gated because a lying host ABI cannot be made memory-safe by source
 types, but malformed declarations and known lifetime/nullability violations are
 rejected before execution.
+
+### Native error capture
+
+External declarations opt into immediate error capture explicitly:
+
+```simple
+extern ffi.read : (fd : i32, data : out u8*, size : usize) -> isize capture(errno)
+extern ffi.platformCall : () -> i32 capture(platform)
+```
+
+`System.FFI.errno()` returns the captured `i32`; `System.FFI.platformError()`
+returns the captured platform-native code as `u32`. Capture occurs immediately
+around the native call before return unmarshalling can overwrite thread-local
+error state. Unmarked calls leave the previous captured values unchanged.
+Capture requires a qualified external module. Duplicate or unknown capture
+kinds are rejected.
 
 ## Diagnostics
 

@@ -27,6 +27,8 @@ struct NativeCallContext {
   const std::vector<std::string>* argv = nullptr;
   std::vector<NativeHandleId>* file_handles = nullptr;
   std::string* dl_last_error = nullptr;
+  int32_t* ffi_errno = nullptr;
+  uint32_t* ffi_platform_error = nullptr;
   NativeResourceRegistry* resource_registry = nullptr;
   std::shared_ptr<Simple::VM::Runtime::PromiseRegistry> promise_registry;
   std::vector<std::string> borrowed_string_storage;

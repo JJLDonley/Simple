@@ -1,0 +1,3 @@
+extern fail : () -> i32 capture(last_error)
+
+main :: () -> i32 { return 0 }

@@ -136,6 +136,10 @@ The public experimental boundary carries only copied `i64` results and copied fa
 
 ## Dynamic libraries / FFI
 
+Native imports may request immediate `errno` and platform-error capture through
+verified import flags. Captured values are execution-local exact `i32` and
+`u32` values; unmarked imports leave them unchanged.
+
 `System.FFI` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime validates library handles, argument count and types, return shape, and ABI support. Recursive class ABI is rejected. Closing or shutting down the owning runtime releases the platform dynamic-library handle.
 
 The final external-C pointer contract is part of `v0.6` language completion, not later library work. Raw `T*` zero is deterministic but non-dereferenceable; nullable C pointers use `T*?` and lower absent/present through the C address-zero niche. Pointer-width integers, callbacks, pointee mutability, provenance, one-object extent, borrowed ownership, nullability, function-pointer identity, and lifetime are validated and represented in SBC/runtime ABI metadata. Owning raw pointers are not accepted; deallocator-backed host resources use typed generational handles. VM references and raw pointers are never interchangeable. See [Extern declarations and FFI ABI](Language.md#extern-declarations-and-ffi-abi).

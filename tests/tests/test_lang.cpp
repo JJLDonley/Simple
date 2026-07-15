@@ -475,6 +475,11 @@ bool LangSimpleFixtureCoreDlOpen() {
   return RunSimpleFileExpectExit("tests/simple/System_dl_open.simple", 1);
 }
 
+bool LangSimpleFixtureCoreDlErrorCapture() {
+  return RunSimpleFileExpectExit(
+      "tests/simple/System_dl_error_capture.simple", 1);
+}
+
 bool LangSimpleFixtureCoreDlOpenGlobal() {
   return RunSimpleFileExpectExit("tests/simple/System_dl_open_global.simple", 1);
 }
@@ -1009,7 +1014,7 @@ bool LangTaggedValueEmissionRuns() {
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
-  return sir.rfind("sir version 3.3\n", 0) == 0 &&
+  return sir.rfind("sir version 3.4\n", 0) == 0 &&
          sir.find("kind=optional") != std::string::npos &&
          sir.find("kind=result") != std::string::npos &&
          sir.find("propagate_value_") != std::string::npos &&
@@ -2408,11 +2413,24 @@ bool LangExternalU8StringLiteralContext() {
          std::string::npos;
 }
 
+bool LangExternErrorCaptureSyntaxErrors() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+             "tests/simple_bad/extern_capture_unknown.simple",
+             "extern capture expects 'errno' or 'platform'") &&
+         Simple::VM::Tests::RunSimpleFileExpectError(
+             "tests/simple_bad/extern_capture_duplicate.simple",
+             "duplicate extern error capture") &&
+         Simple::VM::Tests::RunSimpleFileExpectError(
+             "tests/simple_bad/extern_capture_unqualified.simple",
+             "native error capture requires a qualified extern module");
+}
+
 bool LangExternalPointerContractsReachSir() {
   const char* src =
       "View :: struct { data :: i32* }\n"
-      "extern probe :: (input :: i32*, buffer : inout i32*, output : out i32**, "
-      "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32*\n"
+      "extern ffi.probe :: (input :: i32*, buffer : inout i32*, output : out i32**, "
+      "maybe :: i32*?, callback :: (fn (i32) -> i32)*, view :: View) -> i32* "
+      "capture(errno, platform)\n"
       "main :: () -> i32 { return 0 }\n";
   std::string sir;
   std::string error;
@@ -2424,6 +2442,7 @@ bool LangExternalPointerContractsReachSir() {
              std::string::npos &&
          sir.find("ptr.external.borrowed.function") != std::string::npos &&
          sir.find("ptr.external.borrowed.result.readonly") != std::string::npos &&
+         sir.find("flags=3") != std::string::npos &&
          sir.find("field data ptr.external.borrowed.readonly") !=
              std::string::npos;
 }
@@ -4091,6 +4110,7 @@ const TestCase kLangTests[] = {
   {"lang_pointer_runtime_works", LangPointerRuntimeWorks},
   {"lang_pointer_lifetime_and_operation_errors", LangPointerLifetimeAndOperationErrors},
   {"lang_external_u8_string_literal_context", LangExternalU8StringLiteralContext},
+  {"lang_extern_error_capture_syntax_errors", LangExternErrorCaptureSyntaxErrors},
   {"lang_external_pointer_contracts_reach_sir", LangExternalPointerContractsReachSir},
   {"lang_extern_managed_types_rejected", LangExternManagedTypesRejected},
   {"lang_struct_managed_field_rejected", LangStructManagedFieldRejected},
@@ -4206,6 +4226,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
   {"lang_simple_fixture_System_dl_open", LangSimpleFixtureCoreDlOpen},
+  {"lang_simple_fixture_System_dl_error_capture",
+   LangSimpleFixtureCoreDlErrorCapture},
   {"lang_simple_fixture_System_dl_open_global", LangSimpleFixtureCoreDlOpenGlobal},
   {"lang_simple_fixture_float_literal_context", LangSimpleFixtureFloatLiteralContext},
   {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},

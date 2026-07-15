@@ -36,6 +36,8 @@ private:
   bool ParseCallableSignature(TypeRef* return_type,
                               std::vector<ParamDecl>* params);
   bool ParseParam(ParamDecl* out);
+  bool ParseExternErrorCapture(bool* capture_errno,
+                               bool* capture_platform_error);
   bool ParseAggregateDecl(const Token& name_tok,
                          std::vector<std::string> generics,
                          bool is_struct,

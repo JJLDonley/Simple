@@ -6175,7 +6175,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     item.module = module;
     item.symbol = symbol;
     item.sig_name = "sig_import_" + std::to_string(st.imports.size());
-    item.flags = 0;
+    item.flags =
+        (ext->capture_errno ? Simple::Byte::kImportFlagCaptureErrno : 0u) |
+        (ext->capture_platform_error
+             ? Simple::Byte::kImportFlagCapturePlatformError
+             : 0u);
     item.external_c = true;
     item.return_mutability = ext->return_mutability;
     std::vector<TypeRef> abi_params;
@@ -6267,7 +6271,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         dyn_item.module = "System.FFI";
         dyn_item.symbol = "call$" + std::to_string(dynamic_dl_call_index++);
         dyn_item.sig_name = "sig_import_" + std::to_string(st.imports.size());
-        dyn_item.flags = 0;
+        dyn_item.flags = st.imports.back().flags;
         dyn_item.external_c = true;
         dyn_item.return_mutability = st.imports.back().return_mutability;
         TypeRef ptr_type;
@@ -6381,47 +6385,6 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return true;
   };
 
-  auto native_type_to_lang_type = [&](Simple::Byte::TypeKind kind, TypeRef* out) -> bool {
-    if (!out) return false;
-    switch (kind) {
-      case Simple::Byte::TypeKind::Bool:
-        *out = make_type("bool");
-        return true;
-      case Simple::Byte::TypeKind::I32:
-        *out = make_type("i32");
-        return true;
-      case Simple::Byte::TypeKind::I64:
-        *out = make_type("i64");
-        return true;
-      case Simple::Byte::TypeKind::ISize:
-        *out = make_type("isize");
-        return true;
-      case Simple::Byte::TypeKind::USize:
-        *out = make_type("usize");
-        return true;
-      case Simple::Byte::TypeKind::F32:
-        *out = make_type("f32");
-        return true;
-      case Simple::Byte::TypeKind::F64:
-        *out = make_type("f64");
-        return true;
-      case Simple::Byte::TypeKind::String:
-        *out = make_type("string");
-        return true;
-      case Simple::Byte::TypeKind::Ptr:
-        *out = make_type("void");
-        out->pointer_depth = 1;
-        return true;
-      case Simple::Byte::TypeKind::Ref:
-        *out = make_list_type("i32");
-        return true;
-      case Simple::Byte::TypeKind::Unspecified:
-        *out = make_type("void");
-        return true;
-      default:
-        return false;
-    }
-  };
   auto library_type_to_lang_type = [&](const LibraryTypeSpec& spec, TypeRef* out) -> bool {
     if (!out) return false;
     std::string name(spec.name);
@@ -6461,11 +6424,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         params.reserve(spec.parameter_types.size());
         for (Simple::Byte::TypeKind kind : spec.parameter_types) {
           TypeRef param;
-          if (!native_type_to_lang_type(kind, &param)) return false;
+          if (!TAST::NativeTypeToLangType(kind, &param)) return false;
           params.push_back(std::move(param));
         }
         TypeRef ret;
-        if (!native_type_to_lang_type(spec.result_type, &ret)) return false;
+        if (!TAST::NativeTypeToLangType(spec.result_type, &ret)) return false;
         if (!add_reserved_import(alias, spec.module_name, spec.symbol_name, std::move(params), std::move(ret))) {
           return false;
         }

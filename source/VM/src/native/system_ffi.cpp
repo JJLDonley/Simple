@@ -172,6 +172,17 @@ NativeCallResult DlClose(NativeCallContext& context) {
   return NativeCallResult::I32(0);
 }
 
+NativeCallResult CapturedErrno(NativeCallContext& context) {
+  return NativeCallResult::I32(context.ffi_errno ? *context.ffi_errno : 0);
+}
+
+NativeCallResult CapturedPlatformError(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = Runtime::PackI32(static_cast<int32_t>(
+      context.ffi_platform_error ? *context.ffi_platform_error : 0u));
+  return result;
+}
+
 NativeCallResult DlLastError(NativeCallContext& context) {
   NativeCallResult result;
   if (!context.dl_last_error || context.dl_last_error->empty()) {
@@ -221,6 +232,15 @@ void RegisterSystemDl(NativeRegistry& registry) {
   registry.Register(WithStability(
       MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::LastError), {},
                TypeKind::String, DlLastError),
+      NativeStability::Unsafe));
+  registry.Register(WithStability(
+      MakeSpec(module, Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::Errno), {},
+               TypeKind::I32, CapturedErrno),
+      NativeStability::Unsafe));
+  registry.Register(WithStability(
+      MakeSpec(module,
+               Simple::Lang::ToMember(Simple::Lang::SystemFFIMember::PlatformError), {},
+               TypeKind::U32, CapturedPlatformError),
       NativeStability::Unsafe));
 }
 

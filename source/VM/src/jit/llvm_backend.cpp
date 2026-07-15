@@ -67,6 +67,11 @@ thread_local const Simple::VM::ExecOptions* g_llvm_exec_options = nullptr;
 thread_local std::vector<Simple::VM::Native::NativeHandleId> g_llvm_file_handles;
 thread_local Simple::VM::Native::NativeResourceRegistry g_llvm_resource_registry;
 thread_local std::string g_llvm_dl_last_error;
+thread_local int32_t g_llvm_owned_ffi_errno = 0;
+thread_local uint32_t g_llvm_owned_ffi_platform_error = 0;
+thread_local int32_t* g_llvm_ffi_errno = &g_llvm_owned_ffi_errno;
+thread_local uint32_t* g_llvm_ffi_platform_error =
+    &g_llvm_owned_ffi_platform_error;
 
 using EntryFn = uint64_t (*)(uint64_t*, uint32_t);
 
@@ -931,8 +936,15 @@ extern "C" uint64_t SimpleVmLlvmCallDynamicDl(const Simple::Byte::SbcModule* mod
   Slot ret = 0;
   std::string error;
   const bool ret_present = !LlvmTypeIdIsVoidLike(*module, sig.ret_type_id);
-  if (!Simple::VM::Ffi::DispatchDynamicDlCall(ptr_bits, *module, sig.ret_type_id, ret_present,
-                                             ffi_arg_type_ids, context.args, 1, *context.heap, &ret, &error)) {
+  uint32_t capture_flags = 0;
+  const size_t import_base = module->functions.size() - module->imports.size();
+  if (func_index >= import_base && func_index - import_base < module->imports.size()) {
+    capture_flags = module->imports[func_index - import_base].flags;
+  }
+  if (!Simple::VM::Ffi::DispatchDynamicDlCall(
+          ptr_bits, *module, sig.ret_type_id, ret_present, ffi_arg_type_ids,
+          context.args, 1, *context.heap, capture_flags, g_llvm_ffi_errno,
+          g_llvm_ffi_platform_error, &ret, &error)) {
     g_llvm_dl_last_error = error;
     Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, error);
     g_llvm_trap = true;
@@ -1027,6 +1039,8 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
     if (!Simple::VM::Runtime::DispatchImportCallByName(*module, options, *registry, *context.heap,
                                                        g_llvm_file_handles, g_llvm_resource_registry,
                                                        {}, g_llvm_dl_last_error,
+                                                       *g_llvm_ffi_errno,
+                                                       *g_llvm_ffi_platform_error,
                                                        func_index, context.args, ret, ret_present, error)) {
       Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, error);
       g_llvm_trap = true;
@@ -1039,7 +1053,9 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
     Slot ret = 0;
     bool ret_present = false;
     if (!backend.TryRunFunctionWithRuntime(*module, func_index, context.args, context.heap, context.globals,
-                                           g_llvm_exec_options, ret, ret_present, reason)) {
+                                           g_llvm_exec_options, ret, ret_present,
+                                           reason, g_llvm_ffi_errno,
+                                           g_llvm_ffi_platform_error)) {
       Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, reason);
       g_llvm_trap = true;
       return 0;
@@ -1102,12 +1118,25 @@ bool RunCachedEntry(const std::shared_ptr<CachedLlvmEntry>& cached,
                     const Simple::VM::ExecOptions* exec_options,
                     Slot& out_ret,
                     bool& out_has_ret,
-                    std::string& reason) {
+                    std::string& reason,
+                    int32_t* ffi_errno,
+                    uint32_t* ffi_platform_error) {
   uint64_t* raw_args = args.empty() ? nullptr : const_cast<uint64_t*>(args.data());
   Simple::VM::Heap* prev_heap = g_llvm_heap;
   std::vector<Slot>* prev_globals = g_llvm_globals;
   const Simple::Byte::SbcModule* prev_module = g_llvm_module;
   const Simple::VM::ExecOptions* prev_options = g_llvm_exec_options;
+  int32_t* prev_ffi_errno = g_llvm_ffi_errno;
+  uint32_t* prev_ffi_platform_error = g_llvm_ffi_platform_error;
+  if (ffi_errno && ffi_platform_error) {
+    g_llvm_ffi_errno = ffi_errno;
+    g_llvm_ffi_platform_error = ffi_platform_error;
+  } else {
+    g_llvm_owned_ffi_errno = 0;
+    g_llvm_owned_ffi_platform_error = 0;
+    g_llvm_ffi_errno = &g_llvm_owned_ffi_errno;
+    g_llvm_ffi_platform_error = &g_llvm_owned_ffi_platform_error;
+  }
   g_llvm_heap = heap;
   g_llvm_globals = globals_ptr;
   g_llvm_module = &module;
@@ -1118,6 +1147,8 @@ bool RunCachedEntry(const std::shared_ptr<CachedLlvmEntry>& cached,
   g_llvm_globals = prev_globals;
   g_llvm_module = prev_module;
   g_llvm_exec_options = prev_options;
+  g_llvm_ffi_errno = prev_ffi_errno;
+  g_llvm_ffi_platform_error = prev_ffi_platform_error;
   if (g_llvm_trap) {
     g_llvm_trap = false;
     reason = "unsupported";
@@ -1212,7 +1243,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                                                const Simple::VM::ExecOptions* exec_options,
                                                Slot& out_ret,
                                                bool& out_has_ret,
-                                               std::string& reason) const {
+                                               std::string& reason,
+                                               int32_t* ffi_errno,
+                                               uint32_t* ffi_platform_error) const {
 #if !defined(SIMPLEVM_HAS_LLVM)
   (void)module;
   (void)func_index;
@@ -1222,6 +1255,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   (void)exec_options;
   (void)out_ret;
   (void)out_has_ret;
+  (void)ffi_errno;
+  (void)ffi_platform_error;
   reason = "unsupported";
   return false;
 #else
@@ -1505,7 +1540,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       auto it = cache.find(cache_key);
       if (it != cache.end()) cached = it->second;
     }
-    if (cached) return RunCachedEntry(cached, module, args, heap, globals_ptr, exec_options, out_ret, out_has_ret, reason);
+    if (cached) return RunCachedEntry(cached, module, args, heap, globals_ptr, exec_options, out_ret, out_has_ret, reason, ffi_errno, ffi_platform_error);
     {
       std::lock_guard<std::mutex> lock(LlvmCacheMutex());
       auto& rejects = LlvmRejectCache();
@@ -5081,7 +5116,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     std::lock_guard<std::mutex> lock(LlvmCacheMutex());
     LlvmCache()[cache_key] = cached;
   }
-  return RunCachedEntry(cached, module, args, heap, globals_ptr, exec_options, out_ret, out_has_ret, reason);
+  return RunCachedEntry(cached, module, args, heap, globals_ptr, exec_options, out_ret, out_has_ret, reason, ffi_errno, ffi_platform_error);
 #endif
 }
 
